@@ -338,22 +338,23 @@ export default function CRMDataPage() {
           ) : (
             <div className="border rounded-lg overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="min-w-[1200px] w-full">
                   <thead className="bg-muted">
                     <tr>
-                      <th className="text-left p-3 font-medium">Sipariş No</th>
-                      <th className="text-left p-3 font-medium">Müşteri</th>
-                      <th className="text-left p-3 font-medium">Ürünler</th>
-                      <th className="text-left p-3 font-medium">Durum</th>
-                      <th className="text-left p-3 font-medium">Kargo</th>
-                      <th className="text-left p-3 font-medium">Tutar</th>
-                      <th className="text-left p-3 font-medium">Tarih</th>
+                      <th className="text-left p-3 font-medium whitespace-nowrap">Sipariş No</th>
+                      <th className="text-left p-3 font-medium whitespace-nowrap">Müşteri</th>
+                      <th className="text-left p-3 font-medium whitespace-nowrap">Ürünler</th>
+                      <th className="text-left p-3 font-medium whitespace-nowrap">Durum</th>
+                      <th className="text-left p-3 font-medium whitespace-nowrap">Kargo</th>
+                      <th className="text-left p-3 font-medium whitespace-nowrap">Tutar</th>
+                      <th className="text-left p-3 font-medium whitespace-nowrap">Tah. Teslimat</th>
+                      <th className="text-left p-3 font-medium whitespace-nowrap">Güncellenme</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filterOrders.map((order) => (
                       <tr key={order.id} className="border-t hover:bg-muted/50">
-                        <td className="p-3">
+                        <td className="p-3 whitespace-nowrap">
                           <div className="flex items-center gap-2">
                             <Hash className="w-4 h-4 text-muted-foreground" />
                             <span className="font-mono">{order.orderNumber}</span>
@@ -379,13 +380,13 @@ export default function CRMDataPage() {
                             )}
                           </div>
                         </td>
-                        <td className="p-3 text-sm max-w-xs">
+                        <td className="p-3 text-sm">
                           {order.items && Array.isArray(order.items) && order.items.length > 0 ? (
                             <div className="space-y-1">
                               {order.items.slice(0, 3).map((item, idx) => (
                                 <div key={idx} className="flex items-center gap-1">
                                   <ShoppingBag className="w-3 h-3 text-muted-foreground shrink-0" />
-                                  <span className="truncate">
+                                  <span className="truncate max-w-[200px]">
                                     {item.name || item.productName || item.title || JSON.stringify(item)}
                                     {item.quantity ? ` ×${item.quantity}` : ''}
                                   </span>
@@ -419,20 +420,30 @@ export default function CRMDataPage() {
                             <span className="text-muted-foreground text-sm">-</span>
                           )}
                         </td>
-                        <td className="p-3">
+                        <td className="p-3 whitespace-nowrap">
                           {order.totalAmount ? (
                             <div className="flex items-center gap-1">
                               <DollarSign className="w-4 h-4 text-muted-foreground" />
-                              <span className="font-medium">{order.totalAmount.toFixed(2)} ₺</span>
+                              <span className="font-medium">{order.totalAmount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺</span>
                             </div>
                           ) : (
                             <span className="text-muted-foreground text-sm">-</span>
                           )}
                         </td>
-                        <td className="p-3 text-sm text-muted-foreground">
+                        <td className="p-3 text-sm text-muted-foreground whitespace-nowrap">
+                          {order.estimatedDelivery ? (
+                            <div className="flex items-center gap-2">
+                              <Calendar className="w-4 h-4" />
+                              {formatDate(order.estimatedDelivery)}
+                            </div>
+                          ) : (
+                            <span>-</span>
+                          )}
+                        </td>
+                        <td className="p-3 text-sm text-muted-foreground whitespace-nowrap">
                           <div className="flex items-center gap-2">
                             <Clock className="w-4 h-4" />
-                            {formatDate(order.createdAt)}
+                            {formatDate(order.updatedAt)}
                           </div>
                         </td>
                       </tr>
@@ -459,14 +470,14 @@ export default function CRMDataPage() {
           ) : (
             <div className="border rounded-lg overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="min-w-[800px] w-full">
                   <thead className="bg-muted">
                     <tr>
-                      <th className="text-left p-3 font-medium">SKU</th>
-                      <th className="text-left p-3 font-medium">Ürün Adı</th>
-                      <th className="text-left p-3 font-medium">Stok</th>
-                      <th className="text-left p-3 font-medium">Fiyat</th>
-                      <th className="text-left p-3 font-medium">Son Güncelleme</th>
+                      <th className="text-left p-3 font-medium whitespace-nowrap">SKU</th>
+                      <th className="text-left p-3 font-medium whitespace-nowrap">Ürün Adı</th>
+                      <th className="text-left p-3 font-medium whitespace-nowrap">Stok</th>
+                      <th className="text-left p-3 font-medium whitespace-nowrap">Fiyat</th>
+                      <th className="text-left p-3 font-medium whitespace-nowrap">Güncellenme</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -513,38 +524,48 @@ export default function CRMDataPage() {
           ) : (
             <div className="border rounded-lg overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="min-w-[1400px] w-full">
                   <thead className="bg-muted">
                     <tr>
-                      <th className="text-left p-3 font-medium">Servis No</th>
-                      <th className="text-left p-3 font-medium">Müşteri</th>
-                      <th className="text-left p-3 font-medium">Ürün</th>
-                      <th className="text-left p-3 font-medium">Durum</th>
-                      <th className="text-left p-3 font-medium">Sorun / Notlar</th>
-                      <th className="text-left p-3 font-medium">Maliyet</th>
-                      <th className="text-left p-3 font-medium">Tarih</th>
+                      <th className="text-left p-3 font-medium whitespace-nowrap">Servis No</th>
+                      <th className="text-left p-3 font-medium whitespace-nowrap">Müşteri</th>
+                      <th className="text-left p-3 font-medium whitespace-nowrap">E-posta</th>
+                      <th className="text-left p-3 font-medium whitespace-nowrap">Ürün</th>
+                      <th className="text-left p-3 font-medium whitespace-nowrap">Durum</th>
+                      <th className="text-left p-3 font-medium whitespace-nowrap">Sorun</th>
+                      <th className="text-left p-3 font-medium whitespace-nowrap">Notlar</th>
+                      <th className="text-left p-3 font-medium whitespace-nowrap">Maliyet</th>
+                      <th className="text-left p-3 font-medium whitespace-nowrap">Tah. Tamamlanma</th>
+                      <th className="text-left p-3 font-medium whitespace-nowrap">Güncellenme</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filterTickets.map((ticket) => (
                       <tr key={ticket.id} className="border-t hover:bg-muted/50">
-                        <td className="p-3 font-mono">{ticket.ticketNumber}</td>
+                        <td className="p-3 font-mono whitespace-nowrap">{ticket.ticketNumber}</td>
                         <td className="p-3">
                           <div>
-                            <div className="font-medium">{ticket.customerName || 'N/A'}</div>
+                            <div className="flex items-center gap-2">
+                              <User className="w-4 h-4 text-muted-foreground" />
+                              <span className="font-medium">{ticket.customerName || 'N/A'}</span>
+                            </div>
                             {ticket.customerPhone && (
                               <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                                 <Phone className="w-3 h-3" />
                                 {ticket.customerPhone}
                               </div>
                             )}
-                            {ticket.customerEmail && (
-                              <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                                <Mail className="w-3 h-3" />
-                                {ticket.customerEmail}
-                              </div>
-                            )}
                           </div>
+                        </td>
+                        <td className="p-3 text-sm text-muted-foreground">
+                          {ticket.customerEmail ? (
+                            <div className="flex items-center gap-1">
+                              <Mail className="w-3 h-3" />
+                              <span>{ticket.customerEmail}</span>
+                            </div>
+                          ) : (
+                            <span>-</span>
+                          )}
                         </td>
                         <td className="p-3 text-sm">
                           {ticket.product || '-'}
@@ -554,27 +575,13 @@ export default function CRMDataPage() {
                             {TICKET_STATUS_LABELS[ticket.status] || ticket.status}
                           </Badge>
                         </td>
-                        <td className="p-3 max-w-xs text-sm">
-                          {ticket.issue || ticket.notes ? (
-                            <div>
-                              {ticket.issue && (
-                                <div className="flex items-start gap-1">
-                                  <AlertCircle className="w-3 h-3 text-muted-foreground mt-0.5 shrink-0" />
-                                  <span>{ticket.issue}</span>
-                                </div>
-                              )}
-                              {ticket.notes && (
-                                <div className="flex items-start gap-1 mt-1 text-muted-foreground">
-                                  <FileText className="w-3 h-3 mt-0.5 shrink-0" />
-                                  <span className="truncate">{ticket.notes}</span>
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
+                        <td className="p-3 text-sm max-w-[200px]">
+                          {ticket.issue || '-'}
                         </td>
-                        <td className="p-3 text-sm">
+                        <td className="p-3 text-sm max-w-[200px] text-muted-foreground">
+                          {ticket.notes || '-'}
+                        </td>
+                        <td className="p-3 text-sm whitespace-nowrap">
                           {ticket.cost ? (
                             <div className="flex items-center gap-1">
                               <CircleDollarSign className="w-4 h-4 text-muted-foreground" />
@@ -584,8 +591,21 @@ export default function CRMDataPage() {
                             <span className="text-muted-foreground">-</span>
                           )}
                         </td>
-                        <td className="p-3 text-sm text-muted-foreground">
-                          {formatDate(ticket.createdAt)}
+                        <td className="p-3 text-sm text-muted-foreground whitespace-nowrap">
+                          {ticket.estimatedCompletion ? (
+                            <div className="flex items-center gap-2">
+                              <Calendar className="w-4 h-4" />
+                              {formatDate(ticket.estimatedCompletion)}
+                            </div>
+                          ) : (
+                            <span>-</span>
+                          )}
+                        </td>
+                        <td className="p-3 text-sm text-muted-foreground whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-4 h-4" />
+                            {formatDate(ticket.updatedAt)}
+                          </div>
                         </td>
                       </tr>
                     ))}
