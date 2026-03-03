@@ -281,6 +281,14 @@ function inferFlowFromMessage(message = '') {
   const text = normalizeFlowHeuristicText(message);
   if (!text) return null;
 
+  // P10-FIX: Service/ticket keywords checked FIRST.
+  // If service signal present, stock/product inference is skipped to prevent
+  // "servis durumu" queries from falling into STOCK_CHECK flow.
+  const servicePattern = /\b(servis|ariza|ticket|destek|tamir|onarim|bakim|teknik\s*servis|servis\s*durumu|servis\s*no)\b/;
+  if (servicePattern.test(text)) {
+    return 'SERVICE_INQUIRY';
+  }
+
   const stockPattern = /\b(stok|stock|envanter|available|availability|kac tane|kac adet|adet|tane|kac var|ne kadar var)\b/;
   if (stockPattern.test(text)) {
     return 'STOCK_CHECK';
@@ -445,7 +453,7 @@ export async function makeRoutingDecision(params) {
   // LLM sees the conversation history and understands what the user is providing.
   // Only apply verification flow for intents that actually need it.
   // Stock follow-ups should never trigger verification.
-  const NON_VERIFICATION_FLOWS = ['STOCK_CHECK', 'PRODUCT_INFO'];
+  const NON_VERIFICATION_FLOWS = ['STOCK_CHECK', 'PRODUCT_INFO', 'SERVICE_INQUIRY'];
   const inferredFlow = inferFlowFromMessage(userMessage);
   // Also check lastStockContext — after post-result reset, activeFlow is null
   // but we still shouldn't inject verification for stock follow-ups.

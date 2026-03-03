@@ -48,6 +48,24 @@ export async function persistEmailMetrics(ctx) {
       hasContent: !!draftContent
     });
 
+    // P12-FIX: Cancel any existing PENDING_REVIEW drafts for this message/thread
+    // before creating the new one. Enforces "single active draft" invariant so
+    // regenerated drafts don't pile up in the UI.
+    const cancelledDrafts = await prisma.emailDraft.updateMany({
+      where: {
+        threadId: thread.id,
+        messageId: inboundMessage.id,
+        status: 'PENDING_REVIEW'
+      },
+      data: {
+        status: 'SUPERSEDED'
+      }
+    });
+
+    if (cancelledDrafts.count > 0) {
+      console.log(`📧 [Persist] Superseded ${cancelledDrafts.count} previous draft(s)`);
+    }
+
     const draft = await prisma.emailDraft.create({
       data: {
         messageId: inboundMessage.id,

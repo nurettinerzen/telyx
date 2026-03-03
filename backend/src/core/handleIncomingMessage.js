@@ -723,6 +723,8 @@ export async function handleIncomingMessage({
           ...metrics,
           llmCalled: false,
           LLM_CALLED: false,
+          bypassed: true,
+          bypassReason: 'CHILD_SAFETY',
           contentSafetyBlock: true,
           securityTelemetry: contentSafetyTelemetry
         },
@@ -794,6 +796,8 @@ export async function handleIncomingMessage({
           ...metrics,
           llmCalled: false,
           LLM_CALLED: false,
+          bypassed: true,
+          bypassReason: 'SESSION_THROTTLE',
           sessionThrottled: true,
           securityTelemetry: throttleTelemetry
         },
@@ -877,6 +881,8 @@ export async function handleIncomingMessage({
             ...metrics,
             llmCalled: false,
             LLM_CALLED: false,
+            bypassed: true,
+            bypassReason: 'PROMPT_INJECTION',
             injectionBlock: true,
             securityTelemetry: injectionTelemetry
           },
@@ -953,7 +959,13 @@ export async function handleIncomingMessage({
         lockReason: contextResult.terminationReason,
         lockUntil: contextResult.lockUntil,
         state: contextResult.state,
-        metrics,
+        metrics: {
+          ...metrics,
+          llmCalled: false,
+          LLM_CALLED: false,
+          bypassed: true,
+          bypassReason: contextResult.locked ? 'SESSION_LOCK' : 'SESSION_TERMINATED'
+        },
         inputTokens: 0,
         outputTokens: 0,
         debug: {
@@ -1836,7 +1848,10 @@ export async function handleIncomingMessage({
       shouldEndSession: false,
       forceEnd: false,
       state: null,
-      metrics,
+      metrics: {
+        ...metrics,
+        bypassReason: metrics.LLM_CALLED === true ? 'LLM_PROVIDER_ERROR' : 'ORCHESTRATOR_FATAL'
+      },
       inputTokens: 0,
       outputTokens: 0,
       debug: {

@@ -37,7 +37,8 @@ export function emitTurnMetrics(metrics) {
     llmCallReason = null,
     llm_call_reason = null,
     llmBypassed = null,
-    bypassed = null
+    bypassed = null,
+    bypassReason = null       // P15-FIX: reason-coded bypass origin
   } = metrics;
 
   const llmCalledFlag = llmCalled === true || LLM_CALLED === true;
@@ -64,7 +65,8 @@ export function emitTurnMetrics(metrics) {
     llmCalled: llmCalledFlag,
     LLM_CALLED: llmCalledFlag,
     llm_call_reason: llmReason,
-    bypassed: llmBypassFlag
+    bypassed: llmBypassFlag,
+    bypassReason: bypassReason || null   // e.g. CHILD_SAFETY, SESSION_THROTTLE, PROMPT_INJECTION, SESSION_LOCK
   };
 
   // Identity proof telemetry (when channel proof is evaluated)

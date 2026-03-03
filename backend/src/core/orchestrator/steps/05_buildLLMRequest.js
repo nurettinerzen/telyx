@@ -44,6 +44,11 @@ function inferFlowFromMessage(message = '') {
   const text = normalizeFlowHeuristicText(message);
   if (!text) return null;
 
+  // P10-FIX: Service/ticket signal checked first — prevents stock/product mis-routing.
+  if (/\b(servis|ariza|ticket|destek|tamir|onarim|bakim|teknik\s*servis|servis\s*durumu|servis\s*no)\b/.test(text)) {
+    return 'SERVICE_INQUIRY';
+  }
+
   if (/\b(stok|stock|envanter|available|availability|kac tane|kac adet|adet|tane|kac var|ne kadar var)\b/.test(text)) {
     return 'STOCK_CHECK';
   }

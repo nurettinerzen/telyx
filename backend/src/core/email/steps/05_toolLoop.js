@@ -205,6 +205,8 @@ function determineToolsToRun(classification, availableTools, inboundMessage, thr
   });
 
   // Determine query_type based on classification intent
+  // P9-FIX: FOLLOW_UP and GENERAL no longer blindly default to 'siparis'.
+  // Context-aware: ticket/service signal → ariza, order signal → siparis, else → genel.
   const intentToQueryType = {
     'ORDER': 'siparis',
     'BILLING': 'muhasebe',
@@ -212,9 +214,22 @@ function determineToolsToRun(classification, availableTools, inboundMessage, thr
     'SUPPORT': 'ariza',
     'COMPLAINT': 'siparis',  // Complaints usually about orders
     'INQUIRY': 'genel',
-    'FOLLOW_UP': 'siparis',  // Follow-ups usually about orders
-    'GENERAL': 'siparis'     // Fallback: when classification fails, default to order lookup
+    'FOLLOW_UP': null,       // Resolved dynamically below
+    'GENERAL': null          // Resolved dynamically below
   };
+
+  // Dynamic query_type resolution for ambiguous intents
+  function resolveQueryType(intent, { hasTicket, hasOrder, body = '' }) {
+    const staticType = intentToQueryType[intent];
+    if (staticType) return staticType;
+    // Service/ticket signals take priority
+    if (hasTicket) return 'ariza';
+    if (/(?:servis|arıza|ariza|ticket|destek|tamir|onarim|onarım)/i.test(body)) return 'ariza';
+    // Order signals
+    if (hasOrder) return 'siparis';
+    if (/(?:sipariş|siparis|kargo|teslimat|iade)/i.test(body)) return 'siparis';
+    return 'genel';
+  }
 
   // customer_data_lookup: The universal lookup tool
   // Runs whenever we have ANY identifier (phone, order number, vkn, tc, ticket)
@@ -225,7 +240,11 @@ function determineToolsToRun(classification, availableTools, inboundMessage, thr
       const hasAnyIdentifier = extractedPhone || extractedOrderNumber || extractedVkn || extractedTc || extractedTicket;
 
       if (hasAnyIdentifier) {
-        const queryType = intentToQueryType[classification.intent] || 'genel';
+        const queryType = resolveQueryType(classification.intent, {
+          hasTicket: !!extractedTicket,
+          hasOrder: !!extractedOrderNumber,
+          body: latestBody
+        });
         const args = { query_type: queryType };
 
         // Add all found identifiers
@@ -262,7 +281,10 @@ function determineToolsToRun(classification, availableTools, inboundMessage, thr
   // Stock lookup if product/stock/SKU mentioned — intent-agnostic
   // P5-FIX: Classification intent is unreliable for stock queries (often misclassified
   // as GENERAL/ORDER). Stock keywords in email body are sufficient signal.
-  if (availableTools.includes('check_stock_crm')) {
+  // P7-FIX: SUPPORT/COMPLAINT intents must NOT trigger stock lookup.
+  // Service/ticket queries were falling into stock NOT_FOUND → verification loop.
+  const isServiceContext = ['SUPPORT', 'COMPLAINT'].includes(classification.intent);
+  if (availableTools.includes('check_stock_crm') && !isServiceContext) {
     const stockKeywords = /(?:stok|stock|ürün\s*(?:durumu|bilgisi)|urun|var\s*mı|mevcut)/i;
     // SKU pattern: alphanumeric codes with hyphens (e.g. SMOKE-IPH16P, CK212LGT29)
     const skuPattern = /\b([A-Z0-9][A-Z0-9\-]{4,}[A-Z0-9])\b/;
