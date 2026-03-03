@@ -11,7 +11,9 @@
 
 export default {
   name: 'customer_data_lookup',
-  description: `Müşteri verilerini sorgular. SİPARİŞ, MUHASEBE, ARIZA TAKİP, RANDEVU gibi TÜM VERİ TİPLERİNİ destekler.
+  description: `Müşteri verilerini sorgular. SİPARİŞ, MUHASEBE, RANDEVU gibi VERİ TİPLERİNİ destekler.
+
+⚠️ ARIZA/SERVİS TAKİP İÇİN BU ARACI KULLANMA → check_ticket_status_crm aracını kullan.
 
 ÖNCELİKLİ SORGULAMA AKIŞI (query_type'a göre):
 
@@ -24,11 +26,6 @@ export default {
 1. ÖNCE VKN veya TC Kimlik No sor
 2. VKN/TC yoksa telefon numarası sor
 3. Doğrulama: Firma ismi veya isim/soyisim sor
-
-🔧 ARIZA/SERVİS TAKİP (query_type: "ariza"):
-1. ÖNCE servis/arıza numarası sor
-2. Yoksa telefon numarası sor
-3. Doğrulama: İsim/soyisim sor
 
 📅 RANDEVU SORGUSU (query_type: "randevu"):
 1. Telefon numarası sor
@@ -53,8 +50,8 @@ DOĞRULAMA AKIŞI:
     properties: {
       query_type: {
         type: 'string',
-        enum: ['siparis', 'order', 'muhasebe', 'sgk_borcu', 'vergi_borcu', 'ariza', 'randevu', 'genel'],
-        description: 'ZORUNLU: Sorgu türü. Sipariş için "siparis", muhasebe için "muhasebe", arıza için "ariza", randevu için "randevu"'
+        enum: ['siparis', 'order', 'muhasebe', 'sgk_borcu', 'vergi_borcu', 'randevu', 'genel'],
+        description: 'ZORUNLU: Sorgu türü. Sipariş için "siparis", muhasebe için "muhasebe", randevu için "randevu". Arıza/servis için bu aracı DEĞİL check_ticket_status_crm aracını kullan.'
       },
       order_number: {
         type: 'string',
@@ -71,10 +68,6 @@ DOĞRULAMA AKIŞI:
       tc: {
         type: 'string',
         description: 'TC Kimlik No (11 haneli) - Muhasebe sorgusunda PRIMARY bilgi (şahıs için)'
-      },
-      ticket_number: {
-        type: 'string',
-        description: 'Servis/Arıza numarası - Arıza takipte PRIMARY bilgi'
       },
       customer_name: {
         type: 'string',

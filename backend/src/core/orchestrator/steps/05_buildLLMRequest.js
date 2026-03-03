@@ -15,7 +15,8 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 const FLOW_TOOL_OVERRIDES = Object.freeze({
   STOCK_CHECK: ['get_product_stock', 'check_stock_crm'],
-  CALLBACK_REQUEST: ['create_callback']
+  CALLBACK_REQUEST: ['create_callback'],
+  SERVICE_INQUIRY: ['check_ticket_status_crm', 'customer_data_lookup', 'create_callback']
 });
 
 function normalizeFlowName(flowName) {
