@@ -405,7 +405,7 @@ export default function CRMDataPage() {
                             <div className="space-y-1">
                               {order.items.slice(0, 3).map((item, idx) => (
                                 <div key={idx}>
-                                  <span>{item.quantity || '-'}</span>
+                                  <span>{item.quantity || item.qty || '-'}</span>
                                 </div>
                               ))}
                               {order.items.length > 3 && (
