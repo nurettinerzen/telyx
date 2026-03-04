@@ -117,11 +117,12 @@ class RateLimiter {
  * Create rate limiter instances for different use cases
  */
 
-// Rate limiter for webhook endpoints (200 requests per minute)
-// CRM webhooks may send bulk data (e.g. 100 stock items at once)
+// Rate limiter for webhook endpoints (500 requests per minute)
+// CRM webhooks may send bulk data (e.g. 100+ stock/order items at once)
+// TODO: Make dynamic per subscription plan (Free: 200, Pro: 500, Enterprise: unlimited)
 export const webhookRateLimiter = new RateLimiter({
   windowMs: 60000, // 1 minute
-  maxRequests: 200 // 200 requests per minute for bulk imports
+  maxRequests: 500 // 500 requests per minute for bulk imports
 });
 
 // Standard rate limiter for API endpoints (100 requests per minute)
