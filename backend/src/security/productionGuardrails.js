@@ -11,13 +11,20 @@ const REQUIRED_PRODUCTION_ENV = [
   },
   {
     key: 'KEY_PROVIDER',
-    validate: (value) => ['vault', 'kms'].includes(String(value || '').toLowerCase()),
-    message: 'KEY_PROVIDER must be "vault" or "kms".',
+    validate: (value) => ['vault', 'kms', 'env'].includes(String(value || '').toLowerCase()),
+    message: 'KEY_PROVIDER must be "vault", "kms", or "env".',
   },
   {
-    key: 'ENCRYPTION_SECRET',
-    validate: (value) => typeof value === 'string' && value.trim().length >= 16,
-    message: 'ENCRYPTION_SECRET must be set to at least 16 characters.',
+    key: 'ENCRYPTION_MASTER_KEY',
+    validate: () => {
+      const masterKey = process.env.ENCRYPTION_MASTER_KEY;
+      const legacyKey = process.env.ENCRYPTION_SECRET;
+      return (
+        (typeof masterKey === 'string' && masterKey.trim().length >= 16) ||
+        (typeof legacyKey === 'string' && legacyKey.trim().length >= 16)
+      );
+    },
+    message: 'ENCRYPTION_MASTER_KEY (or legacy ENCRYPTION_SECRET) must be set to at least 16 characters.',
   },
   {
     key: 'TLS_TRUST_POLICY',

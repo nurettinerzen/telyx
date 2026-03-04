@@ -6,6 +6,8 @@
 import { google } from 'googleapis';
 import { PrismaClient } from '@prisma/client';
 import { convert } from 'html-to-text';
+import { encryptGoogleTokenCredentials, decryptGoogleTokenCredentials } from '../utils/google-oauth-tokens.js';
+import { revokeGoogleOAuthToken } from '../utils/google-oauth-revoke.js';
 
 const prisma = new PrismaClient();
 
@@ -127,24 +129,46 @@ class GmailService {
       const userInfo = await oauth2.userinfo.get();
       const email = userInfo.data.email;
 
-await prisma.emailIntegration.upsert({
-  where: { businessId },
-  update: {
-    provider: 'GMAIL',
-    email,
-    credentials: tokens,
-    connected: true
-    // lastSyncedAt kaldırıldı - ilk sync'te 7 gün getirecek
-  },
-  create: {
-    businessId,
-    provider: 'GMAIL',
-    email,
-    credentials: tokens,
-    connected: true
-    // lastSyncedAt kaldırıldı - ilk sync'te 7 gün getirecek
-  }
-});
+      let mergedTokens = { ...tokens };
+      if (!mergedTokens.refresh_token) {
+        try {
+          const existingIntegration = await prisma.emailIntegration.findUnique({
+            where: { businessId }
+          });
+          if (existingIntegration?.credentials) {
+            const { credentials: existingCredentials } = decryptGoogleTokenCredentials(existingIntegration.credentials);
+            if (existingCredentials.refresh_token) {
+              mergedTokens = {
+                ...mergedTokens,
+                refresh_token: existingCredentials.refresh_token
+              };
+            }
+          }
+        } catch (mergeError) {
+          console.warn(`Gmail refresh token merge skipped for business ${businessId}:`, mergeError.message);
+        }
+      }
+
+      const encryptedTokens = encryptGoogleTokenCredentials(mergedTokens);
+
+      await prisma.emailIntegration.upsert({
+        where: { businessId },
+        update: {
+          provider: 'GMAIL',
+          email,
+          credentials: encryptedTokens,
+          connected: true
+          // lastSyncedAt kaldırıldı - ilk sync'te 7 gün getirecek
+        },
+        create: {
+          businessId,
+          provider: 'GMAIL',
+          email,
+          credentials: encryptedTokens,
+          connected: true
+          // lastSyncedAt kaldırıldı - ilk sync'te 7 gün getirecek
+        }
+      });
 
       console.log(`Gmail connected for business ${businessId}: ${email}`);
       return { success: true, email };
@@ -166,22 +190,41 @@ await prisma.emailIntegration.upsert({
       throw new Error('Gmail not connected');
     }
 
-    const credentials = integration.credentials;
+    const {
+      credentials,
+      needsMigration
+    } = decryptGoogleTokenCredentials(integration.credentials);
     const oauth2Client = this.createOAuth2Client();
     oauth2Client.setCredentials(credentials);
+
+    if (needsMigration) {
+      await prisma.emailIntegration.update({
+        where: { businessId },
+        data: {
+          credentials: encryptGoogleTokenCredentials(credentials)
+        }
+      });
+    }
 
     // Check if token is expired or needs refresh
     if (credentials.expiry_date && credentials.expiry_date < Date.now()) {
       try {
-        const { credentials: newTokens } = await oauth2Client.refreshAccessToken();
+        const { credentials: refreshedTokens } = await oauth2Client.refreshAccessToken();
+        const mergedTokens = {
+          ...credentials,
+          ...refreshedTokens,
+          refresh_token: refreshedTokens.refresh_token || credentials.refresh_token
+        };
 
         // Update stored credentials
         await prisma.emailIntegration.update({
           where: { businessId },
-          data: { credentials: newTokens }
+          data: {
+            credentials: encryptGoogleTokenCredentials(mergedTokens)
+          }
         });
 
-        oauth2Client.setCredentials(newTokens);
+        oauth2Client.setCredentials(mergedTokens);
         console.log(`Gmail token refreshed for business ${businessId}`);
       } catch (error) {
         console.error('Token refresh failed:', error);
@@ -193,7 +236,8 @@ await prisma.emailIntegration.upsert({
             where: { businessId },
             data: {
               connected: false,
-              lastSyncedAt: null
+              lastSyncedAt: null,
+              credentials: {}
             }
           });
           console.log(`Gmail disconnected for business ${businessId} due to invalid_grant`);
@@ -413,11 +457,26 @@ async syncNewMessages(businessId) {
  */
 async disconnect(businessId) {
   try {
+    const integration = await prisma.emailIntegration.findUnique({
+      where: { businessId }
+    });
+
+    if (integration?.provider === 'GMAIL') {
+      try {
+        const { credentials } = decryptGoogleTokenCredentials(integration.credentials);
+        const revokeToken = credentials.refresh_token || credentials.access_token;
+        await revokeGoogleOAuthToken(revokeToken);
+      } catch (revokeError) {
+        console.warn(`Gmail token revoke skipped for business ${businessId}:`, revokeError.message);
+      }
+    }
+
     await prisma.emailIntegration.update({
       where: { businessId },
       data: { 
         connected: false,
-        lastSyncedAt: null  // ← BUNU EKLE
+        lastSyncedAt: null,
+        credentials: {}
       }
     });
 

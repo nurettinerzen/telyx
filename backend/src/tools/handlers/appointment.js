@@ -9,6 +9,7 @@ import netgsmService from '../../services/netgsm.js';
 import axios from 'axios';
 import { ok, validationError, systemError } from '../toolResult.js';
 import { maskPhone } from '../../utils/pii-redaction.js';
+import { decryptGoogleTokenCredentials, encryptGoogleTokenCredentials } from '../../utils/google-oauth-tokens.js';
 
 const prisma = new PrismaClient();
 
@@ -104,7 +105,21 @@ export async function execute(args, business, context = {}) {
       console.log('📅 Creating Google Calendar event for business:', business.name);
 
       try {
-        const { access_token, refresh_token } = googleCalendarIntegration.credentials;
+        const {
+          credentials,
+          needsMigration
+        } = decryptGoogleTokenCredentials(googleCalendarIntegration.credentials);
+        const { access_token, refresh_token } = credentials;
+
+        if (needsMigration && googleCalendarIntegration.id) {
+          await prisma.integration.update({
+            where: { id: googleCalendarIntegration.id },
+            data: {
+              credentials: encryptGoogleTokenCredentials(credentials)
+            }
+          });
+        }
+
         const duration = business.bookingDuration || 30;
         const endDateTime = new Date(appointmentDateTime.getTime() + duration * 60000);
 

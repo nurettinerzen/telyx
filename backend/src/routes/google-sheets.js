@@ -9,6 +9,8 @@ import { authenticateToken, requireRole } from '../middleware/auth.js';
 import googleSheetsService from '../services/google-sheets.js';
 import { generateOAuthState, validateOAuthState } from '../middleware/oauthState.js';
 import { safeRedirect } from '../middleware/redirectWhitelist.js';
+import { decryptTokenValue, encryptTokenValue, isEncryptedValue } from '../utils/encryption.js';
+import { revokeGoogleOAuthToken } from '../utils/google-oauth-revoke.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -31,41 +33,68 @@ const getGoogleCredentials = () => {
 
 // Helper: Check and refresh token if needed
 const ensureValidToken = async (business) => {
-  if (!business.googleSheetsRefreshToken) {
+  const refreshToken = decryptTokenValue(business.googleSheetsRefreshToken, { allowPlaintext: true });
+  const accessToken = decryptTokenValue(business.googleSheetsAccessToken, { allowPlaintext: true });
+
+  if (!refreshToken) {
     throw new Error('No refresh token available');
   }
+
+  const refreshNeedsMigration = typeof business.googleSheetsRefreshToken === 'string'
+    && business.googleSheetsRefreshToken.length > 0
+    && !isEncryptedValue(business.googleSheetsRefreshToken);
+  const accessNeedsMigration = typeof business.googleSheetsAccessToken === 'string'
+    && business.googleSheetsAccessToken.length > 0
+    && !isEncryptedValue(business.googleSheetsAccessToken);
 
   const { clientId, clientSecret } = getGoogleCredentials();
   const now = new Date();
 
   // Check if token is expired or will expire in next 5 minutes
-  if (business.googleSheetsTokenExpiry && new Date(business.googleSheetsTokenExpiry) > new Date(now.getTime() + 5 * 60 * 1000)) {
+  if (accessToken && business.googleSheetsTokenExpiry && new Date(business.googleSheetsTokenExpiry) > new Date(now.getTime() + 5 * 60 * 1000)) {
+    if (refreshNeedsMigration || accessNeedsMigration) {
+      await prisma.business.update({
+        where: { id: business.id },
+        data: {
+          ...(accessToken ? { googleSheetsAccessToken: encryptTokenValue(accessToken) } : {}),
+          ...(refreshToken ? { googleSheetsRefreshToken: encryptTokenValue(refreshToken) } : {})
+        }
+      });
+    }
+
     return {
-      accessToken: business.googleSheetsAccessToken,
-      refreshToken: business.googleSheetsRefreshToken
+      accessToken,
+      refreshToken
     };
   }
 
   // Refresh the token
   console.log(`Refreshing Google Sheets token for business ${business.id}`);
   const credentials = await googleSheetsService.refreshAccessToken(
-    business.googleSheetsRefreshToken,
+    refreshToken,
     clientId,
     clientSecret
   );
+  const nextAccessToken = credentials.access_token;
+  const nextRefreshToken = credentials.refresh_token || refreshToken;
+
+  if (!nextAccessToken) {
+    throw new Error('Failed to refresh access token');
+  }
 
   // Update tokens in database
   await prisma.business.update({
     where: { id: business.id },
     data: {
-      googleSheetsAccessToken: credentials.access_token,
+      googleSheetsAccessToken: encryptTokenValue(nextAccessToken),
+      googleSheetsRefreshToken: nextRefreshToken ? encryptTokenValue(nextRefreshToken) : null,
       googleSheetsTokenExpiry: credentials.expiry_date ? new Date(credentials.expiry_date) : null
     }
   });
 
   return {
-    accessToken: credentials.access_token,
-    refreshToken: business.googleSheetsRefreshToken
+    accessToken: nextAccessToken,
+    refreshToken: nextRefreshToken
   };
 };
 
@@ -209,13 +238,21 @@ router.get('/callback', async (req, res) => {
 
     // SECURITY: Use PKCE verifier to exchange code for tokens
     const tokens = await googleSheetsService.getTokens(oauth2Client, code, codeVerifier);
+    const existingBusiness = await prisma.business.findUnique({
+      where: { id: businessId },
+      select: {
+        googleSheetsRefreshToken: true
+      }
+    });
+    const existingRefreshToken = decryptTokenValue(existingBusiness?.googleSheetsRefreshToken, { allowPlaintext: true });
+    const refreshTokenToStore = tokens.refresh_token || existingRefreshToken || null;
 
     // Save tokens to business
     await prisma.business.update({
       where: { id: businessId },
       data: {
-        googleSheetsAccessToken: tokens.access_token,
-        googleSheetsRefreshToken: tokens.refresh_token,
+        googleSheetsAccessToken: tokens.access_token ? encryptTokenValue(tokens.access_token) : null,
+        googleSheetsRefreshToken: refreshTokenToStore ? encryptTokenValue(refreshTokenToStore) : null,
         googleSheetsTokenExpiry: tokens.expiry_date ? new Date(tokens.expiry_date) : null,
         googleSheetsConnected: true
       }
@@ -281,6 +318,22 @@ router.get('/status', authenticateToken, async (req, res) => {
 // POST /api/google-sheets/disconnect - Disconnect integration
 router.post('/disconnect', authenticateToken, requireRole(['OWNER', 'ADMIN']), async (req, res) => {
   try {
+    const existingTokens = await prisma.business.findUnique({
+      where: { id: req.businessId },
+      select: {
+        googleSheetsAccessToken: true,
+        googleSheetsRefreshToken: true
+      }
+    });
+
+    try {
+      const refreshToken = decryptTokenValue(existingTokens?.googleSheetsRefreshToken, { allowPlaintext: true });
+      const accessToken = decryptTokenValue(existingTokens?.googleSheetsAccessToken, { allowPlaintext: true });
+      await revokeGoogleOAuthToken(refreshToken || accessToken);
+    } catch (revokeError) {
+      console.warn(`Google Sheets revoke skipped for business ${req.businessId}:`, revokeError.message);
+    }
+
     await prisma.business.update({
       where: { id: req.businessId },
       data: {
@@ -302,7 +355,8 @@ router.post('/disconnect', authenticateToken, requireRole(['OWNER', 'ADMIN']), a
       },
       data: {
         isActive: false,
-        connected: false
+        connected: false,
+        credentials: {}
       }
     });
 

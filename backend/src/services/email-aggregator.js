@@ -149,6 +149,8 @@ async disconnect(businessId) {
     throw new Error('No email provider connected');
   }
 
+  const service = this.getService(provider);
+
   // Eski thread ve mesajları sil
   await prisma.emailMessage.deleteMany({
     where: {
@@ -170,14 +172,17 @@ async disconnect(businessId) {
     }
   });
 
-  // Integration'ı güncelle
-  await prisma.emailIntegration.update({
-    where: { businessId },
-    data: { 
-      connected: false,
-      lastSyncedAt: null
-    }
-  });
+  if (typeof service.disconnect === 'function') {
+    await service.disconnect(businessId);
+  } else {
+    await prisma.emailIntegration.update({
+      where: { businessId },
+      data: {
+        connected: false,
+        lastSyncedAt: null
+      }
+    });
+  }
 
   return { success: true };
 }
@@ -347,7 +352,9 @@ async disconnect(businessId) {
           orderBy: { createdAt: 'asc' }
         },
         drafts: {
-          orderBy: { createdAt: 'desc' }
+          where: { status: 'PENDING_REVIEW' },
+          orderBy: { createdAt: 'desc' },
+          take: 1
         }
       }
     });

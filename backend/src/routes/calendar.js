@@ -4,6 +4,8 @@ import { authenticateToken, requireRole } from '../middleware/auth.js';
 import googleCalendarService from '../services/google-calendar.js';
 import { generateOAuthState, validateOAuthState } from '../middleware/oauthState.js';
 import { safeRedirect } from '../middleware/redirectWhitelist.js';
+import { encryptGoogleTokenCredentials, decryptGoogleTokenCredentials } from '../utils/google-oauth-tokens.js';
+import { revokeGoogleOAuthToken } from '../utils/google-oauth-revoke.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -496,6 +498,33 @@ router.get('/google/callback', async (req, res) => {
     // Exchange code for tokens (PKCE verifier for security)
     const oauth2Client = googleCalendarService.createOAuth2Client(clientId, clientSecret, redirectUri);
     const tokens = await googleCalendarService.getTokens(oauth2Client, code, codeVerifier);
+    let mergedTokens = { ...tokens };
+
+    if (!mergedTokens.refresh_token) {
+      try {
+        const existingIntegration = await prisma.integration.findUnique({
+          where: {
+            businessId_type: {
+              businessId,
+              type: 'GOOGLE_CALENDAR'
+            }
+          }
+        });
+        if (existingIntegration?.credentials) {
+          const { credentials: existingCredentials } = decryptGoogleTokenCredentials(existingIntegration.credentials);
+          if (existingCredentials.refresh_token) {
+            mergedTokens = {
+              ...mergedTokens,
+              refresh_token: existingCredentials.refresh_token
+            };
+          }
+        }
+      } catch (mergeError) {
+        console.warn(`Google Calendar refresh token merge skipped for business ${businessId}:`, mergeError.message);
+      }
+    }
+
+    const encryptedTokens = encryptGoogleTokenCredentials(mergedTokens);
 
     // Save to Integration table
     await prisma.integration.upsert({
@@ -506,14 +535,14 @@ router.get('/google/callback', async (req, res) => {
         }
       },
       update: {
-        credentials: tokens,
+        credentials: encryptedTokens,
         isActive: true,
         connected: true
       },
       create: {
         businessId,
         type: 'GOOGLE_CALENDAR',
-        credentials: tokens,
+        credentials: encryptedTokens,
         isActive: true,
         connected: true
       }
@@ -542,6 +571,14 @@ router.post('/google/disconnect', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Google Calendar not connected' });
     }
 
+    try {
+      const { credentials } = decryptGoogleTokenCredentials(integration.credentials);
+      const revokeToken = credentials.refresh_token || credentials.access_token;
+      await revokeGoogleOAuthToken(revokeToken);
+    } catch (revokeError) {
+      console.warn(`Google Calendar revoke skipped for business ${req.businessId}:`, revokeError.message);
+    }
+
     // Mark as inactive
     await prisma.integration.update({
       where: {
@@ -550,7 +587,8 @@ router.post('/google/disconnect', authenticateToken, async (req, res) => {
       },
       data: {
         isActive: false,
-        connected: false
+        connected: false,
+        credentials: {}
       }
     });
 

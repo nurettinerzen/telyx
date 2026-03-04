@@ -11,6 +11,7 @@ const SALT_LENGTH = 64;
 const TAG_LENGTH = 16;
 const KEY_LENGTH = 32;
 const ITERATIONS = 100000;
+const TOKEN_ENCRYPTION_PREFIX = 'enc:v1:';
 let warnedWeakFallback = false;
 
 /**
@@ -30,9 +31,14 @@ function deriveKey(secret, salt) {
 }
 
 function getEncryptionSecret() {
-  const configuredSecret = process.env.ENCRYPTION_SECRET;
-  if (typeof configuredSecret === 'string' && configuredSecret.trim().length >= 16) {
-    return configuredSecret;
+  const masterSecret = process.env.ENCRYPTION_MASTER_KEY;
+  if (typeof masterSecret === 'string' && masterSecret.trim().length >= 16) {
+    return masterSecret;
+  }
+
+  const legacySecret = process.env.ENCRYPTION_SECRET;
+  if (typeof legacySecret === 'string' && legacySecret.trim().length >= 16) {
+    return legacySecret;
   }
 
   // Non-production fallback for local/dev convenience.
@@ -41,13 +47,13 @@ function getEncryptionSecret() {
     if (typeof jwtSecret === 'string' && jwtSecret.trim().length >= 16) {
       if (!warnedWeakFallback) {
         warnedWeakFallback = true;
-        console.warn('⚠️ ENCRYPTION_SECRET is not set. Falling back to JWT_SECRET in non-production.');
+        console.warn('⚠️ ENCRYPTION_MASTER_KEY/ENCRYPTION_SECRET is not set. Falling back to JWT_SECRET in non-production.');
       }
       return jwtSecret;
     }
   }
 
-  throw new Error('ENCRYPTION_SECRET must be configured with at least 16 characters');
+  throw new Error('ENCRYPTION_MASTER_KEY (or ENCRYPTION_SECRET) must be configured with at least 16 characters');
 }
 
 /**
@@ -122,6 +128,50 @@ export function decrypt(encryptedText) {
 }
 
 /**
+ * Returns true when token value uses the versioned field-level format.
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+export function isEncryptedValue(value) {
+  return typeof value === 'string' && value.startsWith(TOKEN_ENCRYPTION_PREFIX);
+}
+
+/**
+ * Encrypt token value using versioned format for future key rotation/migrations.
+ * @param {string|null|undefined} value
+ * @returns {string|null|undefined}
+ */
+export function encryptTokenValue(value) {
+  if (value == null) return value;
+  if (typeof value !== 'string' || value.length === 0) return value;
+  if (isEncryptedValue(value)) return value;
+
+  return `${TOKEN_ENCRYPTION_PREFIX}${encrypt(value)}`;
+}
+
+/**
+ * Decrypt token value when encrypted, or pass plaintext through for lazy migration.
+ * @param {string|null|undefined} value
+ * @param {Object} [options]
+ * @param {boolean} [options.allowPlaintext=true]
+ * @returns {string|null|undefined}
+ */
+export function decryptTokenValue(value, { allowPlaintext = true } = {}) {
+  if (value == null) return value;
+  if (typeof value !== 'string' || value.length === 0) return value;
+
+  if (isEncryptedValue(value)) {
+    return decrypt(value.slice(TOKEN_ENCRYPTION_PREFIX.length));
+  }
+
+  if (allowPlaintext) {
+    return value;
+  }
+
+  throw new Error('Token value is not encrypted');
+}
+
+/**
  * Validates that encryption is properly configured
  * @returns {boolean} True if encryption is working
  */
@@ -149,6 +199,9 @@ export function generateSecureToken(length = 32) {
 export default {
   encrypt,
   decrypt,
+  isEncryptedValue,
+  encryptTokenValue,
+  decryptTokenValue,
   validateEncryption,
   generateSecureToken
 };

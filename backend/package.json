@@ -17,6 +17,7 @@
     "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
     "test:unit": "NODE_OPTIONS='--experimental-vm-modules' jest tests/unit",
     "test:e2e": "NODE_OPTIONS='--experimental-vm-modules' jest tests/e2e",
+    "test:token-encryption": "node tests/unit/token-encryption.test.js",
     "test:critical": "NODE_OPTIONS='--experimental-vm-modules' jest tests/unit/p0-llm-first-no-bypass.test.js tests/unit/p0-toolloop-sanity.test.js tests/unit/business-identity-grounding.test.js tests/unit/phone-leak-filter.test.js tests/unit/milat-acceptance-critical.test.js tests/smoke/guardrail-overhaul-smoke.test.js",
     "test:pilot-regression": "node tests/pilot/run-regression.js",
     "regression:assistant-db": "node tests/regression/db-assistant-invariants.js",
