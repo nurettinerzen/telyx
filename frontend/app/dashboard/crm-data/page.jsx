@@ -338,12 +338,13 @@ export default function CRMDataPage() {
           ) : (
             <div className="border rounded-lg overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="min-w-[1200px] w-full">
+                <table className="min-w-[1300px] w-full">
                   <thead className="bg-muted">
                     <tr>
                       <th className="text-left p-3 font-medium whitespace-nowrap">Sipariş No</th>
                       <th className="text-left p-3 font-medium whitespace-nowrap">Müşteri</th>
-                      <th className="text-left p-3 font-medium whitespace-nowrap">Ürünler</th>
+                      <th className="text-left p-3 font-medium whitespace-nowrap">Ürün</th>
+                      <th className="text-left p-3 font-medium whitespace-nowrap">Adet</th>
                       <th className="text-left p-3 font-medium whitespace-nowrap">Durum</th>
                       <th className="text-left p-3 font-medium whitespace-nowrap">Kargo</th>
                       <th className="text-left p-3 font-medium whitespace-nowrap">Tutar</th>
@@ -388,12 +389,27 @@ export default function CRMDataPage() {
                                   <ShoppingBag className="w-3 h-3 text-muted-foreground shrink-0" />
                                   <span className="truncate max-w-[200px]">
                                     {item.name || item.productName || item.title || JSON.stringify(item)}
-                                    {item.quantity ? ` ×${item.quantity}` : ''}
                                   </span>
                                 </div>
                               ))}
                               {order.items.length > 3 && (
                                 <span className="text-muted-foreground text-xs">+{order.items.length - 3} ürün daha</span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </td>
+                        <td className="p-3 text-sm">
+                          {order.items && Array.isArray(order.items) && order.items.length > 0 ? (
+                            <div className="space-y-1">
+                              {order.items.slice(0, 3).map((item, idx) => (
+                                <div key={idx}>
+                                  <span>{item.quantity || '-'}</span>
+                                </div>
+                              ))}
+                              {order.items.length > 3 && (
+                                <span className="text-muted-foreground text-xs">&nbsp;</span>
                               )}
                             </div>
                           ) : (
@@ -524,12 +540,11 @@ export default function CRMDataPage() {
           ) : (
             <div className="border rounded-lg overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="min-w-[1400px] w-full">
+                <table className="min-w-[1300px] w-full">
                   <thead className="bg-muted">
                     <tr>
                       <th className="text-left p-3 font-medium whitespace-nowrap">Servis No</th>
-                      <th className="text-left p-3 font-medium whitespace-nowrap">Müşteri</th>
-                      <th className="text-left p-3 font-medium whitespace-nowrap">E-posta</th>
+                      <th className="text-left p-3 font-medium whitespace-nowrap min-w-[200px]">Müşteri</th>
                       <th className="text-left p-3 font-medium whitespace-nowrap">Ürün</th>
                       <th className="text-left p-3 font-medium whitespace-nowrap">Durum</th>
                       <th className="text-left p-3 font-medium whitespace-nowrap">Sorun</th>
@@ -555,17 +570,13 @@ export default function CRMDataPage() {
                                 {ticket.customerPhone}
                               </div>
                             )}
+                            {ticket.customerEmail && (
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                                <Mail className="w-3 h-3" />
+                                {ticket.customerEmail}
+                              </div>
+                            )}
                           </div>
-                        </td>
-                        <td className="p-3 text-sm text-muted-foreground">
-                          {ticket.customerEmail ? (
-                            <div className="flex items-center gap-1">
-                              <Mail className="w-3 h-3" />
-                              <span>{ticket.customerEmail}</span>
-                            </div>
-                          ) : (
-                            <span>-</span>
-                          )}
                         </td>
                         <td className="p-3 text-sm">
                           {ticket.product || '-'}
