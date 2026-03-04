@@ -119,11 +119,13 @@ export async function persistAndEmitMetrics(params) {
     where: { sessionId },
     update: {
       messages: updatedMessages,
+      ...(channel && { channel }),
       updatedAt: new Date()
     },
     create: {
       sessionId,
       businessId,
+      channel: channel || 'CHAT',
       messages: updatedMessages,
       createdAt: new Date(),
       updatedAt: new Date()

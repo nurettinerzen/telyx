@@ -238,6 +238,7 @@ export async function execute(args, business, context = {}) {
 
     const normalizedQueryType = String(query_type || '').toLowerCase();
     const isOrderQuery = normalizedQueryType === 'siparis' || normalizedQueryType === 'order';
+    const isTicketQuery = normalizedQueryType === 'servis' || normalizedQueryType === 'ticket' || normalizedQueryType === 'service';
     const isAccountingQuery = isAccountingQueryType(normalizedQueryType);
     const hasLookupIdentifier = Boolean(order_number || phone || vkn || tc);
     const orderLookup = order_number ? buildOrderLookupCandidates(order_number) : null;
@@ -598,6 +599,36 @@ export async function execute(args, business, context = {}) {
         sourceTable = phoneLookup.sourceTable;
         anchorType = 'phone';
         anchorValue = phoneLookup.normalizedPhone.replace(/^\+/, '');
+      }
+    }
+
+    // Strategy 4: CrmTicket (service/repair tickets)
+    // If query is ticket/service-related, or no record found yet, try CrmTicket
+    if (!record && (isTicketQuery || phone || order_number)) {
+      console.log('🔍 [Lookup] Trying CrmTicket table...');
+      const ticketWhere = { businessId: business.id };
+
+      if (order_number) {
+        // order_number might actually be a ticket number (e.g. TKT-2024-0009)
+        const ticketCandidates = orderLookup ? orderLookup.exactCandidates : [order_number];
+        ticketWhere.OR = ticketCandidates.map(c => ({ ticketNumber: c }));
+      } else if (phone) {
+        const phoneDigits = phone.replace(/\D/g, '');
+        const last10 = phoneDigits.length >= 10 ? phoneDigits.slice(-10) : phoneDigits;
+        ticketWhere.customerPhone = { contains: last10 };
+      }
+
+      const crmTicket = await prisma.crmTicket.findFirst({
+        where: ticketWhere,
+        orderBy: { updatedAt: 'desc' }
+      });
+
+      if (crmTicket) {
+        console.log('✅ [Lookup] Found CrmTicket:', crmTicket.ticketNumber);
+        record = crmTicket;
+        sourceTable = 'CrmTicket';
+        anchorType = order_number ? 'ticket' : 'phone';
+        anchorValue = crmTicket.ticketNumber || (phone ? normalizePhone(phone).replace(/^\+/, '') : null);
       }
     }
 

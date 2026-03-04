@@ -41,7 +41,7 @@ const TOOL_REQUIRED_CLAIM_GATES = Object.freeze({
   TICKET_STATUS: {
     intents: new Set(['ticket_status', 'support_ticket']),
     flows: new Set(['TICKET_STATUS', 'SUPPORT']),
-    requiredTools: new Set(['check_ticket_status_crm']),
+    requiredTools: new Set(['check_ticket_status_crm', 'customer_data_lookup']),
     missingFields: ['ticket_number']
   },
   PRODUCT_INFO: {
@@ -506,7 +506,7 @@ function detectClaimGateTopic({ intent = null, activeFlow = null, userMessage = 
       TOOL_REQUIRED_CLAIM_GATES.TICKET_STATUS.flows.has(normalizedFlow)) {
     return 'TICKET_STATUS';
   }
-  if (/\b(ticket|destek kaydı|support ticket|ariza kaydi|case id)\b/i.test(text)) {
+  if (/\b(ticket|destek kayd[ıi]|support ticket|ar[ıi]za kayd[ıi]|case id|servis kayd[ıi]|servis durumu|servis takip|servis no|tkt[-_]?\d+)\b/i.test(text)) {
     return 'TICKET_STATUS';
   }
 

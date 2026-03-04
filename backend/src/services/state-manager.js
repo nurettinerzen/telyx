@@ -107,9 +107,19 @@ export function createInitialState(sessionId) {
  * - Returns fresh state if expired or not found
  */
 export async function getState(sessionId) {
-  // 1. Check cache
+  // 1. Check cache (with TTL validation)
   const cached = stateCache.get(sessionId);
   if (cached) {
+    const lastActivity = cached.lastActivity ? new Date(cached.lastActivity).getTime() : 0;
+    const now = Date.now();
+    if (now - lastActivity > STATE_TTL_MS) {
+      // Cache entry expired — remove and create fresh state
+      console.log(`[StateManager] Cache expired for session ${sessionId} (idle ${Math.round((now - lastActivity) / 60000)}min)`);
+      stateCache.delete(sessionId);
+      const freshState = createInitialState(sessionId);
+      stateCache.set(sessionId, freshState);
+      return freshState;
+    }
     console.log(`[StateManager] Cache hit for session ${sessionId}`);
     return cached;
   }

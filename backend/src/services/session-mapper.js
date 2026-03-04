@@ -20,7 +20,10 @@ import { randomUUID } from 'crypto';
 
 const prisma = new PrismaClient();
 
-// In-memory cache for fast lookups
+// Session inactivity TTL: 30 minutes (matches state-manager TTL)
+const SESSION_INACTIVITY_TTL_MS = 30 * 60 * 1000;
+
+// In-memory cache for fast lookups (stores { sessionId, lastActivity })
 const mappingCache = new Map();
 
 /**
@@ -44,8 +47,18 @@ export async function getOrCreateSession(businessId, channel, channelUserId) {
   // 1. Check cache
   const cached = mappingCache.get(cacheKey);
   if (cached) {
-    console.log(`[SessionMapper] Cache hit: ${cacheKey} → ${cached}`);
-    return cached;
+    const now = Date.now();
+    if (now - cached.lastActivity > SESSION_INACTIVITY_TTL_MS) {
+      // Session expired due to inactivity — rotate to a new session
+      console.log(`[SessionMapper] Session expired (idle ${Math.round((now - cached.lastActivity) / 60000)}min), rotating: ${cacheKey}`);
+      mappingCache.delete(cacheKey);
+      // Fall through to create new session below
+    } else {
+      // Update last activity timestamp
+      cached.lastActivity = now;
+      console.log(`[SessionMapper] Cache hit: ${cacheKey} → ${cached.sessionId}`);
+      return cached.sessionId;
+    }
   }
 
   // 2. Check DB
@@ -60,9 +73,25 @@ export async function getOrCreateSession(businessId, channel, channelUserId) {
   });
 
   if (existing) {
-    console.log(`[SessionMapper] DB hit: ${cacheKey} → ${existing.sessionId}`);
-    mappingCache.set(cacheKey, existing.sessionId);
-    return existing.sessionId;
+    // Check if session is stale based on updatedAt
+    const now = Date.now();
+    const updatedAt = existing.updatedAt ? new Date(existing.updatedAt).getTime() : 0;
+    if (now - updatedAt > SESSION_INACTIVITY_TTL_MS) {
+      console.log(`[SessionMapper] DB session expired (idle ${Math.round((now - updatedAt) / 60000)}min), rotating: ${cacheKey}`);
+      // Delete old mapping, fall through to create new session
+      await prisma.sessionMapping.delete({
+        where: {
+          businessId_channel_channelUserId: { businessId, channel, channelUserId }
+        }
+      }).catch(err => {
+        if (err.code !== 'P2025') console.error('[SessionMapper] Failed to delete expired mapping:', err);
+      });
+      // Fall through to create new session below
+    } else {
+      console.log(`[SessionMapper] DB hit: ${cacheKey} → ${existing.sessionId}`);
+      mappingCache.set(cacheKey, { sessionId: existing.sessionId, lastActivity: now });
+      return existing.sessionId;
+    }
   }
 
   // 3. Create new session
@@ -79,7 +108,7 @@ export async function getOrCreateSession(businessId, channel, channelUserId) {
     });
 
     console.log(`[SessionMapper] Created new session: ${cacheKey} → ${sessionId}`);
-    mappingCache.set(cacheKey, sessionId);
+    mappingCache.set(cacheKey, { sessionId, lastActivity: Date.now() });
 
     return sessionId;
   } catch (error) {
@@ -98,7 +127,7 @@ export async function getOrCreateSession(businessId, channel, channelUserId) {
       });
 
       if (retryExisting) {
-        mappingCache.set(cacheKey, retryExisting.sessionId);
+        mappingCache.set(cacheKey, { sessionId: retryExisting.sessionId, lastActivity: Date.now() });
         return retryExisting.sessionId;
       }
     }
@@ -122,7 +151,12 @@ export async function getSession(businessId, channel, channelUserId) {
   // Check cache
   const cached = mappingCache.get(cacheKey);
   if (cached) {
-    return cached;
+    const now = Date.now();
+    if (now - cached.lastActivity > SESSION_INACTIVITY_TTL_MS) {
+      mappingCache.delete(cacheKey);
+      return null;
+    }
+    return cached.sessionId;
   }
 
   // Check DB
@@ -137,7 +171,12 @@ export async function getSession(businessId, channel, channelUserId) {
   });
 
   if (existing) {
-    mappingCache.set(cacheKey, existing.sessionId);
+    const now = Date.now();
+    const updatedAt = existing.updatedAt ? new Date(existing.updatedAt).getTime() : 0;
+    if (now - updatedAt > SESSION_INACTIVITY_TTL_MS) {
+      return null; // Expired
+    }
+    mappingCache.set(cacheKey, { sessionId: existing.sessionId, lastActivity: now });
     return existing.sessionId;
   }
 

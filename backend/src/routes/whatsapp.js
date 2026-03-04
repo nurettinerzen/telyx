@@ -1134,8 +1134,10 @@ async function sendWhatsAppMessage(business, to, text, options = {}) {
 
     if (result.duplicate) {
       console.log(`♻️ [WhatsApp] Duplicate send blocked for business ${business.name}`);
-    } else {
+    } else if (result.success) {
       console.log(`✅ WhatsApp message sent for business ${business.name}:`, result.messageId);
+    } else {
+      console.error(`❌ WhatsApp message FAILED for business ${business.name}:`, result.error);
     }
 
     return result;
