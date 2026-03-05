@@ -41,6 +41,18 @@ const REQUIRED_PRODUCTION_ENV = [
     validate: (value) => String(value || '').toLowerCase() === 'enabled',
     message: 'BACKUP_ENCRYPTION must be "enabled".',
   },
+  {
+    key: 'WHATSAPP_APP_SECRET',
+    validate: () => {
+      const whatsappAppSecret = process.env.WHATSAPP_APP_SECRET;
+      const metaAppSecret = process.env.META_APP_SECRET;
+      return (
+        (typeof whatsappAppSecret === 'string' && whatsappAppSecret.trim().length > 0) ||
+        (typeof metaAppSecret === 'string' && metaAppSecret.trim().length > 0)
+      );
+    },
+    message: 'WHATSAPP_APP_SECRET (or META_APP_SECRET) must be set for webhook signature verification.',
+  },
 ];
 
 export function assertProductionSecurityPosture() {

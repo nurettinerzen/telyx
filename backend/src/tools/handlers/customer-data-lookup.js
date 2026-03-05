@@ -33,7 +33,7 @@ function looksLikePhoneIdentifier(value) {
 
 async function findRecordByPhone({ businessId, phone, queryType }) {
   const variants = phoneSearchVariants(phone);
-  const normalizedPhone = normalizePhone(phone);
+  const normalizedPhone = normalizePhone(phone) || String(phone || '');
   const normalizedQueryType = String(queryType || '').toLowerCase();
 
   // First try CustomerData table
@@ -76,6 +76,22 @@ async function findRecordByPhone({ businessId, phone, queryType }) {
     }
   }
 
+  // Service/ticket lookups can also live in CrmTicket.
+  if (!record && SERVICE_QUERY_TYPES.has(normalizedQueryType) && prisma.crmTicket?.findFirst) {
+    const crmTicket = await prisma.crmTicket.findFirst({
+      where: {
+        businessId,
+        OR: variants.map(v => ({ customerPhone: v }))
+      },
+      orderBy: { updatedAt: 'desc' }
+    });
+
+    if (crmTicket) {
+      record = crmTicket;
+      sourceTable = 'CrmTicket';
+    }
+  }
+
   return {
     record,
     sourceTable,
@@ -84,7 +100,6 @@ async function findRecordByPhone({ businessId, phone, queryType }) {
   };
 }
 import {
-  requiresVerification,
   createAnchor,
   checkVerification,
   getMinimalResult,
@@ -195,8 +210,106 @@ const ACCOUNTING_QUERY_TYPES = new Set([
   'invoice'
 ]);
 
+const SERVICE_QUERY_TYPES = new Set([
+  'ariza',
+  'ticket',
+  'servis',
+  'service'
+]);
+
+function normalizeQueryTypeAlias(queryType) {
+  const normalized = String(queryType || '').trim().toLowerCase();
+  if (normalized === 'order') return 'siparis';
+  if (normalized === 'service') return 'servis';
+  return normalized;
+}
+
 function isAccountingQueryType(queryType) {
   return ACCOUNTING_QUERY_TYPES.has(String(queryType || '').toLowerCase());
+}
+
+function normalizeVerificationCandidate(
+  verificationInput,
+  customerName,
+  { allowNameFallback = true, requireNumericNameFallback = false } = {}
+) {
+  if (verificationInput !== undefined && verificationInput !== null && String(verificationInput).trim()) {
+    return String(verificationInput).trim();
+  }
+  if (!allowNameFallback) {
+    return null;
+  }
+  if (customerName === undefined || customerName === null) {
+    return null;
+  }
+
+  const candidate = String(customerName).trim();
+  if (!candidate) return null;
+  if (requireNumericNameFallback) {
+    const digitsOnly = candidate.replace(/\D/g, '');
+    if (digitsOnly.length === 4 || digitsOnly.length >= 10) {
+      // LLM sometimes places verification digits under customer_name.
+      return candidate;
+    }
+    return null;
+  }
+  return candidate;
+}
+
+function requestExpectedVerificationInput({ language, anchor, askFor }) {
+  const isPhoneLast4 = askFor === 'phone_last4' && Boolean(anchor?.phone);
+  const message = isPhoneLast4
+    ? (language === 'TR'
+      ? 'Güvenlik doğrulaması için kayıtlı telefon numaranızın son 4 hanesini paylaşır mısınız?'
+      : 'For security verification, could you share the last 4 digits of your registered phone number?')
+    : (language === 'TR'
+      ? 'Güvenlik doğrulaması için adınızı ve soyadınızı paylaşır mısınız?'
+      : 'For security verification, could you share your full name?');
+
+  return {
+    ...verificationRequired(message, {
+      askFor,
+      anchor: toStateAnchor(anchor)
+    }),
+    stateEvents: [
+      {
+        type: OutcomeEventType.VERIFICATION_REQUIRED,
+        askFor,
+        anchor: toStateAnchor(anchor)
+      }
+    ]
+  };
+}
+
+async function findRecordByTicketNumber({ businessId, ticketNumber }) {
+  if (!prisma.crmTicket?.findFirst) {
+    return null;
+  }
+
+  const normalizedTicket = String(ticketNumber || '').trim();
+  if (!normalizedTicket) {
+    return null;
+  }
+
+  // Start with exact match, then fall back to contains for format variants.
+  const exactMatch = await prisma.crmTicket.findFirst({
+    where: {
+      businessId,
+      ticketNumber: normalizedTicket
+    }
+  });
+
+  if (exactMatch) {
+    return exactMatch;
+  }
+
+  return prisma.crmTicket.findFirst({
+    where: {
+      businessId,
+      ticketNumber: { contains: normalizedTicket }
+    },
+    orderBy: { updatedAt: 'desc' }
+  });
 }
 
 function buildAccountingMissingIdentityResponse(language = 'TR') {
@@ -222,7 +335,16 @@ function buildAccountingMissingIdentityResponse(language = 'TR') {
  */
 export async function execute(args, business, context = {}) {
   try {
-    const { query_type, phone, order_number, ticket_number, customer_name, vkn, tc, verification_input } = args;
+    const {
+      query_type,
+      phone,
+      order_number,
+      ticket_number,
+      customer_name,
+      vkn,
+      tc,
+      verification_input
+    } = args;
     const sessionId = context.sessionId || context.conversationId;
     const language = business.language || 'TR';
     const state = context.state || {};
@@ -232,18 +354,28 @@ export async function execute(args, business, context = {}) {
     // P0-C SECURITY FIX: verification_input ONLY accepted when state is pending/failed
     // Prevents LLM single-shot bypass (sending all params in one call)
     const isVerificationPending = verificationState === 'pending' || verificationState === 'failed';
+    const pendingAskFor = state.verification?.pendingField || null;
+    const expectsPhoneLast4 = isVerificationPending &&
+      pendingAskFor === 'phone_last4' &&
+      Boolean(state.verification?.anchor?.phone);
+    const normalizedVerificationCandidate = normalizeVerificationCandidate(
+      verification_input,
+      customer_name,
+      {
+        allowNameFallback: true,
+        requireNumericNameFallback: expectsPhoneLast4
+      }
+    );
     const effectiveVerificationInput = isVerificationPending
-      ? (verification_input || customer_name)
+      ? normalizedVerificationCandidate
       : null; // Ignore verification_input when not in verification flow
 
-    const normalizedQueryType = String(query_type || '').toLowerCase();
+    const normalizedQueryType = normalizeQueryTypeAlias(query_type);
     const isOrderQuery = normalizedQueryType === 'siparis' || normalizedQueryType === 'order';
-    const isTicketQuery = normalizedQueryType === 'servis' || normalizedQueryType === 'ticket' || normalizedQueryType === 'service';
+    const isTicketQuery = SERVICE_QUERY_TYPES.has(normalizedQueryType);
     const isAccountingQuery = isAccountingQueryType(normalizedQueryType);
-    // Normalize ticket_number: if LLM sends ticket_number, use it as order_number for lookup
-    const effectiveOrderNumber = order_number || ticket_number || null;
-    const hasLookupIdentifier = Boolean(effectiveOrderNumber || phone || vkn || tc);
-    const orderLookup = effectiveOrderNumber ? buildOrderLookupCandidates(effectiveOrderNumber) : null;
+    const hasLookupIdentifier = Boolean(order_number || ticket_number || phone || vkn || tc);
+    const orderLookup = order_number ? buildOrderLookupCandidates(order_number) : null;
 
     // Minimal validation only: reject empty/too-short values.
     // Do not apply format/prefix regex gates before DB lookup.
@@ -279,9 +411,28 @@ export async function execute(args, business, context = {}) {
       hasVerification: !!state.verification,
       status: verificationState,
       hasAnchor: !!state.verification?.anchor,
+      pendingAskFor,
       hasVerificationInput: !!effectiveVerificationInput,
       verificationInput: effectiveVerificationInput
     });
+
+    const verificationInputDigits = String(effectiveVerificationInput || '').replace(/\D/g, '');
+    const looksLikePhoneVerification = verificationInputDigits.length === 4 || verificationInputDigits.length >= 10;
+
+    if (
+      isVerificationPending &&
+      state.verification?.anchor &&
+      expectsPhoneLast4 &&
+      effectiveVerificationInput &&
+      !looksLikePhoneVerification
+    ) {
+      // Strict mode: when system asks for phone last4, do not accept pure name responses.
+      return requestExpectedVerificationInput({
+        language,
+        anchor: state.verification.anchor,
+        askFor: 'phone_last4'
+      });
+    }
 
     // P0-UX FIX: Process verification with ANY verification input (name OR phone_last4)
     // RECOVERY: Also handle 'failed' status — if user provides correct input, forgive past mistakes
@@ -291,7 +442,7 @@ export async function execute(args, business, context = {}) {
       console.log('🔐 [Verification] Input:', effectiveVerificationInput, '| Anchor phone:', state.verification.anchor.phone);
 
       const anchor = state.verification.anchor;
-      const verifyResult = checkVerification(anchor, effectiveVerificationInput, query_type, language);
+      const verifyResult = checkVerification(anchor, effectiveVerificationInput, normalizedQueryType, language);
 
       if (verifyResult.action === 'PROCEED') {
         // Fetch the full record using anchor ID from the CORRECT table
@@ -301,12 +452,14 @@ export async function execute(args, business, context = {}) {
         let verifiedRecord;
         if (table === 'CrmOrder') {
           verifiedRecord = await prisma.crmOrder.findUnique({ where: { id: anchor.id } });
+        } else if (table === 'CrmTicket' && prisma.crmTicket?.findUnique) {
+          verifiedRecord = await prisma.crmTicket.findUnique({ where: { id: anchor.id } });
         } else {
           verifiedRecord = await prisma.customerData.findUnique({ where: { id: anchor.id } });
         }
 
         if (verifiedRecord) {
-          const fullResult = getFullResult(verifiedRecord, query_type, language);
+          const fullResult = getFullResult(verifiedRecord, normalizedQueryType, language);
           return {
             ...fullResult,
             stateEvents: [
@@ -363,7 +516,7 @@ export async function execute(args, business, context = {}) {
     // If verification is pending but the user did not provide verification input
     // and also did not provide a new lookup identifier, keep requesting verification.
     if (isVerificationPending && state.verification?.anchor && !effectiveVerificationInput && !hasLookupIdentifier) {
-      const verificationReminder = checkVerification(state.verification.anchor, null, query_type, language);
+      const verificationReminder = checkVerification(state.verification.anchor, null, normalizedQueryType, language);
       return {
         ...verificationRequired(verificationReminder.message, {
           askFor: verificationReminder.askFor,
@@ -394,31 +547,8 @@ export async function execute(args, business, context = {}) {
     let anchorValue = null;
     let sourceTable = 'CustomerData'; // Track which DB table the record came from
 
-    // Strategy 0: Ticket query with ticket_number → go directly to CrmTicket
-    if (isTicketQuery && (ticket_number || effectiveOrderNumber)) {
-      console.log('🔍 [Lookup] Ticket query — trying CrmTicket table first...');
-      const ticketId = ticket_number || effectiveOrderNumber;
-      const ticketCandidates = orderLookup ? orderLookup.exactCandidates : [ticketId];
-
-      const crmTicket = await prisma.crmTicket.findFirst({
-        where: {
-          businessId: business.id,
-          OR: ticketCandidates.map(c => ({ ticketNumber: c }))
-        },
-        orderBy: { updatedAt: 'desc' }
-      });
-
-      if (crmTicket) {
-        console.log('✅ [Lookup] Found CrmTicket:', crmTicket.ticketNumber);
-        record = crmTicket;
-        sourceTable = 'CrmTicket';
-        anchorType = 'ticket';
-        anchorValue = crmTicket.ticketNumber;
-      }
-    }
-
-    // Strategy 1: Order number (skip if already found via ticket)
-    if (!record && order_number) {
+    // Strategy 1: Order number
+    if (order_number) {
       const {
         normalizedLookup,
         compactNormalized,
@@ -543,15 +673,20 @@ export async function execute(args, business, context = {}) {
             const phoneLookup = await findRecordByPhone({
               businessId: business.id,
               phone: order_number,
-              queryType: query_type
+              queryType: normalizedQueryType
             });
 
             if (phoneLookup.record) {
               console.log('✅ [Lookup] Recovered via phone fallback');
               record = phoneLookup.record;
               sourceTable = phoneLookup.sourceTable;
-              anchorType = 'phone';
-              anchorValue = phoneLookup.normalizedPhone.replace(/^\+/, '');
+              if (phoneLookup.sourceTable === 'CrmTicket') {
+                anchorType = 'ticket';
+                anchorValue = phoneLookup.record.ticketNumber || phoneLookup.normalizedPhone.replace(/^\+/, '');
+              } else {
+                anchorType = 'phone';
+                anchorValue = phoneLookup.normalizedPhone.replace(/^\+/, '');
+              }
             }
           }
 
@@ -565,7 +700,50 @@ export async function execute(args, business, context = {}) {
       }
     }
 
-    // Strategy 2: VKN/TC
+    // Strategy 2: Ticket number (service/repair flows)
+    else if (ticket_number || isTicketQuery) {
+      if (ticket_number) {
+        console.log('🔍 [Lookup] Searching by ticket_number');
+        const crmTicket = await findRecordByTicketNumber({
+          businessId: business.id,
+          ticketNumber: ticket_number
+        });
+
+        if (crmTicket) {
+          record = crmTicket;
+          sourceTable = 'CrmTicket';
+          anchorType = 'ticket';
+          anchorValue = crmTicket.ticketNumber;
+        }
+      }
+
+      // If ticket lookup failed but phone exists, try phone fallback.
+      if (!record && phone) {
+        const phoneLookup = await findRecordByPhone({
+          businessId: business.id,
+          phone,
+          queryType: normalizedQueryType
+        });
+
+        if (phoneLookup.record) {
+          record = phoneLookup.record;
+          sourceTable = phoneLookup.sourceTable;
+          if (phoneLookup.sourceTable === 'CrmTicket') {
+            anchorType = 'ticket';
+            anchorValue = phoneLookup.record.ticketNumber || phoneLookup.normalizedPhone.replace(/^\+/, '');
+          } else {
+            anchorType = 'phone';
+            anchorValue = phoneLookup.normalizedPhone.replace(/^\+/, '');
+          }
+        }
+      }
+
+      if (!record && ticket_number) {
+        return notFound(GENERIC_ERROR_MESSAGES[language] || GENERIC_ERROR_MESSAGES.TR);
+      }
+    }
+
+    // Strategy 3: VKN/TC
     else if (vkn || tc) {
       // Validate TC/VKN checksum before DB query — reject invalid early
       if (tc && !isValidTckn(tc)) {
@@ -604,14 +782,14 @@ export async function execute(args, business, context = {}) {
       }
     }
 
-    // Strategy 3: Phone
-    // SECURITY NOTE: Phone lookup is allowed, but will ALWAYS require name verification
-    // before returning any PII (enforced by checkVerification below)
+    // Strategy 4: Phone
+    // SECURITY NOTE: Phone lookup may still require verification (usually phone_last4),
+    // enforced by checkVerification below.
     else if (phone) {
       const phoneLookup = await findRecordByPhone({
         businessId: business.id,
         phone,
-        queryType: query_type
+        queryType: normalizedQueryType
       });
 
       console.log('🔍 [Lookup] Searching by phone:', {
@@ -623,38 +801,13 @@ export async function execute(args, business, context = {}) {
       if (phoneLookup.record) {
         record = phoneLookup.record;
         sourceTable = phoneLookup.sourceTable;
-        anchorType = 'phone';
-        anchorValue = phoneLookup.normalizedPhone.replace(/^\+/, '');
-      }
-    }
-
-    // Strategy 4: CrmTicket fallback (service/repair tickets)
-    // If no record found yet, try CrmTicket as fallback
-    if (!record && (isTicketQuery || phone || effectiveOrderNumber)) {
-      console.log('🔍 [Lookup] Trying CrmTicket table (fallback)...');
-      const ticketWhere = { businessId: business.id };
-
-      if (effectiveOrderNumber) {
-        // order_number or ticket_number might be a ticket number (e.g. TKT-2024-0009)
-        const ticketCandidates = orderLookup ? orderLookup.exactCandidates : [effectiveOrderNumber];
-        ticketWhere.OR = ticketCandidates.map(c => ({ ticketNumber: c }));
-      } else if (phone) {
-        const phoneDigits = phone.replace(/\D/g, '');
-        const last10 = phoneDigits.length >= 10 ? phoneDigits.slice(-10) : phoneDigits;
-        ticketWhere.customerPhone = { contains: last10 };
-      }
-
-      const crmTicket = await prisma.crmTicket.findFirst({
-        where: ticketWhere,
-        orderBy: { updatedAt: 'desc' }
-      });
-
-      if (crmTicket) {
-        console.log('✅ [Lookup] Found CrmTicket:', crmTicket.ticketNumber);
-        record = crmTicket;
-        sourceTable = 'CrmTicket';
-        anchorType = order_number ? 'ticket' : 'phone';
-        anchorValue = crmTicket.ticketNumber || (phone ? normalizePhone(phone).replace(/^\+/, '') : null);
+        if (phoneLookup.sourceTable === 'CrmTicket') {
+          anchorType = 'ticket';
+          anchorValue = phoneLookup.record.ticketNumber || phoneLookup.normalizedPhone.replace(/^\+/, '');
+        } else {
+          anchorType = 'phone';
+          anchorValue = phoneLookup.normalizedPhone.replace(/^\+/, '');
+        }
       }
     }
 
@@ -671,10 +824,10 @@ export async function execute(args, business, context = {}) {
 
     const anchor = createAnchor(record, anchorType, anchorValue, sourceTable);
 
-    // Resolve customerId for CrmOrder records (CrmOrder has no FK to CustomerData).
+    // Resolve customerId for CRM records without FK (CrmOrder/CrmTicket).
     // Look up CustomerData by phone to establish the customer identity chain.
     // If no match or multiple matches → customerId stays null → autoverify blocked (fail-closed).
-    if (sourceTable === 'CrmOrder' && !anchor.customerId && anchor.phone) {
+    if ((sourceTable === 'CrmOrder' || sourceTable === 'CrmTicket') && !anchor.customerId && anchor.phone) {
       try {
         // Use phoneSearchVariants for international-aware matching
         const resolveVariants = phoneSearchVariants(anchor.phone);
@@ -690,9 +843,9 @@ export async function execute(args, business, context = {}) {
 
         if (customerMatches.length === 1) {
           anchor.customerId = customerMatches[0].id;
-          console.log('🔗 [Anchor] Resolved CrmOrder → CustomerData customerId:', anchor.customerId);
+          console.log(`🔗 [Anchor] Resolved ${sourceTable} → CustomerData customerId:`, anchor.customerId);
         } else {
-          console.log('🔗 [Anchor] CrmOrder customerId unresolvable (matches:', customerMatches.length, ')');
+          console.log(`🔗 [Anchor] ${sourceTable} customerId unresolvable (matches:`, customerMatches.length, ')');
         }
       } catch (resolveErr) {
         console.error('⚠️ [Anchor] customerId resolution error (fail-closed):', resolveErr.message);
@@ -712,7 +865,7 @@ export async function execute(args, business, context = {}) {
       anchorId: anchor.id,
       anchorCustomerId: anchor.customerId,  // P0: customerId chain for autoverify
       anchorSourceTable: anchor.sourceTable,
-      queryType: query_type
+      queryType: normalizedQueryType
     };
 
     const previousVerificationAnchor = state.verification?.anchor || null;
@@ -740,25 +893,13 @@ export async function execute(args, business, context = {}) {
       // ToolLoop will handle state reset when VERIFICATION_REQUIRED is returned
       console.log('🔐 [SECURITY] Forcing new verification for identity switch');
 
+      const askFor = anchor.phone ? 'phone_last4' : 'name';
       // Return VERIFICATION_REQUIRED immediately - ignore any provided customer_name
-      return {
-        ...verificationRequired(
-          language === 'TR'
-            ? 'Farklı bir müşteri kaydı tespit edildi. Güvenlik doğrulaması için isminizi ve soyadınızı söyler misiniz?'
-            : 'Different customer record detected. For security verification, could you please provide your full name?',
-          {
-            askFor: 'name',
-            anchor: toStateAnchor(anchor)
-          }
-        ),
-        stateEvents: [
-          {
-            type: OutcomeEventType.VERIFICATION_REQUIRED,
-            askFor: 'name',
-            anchor: toStateAnchor(anchor)
-          }
-        ]
-      };
+      return requestExpectedVerificationInput({
+        language,
+        anchor,
+        askFor
+      });
     }
 
     // SESSION-LEVEL VERIFIED BYPASS (scoped):
@@ -766,7 +907,7 @@ export async function execute(args, business, context = {}) {
     // the previously verified anchor in session state.
     if (isSessionVerified && sameVerificationScope) {
       console.log('✅ [Verification] Session already verified for same scope — bypassing checkVerification');
-      const fullResult = getFullResult(record, query_type, language);
+      const fullResult = getFullResult(record, normalizedQueryType, language);
       return {
         ...ok(fullResult.data, fullResult.message),
         _identityContext,
@@ -799,8 +940,7 @@ export async function execute(args, business, context = {}) {
     let verificationInput = customer_name;
     // Reuse isVerificationPending from P0-C fix above
     if (isVerificationPending) {
-      // Pending state: accept any verification input (name or phone)
-      verificationInput = customer_name || verification_input;
+      verificationInput = effectiveVerificationInput;
     }
     if (customer_name && !isVerificationPending) {
       console.log('🔐 [SECURITY] customer_name provided but not in pending verification flow');
@@ -829,7 +969,7 @@ export async function execute(args, business, context = {}) {
       verificationInput = null; // Force verification request
     }
 
-    const verificationCheck = checkVerification(anchor, verificationInput, query_type, language);
+    const verificationCheck = checkVerification(anchor, verificationInput, normalizedQueryType, language);
     console.log('🔐 [Verification] Check result:', verificationCheck.action);
 
     // Handle verification result
@@ -871,7 +1011,7 @@ export async function execute(args, business, context = {}) {
 
     if (verificationCheck.verified) {
       console.log('✅ [Result] Returning full data');
-      const result = getFullResult(record, query_type, language);
+      const result = getFullResult(record, normalizedQueryType, language);
       return {
         ...ok(result.data, result.message),
         stateEvents: [
@@ -884,7 +1024,7 @@ export async function execute(args, business, context = {}) {
       };
     } else {
       console.log('⚠️ [Result] Returning minimal data (unverified)');
-      const result = getMinimalResult(record, query_type, language);
+      const result = getMinimalResult(record, normalizedQueryType, language);
       return ok(result.data, result.message);
     }
 

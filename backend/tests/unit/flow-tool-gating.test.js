@@ -1,5 +1,8 @@
 import { describe, expect, it } from '@jest/globals';
-import { resolveFlowScopedTools } from '../../src/core/orchestrator/steps/05_buildLLMRequest.js';
+import {
+  resolveFlowScopedTools,
+  isVerificationContextRelevant
+} from '../../src/core/orchestrator/steps/05_buildLLMRequest.js';
 
 describe('flow scoped tool gating', () => {
   it('removes customer_data_lookup from PRODUCT_INFO flow', () => {
@@ -62,5 +65,38 @@ describe('flow scoped tool gating', () => {
 
     expect(result.resolvedFlow).toBe('PRODUCT_INFO');
     expect(result.gatedTools).toEqual(['get_product_stock', 'check_stock_crm']);
+  });
+
+  it('keeps verification context relevant when activeFlow is null but pending anchor exists', () => {
+    const relevant = isVerificationContextRelevant({
+      state: {
+        activeFlow: null,
+        verification: {
+          status: 'pending',
+          anchor: { id: 'anchor-1' }
+        }
+      },
+      classification: {},
+      routingResult: {}
+    });
+
+    expect(relevant).toBe(true);
+  });
+
+  it('skips verification context when stock context is active even if pending anchor exists', () => {
+    const relevant = isVerificationContextRelevant({
+      state: {
+        activeFlow: null,
+        anchor: { type: 'STOCK' },
+        verification: {
+          status: 'pending',
+          anchor: { id: 'anchor-1' }
+        }
+      },
+      classification: {},
+      routingResult: {}
+    });
+
+    expect(relevant).toBe(false);
   });
 });

@@ -192,6 +192,15 @@ router.get('/webhook', webhookRateLimiter.middleware(), async (req, res) => {
  */
 function verifyWhatsAppSignature(req, appSecret) {
   if (!appSecret) {
+    const strictMode = process.env.NODE_ENV === 'production' && process.env.WHATSAPP_ALLOW_UNSIGNED_WEBHOOKS !== 'true';
+    if (strictMode) {
+      return {
+        valid: false,
+        skipped: false,
+        reason: 'app_secret_missing'
+      };
+    }
+
     return {
       valid: true,
       skipped: true,

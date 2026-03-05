@@ -17,6 +17,7 @@ const FLOW_TOOL_OVERRIDES = Object.freeze({
   STOCK_CHECK: ['get_product_stock', 'check_stock_crm'],
   CALLBACK_REQUEST: ['create_callback']
 });
+const VERIFICATION_FLOWS = Object.freeze(['ORDER_STATUS', 'DEBT_INQUIRY', 'TRACKING_INFO', 'ACCOUNT_LOOKUP']);
 
 function normalizeFlowName(flowName) {
   const normalized = String(flowName || '').toUpperCase();
@@ -58,6 +59,28 @@ function inferFlowFromMessage(message = '') {
   }
 
   return null;
+}
+
+export function isVerificationContextRelevant({
+  state = {},
+  routingResult = null,
+  classification = null
+} = {}) {
+  const hasRecentStockContext = !!state.lastStockContext || state.anchor?.type === 'STOCK';
+  const hasPendingVerificationAnchor =
+    state.verification?.status === 'pending' &&
+    Boolean(state.verification?.anchor);
+  const verificationFlowHint = normalizeFlowName(
+    state.activeFlow ||
+    state.verification?.flowHint ||
+    routingResult?.routing?.routing?.suggestedFlow ||
+    classification?.suggestedFlow
+  );
+
+  return !hasRecentStockContext && (
+    hasPendingVerificationAnchor ||
+    VERIFICATION_FLOWS.includes(String(verificationFlowHint || ''))
+  );
 }
 
 export function resolveFlowScopedTools({ state, classification, routingResult, userMessage = '', allToolNames = [] }) {
@@ -203,18 +226,14 @@ DAVRANIŞ:
   // We inject context so it knows what's pending.
   // SCOPE: Only inject for flows that actually require PII verification.
   // Stock, product inquiry etc. should NEVER see verification guidance.
-  const VERIFICATION_FLOWS = ['ORDER_STATUS', 'DEBT_INQUIRY', 'TRACKING_INFO', 'ACCOUNT_LOOKUP'];
   // Only inject verification guidance if we're actually in a verification-relevant flow.
-  // When activeFlow is null (e.g. after post-result reset), also check if there's a recent
-  // stock context — if so, this is NOT a verification scenario.
-  const hasRecentStockContext = !!state.lastStockContext || state.anchor?.type === 'STOCK';
-  const verificationFlowHint = normalizeFlowName(
-    state.activeFlow ||
-    routingResult?.routing?.routing?.suggestedFlow ||
-    classification?.suggestedFlow
-  );
-  const isVerificationRelevant = !hasRecentStockContext &&
-    VERIFICATION_FLOWS.includes(String(verificationFlowHint || ''));
+  // When activeFlow is null (e.g. after post-result reset), pending verification anchor
+  // keeps the context alive so LLM can continue verification correctly.
+  const isVerificationRelevant = isVerificationContextRelevant({
+    state,
+    routingResult,
+    classification
+  });
 
   if (state.verificationContext && isVerificationRelevant) {
     const vc = state.verificationContext;

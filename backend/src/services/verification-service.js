@@ -20,6 +20,10 @@ import { getMessageVariant } from '../messages/messageCatalog.js';
 const VERIFICATION_REQUIRED_QUERY_TYPES = new Set([
   'siparis',
   'order',
+  'servis',
+  'service',
+  'ariza',
+  'ticket',
   'tracking',
   'kargo',
   'cargo',
@@ -45,10 +49,6 @@ const VERIFICATION_EXEMPT_QUERY_TYPES = new Set([
   'product',
   'urun',
   'support',
-  'service',
-  'servis',
-  'ariza',
-  'ticket',
   'randevu',
   'appointment'
 ]);
@@ -82,7 +82,7 @@ export function requiresVerification(queryType) {
     return true;
   }
 
-  return /(siparis|order|tracking|kargo|cargo|debt|borc|muhasebe|billing|payment|odeme|invoice|fatura|refund|iade|return)/i
+  return /(siparis|order|servis|service|ariza|ticket|tracking|kargo|cargo|debt|borc|muhasebe|billing|payment|odeme|invoice|fatura|refund|iade|return)/i
     .test(normalizedQueryType);
 }
 

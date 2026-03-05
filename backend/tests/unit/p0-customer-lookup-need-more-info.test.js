@@ -7,6 +7,10 @@ const prismaMock = {
     findFirst: jest.fn(),
     findUnique: jest.fn()
   },
+  crmTicket: {
+    findFirst: jest.fn(),
+    findUnique: jest.fn()
+  },
   customerData: {
     findMany: jest.fn(),
     findFirst: jest.fn(),
@@ -29,9 +33,11 @@ beforeEach(() => {
   jest.clearAllMocks();
   prismaMock.crmOrder.findMany.mockResolvedValue([]);
   prismaMock.crmOrder.findFirst.mockResolvedValue(null);
+  prismaMock.crmTicket.findFirst.mockResolvedValue(null);
   prismaMock.customerData.findMany.mockResolvedValue([]);
   prismaMock.customerData.findFirst.mockResolvedValue(null);
   prismaMock.crmOrder.findUnique.mockResolvedValue(null);
+  prismaMock.crmTicket.findUnique.mockResolvedValue(null);
   prismaMock.customerData.findUnique.mockResolvedValue(null);
 });
 
@@ -201,7 +207,7 @@ describe('P0 customer_data_lookup deterministic outcomes', () => {
     );
 
     expect(result.outcome).toBe(ToolOutcome.VERIFICATION_REQUIRED);
-    expect(result.data?.askFor).toBe('name');
+    expect(result.data?.askFor).toBe('phone_last4');
   });
 
   it('B6: verified session should bypass re-verification only within same customer scope', async () => {
@@ -239,5 +245,79 @@ describe('P0 customer_data_lookup deterministic outcomes', () => {
     expect(result.outcome).toBe(ToolOutcome.OK);
     expect(result.message.toLowerCase()).toContain('kargoda');
     expect(result.data?.order?.status).toBe('kargoda');
+  });
+
+  it('B7: pending phone_last4 verification should reject plain name-only response', async () => {
+    const result = await executeLookup(
+      {
+        query_type: 'siparis',
+        customer_name: 'Ahmet Yılmaz'
+      },
+      business,
+      {
+        state: {
+          verification: {
+            status: 'pending',
+            pendingField: 'phone_last4',
+            anchor: {
+              id: 'cust-2',
+              customerId: 'cust-2',
+              name: 'Ahmet Yılmaz',
+              phone: '+905551234567',
+              anchorType: 'order',
+              anchorValue: 'ORD-111111',
+              sourceTable: 'CustomerData'
+            }
+          }
+        },
+        sessionId: 'test-b7'
+      }
+    );
+
+    expect(result.outcome).toBe(ToolOutcome.VERIFICATION_REQUIRED);
+    expect(result.data?.askFor).toBe('phone_last4');
+    expect(result.message.toLowerCase()).toContain('son 4');
+  });
+
+  it('B8: pending verification on CrmTicket should fetch from crmTicket table and pass', async () => {
+    prismaMock.crmTicket.findUnique.mockResolvedValueOnce({
+      id: 'ticket-1',
+      businessId: 1,
+      ticketNumber: 'TKT-2024-0008',
+      customerName: 'Servis Müşteri 8',
+      customerPhone: '+905551112233',
+      product: 'Laptop',
+      issue: 'Açılmıyor',
+      status: 'İnceleniyor'
+    });
+
+    const result = await executeLookup(
+      {
+        query_type: 'servis',
+        verification_input: '2233'
+      },
+      business,
+      {
+        state: {
+          verification: {
+            status: 'pending',
+            pendingField: 'phone_last4',
+            anchor: {
+              id: 'ticket-1',
+              customerId: 'cust-8',
+              name: 'Servis Müşteri 8',
+              phone: '+905551112233',
+              anchorType: 'ticket',
+              anchorValue: 'TKT-2024-0008',
+              sourceTable: 'CrmTicket'
+            }
+          }
+        },
+        sessionId: 'test-b8'
+      }
+    );
+
+    expect(result.outcome).toBe(ToolOutcome.OK);
+    expect(prismaMock.crmTicket.findUnique).toHaveBeenCalledWith({ where: { id: 'ticket-1' } });
   });
 });
