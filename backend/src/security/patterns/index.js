@@ -162,7 +162,34 @@ export const INTERNAL_METADATA_TERMS = Object.freeze([
   'collection:',
   'table:',
   'foreign key',
-  'primary key'
+  'primary key',
+  // Internal data model/table names (must never be exposed to end users)
+  'customerdata',
+  'customer_data',
+  'crmorder',
+  'crm_order',
+  'crmticket',
+  'crm_ticket',
+  'conversationstate',
+  'conversation_state',
+  'responsetrace',
+  'response_trace',
+  'securityevent',
+  'security_event',
+  'operationalincident',
+  'operational_incident',
+  'activecallsession',
+  'active_call_session',
+  'callbackrequest',
+  'callback_request',
+  'emailthread',
+  'email_thread',
+  'emailintegration',
+  'email_integration',
+  'oauthstate',
+  'oauth_state',
+  'auditlog',
+  'audit_log'
 ]);
 
 export const INTERNAL_TOOL_INVOCATION_PATTERNS = Object.freeze([
@@ -180,6 +207,20 @@ export const INTERNAL_TOOL_INVOCATION_PATTERNS = Object.freeze([
   /\btool_code\s*:/i,
   // Generic code-like tool invocations (e.g. tool_name(arg1, arg2))
   /\b\w+_\w+\s*\([^)]*\)\s*$/m
+]);
+
+// Database/schema disclosure patterns. These are internal implementation details
+// and should never appear in assistant responses.
+export const INTERNAL_DATABASE_DISCLOSURE_PATTERNS = Object.freeze([
+  // SQL statement exposure (query snippets / dumps)
+  /\b(select|insert|update|delete)\b[\s\S]{0,140}\b(from|into)\b[\s`"']*[a-z_][a-z0-9_]{2,}/i,
+  /\b(create|alter|drop)\s+table\b/i,
+  /\bjoin\s+[a-z_][a-z0-9_]{2,}\b/i,
+  // Migration / ORM internals
+  /\b(schema\.prisma|prisma\s+schema|prisma\.|\$queryraw|queryrawunsafe|migration)\b/i,
+  // Explicit table list disclosure
+  /\b(table|tables|tablo|tablolar)\s*:\s*[a-z_][a-z0-9_]*(\s*,\s*[a-z_][a-z0-9_]*){1,}/i,
+  /\b([A-Z][A-Za-z0-9_]{2,}\s*,\s*){1,}[A-Z][A-Za-z0-9_]{2,}\s*(tablosu|tabloları|tablolari|tables?)\b/i
 ]);
 
 // NOT_FOUND acknowledgements used by security gateway + test assertions.
@@ -260,6 +301,7 @@ export default {
   PROMPT_DISCLOSURE_REGEX_PATTERNS,
   INTERNAL_METADATA_TERMS,
   INTERNAL_TOOL_INVOCATION_PATTERNS,
+  INTERNAL_DATABASE_DISCLOSURE_PATTERNS,
   NOT_FOUND_RESPONSE_PATTERNS,
   ORDER_FABRICATION_PATTERNS,
   POLICY_RESPONSE_HINT_PATTERNS,

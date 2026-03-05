@@ -18,7 +18,8 @@ import {
   PROMPT_DISCLOSURE_KEYWORDS_TR,
   PROMPT_DISCLOSURE_REGEX_PATTERNS,
   INTERNAL_METADATA_TERMS,
-  INTERNAL_TOOL_INVOCATION_PATTERNS
+  INTERNAL_TOOL_INVOCATION_PATTERNS,
+  INTERNAL_DATABASE_DISCLOSURE_PATTERNS
 } from '../security/patterns/index.js';
 
 /**
@@ -123,7 +124,8 @@ function containsPromptDisclosure(text) {
 function containsInternalMetadata(text) {
   if (!text) return false;
 
-  const str = String(text).toLowerCase();
+  const raw = String(text);
+  const str = raw.toLowerCase();
 
   for (const term of INTERNAL_METADATA_TERMS) {
     if (str.includes(term.toLowerCase())) {
@@ -133,8 +135,15 @@ function containsInternalMetadata(text) {
   }
 
   for (const pattern of INTERNAL_TOOL_INVOCATION_PATTERNS) {
-    if (pattern.test(str)) {
+    if (pattern.test(raw)) {
       console.warn(`🚨 [Firewall] Tool invocation pattern detected`);
+      return true;
+    }
+  }
+
+  for (const pattern of INTERNAL_DATABASE_DISCLOSURE_PATTERNS) {
+    if (pattern.test(raw)) {
+      console.warn('🚨 [Firewall] Database disclosure pattern detected');
       return true;
     }
   }

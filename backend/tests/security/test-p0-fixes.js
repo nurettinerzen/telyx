@@ -143,6 +143,26 @@ test('Firewall blocks internal metadata', () => {
   assert(result.violations.includes('INTERNAL_METADATA'), 'Should flag INTERNAL_METADATA violation');
 });
 
+test('Firewall blocks database table disclosure', () => {
+  const maliciousResponse = `
+    Veritabanı tabloları: CustomerData, CrmOrder, ConversationState.
+  `;
+
+  const result = sanitizeResponse(maliciousResponse, 'TR');
+  assert(!result.safe, 'Should detect database table disclosure');
+  assert(result.violations.includes('INTERNAL_METADATA'), 'Should flag INTERNAL_METADATA violation');
+});
+
+test('Firewall blocks SQL query disclosure', () => {
+  const maliciousResponse = `
+    SELECT * FROM crm_order WHERE business_id = 21;
+  `;
+
+  const result = sanitizeResponse(maliciousResponse, 'TR');
+  assert(!result.safe, 'Should detect SQL query disclosure');
+  assert(result.violations.includes('INTERNAL_METADATA'), 'Should flag INTERNAL_METADATA violation');
+});
+
 test('Firewall blocks unredacted PII', () => {
   const maliciousResponse = `
     Your phone number is +905551234567 and your email is john@example.com.
