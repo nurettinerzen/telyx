@@ -369,17 +369,21 @@ router.post('/webhook', async (req, res) => {
 
     // 11Labs tool webhook sends tool_name directly OR we detect by parameters
     // Tool calls do NOT have signature - they come directly from 11Labs conversation servers
+    // SECURITY: All tool call heuristics REQUIRE agentId in query param to prevent abuse
     const isToolCall = event.tool_name || (eventType === 'tool_call') || (eventType === 'client_tool_call');
-    const looksLikeToolCall = !eventType && (event.query_type || event.order_number || event.customer_name || (event.phone && !event.type));
+    const looksLikeToolCall = !eventType && agentIdFromQuery &&
+      (event.query_type || event.order_number || event.customer_name || (event.phone && !event.type));
 
     // Handle tool calls FIRST (before signature check - 11Labs doesn't sign tool webhooks)
-    if (isToolCall && event.tool_name) {
+    // SECURITY: Require agentId to be present for tool call routing
+    if (isToolCall && event.tool_name && agentIdFromQuery) {
       console.log('🔧 11Labs Tool Call (direct):', event.tool_name, 'AgentID:', agentIdFromQuery);
       const result = await handleToolCall(event, agentIdFromQuery);
       return res.json(result);
     }
 
     // 11Labs may send tool calls without tool_name - detect by parameters
+    // SECURITY: Only trigger when agentId is present (checked in looksLikeToolCall above)
     if (looksLikeToolCall) {
       console.log('🔧 11Labs Tool Call (detected by params - customer_data_lookup):', JSON.stringify(event));
       const toolEvent = { ...event, tool_name: 'customer_data_lookup' };
@@ -387,8 +391,9 @@ router.post('/webhook', async (req, res) => {
       return res.json(result);
     }
 
-    // If no event type and we have agentId, this is likely a tool call
-    if (!eventType && agentIdFromQuery && Object.keys(event).length > 0) {
+    // If no event type and we have agentId + conversation_id, this is likely a tool call
+    // SECURITY: Require both agentId AND conversation_id to prevent blind probing
+    if (!eventType && agentIdFromQuery && event.conversation_id && Object.keys(event).length > 1) {
       console.log('🔧 11Labs Tool Call (unknown tool, detecting...):', JSON.stringify(event));
       const toolEvent = { ...event, tool_name: 'customer_data_lookup' };
       const result = await handleToolCall(toolEvent, agentIdFromQuery);
@@ -1947,27 +1952,49 @@ router.post('/sync-conversations', authenticateToken, async (req, res) => {
 // SIGNED URL ENDPOINT (for web client)
 // ============================================================================
 
+// SECURITY: Rate limit signed URL requests to prevent abuse (max 5 per minute per IP)
+const _signedUrlRequests = new Map();
+const SIGNED_URL_RATE_LIMIT = 5;
+const SIGNED_URL_WINDOW_MS = 60_000;
+
 router.get('/signed-url/:assistantId', async (req, res) => {
   try {
     const { assistantId } = req.params;
+
+    // Rate limit by IP
+    const clientIp = req.ip || req.connection?.remoteAddress || 'unknown';
+    const now = Date.now();
+    const key = `${clientIp}:signed-url`;
+    const entry = _signedUrlRequests.get(key) || { count: 0, start: now };
+    if (now - entry.start > SIGNED_URL_WINDOW_MS) {
+      entry.count = 0;
+      entry.start = now;
+    }
+    entry.count++;
+    _signedUrlRequests.set(key, entry);
+    if (entry.count > SIGNED_URL_RATE_LIMIT) {
+      console.warn(`🚫 [SignedURL] Rate limit exceeded for ${clientIp}`);
+      return res.status(429).json({ error: 'Too many requests' });
+    }
+
     console.log('🔗 Signed URL requested for assistantId:', assistantId);
 
     const assistant = await prisma.assistant.findUnique({
-      where: { id: assistantId }
+      where: { id: assistantId },
+      include: { business: { select: { id: true, isActive: true } } }
     });
-
-    console.log('📋 Assistant found:', assistant ? {
-      id: assistant.id,
-      name: assistant.name,
-      elevenLabsAgentId: assistant.elevenLabsAgentId
-    } : 'NOT FOUND');
 
     if (!assistant) {
       return res.status(404).json({ error: 'Assistant not found' });
     }
 
+    // SECURITY: Verify business is active
+    if (!assistant.business?.isActive) {
+      return res.status(403).json({ error: 'Business is not active' });
+    }
+
     if (!assistant.elevenLabsAgentId) {
-      return res.status(404).json({ error: 'Assistant not configured for 11Labs (missing elevenLabsAgentId)' });
+      return res.status(404).json({ error: 'Assistant not configured for voice' });
     }
 
     // Import the service

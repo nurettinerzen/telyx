@@ -44,10 +44,7 @@ const PUBLIC_PATHS = [
   '/api/iyzico-callback',
   '/api/stripe',
   '/api/whatsapp/webhook',
-  '/api/whatsapp/conversations',
-  '/api/conversations',  // Alt pattern
-  '/api/whatsapp/conversations/:businessId/:phoneNumber',
-  '/api/conversations/:businessId/:phoneNumber',  // Alt pattern
+  // REMOVED: /api/whatsapp/conversations, /api/whatsapp/send — now require admin auth
 
   // Public widget/embed endpoints (no JWT, uses embedKey)
   '/api/chat', // Public chat widget

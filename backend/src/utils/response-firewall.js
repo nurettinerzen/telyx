@@ -22,6 +22,23 @@ import {
   INTERNAL_DATABASE_DISCLOSURE_PATTERNS
 } from '../security/patterns/index.js';
 
+// KB metadata disclosure patterns — catch responses that reveal internal KB structure
+const KB_METADATA_DISCLOSURE_PATTERNS = Object.freeze([
+  // "bilgi bankamızda X belge/dosya/kaynak var"
+  /bilgi\s+banka\w*\s*[''`]?\s*\w*\s*\d+\s*(belge|dosya|kaynak|döküman|doküman|kayıt)/i,
+  // "bilgi bankamızda şu belgeler var: ..."
+  /bilgi\s+banka\w*\s*[''`]?\s*\w*\s*(şu|aşağıdaki|bulunan)\s*(belge|dosya|kaynak|döküman)/i,
+  // Explicit KB doc name patterns: "X Knowledge Base", "X KB.docx", "X KB.pdf"
+  /\w+\s+knowledge\s+base/i,
+  /\w+\s+KB\.(docx?|pdf|xlsx?|txt|csv)/i,
+  // "belgemiz/dokümanımız ... adında"
+  /(belge|dosya|döküman|doküman)\w*\s+(adı|ismi|adında|isminde)\s/i,
+  // "X ve Y adında iki belge"
+  /adında\s+(iki|üç|dört|beş|\d+)\s*(ana\s+)?(belge|dosya|kaynak|döküman)/i,
+  // Listing KB documents by name
+  /bilgi\s+banka\w*.*?\*[^*]+\*.*?\*[^*]+\*/i,
+]);
+
 /**
  * Check if response contains dangerous JSON dumps
  * @param {string} text - Response text
@@ -146,6 +163,12 @@ function containsInternalMetadata(text) {
       console.warn('🚨 [Firewall] Database disclosure pattern detected');
       return true;
     }
+  }
+
+  // KB metadata disclosure: document names, file names, source counts
+  if (KB_METADATA_DISCLOSURE_PATTERNS.some(p => p.test(raw))) {
+    console.warn('🚨 [Firewall] KB metadata disclosure detected');
+    return true;
   }
 
   return false;

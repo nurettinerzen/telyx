@@ -12,15 +12,38 @@ import { authenticateToken, verifyBusinessAccess } from '../middleware/auth.js';
 const router = express.Router();
 
 // ============================================================================
-// PUBLIC ENDPOINT - Asistan tool'undan çağrılır (authentication yok)
+// PUBLIC ENDPOINT - Asistan tool'undan çağrılır
+// SECURITY: Rate limited to prevent callback queue spam
 // ============================================================================
+
+// Rate limit: max 10 callback creates per minute per IP
+const _callbackRateMap = new Map();
+const CB_RATE_LIMIT = 10;
+const CB_RATE_WINDOW_MS = 60_000;
+
+function callbackRateLimit(req, res, next) {
+  const ip = req.ip || req.connection?.remoteAddress || 'unknown';
+  const now = Date.now();
+  const entry = _callbackRateMap.get(ip) || { count: 0, start: now };
+  if (now - entry.start > CB_RATE_WINDOW_MS) {
+    entry.count = 0;
+    entry.start = now;
+  }
+  entry.count++;
+  _callbackRateMap.set(ip, entry);
+  if (entry.count > CB_RATE_LIMIT) {
+    console.warn(`🚫 [Callback] Rate limit exceeded for ${ip}`);
+    return res.status(429).json({ error: 'Çok fazla istek. Lütfen bekleyin.' });
+  }
+  next();
+}
 
 /**
  * POST /api/callbacks/create
  * Yeni callback oluştur (asistan tool'undan çağrılır)
  * NOT: Bu endpoint public'tir, assistantId ile yetkilendirme yapılır
  */
-router.post('/create', async (req, res) => {
+router.post('/create', callbackRateLimit, async (req, res) => {
   try {
     const {
       assistantId,

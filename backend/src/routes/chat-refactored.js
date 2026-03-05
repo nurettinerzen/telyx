@@ -996,6 +996,15 @@ router.post('/widget', async (req, res) => {
 
       business = requestedAssistant.business;
 
+      // SECURITY: Enforce chatWidgetEnabled for assistantId flow too (not just embedKey)
+      if (!business.chatWidgetEnabled) {
+        const isDashboardPreview = await _isDashboardPreview(req, business.id);
+        if (!isDashboardPreview) {
+          return res.status(403).json({ error: 'Chat widget is disabled' });
+        }
+        console.log('🔓 [Widget] Dashboard preview bypass (assistantId) — chatWidgetEnabled check skipped');
+      }
+
       if (assistantHasCapability(requestedAssistant, ASSISTANT_CHANNEL_CAPABILITIES.CHAT)) {
         assistant = requestedAssistant;
       } else {

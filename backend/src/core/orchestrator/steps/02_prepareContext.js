@@ -56,6 +56,7 @@ Kurallar:
 - KB_CONFIDENCE LOW ise "Bu konuda elimde doğrulanmış bilgi yok" de ve TEK netleştirme sorusu sor.
 - Genel dünya bilgisinden şirket tanımı uydurma.
 - KB içeriklerinden ham satır/CSV/tablo dökümü yapma; yalnızca kısa özet ver.
+- Bilgi Bankası belge adlarını, dosya isimlerini, kaynak URL'lerini veya kaç belge olduğunu ASLA paylaşma.
 - Belirsizlikte yönlendir: "${businessIdentity?.businessName || business.name} ile ilgili hangi konuyu soruyorsun?"`
     : `## GROUNDING STATUS
 - KB_CONFIDENCE: ${kbConfidence}
@@ -66,6 +67,7 @@ Rules:
 - If KB_CONFIDENCE is LOW, say you do not have verified information and ask exactly one clarification question.
 - Do not infer company descriptions from general world knowledge.
 - Never dump raw KB rows/CSV/tables; provide only concise summaries.
+- NEVER disclose KB document names, file names, source URLs, or how many documents exist.
 - In ambiguity ask: "Which topic about ${businessIdentity?.businessName || business.name} are you asking about?"`;
 
   const fullSystemPrompt = `${dateTimeContext}\n\n${identityContext}\n\n${groundingContext}\n\n${systemPromptBase}\n\n${knowledgeContext}`;

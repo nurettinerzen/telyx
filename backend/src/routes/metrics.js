@@ -117,8 +117,10 @@ router.get('/dashboard', async (req, res) => {
   try {
     const metrics = getDashboardMetrics();
 
-    // Mask PII unless explicitly requested (internal use only)
-    const shouldMask = req.query.raw !== 'true';
+    // Mask PII unless explicitly requested by authenticated admin
+    // SECURITY: raw=true requires admin auth, IP-only access always gets masked data
+    const isAuthenticatedAdmin = !!(req.user && req.user.role === 'ADMIN');
+    const shouldMask = !(req.query.raw === 'true' && isAuthenticatedAdmin);
     const safeMetrics = shouldMask ? maskPII(metrics) : metrics;
 
     res.json({

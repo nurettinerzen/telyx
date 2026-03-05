@@ -220,7 +220,13 @@ export const INTERNAL_DATABASE_DISCLOSURE_PATTERNS = Object.freeze([
   /\b(schema\.prisma|prisma\s+schema|prisma\.|\$queryraw|queryrawunsafe|migration)\b/i,
   // Explicit table list disclosure
   /\b(table|tables|tablo|tablolar)\s*:\s*[a-z_][a-z0-9_]*(\s*,\s*[a-z_][a-z0-9_]*){1,}/i,
-  /\b([A-Z][A-Za-z0-9_]{2,}\s*,\s*){1,}[A-Z][A-Za-z0-9_]{2,}\s*(tablosu|tabloları|tablolari|tables?)\b/i
+  /\b([A-Z][A-Za-z0-9_]{2,}\s*,\s*){1,}[A-Z][A-Za-z0-9_]{2,}\s*(tablosu|tabloları|tablolari|tables?)\b/i,
+  // Natural language Turkish table disclosure: "müşteri tablosu", "sipariş tablosu ve stok tablosu"
+  /\b(müşteri|sipariş|siparis|stok|ürün|urun|fatura|ödeme|odeme|kullanıcı|kullanici|envanter|kategori|kargo)\s+tablosu\b/i,
+  // Multiple "X tablosu" in same response (listing)
+  /tablosu\b[^.]{0,60}\btablosu\b/i,
+  // "sistemde X tablosu/tabloları var"
+  /\bsistem\w*\s+.{0,40}\b(tablo|table)\w*\s+(var|mevcut|bulun)/i
 ]);
 
 // NOT_FOUND acknowledgements used by security gateway + test assertions.

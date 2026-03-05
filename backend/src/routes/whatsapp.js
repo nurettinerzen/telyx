@@ -334,13 +334,14 @@ router.post('/webhook', webhookRateLimiter.middleware(), async (req, res) => {
       });
 
       // Fallback: If no business found but phoneNumberId matches env, use env credentials
-      // This is for testing/development with the default test account
+      // SECURITY: Only use env fallback in non-production or when WHATSAPP_FALLBACK_BUSINESS_ID is set
+      // Never fall back to "first active business" — cross-tenant risk
       if (!business && phoneNumberId === process.env.WHATSAPP_PHONE_NUMBER_ID) {
-        console.log('⚠️ Using env fallback for WhatsApp - phone number ID matched env');
+        const fallbackBusinessId = parseInt(process.env.WHATSAPP_FALLBACK_BUSINESS_ID || '21');
+        console.log(`⚠️ Using env fallback for WhatsApp — phoneNumberId matched env, fallback businessId=${fallbackBusinessId}`);
 
-        // First try to find the dev account (business ID 21)
         business = await prisma.business.findUnique({
-          where: { id: 21 },
+          where: { id: fallbackBusinessId },
           include: {
             assistants: {
               where: { isActive: true },
@@ -352,26 +353,12 @@ router.post('/webhook', webhookRateLimiter.middleware(), async (req, res) => {
           }
         });
 
-        // If dev account not found, fall back to first business with active assistant
+        // SECURITY: Removed "first active business" fallback — never route to random tenant
         if (!business) {
-          business = await prisma.business.findFirst({
-            where: {
-              assistants: { some: { isActive: true } }
-            },
-            include: {
-              assistants: {
-                where: { isActive: true },
-                orderBy: { createdAt: 'desc' }
-              },
-              integrations: {
-                where: { isActive: true }
-              }
-            }
-          });
+          console.error(`🚫 [WhatsApp] Fallback business ${fallbackBusinessId} not found — dropping message`);
         }
 
         if (business) {
-          // Inject env credentials for this request
           business._useEnvCredentials = true;
         }
       }
@@ -1366,8 +1353,14 @@ async function sendWhatsAppMessage(business, to, text, options = {}) {
 }
 
 // ============================================================================
-// ADMIN/TEST ENDPOINTS
+// ADMIN/TEST ENDPOINTS — Protected by auth + admin check
 // ============================================================================
+import { authenticateToken } from '../middleware/auth.js';
+import { isAdmin } from '../middleware/adminAuth.js';
+
+// SECURITY: All admin/test endpoints require authenticated admin session
+router.use('/send', authenticateToken, isAdmin);
+router.use('/conversations', authenticateToken, isAdmin);
 
 // Manual message sending endpoint (for testing)
 router.post('/send', async (req, res) => {

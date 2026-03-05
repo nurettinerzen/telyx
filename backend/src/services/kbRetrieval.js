@@ -63,18 +63,26 @@ function buildSafeDocumentSnippet(content) {
   return truncate(cleaned, MAX_DOCUMENT_SNIPPET_CHARS);
 }
 
+// Counter for anonymous KB item labels (reset per retrieval call)
+let _kbItemCounter = 0;
+function resetKBItemCounter() { _kbItemCounter = 0; }
+
 function formatKBItem(item) {
   const type = item.type?.toUpperCase();
+  _kbItemCounter++;
 
+  // SECURITY: Never expose document titles, filenames or source URLs to LLM context.
+  // These are internal metadata that the assistant must not reveal to end users.
   if (type === 'DOCUMENT') {
     const safeSnippet = buildSafeDocumentSnippet(item.content);
-    return `### ${item.title || 'Belge'}\nÖzet: ${safeSnippet || 'Bu belge için yalnızca genel bilgi paylaşılabilir.'}`;
+    return `### Kaynak ${_kbItemCounter}\nÖzet: ${safeSnippet || 'Bu kaynak için yalnızca genel bilgi paylaşılabilir.'}`;
   }
   if (type === 'FAQ') {
     return `### S: ${item.question || 'Soru'}\nC: ${truncate(item.answer || '', MAX_CHARS_PER_ITEM)}`;
   }
   if (type === 'URL') {
-    return `### ${item.title || 'Web Sayfası'}\n${truncate(item.content || '', MAX_CHARS_PER_ITEM)}\nKaynak: ${item.url}`;
+    // Strip URL and title — only expose content summary
+    return `### Kaynak ${_kbItemCounter}\n${truncate(item.content || '', MAX_CHARS_PER_ITEM)}`;
   }
 
   return '';
@@ -261,6 +269,7 @@ export async function retrieveKB(businessId, userMessage, options = {}) {
       selected.push(item);
     }
 
+    resetKBItemCounter();
     const formattedItems = [];
     let totalChars = 0;
     for (const item of selected) {
@@ -289,7 +298,11 @@ export async function retrieveKB(businessId, userMessage, options = {}) {
 
 ${formattedItems.join('\n\n---\n\n')}
 
-ÖNEMLİ: Yukarıdaki bilgileri kullanarak yanıt ver. Bilgi Bankası'nda olmayan şirket/ürün/özellik bilgilerini UYDURMA.
+ÖNEMLİ:
+- Yukarıdaki bilgileri kullanarak yanıt ver. Bilgi Bankası'nda olmayan şirket/ürün/özellik bilgilerini UYDURMA.
+- Bilgi Bankası belge adlarını, dosya isimlerini, kaynak URL'lerini veya iç metadata bilgilerini ASLA kullanıcıyla paylaşma.
+- "Bilgi bankamızda şu belgeler var" gibi iç yapı bilgisi verme. Sadece içerik bazlı yanıt ver.
+- Kullanıcı bilgi bankası yapısını/içeriğini sorsa: "Size yardımcı olabileceğim konuları sorabilirsiniz" şeklinde yönlendir.
 `;
 
     console.log(`📚 [KB Retrieval] entity-first terms=${queryTerms.join(', ')} items=${formattedItems.length} confidence=${kbConfidence} businessId=${businessId}`);

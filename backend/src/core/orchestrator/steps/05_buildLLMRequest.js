@@ -208,6 +208,7 @@ YASAKLAR:
 - "Kontrol ediyorum", "bakıyorum" gibi tool varmış gibi davranma
 - Sipariş durumu, teslimat tarihi, ödeme tutarı gibi claim yapma
 - Veritabanı/tablo/şema, SQL veya teknik altyapı detaylarını paylaşma
+- Bilgi Bankası belge adlarını, dosya isimlerini, kaynak URL'lerini veya belge sayısını paylaşma
 - Link uydurma — sadece aşağıdaki linkleri kullan
 
 ${linksList ? `YARDIM LİNKLERİ:\n${linksList}` : 'Link bilgisi yok — "destek ekibimize ulaşabilirsiniz" yönlendirmesi yap.'}
