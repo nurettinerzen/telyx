@@ -8,9 +8,28 @@
 import express from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticateToken } from '../middleware/auth.js';
+import { isRedAlertOpsPanelEnabled } from '../config/feature-flags.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
+
+function parseRangeToSince(range = '24h') {
+  const value = String(range || '24h').trim().toLowerCase();
+  const match = value.match(/^(\d+)([hd])$/);
+  if (!match) {
+    return new Date(Date.now() - 24 * 60 * 60 * 1000);
+  }
+  const amount = Math.max(1, parseInt(match[1], 10));
+  const unit = match[2];
+  const ms = unit === 'd'
+    ? amount * 24 * 60 * 60 * 1000
+    : amount * 60 * 60 * 1000;
+  return new Date(Date.now() - ms);
+}
+
+function isOpsPanelAllowed(req) {
+  return isRedAlertOpsPanelEnabled({ businessId: req.businessId });
+}
 
 // Require authentication for all routes
 router.use(authenticateToken);
@@ -321,6 +340,241 @@ router.get('/health', async (req, res) => {
   } catch (error) {
     console.error('Red Alert health error:', error);
     res.status(500).json({ error: 'Failed to calculate health score' });
+  }
+});
+
+// ============================================================================
+// OPERATIONAL INCIDENTS / RESPONSE TRACE (Phase 1)
+// ============================================================================
+
+/**
+ * GET /api/red-alert/ops/summary?range=24h
+ */
+router.get('/ops/summary', async (req, res) => {
+  try {
+    if (!isOpsPanelAllowed(req)) {
+      return res.status(404).json({ error: 'Operational panel disabled' });
+    }
+
+    const { businessId } = req;
+    const { range = '24h' } = req.query;
+    const since = parseRangeToSince(range);
+
+    const traceWhere = {
+      createdAt: { gte: since },
+      ...(businessId && { businessId }),
+    };
+    const incidentWhere = {
+      createdAt: { gte: since },
+      ...(businessId && { businessId }),
+    };
+
+    const [
+      totalTurns,
+      bypassTurns,
+      fallbackTurns,
+      toolCalledTurns,
+      toolSuccessTurns,
+      incidentsByCategory,
+      incidentsBySeverity
+    ] = await Promise.all([
+      prisma.responseTrace.count({ where: traceWhere }),
+      prisma.responseTrace.count({
+        where: {
+          ...traceWhere,
+          llmUsed: false
+        }
+      }),
+      prisma.responseTrace.count({
+        where: {
+          ...traceWhere,
+          responseSource: { in: ['template', 'fallback', 'policy_append'] }
+        }
+      }),
+      prisma.responseTrace.count({
+        where: {
+          ...traceWhere,
+          toolsCalledCount: { gt: 0 }
+        }
+      }),
+      prisma.responseTrace.count({
+        where: {
+          ...traceWhere,
+          toolsCalledCount: { gt: 0 },
+          toolSuccess: true
+        }
+      }),
+      prisma.operationalIncident.groupBy({
+        by: ['category'],
+        where: incidentWhere,
+        _count: true
+      }),
+      prisma.operationalIncident.groupBy({
+        by: ['severity'],
+        where: incidentWhere,
+        _count: true
+      })
+    ]);
+
+    const pct = (num, den) => den > 0 ? Number(((num / den) * 100).toFixed(2)) : 0;
+
+    res.json({
+      range: String(range),
+      since,
+      totals: {
+        turns: totalTurns,
+        incidents: incidentsByCategory.reduce((acc, item) => acc + item._count, 0),
+      },
+      cards: {
+        bypassRate: pct(bypassTurns, totalTurns),
+        fallbackRate: pct(fallbackTurns, totalTurns),
+        toolSuccessRate: pct(toolSuccessTurns, toolCalledTurns),
+      },
+      byCategory: incidentsByCategory.reduce((acc, item) => {
+        acc[item.category] = item._count;
+        return acc;
+      }, {}),
+      bySeverity: incidentsBySeverity.reduce((acc, item) => {
+        acc[item.severity] = item._count;
+        return acc;
+      }, {})
+    });
+  } catch (error) {
+    console.error('Red Alert ops summary error:', error);
+    res.status(500).json({ error: 'Failed to fetch ops summary' });
+  }
+});
+
+/**
+ * GET /api/red-alert/ops/events?range=24h&category=...&severity=...
+ */
+router.get('/ops/events', async (req, res) => {
+  try {
+    if (!isOpsPanelAllowed(req)) {
+      return res.status(404).json({ error: 'Operational panel disabled' });
+    }
+
+    const { businessId } = req;
+    const {
+      range = '24h',
+      category,
+      severity,
+      limit = 50,
+      offset = 0
+    } = req.query;
+    const since = parseRangeToSince(range);
+
+    const where = {
+      createdAt: { gte: since },
+      ...(businessId && { businessId }),
+      ...(category && { category: String(category) }),
+      ...(severity && { severity: String(severity).toUpperCase() })
+    };
+
+    const [events, total] = await Promise.all([
+      prisma.operationalIncident.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take: parseInt(limit, 10),
+        skip: parseInt(offset, 10),
+        select: {
+          id: true,
+          createdAt: true,
+          severity: true,
+          category: true,
+          channel: true,
+          traceId: true,
+          requestId: true,
+          businessId: true,
+          userId: true,
+          sessionId: true,
+          messageId: true,
+          summary: true,
+          details: true,
+          resolved: true
+        }
+      }),
+      prisma.operationalIncident.count({ where })
+    ]);
+
+    res.json({
+      events,
+      pagination: {
+        total,
+        limit: parseInt(limit, 10),
+        offset: parseInt(offset, 10),
+        hasMore: total > parseInt(offset, 10) + parseInt(limit, 10),
+      }
+    });
+  } catch (error) {
+    console.error('Red Alert ops events error:', error);
+    res.status(500).json({ error: 'Failed to fetch ops events' });
+  }
+});
+
+/**
+ * GET /api/red-alert/ops/repeat-responses?range=24h
+ */
+router.get('/ops/repeat-responses', async (req, res) => {
+  try {
+    if (!isOpsPanelAllowed(req)) {
+      return res.status(404).json({ error: 'Operational panel disabled' });
+    }
+
+    const { businessId } = req;
+    const { range = '24h', limit = 50 } = req.query;
+    const since = parseRangeToSince(range);
+
+    const traces = await prisma.responseTrace.findMany({
+      where: {
+        createdAt: { gte: since },
+        ...(businessId && { businessId }),
+        responseHash: { not: null }
+      },
+      select: {
+        responseHash: true,
+        responsePreview: true,
+        channel: true,
+        traceId: true,
+        createdAt: true
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 5000
+    });
+
+    const grouped = new Map();
+    for (const row of traces) {
+      const key = `${row.responseHash}::${row.channel}`;
+      const current = grouped.get(key) || {
+        responseHash: row.responseHash,
+        channel: row.channel,
+        count: 0,
+        sample: row.responsePreview || '',
+        latestTraceId: row.traceId,
+        latestAt: row.createdAt
+      };
+      current.count += 1;
+      if (!current.sample && row.responsePreview) {
+        current.sample = row.responsePreview;
+      }
+      if (row.createdAt > current.latestAt) {
+        current.latestAt = row.createdAt;
+        current.latestTraceId = row.traceId;
+      }
+      grouped.set(key, current);
+    }
+
+    const repeats = Array.from(grouped.values())
+      .filter(item => item.count > 1)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, parseInt(limit, 10));
+
+    res.json({
+      repeats
+    });
+  } catch (error) {
+    console.error('Red Alert repeat response error:', error);
+    res.status(500).json({ error: 'Failed to fetch repeat responses' });
   }
 });
 

@@ -36,6 +36,7 @@
     "golden-test": "node tests/runner/golden-test.js",
     "replay-test": "node tests/replay/replayRunner.js",
     "test:security": "node tests/security/test-child-safety.js && node tests/security/test-ssrf-protection.js",
+    "smoke:unified-trace-ops": "node tests/smoke/unified-trace-ops-smoke.js",
     "security:config-integrity": "node scripts/security-config-integrity.js --json",
     "security:subdomain-check": "node scripts/subdomain-takeover-check.js",
     "ops:backup-restore-drill": "node scripts/backup-restore-drill.js",

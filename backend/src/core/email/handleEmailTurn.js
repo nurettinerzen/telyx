@@ -578,6 +578,7 @@ export async function handleEmailTurn(params) {
       metrics,
       classification: ctx.classification,
       toolsCalled: metrics.toolsCalled,
+      toolResults: ctx.toolResults,
       responseGrounding: ctx.responseGrounding,
       guardrailsApplied: ctx.guardrailsApplied,
       toolRequiredEnforced: toolRequiredResult?.enforced || false,

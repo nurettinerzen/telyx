@@ -114,6 +114,36 @@ app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3001;
 const LEGACY_ROUTES_ENABLED = process.env.ENABLE_LEGACY_ROUTES === 'true';
 const FRAME_ANCESTORS = (process.env.CSP_FRAME_ANCESTORS || "'none'").trim();
+const WHATSAPP_WEBHOOK_PATH = '/api/whatsapp/webhook';
+const WHATSAPP_VERIFY_TOKEN_ENV_KEYS = [
+  'WHATSAPP_VERIFY_TOKEN',
+  'META_VERIFY_TOKEN',
+  'WHATSAPP_WEBHOOK_VERIFY_TOKEN',
+  'VERIFY_TOKEN'
+];
+
+function maskEnvValue(value) {
+  if (!value || typeof value !== 'string') {
+    return 'missing';
+  }
+  if (value.length <= 4) {
+    return `${value.slice(0, 1)}***`;
+  }
+  return `${value.slice(0, 2)}***${value.slice(-2)}`;
+}
+
+function buildWebhookEnvDiagnostics() {
+  const verifyTokens = {};
+  for (const key of WHATSAPP_VERIFY_TOKEN_ENV_KEYS) {
+    verifyTokens[key] = maskEnvValue(process.env[key]);
+  }
+
+  return {
+    verifyTokens,
+    appSecret: maskEnvValue(process.env.WHATSAPP_APP_SECRET || process.env.META_APP_SECRET),
+    appSecretSource: process.env.WHATSAPP_APP_SECRET ? 'WHATSAPP_APP_SECRET' : (process.env.META_APP_SECRET ? 'META_APP_SECRET' : 'missing')
+  };
+}
 
 // Production security posture — log warnings, don't crash server
 try {
@@ -256,8 +286,13 @@ app.use((req, res, next) => {
 app.use('/api/subscription/webhook', express.raw({ type: 'application/json' }));
 app.use('/api/elevenlabs/webhook', express.json()); // 11Labs webhook needs parsed JSON
 app.use('/api/elevenlabs/post-call', express.json()); // 11Labs post-call webhook
+app.use(WHATSAPP_WEBHOOK_PATH, express.json({
+  verify: (req, _res, buf) => {
+    req.rawBody = buf;
+  }
+}));
 app.use('/api/webhook/incoming', express.json()); // External webhooks (Zapier, etc.)
-app.use('/api/webhook/crm', express.json({ limit: '5mb' })); // CRM webhook (NO AUTH - secured by header secret + signature)
+app.use('/api/webhook/crm', express.json()); // CRM webhook (NO AUTH - secured by header secret + signature)
 
 // ✅ OTHER ROUTES - JSON PARSE
 app.use(express.json());
@@ -324,7 +359,7 @@ app.get('/version', (req, res) => {
 });
 
 // API Routes
-app.use('/api/auth', apiRateLimiter.middleware(), authRoutes);
+app.use('/api/auth', authRateLimiter.middleware(), authRoutes);
 app.use('/api/business', businessRoutes);
 app.use('/api/call-logs', callLogRoutes);
 app.use('/api/subscription', subscriptionRoutes);
@@ -481,6 +516,7 @@ export default app;
 // Local development
 if (import.meta.url === `file://${process.argv[1]}`) {
   app.listen(PORT, () => {
+    const webhookEnv = buildWebhookEnvDiagnostics();
     console.log('\n========================================');
     console.log('🚀 TELYX BACKEND SERVER');
     console.log('========================================');
@@ -488,6 +524,12 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     console.log(`🔗 Health check: http://localhost:${PORT}/health`);
     console.log(`🔖 Build: version=${BUILD_INFO.version} commit=${BUILD_INFO.commitHash}`);
     console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log('🔌 Webhook Routes:');
+    console.log(`   - ${WHATSAPP_WEBHOOK_PATH} [GET verification, POST events]`);
+    console.log('   - /api/subscription/webhook [POST]');
+    console.log('   - /api/elevenlabs/webhook [POST]');
+    console.log('   - /api/webhook/crm [POST]');
+    console.log('🔐 Webhook Env (masked):', webhookEnv);
     console.log('========================================\n');
   });
 }

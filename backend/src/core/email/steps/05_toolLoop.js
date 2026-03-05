@@ -45,7 +45,8 @@ export async function executeEmailToolLoop(ctx) {
     const body = (inboundMessage?.bodyText || '').toLowerCase();
     const hasStockSignal = /(?:stok|stock|ürün\s*durumu|urun|var\s*mı|mevcut)/i.test(body) ||
                            /\b[A-Z0-9][A-Z0-9\-]{4,}[A-Z0-9]\b/.test(inboundMessage?.bodyText || '');
-    if (!hasStockSignal) {
+    const hasServiceSignal = /(?:servis|service|arıza|ariza|ticket|tamir|onarım|repair)/i.test(body);
+    if (!hasStockSignal || hasServiceSignal) {
       console.log('📧 [ToolLoop] Classification indicates no tools needed');
       return { success: true };
     }
@@ -192,6 +193,9 @@ function determineToolsToRun(classification, availableTools, inboundMessage, thr
   const extractedTicket = extractTicket(latestBody) || extractTicket(combinedBody);
   // Extract phone last 4 digits from latest body (follow-up verification answer)
   const extractedLast4 = extractPhoneLast4(latestBody);
+  const hasServiceSignal = /(?:servis|service|arıza|ariza|ticket|tamir|onarım|repair|rma)/i.test(latestBody)
+    || /(?:servis|service|arıza|ariza|ticket|tamir|onarım|repair|rma)/i.test(combinedBody);
+  const hasStockSignal = /(?:stok|stock|ürün\s*(?:durumu|bilgisi)|urun|var\s*mı|mevcut)/i.test(latestBody);
 
   console.log('📧 [ToolLoop] Extracted identifiers (aggregated from thread):', {
     phone: !!extractedPhone,
@@ -205,8 +209,6 @@ function determineToolsToRun(classification, availableTools, inboundMessage, thr
   });
 
   // Determine query_type based on classification intent
-  // P9-FIX: FOLLOW_UP and GENERAL no longer blindly default to 'siparis'.
-  // Context-aware: ticket/service signal → ariza, order signal → siparis, else → genel.
   const intentToQueryType = {
     'ORDER': 'siparis',
     'BILLING': 'muhasebe',
@@ -214,37 +216,26 @@ function determineToolsToRun(classification, availableTools, inboundMessage, thr
     'SUPPORT': 'ariza',
     'COMPLAINT': 'siparis',  // Complaints usually about orders
     'INQUIRY': 'genel',
-    'FOLLOW_UP': null,       // Resolved dynamically below
-    'GENERAL': null          // Resolved dynamically below
+    'FOLLOW_UP': 'genel',
+    'GENERAL': 'genel'
   };
-
-  // Dynamic query_type resolution for ambiguous intents
-  function resolveQueryType(intent, { hasTicket, hasOrder, body = '' }) {
-    const staticType = intentToQueryType[intent];
-    if (staticType) return staticType;
-    // Service/ticket signals take priority
-    if (hasTicket) return 'ariza';
-    if (/(?:servis|arıza|ariza|ticket|destek|tamir|onarim|onarım)/i.test(body)) return 'ariza';
-    // Order signals
-    if (hasOrder) return 'siparis';
-    if (/(?:sipariş|siparis|kargo|teslimat|iade)/i.test(body)) return 'siparis';
-    return 'genel';
-  }
 
   // customer_data_lookup: The universal lookup tool
   // Runs whenever we have ANY identifier (phone, order number, vkn, tc, ticket)
   if (availableTools.includes('customer_data_lookup')) {
     const actionableIntents = ['ORDER', 'BILLING', 'APPOINTMENT', 'SUPPORT', 'COMPLAINT', 'FOLLOW_UP', 'INQUIRY', 'GENERAL'];
+    const hasTicketStatusTool = availableTools.includes('check_ticket_status_crm');
 
     if (actionableIntents.includes(classification.intent)) {
       const hasAnyIdentifier = extractedPhone || extractedOrderNumber || extractedVkn || extractedTc || extractedTicket;
+      const preferTicketTool = hasTicketStatusTool
+        && (classification.intent === 'SUPPORT' || hasServiceSignal)
+        && (extractedTicket || extractedPhone);
 
-      if (hasAnyIdentifier) {
-        const queryType = resolveQueryType(classification.intent, {
-          hasTicket: !!extractedTicket,
-          hasOrder: !!extractedOrderNumber,
-          body: latestBody
-        });
+      if (hasAnyIdentifier && !preferTicketTool) {
+        const queryType = classification.intent === 'FOLLOW_UP' && extractedOrderNumber
+          ? 'siparis'
+          : (intentToQueryType[classification.intent] || 'genel');
         const args = { query_type: queryType };
 
         // Add all found identifiers
@@ -278,20 +269,34 @@ function determineToolsToRun(classification, availableTools, inboundMessage, thr
     }
   }
 
-  // Stock lookup if product/stock/SKU mentioned — intent-agnostic
-  // P5-FIX: Classification intent is unreliable for stock queries (often misclassified
-  // as GENERAL/ORDER). Stock keywords in email body are sufficient signal.
-  // P7-FIX: SUPPORT/COMPLAINT intents must NOT trigger stock lookup.
-  // Service/ticket queries were falling into stock NOT_FOUND → verification loop.
-  const isServiceContext = ['SUPPORT', 'COMPLAINT'].includes(classification.intent);
-  if (availableTools.includes('check_stock_crm') && !isServiceContext) {
+  // Ticket/service lookup should take precedence in support threads.
+  if (availableTools.includes('check_ticket_status_crm')) {
+    const supportContext = classification.intent === 'SUPPORT' || hasServiceSignal || !!extractedTicket;
+
+    if (supportContext && (extractedTicket || extractedPhone)) {
+      const args = {};
+      if (extractedTicket) args.ticket_number = extractedTicket;
+      if (extractedPhone) args.phone = extractedPhone;
+      if (extractedName) args.verification_input = extractedName;
+
+      toolsToRun.push({
+        name: 'check_ticket_status_crm',
+        args
+      });
+    }
+  }
+
+  // Stock lookup if product/stock/SKU mentioned and this is NOT a service/ticket context.
+  // Prevents "service status" emails from falling into stock fallback.
+  if (availableTools.includes('check_stock_crm')) {
     const stockKeywords = /(?:stok|stock|ürün\s*(?:durumu|bilgisi)|urun|var\s*mı|mevcut)/i;
     // SKU pattern: alphanumeric codes with hyphens (e.g. SMOKE-IPH16P, CK212LGT29)
     const skuPattern = /\b([A-Z0-9][A-Z0-9\-]{4,}[A-Z0-9])\b/;
-    const hasStockKeyword = stockKeywords.test(latestBody);
+    const hasStockKeyword = hasStockSignal || stockKeywords.test(combinedBody);
     const skuMatch = latestBody.match(skuPattern);
+    const isServiceContext = classification.intent === 'SUPPORT' || hasServiceSignal || !!extractedTicket;
 
-    if (hasStockKeyword || skuMatch) {
+    if (!isServiceContext && (hasStockKeyword || skuMatch)) {
       // Try to extract product name or SKU code
       // Strategy 1: SKU code (most reliable)
       let productName = skuMatch ? skuMatch[1].trim() : null;

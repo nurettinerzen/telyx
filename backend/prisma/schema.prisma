@@ -2094,3 +2094,74 @@ model ErrorLog {
   @@index([resolved, createdAt])
   @@index([createdAt])
 }
+
+// ============================================================================
+// RESPONSE TRACE (Unified per-turn operational telemetry)
+// ============================================================================
+model ResponseTrace {
+  id               String   @id @default(cuid())
+  createdAt        DateTime @default(now())
+
+  // Correlation
+  traceId          String
+  requestId        String?
+  channel          String // WHATSAPP | CHAT | EMAIL | ADMIN_DRAFT
+  businessId       Int
+  userId           String?
+  sessionId        String?
+  messageId        String?
+
+  // Raw trace payload (TRACE_SCHEMA-compliant object)
+  payload          Json
+
+  // Fast-query fields for Red Alert panels
+  latencyMs        Int?
+  responseHash     String?
+  responsePreview  String?
+  toolOutcomeHash  String?
+  responseSource   String?
+  llmUsed          Boolean  @default(false)
+  toolsCalledCount Int      @default(0)
+  toolSuccess      Boolean  @default(false)
+
+  @@index([businessId, createdAt])
+  @@index([channel, createdAt])
+  @@index([traceId])
+}
+
+// ============================================================================
+// OPERATIONAL INCIDENTS (Red Alert operational anomaly feed)
+// ============================================================================
+model OperationalIncident {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+
+  severity        String // LOW | MEDIUM | HIGH | CRITICAL
+  category        String // LLM_BYPASSED | TEMPLATE_FALLBACK_USED | ...
+  channel         String // WHATSAPP | CHAT | EMAIL | ADMIN_DRAFT
+
+  traceId         String
+  requestId       String?
+  businessId      Int
+  userId          String?
+  sessionId       String?
+  messageId       String?
+
+  summary         String
+  details         Json?
+
+  // Dedup helpers
+  fingerprint     String?
+  responseHash    String?
+  toolOutcomeHash String?
+
+  resolved        Boolean  @default(false)
+  resolvedAt      DateTime?
+  resolvedBy      String?
+
+  @@index([category, createdAt])
+  @@index([businessId, createdAt])
+  @@index([channel, createdAt])
+  @@index([traceId])
+  @@index([resolved, createdAt])
+}

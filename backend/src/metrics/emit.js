@@ -38,7 +38,17 @@ export function emitTurnMetrics(metrics) {
     llm_call_reason = null,
     llmBypassed = null,
     bypassed = null,
-    bypassReason = null       // P15-FIX: reason-coded bypass origin
+    response_origin = null,
+    origin_id = null,
+    llm_provider = null,
+    llm_status = null,
+    tools_called_count = null,
+    intent_final = null,
+    route_final = null,
+    policy_blocks = null,
+    llm_bypass_reason = null,
+    llm_bypass_retryable = null,
+    llm_bypass_retry_after_ms = null
   } = metrics;
 
   const llmCalledFlag = llmCalled === true || LLM_CALLED === true;
@@ -50,6 +60,17 @@ export function emitTurnMetrics(metrics) {
     : typeof llmBypassed === 'boolean'
       ? llmBypassed
       : !llmCalledFlag;
+  const responseOrigin = response_origin || 'FALLBACK';
+  const originId = origin_id || 'unknown';
+  const provider = llm_provider || (llmCalledFlag ? 'gemini' : 'none');
+  const llmStatus = llm_status || (llmCalledFlag ? 'success' : 'not_called');
+  const toolCount = Number.isInteger(tools_called_count) ? tools_called_count : toolsCalled.length;
+  const policyBlocks = Array.isArray(policy_blocks) ? policy_blocks : [];
+  const llmBypassReason = llm_bypass_reason || null;
+  const llmBypassRetryable = llm_bypass_retryable === true;
+  const llmBypassRetryAfterMs = Number.isFinite(llm_bypass_retry_after_ms)
+    ? llm_bypass_retry_after_ms
+    : null;
 
   // Console log (dev)
   const metricsLog = {
@@ -64,9 +85,20 @@ export function emitTurnMetrics(metrics) {
     tokens: { input: inputTokens, output: outputTokens },
     llmCalled: llmCalledFlag,
     LLM_CALLED: llmCalledFlag,
+    llm_called: llmCalledFlag,
+    llm_provider: provider,
+    llm_status: llmStatus,
     llm_call_reason: llmReason,
     bypassed: llmBypassFlag,
-    bypassReason: bypassReason || null   // e.g. CHILD_SAFETY, SESSION_THROTTLE, PROMPT_INJECTION, SESSION_LOCK
+    response_origin: responseOrigin,
+    origin_id: originId,
+    tools_called_count: toolCount,
+    intent_final,
+    route_final,
+    policy_blocks: policyBlocks,
+    llm_bypass_reason: llmBypassReason,
+    llm_bypass_retryable: llmBypassRetryable,
+    llm_bypass_retry_after_ms: llmBypassRetryAfterMs
   };
 
   // Identity proof telemetry (when channel proof is evaluated)

@@ -455,6 +455,10 @@ const MESSAGE_CATALOG = {
     TR: ['Randevu bilgilerinize ulaşabilmem için kayıtlı telefon numaranızı paylaşır mısınız?'],
     EN: ['Could you please provide your registered phone number so I can look up your appointment details?']
   },
+  EMAIL_TOOL_REQUIRED_SUPPORT: {
+    TR: ['Servis kaydınızı kontrol edebilmem için servis numaranızı veya kayıtlı telefon numaranızı paylaşır mısınız?'],
+    EN: ['Could you please provide your service ticket number or registered phone number so I can check your service status?']
+  },
   EMAIL_TOOL_REQUIRED_COMPLAINT: {
     TR: ['Şikayetinizi inceleyebilmem için sipariş numaranızı veya kayıtlı telefon numaranızı paylaşır mısınız?'],
     EN: ['Could you please provide your order number or registered phone number so I can investigate your complaint?']

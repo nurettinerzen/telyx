@@ -54,6 +54,7 @@ import { getState, updateState } from '../services/state-manager.js';
 import { resolveChatAssistantForBusiness } from '../services/assistantChannels.js';
 import { syncPersistedAssistantReply } from '../services/reply-parity.js';
 import { safeCompareHex } from '../security/constantTime.js';
+import { queueUnifiedResponseTrace } from '../services/trace/responseTraceLogger.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -422,7 +423,10 @@ router.post('/webhook', webhookRateLimiter.middleware(), async (req, res) => {
         res.sendStatus(200);
 
         // Process message asynchronously (don't await)
-        processWhatsAppMessage(business, from, messageBody, messageId).catch(err => {
+        processWhatsAppMessage(business, from, messageBody, messageId, {
+          requestId: req.requestId || null,
+          phoneNumberId
+        }).catch(err => {
           console.error('❌ Async message processing error:', err);
         });
 
@@ -452,7 +456,7 @@ router.post('/webhook', webhookRateLimiter.middleware(), async (req, res) => {
  * Process WhatsApp message asynchronously
  * Called after webhook returns 200 to Meta
  */
-async function processWhatsAppMessage(business, from, messageBody, messageId) {
+async function processWhatsAppMessage(business, from, messageBody, messageId, traceMeta = {}) {
   try {
     // ===== ROUTE-LEVEL GUARD: CHECK SESSION LOCK =====
     // Get universal session ID for this user
@@ -546,15 +550,20 @@ async function processWhatsAppMessage(business, from, messageBody, messageId) {
       language: business.language || 'TR',
       timezone: business.timezone || 'Europe/Istanbul',
       metadata: {
-        inboundMessageId: messageId
+        inboundMessageId: messageId,
+        requestId: traceMeta.requestId || null,
+        phoneNumberId: traceMeta.phoneNumberId || null,
+        sessionId
       }
     });
 
     // Prepare final response (with PII warnings if any)
     let aiResponse = result.reply;
+    const postprocessorsApplied = [];
     if (hasPIIWarnings) {
       const warningText = piiWarnings.join('\n');
       aiResponse = `${warningText}\n\n${aiResponse}`;
+      postprocessorsApplied.push('prepend_pii_warning');
     }
 
     // Send response using business's credentials (with idempotency)
@@ -571,6 +580,58 @@ async function processWhatsAppMessage(business, from, messageBody, messageId) {
     } catch (parityError) {
       console.error('⚠️ [WhatsApp] Failed to synchronize persisted reply:', parityError.message);
     }
+
+    // Unified response trace (finalized after route-level postprocessing)
+    const traceInput = result.traceContext || {
+      context: {
+        channel: 'WHATSAPP',
+        businessId: business.id,
+        userId: from,
+        sessionId,
+        messageId,
+        requestId: traceMeta.requestId || null,
+        language: business.language || 'TR',
+        verificationState: result?.metadata?.verificationState || 'none',
+        responseSource: result?.metrics?.response_origin || null,
+        originId: result?.metrics?.origin_id || null,
+        llmUsed: result?.metrics?.LLM_CALLED === true,
+        llmBypassReason: result?.metrics?.llm_bypass_reason || null,
+        guardrailAction: result?.metadata?.guardrailAction || 'PASS',
+        guardrailReason: result?.metadata?.guardrailReason || null,
+        policyAppend: result?.metrics?.policyAppend || null,
+        latencyMs: result?.metrics?.turnStartTime ? Date.now() - result.metrics.turnStartTime : null
+      },
+      llmMeta: {
+        called: result?.metrics?.LLM_CALLED === true,
+        model: resolved.assistant?.model || null,
+        status: result?.metrics?.llm_status || null,
+        llm_bypass_reason: result?.metrics?.llm_bypass_reason || null
+      },
+      plan: {
+        intent: result?.metrics?.intent_final || 'unknown',
+        slots: result?.state?.collectedSlots || result?.state?.extractedSlots || {},
+        tool_candidates: [],
+        tool_selected: null,
+        confidence: null
+      },
+      tools: [],
+      guardrail: {
+        action: result?.metadata?.guardrailAction || 'PASS',
+        reason: result?.metadata?.guardrailReason || null
+      }
+    };
+
+    queueUnifiedResponseTrace({
+      ...traceInput,
+      context: {
+        ...(traceInput.context || {}),
+        requestId: traceMeta.requestId || traceInput?.context?.requestId || null,
+        messageId: messageId || traceInput?.context?.messageId || null,
+        sessionId: sessionId || traceInput?.context?.sessionId || null
+      },
+      postprocessors: postprocessorsApplied,
+      finalResponse: aiResponse
+    });
   } catch (error) {
     console.error('❌ Error processing WhatsApp message:', error);
 

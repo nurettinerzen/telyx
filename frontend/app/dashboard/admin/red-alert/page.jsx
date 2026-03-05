@@ -16,6 +16,9 @@ import { toast } from 'sonner';
 import { LineChart } from '@/components/charts/LineChart';
 import { BarChart } from '@/components/charts/BarChart';
 
+const OPS_PANEL_ENABLED =
+  process.env.NEXT_PUBLIC_FEATURE_REDALERT_OPS_PANEL === 'true' ||
+  process.env.FEATURE_REDALERT_OPS_PANEL === 'true';
 
 const SEVERITY_COLORS = {
   low: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
@@ -58,6 +61,15 @@ const ERROR_CATEGORY_ICONS = {
   api_error: Globe,
   system_error: AlertCircle,
   webhook_error: Activity,
+};
+
+const OPS_CATEGORY_LABELS = {
+  LLM_BYPASSED: 'LLM Bypassed',
+  TEMPLATE_FALLBACK_USED: 'Template/Fallback',
+  TOOL_NOT_CALLED_WHEN_EXPECTED: 'Tool Not Called',
+  VERIFICATION_INCONSISTENT: 'Verification Drift',
+  HALLUCINATION_RISK: 'Hallucination Risk',
+  RESPONSE_STUCK: 'Response Stuck',
 };
 
 
@@ -105,6 +117,19 @@ export default function RedAlertPage() {
     hasMore: false,
   });
   const [expandedErrors, setExpandedErrors] = useState(new Set());
+  const [opsSummary, setOpsSummary] = useState(null);
+  const [opsEvents, setOpsEvents] = useState([]);
+  const [repeatResponses, setRepeatResponses] = useState([]);
+  const [opsFilters, setOpsFilters] = useState({
+    category: '',
+    severity: '',
+  });
+  const [opsPagination, setOpsPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    hasMore: false,
+  });
 
   // Check admin access
   useEffect(() => {
@@ -131,7 +156,7 @@ export default function RedAlertPage() {
   const loadDashboardData = async () => {
     setLoading(true);
     try {
-      await Promise.all([
+      const baseLoads = [
         loadSummary(),
         loadEvents(),
         loadTimeline(),
@@ -139,7 +164,13 @@ export default function RedAlertPage() {
         loadHealth(),
         loadErrorSummary(),
         loadErrorLogs(),
-      ]);
+      ];
+
+      if (OPS_PANEL_ENABLED) {
+        baseLoads.push(loadOpsSummary(), loadOpsEvents(), loadRepeatResponses());
+      }
+
+      await Promise.all(baseLoads);
     } catch (error) {
       console.error('Failed to load dashboard:', error);
       toast.error('Güvenlik paneli yüklenemedi');
@@ -209,6 +240,53 @@ export default function RedAlertPage() {
       setHealth(response.data);
     } catch (error) {
       console.error('Failed to load health:', error);
+    }
+  };
+
+  const loadOpsSummary = async () => {
+    if (!OPS_PANEL_ENABLED) return;
+    try {
+      const response = await apiClient.get('/api/red-alert/ops/summary', {
+        params: { range: `${filters.hours}h` },
+      });
+      setOpsSummary(response.data);
+    } catch (error) {
+      console.error('Failed to load ops summary:', error);
+    }
+  };
+
+  const loadOpsEvents = async () => {
+    if (!OPS_PANEL_ENABLED) return;
+    try {
+      const response = await apiClient.get('/api/red-alert/ops/events', {
+        params: {
+          range: `${filters.hours}h`,
+          category: opsFilters.category || undefined,
+          severity: opsFilters.severity || undefined,
+          limit: opsPagination.limit,
+          offset: (opsPagination.page - 1) * opsPagination.limit,
+        },
+      });
+      setOpsEvents(response.data.events || []);
+      setOpsPagination(prev => ({
+        ...prev,
+        total: response.data.pagination?.total || 0,
+        hasMore: response.data.pagination?.hasMore || false,
+      }));
+    } catch (error) {
+      console.error('Failed to load ops events:', error);
+    }
+  };
+
+  const loadRepeatResponses = async () => {
+    if (!OPS_PANEL_ENABLED) return;
+    try {
+      const response = await apiClient.get('/api/red-alert/ops/repeat-responses', {
+        params: { range: `${filters.hours}h` },
+      });
+      setRepeatResponses(response.data.repeats || []);
+    } catch (error) {
+      console.error('Failed to load repeat responses:', error);
     }
   };
 
@@ -289,6 +367,12 @@ export default function RedAlertPage() {
     }
   }, [filters.hours, filters.severity, filters.type]);
 
+  useEffect(() => {
+    if (!OPS_PANEL_ENABLED && activePanel === 'ops') {
+      setActivePanel('errors');
+    }
+  }, [activePanel]);
+
   // Reload events when pagination changes
   useEffect(() => {
     if (isAdmin && pagination.page > 1) {
@@ -302,6 +386,12 @@ export default function RedAlertPage() {
       loadErrorLogs();
     }
   }, [errorFilters.category, errorFilters.severity, errorFilters.resolved, errorPagination.page]);
+
+  useEffect(() => {
+    if (isAdmin && OPS_PANEL_ENABLED) {
+      loadOpsEvents();
+    }
+  }, [opsFilters.category, opsFilters.severity, opsPagination.page]);
 
   if (!isAdmin && !loading) {
     return (
@@ -360,6 +450,7 @@ export default function RedAlertPage() {
   const totalErrors = errorSummary?.summary?.total || 0;
   const totalEvents = summary?.summary?.total || 0;
   const threatCount = (topThreats.topIPs?.length || 0) + (topThreats.topEndpoints?.length || 0);
+  const opsIncidentCount = opsSummary?.totals?.incidents || 0;
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -401,7 +492,7 @@ export default function RedAlertPage() {
       </div>
 
       {/* Navigation Cards — 4 cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className={`grid grid-cols-2 ${OPS_PANEL_ENABLED ? 'md:grid-cols-5' : 'md:grid-cols-4'} gap-4 mb-6`}>
         <NavCard
           id="errors"
           icon={Bug}
@@ -452,6 +543,18 @@ export default function RedAlertPage() {
           activeBorderColor="border-red-500 dark:border-red-400"
           borderColor="border-red-300"
         />
+        {OPS_PANEL_ENABLED && (
+          <NavCard
+            id="ops"
+            icon={Activity}
+            iconColor="text-emerald-600"
+            title="Ops Olayları"
+            value={opsIncidentCount}
+            subtitle="Trace/incident görünümü"
+            activeBorderColor="border-emerald-500 dark:border-emerald-400"
+            borderColor="border-emerald-300"
+          />
+        )}
       </div>
 
       {/* ═══════════ Panel: Uygulama Hataları ═══════════ */}
@@ -849,6 +952,224 @@ export default function RedAlertPage() {
         </Card>
       )}
 
+      {/* ═══════════ Panel: Operasyonel Olaylar ═══════════ */}
+      {OPS_PANEL_ENABLED && activePanel === 'ops' && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Bypass Oranı</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-orange-600">
+                  {opsSummary?.cards?.bypassRate ?? 0}%
+                </div>
+                <p className="text-xs text-muted-foreground">LLM bypass / toplam turn</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Fallback Oranı</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-yellow-600">
+                  {opsSummary?.cards?.fallbackRate ?? 0}%
+                </div>
+                <p className="text-xs text-muted-foreground">template + fallback kaynakları</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Tool Success</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-emerald-600">
+                  {opsSummary?.cards?.toolSuccessRate ?? 0}%
+                </div>
+                <p className="text-xs text-muted-foreground">tool çağrılan turnlerde başarı</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Repeat Responses</CardTitle>
+              <CardDescription>
+                Aynı/benzer hash ile tekrar eden yanıtlar
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Hash</TableHead>
+                    <TableHead>Kanal</TableHead>
+                    <TableHead>Count</TableHead>
+                    <TableHead>Örnek Metin</TableHead>
+                    <TableHead>Trace</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {repeatResponses.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                        Tekrarlayan yanıt bulunamadı
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    repeatResponses.map((item) => (
+                      <TableRow key={`${item.responseHash}-${item.channel}`}>
+                        <TableCell className="font-mono text-xs">{item.responseHash?.slice(0, 12)}...</TableCell>
+                        <TableCell>{item.channel}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="font-mono">{item.count}</Badge>
+                        </TableCell>
+                        <TableCell className="max-w-md truncate" title={item.sample || ''}>
+                          {item.sample || '-'}
+                        </TableCell>
+                        <TableCell className="font-mono text-xs">
+                          {item.latestTraceId ? `${item.latestTraceId.slice(0, 12)}...` : '-'}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Ops Events</CardTitle>
+                  <CardDescription>Category/severity bazında operational incident akışı</CardDescription>
+                </div>
+              </div>
+              <div className="flex gap-4 mt-4">
+                <Select
+                  value={opsFilters.category || 'all'}
+                  onValueChange={(value) => {
+                    setOpsFilters(prev => ({ ...prev, category: value === 'all' ? '' : value }));
+                    setOpsPagination(prev => ({ ...prev, page: 1 }));
+                  }}
+                >
+                  <SelectTrigger className="w-56">
+                    <SelectValue placeholder="Tüm Kategoriler" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tüm Kategoriler</SelectItem>
+                    {Object.entries(OPS_CATEGORY_LABELS).map(([key, label]) => (
+                      <SelectItem key={key} value={key}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select
+                  value={opsFilters.severity || 'all'}
+                  onValueChange={(value) => {
+                    setOpsFilters(prev => ({ ...prev, severity: value === 'all' ? '' : value }));
+                    setOpsPagination(prev => ({ ...prev, page: 1 }));
+                  }}
+                >
+                  <SelectTrigger className="w-44">
+                    <SelectValue placeholder="Tüm Önem Dereceleri" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tüm Önem Dereceleri</SelectItem>
+                    <SelectItem value="LOW">LOW</SelectItem>
+                    <SelectItem value="MEDIUM">MEDIUM</SelectItem>
+                    <SelectItem value="HIGH">HIGH</SelectItem>
+                    <SelectItem value="CRITICAL">CRITICAL</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Zaman</TableHead>
+                    <TableHead>Kategori</TableHead>
+                    <TableHead>Önem</TableHead>
+                    <TableHead>Özet</TableHead>
+                    <TableHead>Kanal</TableHead>
+                    <TableHead>Trace</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {opsEvents.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                        Operational event bulunamadı
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    opsEvents.map((event) => (
+                      <TableRow key={event.id}>
+                        <TableCell className="whitespace-nowrap text-xs">
+                          {new Date(event.createdAt).toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {OPS_CATEGORY_LABELS[event.category] || event.category}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={SEVERITY_COLORS[(event.severity || '').toLowerCase()] || 'bg-muted text-foreground'}>
+                            {event.severity}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="max-w-md truncate" title={event.summary}>
+                          {event.summary}
+                        </TableCell>
+                        <TableCell>{event.channel}</TableCell>
+                        <TableCell className="font-mono text-xs">
+                          <a
+                            href={`/dashboard/admin/red-alert?traceId=${event.traceId}`}
+                            className="text-blue-600 hover:underline"
+                          >
+                            {event.traceId?.slice(0, 12)}...
+                          </a>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+
+              {opsPagination.total > opsPagination.limit && (
+                <div className="flex items-center justify-between mt-4">
+                  <div className="text-sm text-muted-foreground">
+                    {((opsPagination.page - 1) * opsPagination.limit) + 1} -{' '}
+                    {Math.min(opsPagination.page * opsPagination.limit, opsPagination.total)} / toplam{' '}
+                    {opsPagination.total} olay
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setOpsPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+                      disabled={opsPagination.page === 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Önceki
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setOpsPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+                      disabled={!opsPagination.hasMore}
+                    >
+                      Sonraki
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* ═══════════ Panel: Zaman Çizelgesi ═══════════ */}
       {activePanel === 'timeline' && (
         <Card>
@@ -887,7 +1208,7 @@ export default function RedAlertPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card>
             <CardHeader>
-              <CardTitle>En Çok Tehdit IP'leri</CardTitle>
+              <CardTitle>En Cok Tehdit IP&apos;leri</CardTitle>
               <CardDescription>
                 En fazla güvenlik olayı üreten IP adresleri
               </CardDescription>
@@ -913,9 +1234,9 @@ export default function RedAlertPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>En Çok Hedeflenen Endpoint'ler</CardTitle>
+              <CardTitle>En Cok Hedeflenen Endpoint&apos;ler</CardTitle>
               <CardDescription>
-                En fazla saldırıya uğrayan API endpoint'leri
+                En fazla saldiriya ugrayan API endpoint&apos;leri
               </CardDescription>
             </CardHeader>
             <CardContent>

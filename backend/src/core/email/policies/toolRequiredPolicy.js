@@ -26,6 +26,7 @@ const FIELD_LABELS = {
     phone: 'telefon numarası',
     invoice_number: 'fatura numarası',
     tracking_number: 'kargo takip numarası',
+    ticket_number: 'servis numarası',
     product_id: 'ürün kodu',
     product_name: 'ürün adı',
     sku: 'stok kodu',
@@ -37,6 +38,7 @@ const FIELD_LABELS = {
     phone: 'phone number',
     invoice_number: 'invoice number',
     tracking_number: 'tracking number',
+    ticket_number: 'service ticket number',
     product_id: 'product ID',
     product_name: 'product name',
     sku: 'SKU',
@@ -63,6 +65,12 @@ const TOOL_REQUIRED_INTENTS = {
     fallbackBehavior: 'ASK_VERIFICATION',
     requiredFields: ['phone'],
     messageKey: 'EMAIL_TOOL_REQUIRED_APPOINTMENT'
+  },
+  SUPPORT: {
+    tools: ['check_ticket_status_crm', 'customer_data_lookup'],
+    fallbackBehavior: 'ASK_VERIFICATION',
+    requiredFields: ['ticket_number', 'phone'],
+    messageKey: 'EMAIL_TOOL_REQUIRED_SUPPORT'
   },
   COMPLAINT: {
     tools: ['customer_data_lookup'],

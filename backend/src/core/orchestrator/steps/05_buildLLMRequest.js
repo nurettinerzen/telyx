@@ -15,8 +15,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 const FLOW_TOOL_OVERRIDES = Object.freeze({
   STOCK_CHECK: ['get_product_stock', 'check_stock_crm'],
-  CALLBACK_REQUEST: ['create_callback'],
-  SERVICE_INQUIRY: ['check_ticket_status_crm', 'customer_data_lookup', 'create_callback']
+  CALLBACK_REQUEST: ['create_callback']
 });
 
 function normalizeFlowName(flowName) {
@@ -45,9 +44,9 @@ function inferFlowFromMessage(message = '') {
   const text = normalizeFlowHeuristicText(message);
   if (!text) return null;
 
-  // P10-FIX: Service/ticket signal checked first — prevents stock/product mis-routing.
-  if (/\b(servis|ariza|ticket|destek|tamir|onarim|bakim|teknik\s*servis|servis\s*durumu|servis\s*no)\b/.test(text)) {
-    return 'SERVICE_INQUIRY';
+  const servicePattern = /\b(servis|service|ariza|ticket|rma|tamir|onarim|repair)\b/;
+  if (servicePattern.test(text)) {
+    return null;
   }
 
   if (/\b(stok|stock|envanter|available|availability|kac tane|kac adet|adet|tane|kac var|ne kadar var)\b/.test(text)) {
@@ -404,14 +403,11 @@ KURALLAR:
   enhancedSystemPrompt += `
 
 ## TOOL KULLANIM KURALI (LLM AUTHORITY)
-- Genel bilgi soruları (iade politikası, çalışma saatleri vb.) için KB'den cevap ver, tool ÇAĞIRMA.
-- ⚠️ SİPARİŞ, SERVİS/ARIZA, MUHASEBE, RANDEVU sorguları için MUTLAKA tool çağır. Bu konularda tool çağırmadan cevap verme.
-- Kullanıcı sipariş numarası, ticket/servis numarası (TKT-...), telefon numarası verdiyse HEMEN ilgili tool'u çağır.
+- Tool kullanmadan doğru ve güvenli cevap verebiliyorsan tool ÇAĞIRMA.
 - Tool gerekiyorsa önce SADECE BİR eksik bilgiyi sor — birden fazla bilgiyi aynı anda isteme.
 - Sipariş sorgusu: SADECE sipariş numarası sor. Telefon, isim, soyisim isteme. Sıra: sipariş no → doğrulama (sistem otomatik isteyecek).
-- Servis/arıza sorgusu: Ticket numarası varsa hemen customer_data_lookup(query_type:"servis", ticket_number:"TKT-...") çağır.
 - Eksik bilgi tamamlanmadan tool çağırma.
-- Tool sonucu olmadan hesap/sipariş/servis/kişisel claim üretme.`;
+- Tool sonucu olmadan hesap/sipariş/kişisel claim üretme.`;
 
   // LLM decides whether to call tools; backend only passes allowlisted tools.
   const allToolNames = toolsAll.map(t => t.function?.name).filter(Boolean);

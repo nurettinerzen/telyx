@@ -45,8 +45,7 @@ function getBarrierMessage(language = 'TR') {
 
 function resolveMinInfoQuestion({
   language,
-  missingFields = [],
-  userMessage = ''
+  missingFields = []
 }) {
   const missingSet = new Set(Array.isArray(missingFields) ? missingFields : []);
 
@@ -58,23 +57,6 @@ function resolveMinInfoQuestion({
   const hasReference = missingSet.has('reference_id');
   const hasDebtIdentity = missingSet.has('vkn_or_tc_or_phone');
   const lang = String(language || 'TR').toUpperCase() === 'EN' ? 'EN' : 'TR';
-
-  // Check if user already provided the identifier in their message
-  // to avoid asking for it again (loop prevention)
-  const msg = String(userMessage || '').toLowerCase();
-  const userAlreadyProvidedTicket = hasTicket && /\b(tkt[-_]?\d+|ticket[-_]?\d+|servis[-_]?\d+)\b/i.test(msg);
-  const userAlreadyProvidedOrder = hasOrder && /\b(ord|sip|order)[-_]?\d+\b/i.test(msg);
-
-  if (userAlreadyProvidedTicket || userAlreadyProvidedOrder) {
-    const retryMsg = lang === 'EN'
-      ? 'I see you provided a reference number. Let me try to look that up for you. One moment please...'
-      : 'Referans numaranızı aldım, sistemi kontrol ediyorum. Bir saniye lütfen...';
-    return {
-      text: retryMsg,
-      messageKey: 'NEED_MIN_INFO_FOR_TOOL_RETRY',
-      variantIndex: 0
-    };
-  }
 
   if (lang === 'EN') {
     if (hasOrderOrPhone) {
@@ -524,8 +506,7 @@ export async function applyGuardrails(params) {
     if (toolRequiredGate.needsMinInfo) {
       const minInfoVariant = resolveMinInfoQuestion({
         language,
-        missingFields: toolRequiredGate.missingFields || [],
-        userMessage
+        missingFields: toolRequiredGate.missingFields || []
       });
       metrics.toolRequiredClaimGate = {
         reason: toolRequiredGate.reason,
@@ -774,7 +755,12 @@ export async function applyGuardrails(params) {
 
   // POLICY 6: Policy Guidance Guard (S8 - deterministic)
   // Ensures policy responses (refund/return/cancel) always have actionable guidance
-  const guidanceResult = ensurePolicyGuidance(actionClaimText, userMessage || '', language);
+  const guidanceResult = ensurePolicyGuidance(
+    actionClaimText,
+    userMessage || '',
+    language,
+    { businessId: chat?.businessId }
+  );
   const finalText = guidanceResult.response;
 
   // VERBOSE logging for guidance guard debugging
@@ -790,6 +776,18 @@ export async function applyGuardrails(params) {
   if (guidanceResult.guidanceAdded) {
     console.log(`✅ [Guardrails] Policy guidance added: ${guidanceResult.addedComponents.join(', ')}`);
     metrics.guidanceAdded = guidanceResult.addedComponents;
+  }
+  if (guidanceResult?.policyAppend) {
+    metrics.policyAppend = guidanceResult.policyAppend;
+  }
+  if (guidanceResult?.wouldAppend === true) {
+    metrics.policyAppendMonitor = {
+      wouldAppend: true,
+      append_key: guidanceResult?.policyAppend?.append_key || null,
+      topic: guidanceResult?.policyAppend?.topic || null,
+      length: Number.isFinite(guidanceResult?.policyAppend?.length) ? guidanceResult.policyAppend.length : 0
+    };
+    console.warn('📊 [Guardrails] policy append monitor_only: would append guidance (append skipped)');
   }
 
   // POLICY 4: Content Safety (future)

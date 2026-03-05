@@ -16,9 +16,88 @@ import { onEmailSent } from '../core/email/rag/indexingHooks.js';
 import { buildEmailPairs, getPairStatistics } from '../services/email-pair-builder.js';
 import { generateOAuthState, validateOAuthState } from '../middleware/oauthState.js';
 import { safeRedirect } from '../middleware/redirectWhitelist.js';
+import { queueUnifiedResponseTrace } from '../services/trace/responseTraceLogger.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
+
+function queueAdminDraftTrace({
+  req,
+  threadId,
+  messageId,
+  result
+}) {
+  try {
+    const isSuccess = result?.success === true;
+    const classification = result?.classification || {};
+    const tools = Array.isArray(result?.toolResults)
+      ? result.toolResults
+      : Array.isArray(result?.toolsCalled)
+        ? result.toolsCalled.map(name => ({ toolName: name, outcome: 'OK', data: {} }))
+        : [];
+
+    const postprocessors = [];
+    if (result?.piiModified) postprocessors.push('pii_output_scrub');
+    if (result?.inputPiiScrubbed) postprocessors.push('pii_input_scrub');
+    if (result?.toolPiiScrubbed) postprocessors.push('tool_pii_scrub');
+    if (Array.isArray(result?.metrics?.recipientStripped) && result.metrics.recipientStripped.length > 0) {
+      postprocessors.push('strip_recipient_mentions');
+    }
+
+    queueUnifiedResponseTrace({
+      context: {
+        channel: 'ADMIN_DRAFT',
+        businessId: req.businessId,
+        userId: req.userId ?? null,
+        sessionId: threadId,
+        messageId: messageId || null,
+        requestId: req.requestId || null,
+        language: req.user?.business?.language || 'TR',
+        verificationState: 'none',
+        responseSource: isSuccess
+          ? (result?.toolRequiredEnforced ? 'TEMPLATE' : 'LLM')
+          : 'FALLBACK',
+        originId: isSuccess ? 'email.handleEmailTurn' : 'email.handleEmailTurn.error',
+        llmUsed: Number(result?.metrics?.inputTokens || 0) > 0 || Number(result?.metrics?.outputTokens || 0) > 0,
+        llmBypassReason: isSuccess ? null : 'EMAIL_TURN_FAILED',
+        guardrailAction: isSuccess ? 'PASS' : 'BLOCK',
+        guardrailReason: isSuccess ? null : (result?.errorCode || 'EMAIL_TURN_ERROR'),
+        latencyMs: Number(result?.metrics?.totalDuration || 0)
+      },
+      llmMeta: {
+        called: Number(result?.metrics?.inputTokens || 0) > 0 || Number(result?.metrics?.outputTokens || 0) > 0,
+        model: null,
+        status: isSuccess ? 'success' : 'error',
+        llm_bypass_reason: isSuccess ? null : 'EMAIL_TURN_FAILED'
+      },
+      plan: {
+        intent: classification?.intent || (isSuccess ? 'email_draft' : 'email_error'),
+        slots: {},
+        tool_candidates: [],
+        tool_selected: tools[0]?.toolName || null,
+        confidence: Number.isFinite(classification?.confidence) ? classification.confidence : null
+      },
+      tools: tools.map(item => ({
+        name: item.toolName || item.name || 'unknown_tool',
+        input: item.args || {},
+        outcome: item.outcome || 'OK',
+        latency_ms: item.latencyMs || 0,
+        retry_count: item.retryCount || 0,
+        error_code: item.errorCode || null
+      })),
+      guardrail: {
+        action: isSuccess ? 'PASS' : 'BLOCK',
+        reason: isSuccess ? null : (result?.errorCode || 'EMAIL_TURN_ERROR')
+      },
+      postprocessors,
+      finalResponse: isSuccess
+        ? (result?.draftContent || result?.draft?.generatedContent || '')
+        : (result?.error || 'Draft generation failed')
+    });
+  } catch (traceError) {
+    console.error('⚠️ [Email] Failed to queue unified trace:', traceError.message);
+  }
+}
 
 // ==================== OAUTH ROUTES ====================
 
@@ -650,6 +729,13 @@ router.post('/threads/:threadId/generate-draft', authenticateToken, async (req, 
       }
     });
 
+    queueAdminDraftTrace({
+      req,
+      threadId,
+      messageId: targetMessageId,
+      result
+    });
+
     if (!result.success) {
       // Handle specific error codes
       if (result.errorCode === 'GUARDRAIL_BLOCKED') {
@@ -815,6 +901,13 @@ router.post('/drafts/:draftId/regenerate', authenticateToken, async (req, res) =
         feedback,
         createProviderDraft: true
       }
+    });
+
+    queueAdminDraftTrace({
+      req,
+      threadId: draft.threadId,
+      messageId: draft.messageId,
+      result
     });
 
     if (!result.success) {

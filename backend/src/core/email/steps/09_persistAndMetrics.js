@@ -48,57 +48,54 @@ export async function persistEmailMetrics(ctx) {
       hasContent: !!draftContent
     });
 
-    // P12-FIX: Cancel any existing PENDING_REVIEW drafts for this message/thread
-    // before creating the new one. Enforces "single active draft" invariant so
-    // regenerated drafts don't pile up in the UI.
-    const cancelledDrafts = await prisma.emailDraft.updateMany({
-      where: {
-        threadId: thread.id,
-        messageId: inboundMessage.id,
-        status: 'PENDING_REVIEW'
-      },
-      data: {
-        status: 'SUPERSEDED'
-      }
-    });
-
-    if (cancelledDrafts.count > 0) {
-      console.log(`📧 [Persist] Superseded ${cancelledDrafts.count} previous draft(s)`);
-    }
-
-    const draft = await prisma.emailDraft.create({
-      data: {
-        messageId: inboundMessage.id,
-        threadId: thread.id,
-        businessId,
-        generatedContent: draftContent,
-        status: 'PENDING_REVIEW',
-        // Store metadata as JSON
-        metadata: {
-          classification,
-          toolResults: toolResults?.map(r => ({
-            tool: r.toolName,
-            outcome: r.outcome,
-            hasData: !!r.data
-          })),
-          guardrails: guardrailsApplied,
-          messageType: assistantMessageMeta?.messageType
-            || (responseGrounding === 'CLARIFICATION' ? 'clarification' : 'assistant_claim'),
-          guardrailAction: assistantMessageMeta?.guardrailAction
-            || (responseGrounding === 'CLARIFICATION' ? 'NEED_MIN_INFO_FOR_TOOL' : 'PASS'),
-          guardrailReason: assistantMessageMeta?.guardrailReason || null,
-          responseGrounding,
-          providerDraftId: providerDraft?.draftId || providerDraft?.id,
-          providerDraftError,
-          // RAG metrics
-          ragExamplesUsed: ragExamples?.length || 0,
-          snippetsUsed: resolvedSnippets?.length || 0,
-          ragEnabled: ragSettings?.useRAG || false,
-          snippetsEnabled: ragSettings?.useSnippets || false,
-          generatedAt: new Date().toISOString()
+    const [archivedDrafts, draft] = await prisma.$transaction([
+      prisma.emailDraft.updateMany({
+        where: {
+          threadId: thread.id,
+          status: 'PENDING_REVIEW'
+        },
+        data: {
+          status: 'CANCELLED'
         }
-      }
-    });
+      }),
+      prisma.emailDraft.create({
+        data: {
+          messageId: inboundMessage.id,
+          threadId: thread.id,
+          businessId,
+          generatedContent: draftContent,
+          status: 'PENDING_REVIEW',
+          // Store metadata as JSON
+          metadata: {
+            classification,
+            toolResults: toolResults?.map(r => ({
+              tool: r.toolName,
+              outcome: r.outcome,
+              hasData: !!r.data
+            })),
+            guardrails: guardrailsApplied,
+            messageType: assistantMessageMeta?.messageType
+              || (responseGrounding === 'CLARIFICATION' ? 'clarification' : 'assistant_claim'),
+            guardrailAction: assistantMessageMeta?.guardrailAction
+              || (responseGrounding === 'CLARIFICATION' ? 'NEED_MIN_INFO_FOR_TOOL' : 'PASS'),
+            guardrailReason: assistantMessageMeta?.guardrailReason || null,
+            responseGrounding,
+            providerDraftId: providerDraft?.draftId || providerDraft?.id,
+            providerDraftError,
+            // RAG metrics
+            ragExamplesUsed: ragExamples?.length || 0,
+            snippetsUsed: resolvedSnippets?.length || 0,
+            ragEnabled: ragSettings?.useRAG || false,
+            snippetsEnabled: ragSettings?.useSnippets || false,
+            generatedAt: new Date().toISOString()
+          }
+        }
+      })
+    ]);
+
+    if (archivedDrafts?.count > 0) {
+      console.log(`📧 [Persist] Archived ${archivedDrafts.count} previous active draft(s)`);
+    }
 
     console.log(`📧 [Persist] Draft saved: ${draft.id}`);
 

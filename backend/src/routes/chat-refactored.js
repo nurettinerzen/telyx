@@ -68,6 +68,7 @@ import {
   resolveChatAssistantForBusiness
 } from '../services/assistantChannels.js';
 import { extractSessionToken, verifySessionToken } from '../security/sessionToken.js';
+import { queueUnifiedResponseTrace } from '../services/trace/responseTraceLogger.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -164,7 +165,7 @@ function sanitizeChatReplyPlaceholders(reply, language = 'TR') {
  * Main message handler with state machine
  * NOW USES CORE ORCHESTRATOR (step-by-step pipeline)
  */
-async function handleMessage(sessionId, businessId, userMessage, language, business, assistant, timezone, clientSessionId) {
+async function handleMessage(sessionId, businessId, userMessage, language, business, assistant, timezone, clientSessionId, requestId = null) {
   console.log(`\n📨 [Chat Adapter] Delegating to core orchestrator with sessionId: ${sessionId}`);
 
   // Call core orchestrator (step-by-step pipeline)
@@ -180,7 +181,8 @@ async function handleMessage(sessionId, businessId, userMessage, language, busin
     language,
     timezone: timezone || 'Europe/Istanbul',
     metadata: {
-      businessId
+      businessId,
+      requestId
     }
   });
 
@@ -193,7 +195,11 @@ async function handleMessage(sessionId, businessId, userMessage, language, busin
     inputTokens: result.inputTokens || 0,
     outputTokens: result.outputTokens || 0,
     toolsCalled: result.toolsCalled || [],
-    metadata: result.metadata || {}
+    metadata: result.metadata || {},
+    metrics: result.metrics || {},
+    state: result.state || null,
+    traceContext: result.traceContext || null,
+    traceId: result.traceId || null
   };
 }
 
@@ -1193,7 +1199,8 @@ router.post('/widget', async (req, res) => {
       business,
       assistant,
       timezone,
-      clientSessionId
+      clientSessionId,
+      req.requestId || null
     );
 
     const timeoutPromise = new Promise((_, reject) =>
@@ -1313,9 +1320,11 @@ router.post('/widget', async (req, res) => {
     const shouldEnforceRouteFirewall = routeFirewallMode === 'enforce';
 
     let finalReply = sanitizeChatReplyPlaceholders(result.reply, language);
+    const postprocessorsApplied = [];
 
     if (finalReply !== result.reply) {
       console.warn(`🧹 [Widget] Placeholder artifacts sanitized for session ${sessionId}`);
+      postprocessorsApplied.push('sanitize_placeholders');
     }
 
     const firewallResult = sanitizeResponse(finalReply, language);
@@ -1333,11 +1342,13 @@ router.post('/widget', async (req, res) => {
       if (shouldEnforceRouteFirewall) {
         console.warn('🚨 [Route Firewall] ENFORCE mode - blocking response');
         finalReply = firewallResult.sanitized;
+        postprocessorsApplied.push('route_firewall_enforce_sanitize');
       }
     }
     if (hasPIIWarnings) {
       const warningText = piiWarnings.join('\n');
       finalReply = `${warningText}\n\n${finalReply}`;
+      postprocessorsApplied.push('prepend_pii_warning');
     }
 
     const historyParity = updateAssistantReplyInMessages({
@@ -1358,6 +1369,58 @@ router.post('/widget', async (req, res) => {
     } catch (parityError) {
       console.error('⚠️ [Widget] Failed to synchronize persisted reply:', parityError.message);
     }
+
+    // Unified response trace (finalized after route-level postprocessing)
+    const traceInput = result.traceContext || {
+      context: {
+        channel: 'CHAT',
+        businessId: business.id,
+        userId: clientSessionId || null,
+        sessionId,
+        messageId: null,
+        requestId: req.requestId || null,
+        language,
+        verificationState: result?.metadata?.verificationState || 'none',
+        responseSource: result?.metrics?.response_origin || null,
+        originId: result?.metrics?.origin_id || null,
+        llmUsed: result?.metrics?.LLM_CALLED === true,
+        llmBypassReason: result?.metrics?.llm_bypass_reason || null,
+        guardrailAction: result?.metadata?.guardrailAction || 'PASS',
+        guardrailReason: result?.metadata?.guardrailReason || null,
+        policyAppend: result?.metrics?.policyAppend || null,
+        latencyMs: result?.metrics?.turnStartTime ? Date.now() - result.metrics.turnStartTime : null
+      },
+      llmMeta: {
+        called: result?.metrics?.LLM_CALLED === true,
+        model: assistant?.model || null,
+        status: result?.metrics?.llm_status || null,
+        llm_bypass_reason: result?.metrics?.llm_bypass_reason || null
+      },
+      plan: {
+        intent: result?.metrics?.intent_final || 'unknown',
+        slots: result?.state?.collectedSlots || result?.state?.extractedSlots || {},
+        tool_candidates: [],
+        tool_selected: null,
+        confidence: null
+      },
+      tools: [],
+      guardrail: {
+        action: result?.metadata?.guardrailAction || 'PASS',
+        reason: result?.metadata?.guardrailReason || null
+      }
+    };
+
+    queueUnifiedResponseTrace({
+      ...traceInput,
+      context: {
+        ...(traceInput.context || {}),
+        requestId: req.requestId || traceInput?.context?.requestId || null,
+        sessionId: sessionId || traceInput?.context?.sessionId || null,
+        messageId: traceInput?.context?.messageId || null
+      },
+      postprocessors: postprocessorsApplied,
+      finalResponse: finalReply
+    });
 
     // P0: Reload state to get updated verification status after tool execution
     const updatedState = await getState(sessionId);

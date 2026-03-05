@@ -146,6 +146,27 @@ export const FEATURE_FLAGS = {
   // are force-downgraded to clarification (no claim leakage).
   // Rollback: Set TEXT_STRICT_GROUNDING=false
   TEXT_STRICT_GROUNDING: process.env.TEXT_STRICT_GROUNDING !== 'false', // Default: ON
+
+  // ─── Unified Response Trace + Operational Incidents ───
+  // Default OFF (Phase 1 rollout flag)
+  UNIFIED_RESPONSE_TRACE: process.env.FEATURE_UNIFIED_RESPONSE_TRACE === 'true',
+  UNIFIED_RESPONSE_TRACE_CANARY_BUSINESS_IDS: (process.env.FEATURE_UNIFIED_RESPONSE_TRACE_CANARY_BUSINESS_IDS || '')
+    .split(',').map(k => k.trim()).filter(Boolean),
+
+  // Default OFF (Phase 1 rollout flag)
+  OPERATIONAL_INCIDENTS: process.env.FEATURE_OPERATIONAL_INCIDENTS === 'true',
+  OPERATIONAL_INCIDENTS_CANARY_BUSINESS_IDS: (process.env.FEATURE_OPERATIONAL_INCIDENTS_CANARY_BUSINESS_IDS || '')
+    .split(',').map(k => k.trim()).filter(Boolean),
+
+  // UI/API gate for Red Alert operational panel (default OFF)
+  REDALERT_OPS_PANEL: process.env.FEATURE_REDALERT_OPS_PANEL === 'true',
+  REDALERT_OPS_PANEL_CANARY_BUSINESS_IDS: (process.env.FEATURE_REDALERT_OPS_PANEL_CANARY_BUSINESS_IDS || '')
+    .split(',').map(k => k.trim()).filter(Boolean),
+
+  // Phase 2 policy append mode (legacy | monitor_only | off)
+  POLICY_APPEND_MODE: normalizePolicyAppendMode(process.env.FEATURE_POLICY_APPEND_MODE || 'legacy'),
+  POLICY_APPEND_CANARY_BUSINESS_IDS: (process.env.FEATURE_POLICY_APPEND_CANARY_BUSINESS_IDS || '')
+    .split(',').map(k => k.trim()).filter(Boolean),
 };
 
 /**
@@ -199,6 +220,19 @@ function simpleHash(str) {
     hash = hash & hash; // Convert to 32-bit integer
   }
   return Math.abs(hash);
+}
+
+function normalizePolicyAppendMode(mode) {
+  const normalized = String(mode || 'legacy').toLowerCase().trim();
+  if (normalized === 'monitor_only') return 'monitor_only';
+  if (normalized === 'off') return 'off';
+  return 'legacy';
+}
+
+function isBusinessInAllowlist(businessId, allowlist = []) {
+  if (!Array.isArray(allowlist) || allowlist.length === 0) return true;
+  if (businessId === null || businessId === undefined) return false;
+  return allowlist.includes(String(businessId));
 }
 
 /**
@@ -286,6 +320,55 @@ export function getPhoneOutboundV1ClassifierMode() {
   return FEATURE_FLAGS.PHONE_OUTBOUND_V1_CLASSIFIER_MODE || 'KEYWORD_ONLY';
 }
 
+/**
+ * Check if unified response trace write path is enabled for a business.
+ * Global flag must be true. If canary list exists, businessId must be listed.
+ */
+export function isUnifiedResponseTraceEnabled(context = {}) {
+  if (FEATURE_FLAGS.UNIFIED_RESPONSE_TRACE !== true) return false;
+  return isBusinessInAllowlist(
+    context.businessId,
+    FEATURE_FLAGS.UNIFIED_RESPONSE_TRACE_CANARY_BUSINESS_IDS || []
+  );
+}
+
+/**
+ * Check if operational incidents are enabled for a business.
+ * Global flag must be true. If canary list exists, businessId must be listed.
+ */
+export function isOperationalIncidentsEnabled(context = {}) {
+  if (FEATURE_FLAGS.OPERATIONAL_INCIDENTS !== true) return false;
+  return isBusinessInAllowlist(
+    context.businessId,
+    FEATURE_FLAGS.OPERATIONAL_INCIDENTS_CANARY_BUSINESS_IDS || []
+  );
+}
+
+/**
+ * Check if Red Alert Ops panel endpoints are enabled for a business.
+ * Global flag must be true. If canary list exists, businessId must be listed.
+ */
+export function isRedAlertOpsPanelEnabled(context = {}) {
+  if (FEATURE_FLAGS.REDALERT_OPS_PANEL !== true) return false;
+  return isBusinessInAllowlist(
+    context.businessId,
+    FEATURE_FLAGS.REDALERT_OPS_PANEL_CANARY_BUSINESS_IDS || []
+  );
+}
+
+/**
+ * Resolve policy append mode with optional canary scoping.
+ * If canary list is set and businessId is not in canary, force legacy.
+ */
+export function getPolicyAppendMode(context = {}) {
+  const mode = normalizePolicyAppendMode(FEATURE_FLAGS.POLICY_APPEND_MODE);
+  const allowlist = FEATURE_FLAGS.POLICY_APPEND_CANARY_BUSINESS_IDS || [];
+
+  if (allowlist.length === 0) return mode;
+  if (isBusinessInAllowlist(context.businessId, allowlist)) return mode;
+  return 'legacy';
+}
+
 // ─── Startup log: PHONE V1 flags ───
 if (ENVIRONMENT !== 'test') {
   console.log('[feature-flags] PHONE V1 startup config:');
@@ -296,6 +379,15 @@ if (ENVIRONMENT !== 'test') {
   if (FEATURE_FLAGS.PHONE_OUTBOUND_V1_ENABLED && FEATURE_FLAGS.PHONE_OUTBOUND_V1_CANARY_BUSINESS_IDS.length === 0) {
     console.warn('[feature-flags] WARNING: PHONE_OUTBOUND_V1_ENABLED=true but canary list is empty — V1 will NOT activate for any business');
   }
+  console.log('[feature-flags] RESPONSE TRACE startup config:');
+  console.log(`  FEATURE_UNIFIED_RESPONSE_TRACE = ${FEATURE_FLAGS.UNIFIED_RESPONSE_TRACE}`);
+  console.log(`  TRACE_CANARY_BUSINESS_IDS      = [${FEATURE_FLAGS.UNIFIED_RESPONSE_TRACE_CANARY_BUSINESS_IDS.join(',')}] (${FEATURE_FLAGS.UNIFIED_RESPONSE_TRACE_CANARY_BUSINESS_IDS.length} entries)`);
+  console.log(`  FEATURE_OPERATIONAL_INCIDENTS  = ${FEATURE_FLAGS.OPERATIONAL_INCIDENTS}`);
+  console.log(`  INCIDENT_CANARY_BUSINESS_IDS   = [${FEATURE_FLAGS.OPERATIONAL_INCIDENTS_CANARY_BUSINESS_IDS.join(',')}] (${FEATURE_FLAGS.OPERATIONAL_INCIDENTS_CANARY_BUSINESS_IDS.length} entries)`);
+  console.log(`  FEATURE_REDALERT_OPS_PANEL     = ${FEATURE_FLAGS.REDALERT_OPS_PANEL}`);
+  console.log(`  OPS_PANEL_CANARY_BUSINESS_IDS  = [${FEATURE_FLAGS.REDALERT_OPS_PANEL_CANARY_BUSINESS_IDS.join(',')}] (${FEATURE_FLAGS.REDALERT_OPS_PANEL_CANARY_BUSINESS_IDS.length} entries)`);
+  console.log(`  FEATURE_POLICY_APPEND_MODE      = ${FEATURE_FLAGS.POLICY_APPEND_MODE}`);
+  console.log(`  POLICY_APPEND_CANARY_IDS        = [${FEATURE_FLAGS.POLICY_APPEND_CANARY_BUSINESS_IDS.join(',')}] (${FEATURE_FLAGS.POLICY_APPEND_CANARY_BUSINESS_IDS.length} entries)`);
 }
 
 export default {
@@ -307,5 +399,9 @@ export default {
   isPhoneOutboundV1Enabled,
   isPhoneInboundEnabled,
   getPhoneOutboundV1ClassifierMode,
+  isUnifiedResponseTraceEnabled,
+  isOperationalIncidentsEnabled,
+  isRedAlertOpsPanelEnabled,
+  getPolicyAppendMode,
   overrideFeatureFlag
 };

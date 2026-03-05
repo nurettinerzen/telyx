@@ -12,6 +12,7 @@
 import { shouldTriggerFailPolicy, ToolOutcome, normalizeOutcome } from '../tools/toolResult.js';
 import { hasActionClaim } from '../security/actionClaimLexicon.js';
 import { getMessageVariant } from '../messages/messageCatalog.js';
+import { getPolicyAppendMode } from '../config/feature-flags.js';
 
 /**
  * Get forced error response when tool fails
@@ -23,6 +24,9 @@ import { getMessageVariant } from '../messages/messageCatalog.js';
  */
 export function getToolFailResponse(toolName, language = 'TR', channel = 'CHAT') {
   const isPhone = channel === 'PHONE';
+  const normalizedToolName = String(toolName || 'default').toUpperCase().replace(/[^A-Z0-9]+/g, '_');
+  const reasonCode = `TOOL_INFRA_${normalizedToolName}`;
+  const retryAfterMs = 10000;
 
   const messageKeys = {
     create_callback: 'TOOL_FAIL_CREATE_CALLBACK',
@@ -47,6 +51,9 @@ export function getToolFailResponse(toolName, language = 'TR', channel = 'CHAT')
     metadata: {
       type: 'TOOL_FAILURE',
       tool: toolName,
+      reasonCode,
+      retryable: true,
+      retryAfterMs,
       messageKey: messageVariant.messageKey,
       variantIndex: messageVariant.variantIndex,
       timestamp: new Date().toISOString(),
@@ -335,17 +342,32 @@ function countGuidanceComponents(response, language = 'TR') {
   return components;
 }
 
-/**
- * Ensure policy responses have minimum guidance
- *
- * @param {string} response - LLM response text
- * @param {string} userMessage - Original user message (to detect policy topic)
- * @param {string} language - Language code (TR/EN)
- * @returns {Object} { response: string, guidanceAdded: boolean, addedComponents: string[] }
- */
-export function ensurePolicyGuidance(response, userMessage, language = 'TR') {
+function normalizePolicyLanguage(language = 'TR') {
+  return String(language || 'TR').toUpperCase() === 'EN' ? 'EN' : 'TR';
+}
+
+function buildPolicyAppendTelemetry({
+  mode,
+  isPolicyMsg,
+  guidanceAdded,
+  addedComponents,
+  appendLength = 0
+}) {
+  const normalizedMode = String(mode || 'legacy').toLowerCase();
+  const appendKey = addedComponents.length > 0 ? addedComponents.join('+') : null;
+
+  return {
+    mode: normalizedMode,
+    topic: isPolicyMsg ? 'policy_topic' : 'non_policy',
+    append_key: appendKey,
+    length: Number.isFinite(appendLength) ? appendLength : 0,
+    guidanceAdded: guidanceAdded === true
+  };
+}
+
+function applyLegacyPolicyGuidance(response, userMessage, language = 'TR') {
   const isPolicyMsg = isPolicyTopic(userMessage, language);
-  const lang = language.toUpperCase() === 'EN' ? 'EN' : 'TR';
+  const lang = normalizePolicyLanguage(language);
   const defaults = DEFAULT_GUIDANCE[lang] || DEFAULT_GUIDANCE.TR;
 
   // VERBOSE logging
@@ -357,9 +379,15 @@ export function ensurePolicyGuidance(response, userMessage, language = 'TR') {
   // Only apply to policy topics
   if (!isPolicyMsg) {
     if (process.env.VERBOSE === 'true') {
-      console.log(`📋 [GuidanceGuard:ensurePolicyGuidance] SKIP - not a policy topic`);
+      console.log('📋 [GuidanceGuard:ensurePolicyGuidance] SKIP - not a policy topic');
     }
-    return { response, guidanceAdded: false, addedComponents: [], isPolicyTopic: false };
+    return {
+      response,
+      guidanceAdded: false,
+      addedComponents: [],
+      isPolicyTopic: false,
+      appendLength: 0
+    };
   }
 
   const components = countGuidanceComponents(response, language);
@@ -379,13 +407,15 @@ export function ensurePolicyGuidance(response, userMessage, language = 'TR') {
     const forcedStep = lang === 'TR'
       ? 'İzleyebileceğiniz adım: yeniden inceleme talebi oluşturup sipariş numaranızı paylaşın.'
       : 'Next step: create a review request and share your order number.';
-
-    const enhancedResponse = `${response.trim()}\n\n${forcedStep} ${defaults.contactChannel}`;
+    const appendedText = `${forcedStep} ${defaults.contactChannel}`;
+    const enhancedResponse = `${response.trim()}\n\n${appendedText}`;
 
     return {
       response: enhancedResponse,
       guidanceAdded: true,
-      addedComponents: ['nextStep', 'contactChannel']
+      addedComponents: ['nextStep', 'contactChannel'],
+      isPolicyTopic: true,
+      appendLength: appendedText.length
     };
   }
 
@@ -394,7 +424,13 @@ export function ensurePolicyGuidance(response, userMessage, language = 'TR') {
     if (process.env.VERBOSE === 'true') {
       console.log(`📋 [GuidanceGuard:ensurePolicyGuidance] OK - response already has ${presentCount} components`);
     }
-    return { response, guidanceAdded: false, addedComponents: [], isPolicyTopic: true };
+    return {
+      response,
+      guidanceAdded: false,
+      addedComponents: [],
+      isPolicyTopic: true,
+      appendLength: 0
+    };
   }
 
   // Need to add missing components
@@ -421,7 +457,72 @@ export function ensurePolicyGuidance(response, userMessage, language = 'TR') {
   return {
     response: enhancedResponse,
     guidanceAdded: true,
-    addedComponents
+    addedComponents,
+    isPolicyTopic: true,
+    appendLength: guidanceText.length
+  };
+}
+
+/**
+ * Ensure policy responses have minimum guidance
+ *
+ * @param {string} response - LLM response text
+ * @param {string} userMessage - Original user message (to detect policy topic)
+ * @param {string} language - Language code (TR/EN)
+ * @param {Object} options
+ * @param {number|string|null} options.businessId - business id for canary gating
+ * @returns {Object} { response: string, guidanceAdded: boolean, addedComponents: string[] }
+ */
+export function ensurePolicyGuidance(response, userMessage, language = 'TR', options = {}) {
+  const mode = getPolicyAppendMode({ businessId: options?.businessId });
+  const legacyResult = applyLegacyPolicyGuidance(response, userMessage, language);
+
+  if (mode === 'legacy') {
+    return {
+      ...legacyResult,
+      policyAppend: buildPolicyAppendTelemetry({
+        mode,
+        isPolicyMsg: legacyResult.isPolicyTopic,
+        guidanceAdded: legacyResult.guidanceAdded,
+        addedComponents: legacyResult.addedComponents,
+        appendLength: legacyResult.appendLength
+      })
+    };
+  }
+
+  if (mode === 'monitor_only') {
+    const wouldAppend = legacyResult.guidanceAdded === true;
+    return {
+      response,
+      guidanceAdded: false,
+      addedComponents: [],
+      wouldAppend,
+      isPolicyTopic: legacyResult.isPolicyTopic,
+      policyAppend: {
+        ...buildPolicyAppendTelemetry({
+          mode,
+          isPolicyMsg: legacyResult.isPolicyTopic,
+          guidanceAdded: wouldAppend,
+          addedComponents: legacyResult.addedComponents || [],
+          appendLength: legacyResult.appendLength || 0
+        }),
+        would_append: wouldAppend
+      }
+    };
+  }
+
+  return {
+    response,
+    guidanceAdded: false,
+    addedComponents: [],
+    isPolicyTopic: legacyResult.isPolicyTopic,
+    policyAppend: buildPolicyAppendTelemetry({
+      mode: 'off',
+      isPolicyMsg: legacyResult.isPolicyTopic,
+      guidanceAdded: false,
+      addedComponents: [],
+      appendLength: 0
+    })
   };
 }
 

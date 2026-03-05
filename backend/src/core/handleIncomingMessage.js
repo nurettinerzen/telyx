@@ -54,8 +54,26 @@ import {
 } from '../services/responseGrounding.js';
 import { logEntityResolver } from '../services/entityResolverTelemetry.js';
 import { validateFieldGrounding } from '../guardrails/antiConfabulationGuard.js';
+import { buildTrace } from '../services/trace/traceBuilder.js';
 
 const LLM_CALL_REASONS = new Set(['CHAT', 'WHATSAPP', 'EMAIL']);
+const RESPONSE_ORIGIN = Object.freeze({
+  LLM: 'LLM',
+  HARDCODED: 'HARDCODED',
+  TEMPLATE: 'TEMPLATE',
+  FALLBACK: 'FALLBACK',
+  GUARDRAIL_OVERRIDE: 'GUARDRAIL_OVERRIDE'
+});
+const LLM_BYPASS_REASON = Object.freeze({
+  CHILD_SAFETY: 'BYPASS_CHILD_SAFETY',
+  SESSION_THROTTLE: 'BYPASS_SESSION_THROTTLE',
+  PROMPT_INJECTION: 'BYPASS_PROMPT_INJECTION',
+  SESSION_LOCK: 'BYPASS_SESSION_LOCK',
+  SESSION_TERMINATED: 'BYPASS_SESSION_TERMINATED',
+  LLM_PROVIDER_ERROR: 'BYPASS_LLM_PROVIDER_ERROR',
+  ORCHESTRATOR_FATAL: 'BYPASS_ORCHESTRATOR_FATAL'
+});
+const RETRYABLE_LLM_ERROR_PATTERN = /(timeout|timed out|rate limit|429|overload|temporar|unavailable|503|econnreset|socket hang up|upstream|try again)/i;
 
 function normalizeLlmCallReason(channel = 'UNKNOWN') {
   const normalized = String(channel || 'UNKNOWN').toUpperCase();
@@ -63,25 +81,57 @@ function normalizeLlmCallReason(channel = 'UNKNOWN') {
   return normalized || 'UNKNOWN';
 }
 
-function buildLlmCallTrace(metrics = {}, { channel = 'UNKNOWN', sessionId = null } = {}) {
-  const normalizedChannel = String(channel || 'UNKNOWN').toUpperCase();
-  const llmCalled = metrics.LLM_CALLED === true || metrics.llmCalled === true;
-  const reason = metrics.llm_call_reason
-    || metrics.llmCallReason
-    || normalizeLlmCallReason(channel);
-  const bypassed = typeof metrics.bypassed === 'boolean'
-    ? metrics.bypassed
-    : typeof metrics.llmBypassed === 'boolean'
-      ? metrics.llmBypassed
-      : !llmCalled;
+function inferLlmStatusFromError(error) {
+  const message = String(error?.message || '');
+  return /timeout|timed out/i.test(message) ? 'timeout' : 'error';
+}
 
-  return {
-    sessionId: metrics.sessionId || sessionId || null,
-    channel: normalizedChannel,
-    LLM_CALLED: llmCalled,
-    llm_call_reason: reason,
-    bypassed
-  };
+function isRetryableLlmError(error) {
+  return RETRYABLE_LLM_ERROR_PATTERN.test(String(error?.message || ''));
+}
+
+function markLlmBypass(metrics = {}, { reasonCode, retryable = false, retryAfterMs = null } = {}) {
+  metrics.llm_bypass_reason = reasonCode || null;
+  metrics.llm_bypass_retryable = retryable === true;
+  metrics.llm_bypass_retry_after_ms = Number.isFinite(retryAfterMs) && retryAfterMs > 0
+    ? Math.max(0, Math.round(retryAfterMs))
+    : null;
+}
+
+function buildReasonCodedFallbackMessage(
+  baseMessage,
+  {
+    language = 'TR',
+    reasonCode = 'UNKNOWN',
+    retryAfterMs = null
+  } = {}
+) {
+  const retrySeconds = Number.isFinite(retryAfterMs) && retryAfterMs > 0
+    ? Math.max(1, Math.ceil(retryAfterMs / 1000))
+    : null;
+  const retryHint = retrySeconds
+    ? (
+      String(language || 'TR').toUpperCase() === 'TR'
+        ? ` Lütfen ${retrySeconds} saniye sonra tekrar deneyin.`
+        : ` Please retry in ${retrySeconds} seconds.`
+    )
+    : '';
+
+  return `${String(baseMessage || '').trim()}${retryHint} [${reasonCode}]`.trim();
+}
+
+function setResponseOrigin(metrics = {}, origin = RESPONSE_ORIGIN.FALLBACK, originId = 'unknown') {
+  metrics.response_origin = origin;
+  metrics.origin_id = originId;
+}
+
+function appendPolicyBlock(metrics = {}, blockId = null) {
+  if (!blockId) return;
+  const list = Array.isArray(metrics.policy_blocks) ? metrics.policy_blocks : [];
+  if (!list.includes(blockId)) {
+    list.push(blockId);
+  }
+  metrics.policy_blocks = list;
 }
 
 function mapAssistantMessageType({
@@ -638,6 +688,11 @@ export async function handleIncomingMessage({
   metadata = {}
 }) {
   const turnStartTime = Date.now();
+  let finalTurnResult = null;
+  let traceClassification = null;
+  let traceRouting = null;
+  let traceToolResults = [];
+  let traceGuardrailResult = null;
 
   // DRY-RUN MODE: Disable all side-effects (for shadow mode)
   const effectsEnabled = !metadata._shadowMode && !metadata._dryRun;
@@ -652,7 +707,18 @@ export async function handleIncomingMessage({
     llmCallReason: normalizeLlmCallReason(channel),
     llm_call_reason: normalizeLlmCallReason(channel),
     llmBypassed: true,
-    bypassed: true
+    bypassed: true,
+    llm_provider: 'none',
+    llm_status: 'not_called',
+    response_origin: RESPONSE_ORIGIN.FALLBACK,
+    origin_id: 'orchestrator.unset',
+    tools_called_count: 0,
+    intent_final: null,
+    route_final: null,
+    policy_blocks: [],
+    llm_bypass_reason: null,
+    llm_bypass_retryable: false,
+    llm_bypass_retry_after_ms: null
   };
 
   const finalizeReply = (reply, intentHint = null) => finalizeResponseText({
@@ -662,6 +728,11 @@ export async function handleIncomingMessage({
     sessionId: metrics.sessionId || sessionId || '',
     intent: intentHint
   });
+
+  const finish = (result) => {
+    finalTurnResult = result;
+    return result;
+  };
 
   const prefix = effectsEnabled ? '📨' : '🔍';
   const mode = effectsEnabled ? 'PRODUCTION' : 'DRY-RUN';
@@ -704,8 +775,18 @@ export async function handleIncomingMessage({
       console.log('📊 [SecurityTelemetry]', contentSafetyTelemetry);
 
       // Return safe response WITHOUT calling LLM
-      return {
-        reply: finalizeReply(getBlockedContentMessage(language)),
+      setResponseOrigin(metrics, RESPONSE_ORIGIN.HARDCODED, 'prellm.childSafetyBlock');
+      appendPolicyBlock(metrics, 'CHILD_SAFETY_VIOLATION');
+      markLlmBypass(metrics, {
+        reasonCode: LLM_BYPASS_REASON.CHILD_SAFETY,
+        retryable: false
+      });
+      const childSafetyMessage = buildReasonCodedFallbackMessage(getBlockedContentMessage(language), {
+        language,
+        reasonCode: LLM_BYPASS_REASON.CHILD_SAFETY
+      });
+      return finish({
+        reply: finalizeReply(childSafetyMessage),
         outcome: ToolOutcome.DENIED,
         metadata: {
           outcome: ToolOutcome.DENIED,
@@ -713,7 +794,10 @@ export async function handleIncomingMessage({
           messageType: 'system_barrier',
           LLM_CALLED: false,
           llm_call_reason: normalizeLlmCallReason(channel),
-          bypassed: true
+          bypassed: true,
+          llmBypassReason: metrics.llm_bypass_reason,
+          llmBypassRetryable: metrics.llm_bypass_retryable,
+          llmBypassRetryAfterMs: metrics.llm_bypass_retry_after_ms
         },
         shouldEndSession: false,
         forceEnd: false,
@@ -723,8 +807,6 @@ export async function handleIncomingMessage({
           ...metrics,
           llmCalled: false,
           LLM_CALLED: false,
-          bypassed: true,
-          bypassReason: 'CHILD_SAFETY',
           contentSafetyBlock: true,
           securityTelemetry: contentSafetyTelemetry
         },
@@ -734,7 +816,7 @@ export async function handleIncomingMessage({
           blocked: true,
           reason: 'CHILD_SAFETY_VIOLATION'
         }
-      };
+      });
     }
 
     console.log('✅ [CONTENT_SAFETY] Message passed safety check');
@@ -777,8 +859,21 @@ export async function handleIncomingMessage({
       };
       console.log('📊 [SecurityTelemetry]', throttleTelemetry);
 
-      return {
-        reply: finalizeReply(throttleMessage),
+      setResponseOrigin(metrics, RESPONSE_ORIGIN.HARDCODED, 'prellm.sessionThrottle');
+      appendPolicyBlock(metrics, 'SESSION_THROTTLE');
+      markLlmBypass(metrics, {
+        reasonCode: LLM_BYPASS_REASON.SESSION_THROTTLE,
+        retryable: true,
+        retryAfterMs: throttleResult.retryAfterMs || null
+      });
+      return finish({
+        reply: finalizeReply(
+          buildReasonCodedFallbackMessage(throttleMessage, {
+            language,
+            reasonCode: LLM_BYPASS_REASON.SESSION_THROTTLE,
+            retryAfterMs: throttleResult.retryAfterMs || null
+          })
+        ),
         outcome: ToolOutcome.DENIED,
         metadata: {
           outcome: ToolOutcome.DENIED,
@@ -786,7 +881,10 @@ export async function handleIncomingMessage({
           messageType: 'system_barrier',
           LLM_CALLED: false,
           llm_call_reason: normalizeLlmCallReason(channel),
-          bypassed: true
+          bypassed: true,
+          llmBypassReason: metrics.llm_bypass_reason,
+          llmBypassRetryable: metrics.llm_bypass_retryable,
+          llmBypassRetryAfterMs: metrics.llm_bypass_retry_after_ms
         },
         shouldEndSession: false,
         forceEnd: false,
@@ -796,8 +894,6 @@ export async function handleIncomingMessage({
           ...metrics,
           llmCalled: false,
           LLM_CALLED: false,
-          bypassed: true,
-          bypassReason: 'SESSION_THROTTLE',
           sessionThrottled: true,
           securityTelemetry: throttleTelemetry
         },
@@ -808,7 +904,7 @@ export async function handleIncomingMessage({
           reason: throttleResult.reason,
           retryAfterMs: throttleResult.retryAfterMs
         }
-      };
+      });
     }
 
     // ========================================
@@ -856,12 +952,23 @@ export async function handleIncomingMessage({
         };
         console.log('📊 [SecurityTelemetry]', injectionTelemetry);
 
-        return {
-          reply: finalizeReply(
-            language === 'TR'
-              ? 'Bu mesaj güvenlik politikamız gereği işlenemiyor. Size nasıl yardımcı olabilirim?'
-              : 'This message cannot be processed due to our security policy. How can I help you?'
-          ),
+        setResponseOrigin(metrics, RESPONSE_ORIGIN.HARDCODED, 'prellm.promptInjectionBlock');
+        appendPolicyBlock(metrics, 'PROMPT_INJECTION');
+        markLlmBypass(metrics, {
+          reasonCode: LLM_BYPASS_REASON.PROMPT_INJECTION,
+          retryable: false
+        });
+        const injectionBlockMessage = buildReasonCodedFallbackMessage(
+          language === 'TR'
+            ? 'Bu mesaj güvenlik politikamız gereği işlenemiyor. Size nasıl yardımcı olabilirim?'
+            : 'This message cannot be processed due to our security policy. How can I help you?',
+          {
+            language,
+            reasonCode: LLM_BYPASS_REASON.PROMPT_INJECTION
+          }
+        );
+        return finish({
+          reply: finalizeReply(injectionBlockMessage),
           outcome: ToolOutcome.DENIED,
           metadata: {
             outcome: ToolOutcome.DENIED,
@@ -871,7 +978,10 @@ export async function handleIncomingMessage({
             messageType: 'system_barrier',
             LLM_CALLED: false,
             llm_call_reason: normalizeLlmCallReason(channel),
-            bypassed: true
+            bypassed: true,
+            llmBypassReason: metrics.llm_bypass_reason,
+            llmBypassRetryable: metrics.llm_bypass_retryable,
+            llmBypassRetryAfterMs: metrics.llm_bypass_retry_after_ms
           },
           shouldEndSession: false,
           forceEnd: false,
@@ -881,8 +991,6 @@ export async function handleIncomingMessage({
             ...metrics,
             llmCalled: false,
             LLM_CALLED: false,
-            bypassed: true,
-            bypassReason: 'PROMPT_INJECTION',
             injectionBlock: true,
             securityTelemetry: injectionTelemetry
           },
@@ -893,7 +1001,7 @@ export async function handleIncomingMessage({
             reason: 'PROMPT_INJECTION_CRITICAL',
             injectionType: injectionCheck.type
           }
-        };
+        });
       }
 
       // HIGH severity: Risk flag — prepend warning to system prompt so LLM ignores injection
@@ -941,8 +1049,32 @@ export async function handleIncomingMessage({
           channel
         }).text;
 
-      return {
-        reply: finalizeReply(replyMessage),
+      setResponseOrigin(
+        metrics,
+        RESPONSE_ORIGIN.TEMPLATE,
+        contextResult.locked
+          ? `sessionLock.${contextResult.terminationReason || 'UNKNOWN'}`
+          : 'TERMINATED_CONVERSATION'
+      );
+      appendPolicyBlock(metrics, contextResult.terminationReason || 'SESSION_TERMINATED');
+      const lockRetryAfterMs = contextResult.lockUntil
+        ? Math.max(0, new Date(contextResult.lockUntil).getTime() - Date.now())
+        : null;
+      const lockBypassReasonCode = contextResult.locked
+        ? LLM_BYPASS_REASON.SESSION_LOCK
+        : LLM_BYPASS_REASON.SESSION_TERMINATED;
+      markLlmBypass(metrics, {
+        reasonCode: lockBypassReasonCode,
+        retryable: Boolean(contextResult.locked && lockRetryAfterMs && lockRetryAfterMs > 0),
+        retryAfterMs: lockRetryAfterMs
+      });
+      const lockMessage = buildReasonCodedFallbackMessage(replyMessage, {
+        language,
+        reasonCode: lockBypassReasonCode,
+        retryAfterMs: contextResult.locked ? lockRetryAfterMs : null
+      });
+      return finish({
+        reply: finalizeReply(lockMessage),
         outcome: ToolOutcome.DENIED,
         metadata: {
           outcome: ToolOutcome.DENIED,
@@ -951,7 +1083,10 @@ export async function handleIncomingMessage({
           messageType: 'system_barrier',
           LLM_CALLED: false,
           llm_call_reason: normalizeLlmCallReason(channel),
-          bypassed: true
+          bypassed: true,
+          llmBypassReason: metrics.llm_bypass_reason,
+          llmBypassRetryable: metrics.llm_bypass_retryable,
+          llmBypassRetryAfterMs: metrics.llm_bypass_retry_after_ms
         },
         shouldEndSession: true,
         forceEnd: true,
@@ -959,20 +1094,14 @@ export async function handleIncomingMessage({
         lockReason: contextResult.terminationReason,
         lockUntil: contextResult.lockUntil,
         state: contextResult.state,
-        metrics: {
-          ...metrics,
-          llmCalled: false,
-          LLM_CALLED: false,
-          bypassed: true,
-          bypassReason: contextResult.locked ? 'SESSION_LOCK' : 'SESSION_TERMINATED'
-        },
+        metrics,
         inputTokens: 0,
         outputTokens: 0,
         debug: {
           terminationReason: contextResult.terminationReason,
           locked: contextResult.locked
         }
-      };
+      });
     }
 
     const { sessionId: resolvedSessionId, state } = contextResult;
@@ -1123,6 +1252,7 @@ export async function handleIncomingMessage({
         reason: 'Classifier skipped — idle state'
       };
     }
+    traceClassification = classification;
 
     // ========================================
     // STEP 4: Router Decision
@@ -1141,6 +1271,8 @@ export async function handleIncomingMessage({
       channel,
       hasKBMatch
     });
+    traceRouting = routingResult;
+    metrics.route_final = routingResult?.routing?.routing?.action || null;
 
     // Enforce LLM-first: any directResponse signal is treated as context only.
     if (routingResult.directResponse) {
@@ -1215,6 +1347,8 @@ export async function handleIncomingMessage({
     // STEP 6: Tool Loop
     // ========================================
     console.log('\n[STEP 6] Executing tool loop...');
+    metrics.llm_provider = 'gemini';
+    metrics.llm_status = 'in_progress';
     metrics.llmCalled = true;
     metrics.LLM_CALLED = true;
     metrics.llmBypassed = false;
@@ -1250,6 +1384,22 @@ export async function handleIncomingMessage({
       toolsCalled,
       iterations
     } = toolLoopResult;
+    traceToolResults = Array.isArray(toolLoopResult?.toolResults) ? toolLoopResult.toolResults : [];
+
+    if (typeof toolLoopResult._llmCalled === 'boolean') {
+      metrics.llmCalled = toolLoopResult._llmCalled;
+      metrics.LLM_CALLED = toolLoopResult._llmCalled;
+      metrics.llmBypassed = !toolLoopResult._llmCalled;
+      metrics.bypassed = !toolLoopResult._llmCalled;
+    }
+    metrics.llm_status = toolLoopResult._llmStatus
+      || (metrics.LLM_CALLED === true ? 'success' : 'not_called');
+    metrics.tools_called_count = Array.isArray(toolsCalled) ? toolsCalled.length : 0;
+    setResponseOrigin(
+      metrics,
+      toolLoopResult._responseOrigin || RESPONSE_ORIGIN.LLM,
+      toolLoopResult._originId || 'toolLoop.unknown'
+    );
 
     console.log(`🔄 Tool loop completed: ${iterations} iterations, ${toolsCalled.length} tools called`);
 
@@ -1330,8 +1480,10 @@ export async function handleIncomingMessage({
 
       if (enumResult.shouldBlock) {
         console.warn(`🚨 [Enumeration] Session blocked after ${enumResult.attempts} attempts`);
+        setResponseOrigin(metrics, RESPONSE_ORIGIN.GUARDRAIL_OVERRIDE, 'enumeration.lock');
+        appendPolicyBlock(metrics, 'ENUMERATION');
 
-        return {
+        return finish({
           reply: finalizeReply(getLockMessage('ENUMERATION', language, resolvedSessionId)),
           outcome: ToolOutcome.DENIED,
           metadata: {
@@ -1361,7 +1513,7 @@ export async function handleIncomingMessage({
             reason: 'ENUMERATION_THRESHOLD_EXCEEDED',
             attempts: enumResult.attempts
           }
-        };
+        });
       }
 
       console.log(`⚠️ [Enumeration] Failed attempt ${enumResult.attempts}/${ENUMERATION_LIMITS.MAX_FAILED_VERIFICATIONS}`);
@@ -1402,7 +1554,7 @@ export async function handleIncomingMessage({
         effectsEnabled // DRY-RUN flag
       });
 
-      return {
+      return finish({
         reply: finalizeReply(responseText),
         outcome: ToolOutcome.INFRA_ERROR,
         metadata: {
@@ -1426,7 +1578,7 @@ export async function handleIncomingMessage({
           failedTool,
           toolsCalled
         }
-      };
+      });
     }
 
     // ========================================
@@ -1459,6 +1611,7 @@ export async function handleIncomingMessage({
       || state.activeFlow
       || null;
     const turnIntent = rawFlow ? String(rawFlow).toLowerCase() : null;
+    metrics.intent_final = turnIntent;
 
     // ============================================
     // COLLECTED DATA: Zaten bilinen veriler
@@ -1512,8 +1665,29 @@ export async function handleIncomingMessage({
       activeFlow: state.activeFlow || null,
       hasKBMatch // Anti-confabulation: businessDescriptionClaims KB-backed check
     });
+    traceGuardrailResult = guardrailResult;
 
     let { finalResponse } = guardrailResult;
+    const guardrailOverrideApplied =
+      guardrailResult?.action && guardrailResult.action !== 'PASS'
+      || guardrailResult?.blocked
+      || guardrailResult?.needsCorrection
+      || !!guardrailResult?.blockReason;
+    if (guardrailOverrideApplied) {
+      setResponseOrigin(
+        metrics,
+        RESPONSE_ORIGIN.GUARDRAIL_OVERRIDE,
+        guardrailResult?.messageKey
+          || guardrailResult?.blockReason
+          || `guardrail.${guardrailResult?.action || 'UNKNOWN'}`
+      );
+    }
+    appendPolicyBlock(metrics, guardrailResult?.blockReason || null);
+    if (Array.isArray(guardrailResult?.violations)) {
+      for (const violation of guardrailResult.violations) {
+        appendPolicyBlock(metrics, violation);
+      }
+    }
 
     // ── Intent threading debug (P0-DEBUG) — post-guardrails ──
     console.log('🧭 [IntentThread] guardrailResult:', {
@@ -1571,11 +1745,13 @@ export async function handleIncomingMessage({
           // Correction returned empty — use safe fallback
           finalResponse = getInternalProtocolSafeFallback(language);
           metrics.guardrailFallbackUsed = true;
+          setResponseOrigin(metrics, RESPONSE_ORIGIN.GUARDRAIL_OVERRIDE, 'guardrail.correctionEmptyFallback');
         }
       } catch (correctionError) {
         console.error('❌ [Orchestrator] Correction failed:', correctionError.message);
         finalResponse = getInternalProtocolSafeFallback(language);
         metrics.guardrailFallbackUsed = true;
+        setResponseOrigin(metrics, RESPONSE_ORIGIN.GUARDRAIL_OVERRIDE, 'guardrail.correctionErrorFallback');
       }
     }
 
@@ -1591,17 +1767,34 @@ export async function handleIncomingMessage({
     if (!String(finalResponse || '').trim()) {
       finalResponse = getInternalProtocolSafeFallback(language);
       metrics.guardrailFallbackUsed = true;
+      setResponseOrigin(metrics, RESPONSE_ORIGIN.FALLBACK, 'orchestrator.emptyFinalResponseFallback');
     }
 
     // Deterministic post-pass for policy topics.
     // applyGuardrails already does this in the normal path, but blocked/reprompt flows
     // can bypass that stage and return without actionable policy guidance.
     if (typeof finalResponse === 'string' && finalResponse.trim()) {
-      const policyGuidance = ensurePolicyGuidance(finalResponse, userMessage || '', language);
+      const policyGuidance = ensurePolicyGuidance(
+        finalResponse,
+        userMessage || '',
+        language,
+        { businessId: business.id }
+      );
       finalResponse = policyGuidance.response;
       if (policyGuidance.guidanceAdded) {
         const existing = Array.isArray(metrics.guidanceAdded) ? metrics.guidanceAdded : [];
         metrics.guidanceAdded = [...new Set([...existing, ...policyGuidance.addedComponents])];
+      }
+      if (policyGuidance?.policyAppend) {
+        metrics.policyAppend = policyGuidance.policyAppend;
+      }
+      if (policyGuidance?.wouldAppend === true) {
+        metrics.policyAppendMonitor = {
+          wouldAppend: true,
+          append_key: policyGuidance?.policyAppend?.append_key || null,
+          topic: policyGuidance?.policyAppend?.topic || null,
+          length: Number.isFinite(policyGuidance?.policyAppend?.length) ? policyGuidance.policyAppend.length : 0
+        };
       }
     }
 
@@ -1757,7 +1950,7 @@ export async function handleIncomingMessage({
       ? toolLoopResult.toolResults.find(result => normalizeOutcome(result?.outcome) === ToolOutcome.VALIDATION_ERROR)
       : null;
 
-    return {
+    return finish({
       reply: finalizeReply(finalResponse, turnIntent),
       outcome: turnOutcome,
       metadata: {
@@ -1813,10 +2006,25 @@ export async function handleIncomingMessage({
         responseGrounding,
         ...persistMetadata
       }
-    };
+    });
 
   } catch (error) {
     console.error('❌ [Orchestrator] Fatal error:', error);
+    metrics.llm_status = metrics.LLM_CALLED === true
+      ? inferLlmStatusFromError(error)
+      : metrics.llm_status || 'not_called';
+    setResponseOrigin(metrics, RESPONSE_ORIGIN.TEMPLATE, 'FATAL_ERROR');
+    appendPolicyBlock(metrics, 'ORCHESTRATOR_FATAL_ERROR');
+    const bypassReasonCode = metrics.LLM_CALLED === true
+      ? LLM_BYPASS_REASON.LLM_PROVIDER_ERROR
+      : LLM_BYPASS_REASON.ORCHESTRATOR_FATAL;
+    const retryableFatal = isRetryableLlmError(error);
+    const retryAfterMs = retryableFatal ? 10000 : null;
+    markLlmBypass(metrics, {
+      reasonCode: bypassReasonCode,
+      retryable: retryableFatal,
+      retryAfterMs
+    });
 
     // Emit error metrics
     const { emitErrorMetrics } = await import('../metrics/emit.js');
@@ -1828,14 +2036,20 @@ export async function handleIncomingMessage({
     });
 
     // Return safe fallback response
-    return {
-      reply: finalizeReply(getMessageVariant('FATAL_ERROR', {
-        language,
-        sessionId: metrics.sessionId || sessionId || '',
-        directiveType: 'FATAL',
-        severity: 'critical',
-        channel
-      }).text),
+    const fatalTemplate = getMessageVariant('FATAL_ERROR', {
+      language,
+      sessionId: metrics.sessionId || sessionId || '',
+      directiveType: 'FATAL',
+      severity: 'critical',
+      channel
+    }).text;
+    const fatalReply = buildReasonCodedFallbackMessage(fatalTemplate, {
+      language,
+      reasonCode: bypassReasonCode,
+      retryAfterMs
+    });
+    return finish({
+      reply: finalizeReply(fatalReply),
       outcome: ToolOutcome.INFRA_ERROR,
       metadata: {
         outcome: ToolOutcome.INFRA_ERROR,
@@ -1843,25 +2057,104 @@ export async function handleIncomingMessage({
         messageType: 'system_barrier',
         LLM_CALLED: metrics.LLM_CALLED === true,
         llm_call_reason: metrics.llm_call_reason || metrics.llmCallReason || normalizeLlmCallReason(channel),
-        bypassed: metrics.bypassed === true || metrics.llmBypassed === true || metrics.LLM_CALLED !== true
+        bypassed: metrics.bypassed === true || metrics.llmBypassed === true || metrics.LLM_CALLED !== true,
+        llmBypassReason: metrics.llm_bypass_reason,
+        llmBypassRetryable: metrics.llm_bypass_retryable,
+        llmBypassRetryAfterMs: metrics.llm_bypass_retry_after_ms
       },
       shouldEndSession: false,
       forceEnd: false,
       state: null,
-      metrics: {
-        ...metrics,
-        bypassReason: metrics.LLM_CALLED === true ? 'LLM_PROVIDER_ERROR' : 'ORCHESTRATOR_FATAL'
-      },
+      metrics,
       inputTokens: 0,
       outputTokens: 0,
       debug: {
         error: error.message,
         stack: error.stack?.substring(0, 500)
       }
-    };
+    });
   } finally {
-    const llmTrace = buildLlmCallTrace(metrics, { channel, sessionId });
-    console.log(`LLM_CALL_TRACE ${JSON.stringify(llmTrace)}`);
+    const traceInput = {
+      context: {
+        channel,
+        businessId: business?.id,
+        userId: metadata?.userId ?? null,
+        sessionId: metrics.sessionId || sessionId || null,
+        messageId: messageId || metadata?.inboundMessageId || null,
+        requestId: metadata?.requestId || null,
+        language,
+        verificationState:
+          finalTurnResult?.metadata?.verificationState
+          || finalTurnResult?.state?.verification?.status
+          || 'none',
+        responseSource: metrics.response_origin || null,
+        originId: metrics.origin_id || null,
+        llmUsed: metrics.LLM_CALLED === true,
+        llmBypassReason: metrics.llm_bypass_reason || null,
+        guardrailAction: finalTurnResult?.metadata?.guardrailAction || traceGuardrailResult?.action || 'PASS',
+        guardrailReason:
+          traceGuardrailResult?.blockReason
+          || finalTurnResult?.metadata?.guardrailReason
+          || null,
+        policyAppend: metrics.policyAppend
+          || (metrics.policyAppendMonitor
+            ? {
+              mode: 'monitor_only',
+              would_append: metrics.policyAppendMonitor.wouldAppend === true,
+              append_key: metrics.policyAppendMonitor.append_key || null,
+              topic: metrics.policyAppendMonitor.topic || null,
+              length: metrics.policyAppendMonitor.length || 0
+            }
+            : null),
+        latencyMs: Date.now() - turnStartTime,
+        intent: metrics.intent_final || traceRouting?.routing?.routing?.suggestedFlow || traceClassification?.type || 'unknown'
+      },
+      llmMeta: {
+        called: metrics.LLM_CALLED === true,
+        model: assistant?.model || null,
+        status: metrics.llm_status || null,
+        llm_bypass_reason: metrics.llm_bypass_reason || null,
+        llm_bypass_retryable: metrics.llm_bypass_retryable === true,
+        llm_bypass_retry_after_ms: metrics.llm_bypass_retry_after_ms ?? null
+      },
+      plan: {
+        intent: metrics.intent_final || traceRouting?.routing?.routing?.suggestedFlow || traceClassification?.type || 'unknown',
+        slots: finalTurnResult?.state?.collectedSlots || finalTurnResult?.state?.extractedSlots || {},
+        tool_candidates: [],
+        tool_selected: traceToolResults?.[0]?.name || null,
+        confidence: Number.isFinite(traceClassification?.confidence) ? traceClassification.confidence : null
+      },
+      tools: traceToolResults || [],
+      guardrail: {
+        action: finalTurnResult?.metadata?.guardrailAction || traceGuardrailResult?.action || 'PASS',
+        reason:
+          traceGuardrailResult?.blockReason
+          || finalTurnResult?.metadata?.guardrailReason
+          || null
+      },
+      postprocessors: [],
+      finalResponse: finalTurnResult?.reply || ''
+    };
+    const unifiedTrace = buildTrace(traceInput);
+    traceInput.context = {
+      ...(traceInput.context || {}),
+      traceId: unifiedTrace.traceId
+    };
+
+    if (finalTurnResult && typeof finalTurnResult === 'object') {
+      finalTurnResult.traceContext = traceInput;
+      finalTurnResult.tracePayload = unifiedTrace.payload;
+      finalTurnResult.traceId = unifiedTrace.traceId;
+      finalTurnResult.traceValidation = unifiedTrace.validation;
+    }
+
+    console.log(`UNIFIED_TRACE_PREVIEW ${JSON.stringify({
+      trace_id: unifiedTrace.traceId,
+      channel: unifiedTrace.payload.channel,
+      response_source: unifiedTrace.payload.response_source,
+      llm_used: unifiedTrace.payload.llm_used,
+      tools_called_count: unifiedTrace.toolsCalledCount
+    })}`);
   }
 }
 

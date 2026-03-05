@@ -17,23 +17,73 @@ import { compareTurkishNames, comparePhones } from '../utils/text.js';
 import { redactPII } from '../utils/pii-redaction.js';
 import { getMessageVariant } from '../messages/messageCatalog.js';
 
+const VERIFICATION_REQUIRED_QUERY_TYPES = new Set([
+  'siparis',
+  'order',
+  'tracking',
+  'kargo',
+  'cargo',
+  'debt',
+  'borc',
+  'muhasebe',
+  'accounting',
+  'billing',
+  'payment',
+  'odeme',
+  'invoice',
+  'fatura',
+  'refund',
+  'iade',
+  'return'
+]);
+
+const VERIFICATION_EXEMPT_QUERY_TYPES = new Set([
+  'genel',
+  'general',
+  'stock',
+  'stok',
+  'product',
+  'urun',
+  'support',
+  'service',
+  'servis',
+  'ariza',
+  'ticket',
+  'randevu',
+  'appointment'
+]);
+
+function normalizeQueryType(queryType) {
+  return String(queryType || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '_');
+}
+
 /**
- * Check if a query type requires verification
+ * Check if a query type requires verification.
  *
- * SECURITY (P0 Fix): ALL queries require verification.
- * We NEVER return PII without name verification, regardless of query type.
- *
- * Previous logic allowed "general info" queries to skip verification,
- * which could leak PII. This is now hardened.
+ * Intent-aware policy:
+ * - Transactional/account-specific flows require verification.
+ * - General/support/service/stock flows do NOT trigger verification prompts.
  */
 export function requiresVerification(queryType) {
-  // P0 SECURITY: ALWAYS require verification for ANY customer data query
-  // Even "harmless" queries like "genel bilgi" could expose PII
-  return true;
+  const normalizedQueryType = normalizeQueryType(queryType);
 
-  // OLD LOGIC (INSECURE):
-  // const sensitiveTypes = ['siparis', 'order', 'borc', 'debt', 'muhasebe', 'accounting', 'odeme', 'payment', 'fatura', 'invoice'];
-  // return sensitiveTypes.includes(queryType?.toLowerCase());
+  if (!normalizedQueryType) {
+    return false;
+  }
+
+  if (VERIFICATION_EXEMPT_QUERY_TYPES.has(normalizedQueryType)) {
+    return false;
+  }
+
+  if (VERIFICATION_REQUIRED_QUERY_TYPES.has(normalizedQueryType)) {
+    return true;
+  }
+
+  return /(siparis|order|tracking|kargo|cargo|debt|borc|muhasebe|billing|payment|odeme|invoice|fatura|refund|iade|return)/i
+    .test(normalizedQueryType);
 }
 
 /**

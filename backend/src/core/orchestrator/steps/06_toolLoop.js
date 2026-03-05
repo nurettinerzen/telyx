@@ -38,6 +38,65 @@ const CALLBACK_NAME_STOPWORDS = new Set([
   'my', 'name', 'is', 'i', 'am'
 ]);
 
+const RESPONSE_ORIGIN = Object.freeze({
+  LLM: 'LLM',
+  TEMPLATE: 'TEMPLATE',
+  FALLBACK: 'FALLBACK'
+});
+const LLM_SEND_MAX_ATTEMPTS = 2;
+const LLM_SEND_RETRY_BASE_MS = 400;
+const RETRYABLE_SEND_ERROR_PATTERN = /(timeout|timed out|rate limit|429|temporar|unavailable|503|econnreset|socket hang up|upstream|try again)/i;
+
+function isRetryableSendError(error) {
+  const message = String(error?.message || '');
+  return RETRYABLE_SEND_ERROR_PATTERN.test(message);
+}
+
+function getSendErrorCode(error) {
+  const message = String(error?.message || '');
+  if (/timeout|timed out/i.test(message)) return 'LLM_TIMEOUT';
+  if (/429|rate limit/i.test(message)) return 'LLM_RATE_LIMIT';
+  if (/503|unavailable|overload|upstream/i.test(message)) return 'LLM_PROVIDER_UNAVAILABLE';
+  return 'LLM_SEND_ERROR';
+}
+
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function sendMessageWithRetry(chat, payload, { label = 'llm.sendMessage', maxAttempts = LLM_SEND_MAX_ATTEMPTS } = {}) {
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      if (attempt > 1) {
+        console.log(`🔁 [ToolLoop] Retrying ${label} (${attempt}/${maxAttempts})`);
+      }
+      const result = await chat.sendMessage(payload);
+      if (attempt > 1) {
+        console.log(`✅ [ToolLoop] ${label} recovered on attempt ${attempt}`);
+      }
+      return result;
+    } catch (error) {
+      lastError = error;
+      const retryable = isRetryableSendError(error);
+      const errorCode = getSendErrorCode(error);
+      console.warn(`⚠️ [ToolLoop] ${label} failed (attempt ${attempt}/${maxAttempts}, code=${errorCode}, retryable=${retryable})`);
+
+      if (!retryable || attempt === maxAttempts) {
+        error.llmErrorCode = errorCode;
+        error.llmRetryable = retryable;
+        error.llmRetryAttempts = attempt;
+        throw error;
+      }
+
+      await wait(LLM_SEND_RETRY_BASE_MS * attempt);
+    }
+  }
+
+  throw lastError;
+}
+
 /**
  * Compute stable hash from tool args for repeat NOT_FOUND detection.
  * Sorts keys, normalizes string values (trim+lowercase), returns 16-char SHA-256 prefix.
@@ -259,6 +318,7 @@ export async function executeToolLoop(params) {
     metrics,
     effectsEnabled = true // DRY-RUN flag (default: true for backward compat)
   } = params;
+  let llmCalled = false;
 
   // ========================================
   // KB_ONLY: Hard tool kill-switch — zero tool execution risk
@@ -266,7 +326,8 @@ export async function executeToolLoop(params) {
   // ========================================
   if (params.channelMode === 'KB_ONLY') {
     console.log('🔒 [ToolLoop] KB_ONLY mode — tool loop bypassed, text-only LLM call');
-    const result = await chat.sendMessage(userMessage);
+    const result = await sendMessageWithRetry(chat, userMessage, { label: 'kb_only.initial' });
+    llmCalled = true;
     const responseText = result.response?.text() || '';
     return {
       reply: responseText,
@@ -278,7 +339,11 @@ export async function executeToolLoop(params) {
       toolsCalled: [],
       toolResults: [],
       iterations: 0,
-      chat
+      chat,
+      _responseOrigin: RESPONSE_ORIGIN.LLM,
+      _originId: 'toolLoop.kbOnly.llm',
+      _llmCalled: llmCalled,
+      _llmStatus: 'success'
     };
   }
 
@@ -297,7 +362,11 @@ export async function executeToolLoop(params) {
       toolResults: [],
       iterations: 0,
       chat: null,
-      _blocked: 'ENUMERATION'
+      _blocked: 'ENUMERATION',
+      _responseOrigin: RESPONSE_ORIGIN.TEMPLATE,
+      _originId: 'toolLoop.sessionLock.ENUMERATION',
+      _llmCalled: llmCalled,
+      _llmStatus: 'not_called'
     };
   }
 
@@ -317,7 +386,11 @@ export async function executeToolLoop(params) {
       toolsCalled: gatedTools, // Would have called these
       iterations: 1,
       chat: null,
-      _dryRun: true
+      _dryRun: true,
+      _responseOrigin: RESPONSE_ORIGIN.FALLBACK,
+      _originId: 'toolLoop.dryRunStub',
+      _llmCalled: llmCalled,
+      _llmStatus: 'not_called'
     };
   }
 
@@ -330,12 +403,14 @@ export async function executeToolLoop(params) {
 
   let totalInputTokens = 0;
   let totalOutputTokens = 0;
+  let usedFinalFallback = false;
 
   let result;
   let responseText = '';
 
   // Send initial message to LLM
-  result = await chat.sendMessage(userMessage);
+  result = await sendMessageWithRetry(chat, userMessage, { label: 'tool_loop.initial' });
+  llmCalled = true;
 
   totalInputTokens += result.response.usageMetadata?.promptTokenCount || 0;
   totalOutputTokens += result.response.usageMetadata?.candidatesTokenCount || 0;
@@ -465,7 +540,11 @@ export async function executeToolLoop(params) {
           chat: null,
           _terminalState: repeatGuardResult.outcome,
           _terminalMessageType: repeatMessageType,
-          _repeatNotFoundBlocked: true
+          _repeatNotFoundBlocked: true,
+          _responseOrigin: RESPONSE_ORIGIN.TEMPLATE,
+          _originId: `repeatGuard.${repeatGuardResult.outcome || ToolOutcome.NEED_MORE_INFO}`,
+          _llmCalled: llmCalled,
+          _llmStatus: 'success'
         };
       }
 
@@ -557,7 +636,11 @@ export async function executeToolLoop(params) {
           hadToolFailure: true,
           failedTool: toolName,
           toolsCalled,
-          metadata: failPolicyResult.metadata
+          metadata: failPolicyResult.metadata,
+          _responseOrigin: RESPONSE_ORIGIN.TEMPLATE,
+          _originId: failPolicyResult?.metadata?.messageKey || `toolFailPolicy.${toolName || 'unknown'}`,
+          _llmCalled: llmCalled,
+          _llmStatus: 'success'
         };
       }
 
@@ -723,7 +806,11 @@ export async function executeToolLoop(params) {
             _terminalState: ToolOutcome.NOT_FOUND,
             _terminalMessageType: 'clarification',
             _enumerationCount: enumerationResult.attempts,
-            _enumerationCounted: enumerationResult.counted
+            _enumerationCounted: enumerationResult.counted,
+            _responseOrigin: RESPONSE_ORIGIN.FALLBACK,
+            _originId: `tool.${toolName || 'unknown'}.${ToolOutcome.NOT_FOUND}`,
+            _llmCalled: llmCalled,
+            _llmStatus: 'success'
           };
         }
 
@@ -744,7 +831,11 @@ export async function executeToolLoop(params) {
           _terminalState: outcome || 'TERMINAL',
           _terminalMessageType: (outcome === ToolOutcome.DENIED || outcome === ToolOutcome.INFRA_ERROR)
             ? 'system_barrier'
-            : 'clarification'
+            : 'clarification',
+          _responseOrigin: RESPONSE_ORIGIN.FALLBACK,
+          _originId: `tool.${toolName || 'unknown'}.${outcome || 'TERMINAL'}`,
+          _llmCalled: llmCalled,
+          _llmStatus: 'success'
         };
       }
 
@@ -777,7 +868,9 @@ export async function executeToolLoop(params) {
     }
 
     // Send function responses back to LLM
-    result = await chat.sendMessage(functionResponses);
+    result = await sendMessageWithRetry(chat, functionResponses, {
+      label: `tool_loop.iteration_${iterations}_followup`
+    });
 
     totalInputTokens += result.response.usageMetadata?.promptTokenCount || 0;
     totalOutputTokens += result.response.usageMetadata?.candidatesTokenCount || 0;
@@ -802,6 +895,7 @@ export async function executeToolLoop(params) {
     responseText = language === 'TR'
       ? 'Bir sorun oluştu. Lütfen tekrar deneyin veya farklı bir şekilde sorunuzu iletin.'
       : 'Something went wrong. Please try again or rephrase your question.';
+    usedFinalFallback = true;
   }
 
   return {
@@ -814,7 +908,11 @@ export async function executeToolLoop(params) {
     toolsCalled,
     toolResults, // For guardrails (NOT_FOUND detection etc.)
     iterations,
-    chat // Return chat session for potential correction
+    chat, // Return chat session for potential correction
+    _responseOrigin: usedFinalFallback ? RESPONSE_ORIGIN.FALLBACK : RESPONSE_ORIGIN.LLM,
+    _originId: usedFinalFallback ? 'toolLoop.emptyResponseFallback' : 'toolLoop.finalModelResponse',
+    _llmCalled: llmCalled,
+    _llmStatus: 'success'
   };
 }
 

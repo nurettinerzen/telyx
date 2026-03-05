@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://telyx.local/schemas/unified-response-trace.schema.json",
+  "title": "UnifiedResponseTrace",
+  "type": "object",
+  "required": [
+    "trace_id",
+    "timestamp",
+    "channel",
+    "requestId",
+    "businessId",
+    "userId",
+    "sessionId",
+    "llm_used",
+    "model",
+    "prompt_hash",
+    "completion_id",
+    "plan",
+    "tools_called",
+    "verification_state",
+    "response_source",
+    "postprocessors_applied",
+    "final_response_length",
+    "language"
+  ],
+  "properties": {
+    "trace_id": { "type": "string", "minLength": 1 },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "channel": { "type": "string", "enum": ["WHATSAPP", "CHAT", "EMAIL", "ADMIN_DRAFT"] },
+    "requestId": { "type": "string", "minLength": 1 },
+    "businessId": { "type": ["integer", "string"] },
+    "userId": { "type": ["integer", "string", "null"] },
+    "sessionId": { "type": "string", "minLength": 1 },
+    "messageId": { "type": ["string", "null"] },
+    "llm_used": { "type": "boolean" },
+    "model": { "type": ["string", "null"] },
+    "prompt_hash": { "type": ["string", "null"] },
+    "completion_id": { "type": ["string", "null"] },
+    "plan": {
+      "type": "object",
+      "required": ["intent", "slots", "tool_candidates", "tool_selected"],
+      "properties": {
+        "intent": { "type": "string" },
+        "slots": {
+          "type": "object",
+          "additionalProperties": {
+            "type": ["string", "number", "boolean", "null"]
+          }
+        },
+        "next_question": { "type": ["string", "null"] },
+        "tool_candidates": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "tool_selected": { "type": ["string", "null"] },
+        "confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 }
+      }
+    },
+    "tools_called": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "input", "outcome", "latency_ms"],
+        "properties": {
+          "name": { "type": "string" },
+          "input": { "type": "object" },
+          "outcome": {
+            "type": "string",
+            "enum": ["OK", "NOT_FOUND", "VALIDATION_ERROR", "NEED_MORE_INFO", "VERIFICATION_REQUIRED", "DENIED", "INFRA_ERROR"]
+          },
+          "latency_ms": { "type": "integer", "minimum": 0 },
+          "retry_count": { "type": "integer", "minimum": 0 },
+          "error_code": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "verification_state": {
+      "type": "string",
+      "enum": ["none", "requested", "provided", "failed", "passed"]
+    },
+    "response_source": {
+      "type": "string",
+      "enum": ["LLM", "template", "fallback", "policy_append"]
+    },
+    "postprocessors_applied": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "guardrail": {
+      "type": "object",
+      "properties": {
+        "action": { "type": "string" },
+        "reason": { "type": ["string", "null"] }
+      }
+    },
+    "final_response_length": { "type": "integer", "minimum": 0 },
+    "language": { "type": "string" },
+    "latency_ms": { "type": ["integer", "null"], "minimum": 0 },
+    "details": {
+      "type": ["object", "null"],
+      "properties": {
+        "response_origin_raw": { "type": ["string", "null"] },
+        "origin_id": { "type": ["string", "null"] },
+        "llm_status": { "type": ["string", "null"] },
+        "llm_bypass_reason": { "type": ["string", "null"] },
+        "llm_bypass_retryable": { "type": ["boolean", "null"] },
+        "llm_bypass_retry_after_ms": { "type": ["integer", "null"] },
+        "response_hash": { "type": ["string", "null"] },
+        "tool_outcome_hash": { "type": ["string", "null"] },
+        "response_preview": { "type": ["string", "null"] },
+        "repeat_response": {
+          "type": ["object", "null"],
+          "properties": {
+            "detected": { "type": "boolean" },
+            "count": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "policy_append": {
+          "type": ["object", "null"],
+          "properties": {
+            "mode": { "type": "string", "enum": ["legacy", "monitor_only", "off"] },
+            "topic": { "type": ["string", "null"] },
+            "append_key": { "type": ["string", "null"] },
+            "length": { "type": ["integer", "number", "null"] },
+            "would_append": { "type": ["boolean", "null"] }
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": true
+}

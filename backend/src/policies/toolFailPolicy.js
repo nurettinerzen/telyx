@@ -81,6 +81,7 @@ export function applyToolFailPolicy(params) {
     hadToolFailure: true,
     failedTool: toolName,
     metadata: {
+      ...(forcedResponse.metadata || {}),
       type: 'TOOL_FAILURE',
       tool: toolName,
       forceEnd: forcedResponse.forceEnd,
