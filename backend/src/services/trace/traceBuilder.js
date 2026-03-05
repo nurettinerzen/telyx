@@ -31,6 +31,8 @@ function normalizeChannel(channel) {
 
 function normalizeVerificationState(state) {
   const normalized = String(state || 'none').toLowerCase();
+  if (normalized === 'pending') return 'requested';
+  if (normalized === 'verified') return 'passed';
   if (VERIFICATION_STATES.has(normalized)) return normalized;
   return 'none';
 }

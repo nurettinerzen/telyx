@@ -183,6 +183,38 @@ function buildNotFoundClarification(language = 'TR', missingFields = []) {
   };
 }
 
+function mapGatewayDeniedFieldsToMissingFields(deniedFields = []) {
+  const fields = Array.isArray(deniedFields)
+    ? deniedFields.map(item => String(item?.field || '').toLowerCase())
+    : [];
+
+  const hasDebt = fields.some(field =>
+    field.includes('debt') ||
+    field.includes('invoice') ||
+    field.includes('payment') ||
+    field.includes('balance') ||
+    field.includes('tax')
+  );
+  if (hasDebt) return ['vkn_or_tc_or_phone'];
+
+  const hasTicket = fields.some(field => field.includes('ticket') || field.includes('assigned_agent'));
+  if (hasTicket) return ['ticket_number'];
+
+  const hasOrder = fields.some(field =>
+    field.includes('order') ||
+    field.includes('tracking') ||
+    field.includes('delivery') ||
+    field.includes('carrier') ||
+    field.includes('address') ||
+    field.includes('customer') ||
+    field.includes('phone') ||
+    field.includes('email')
+  );
+  if (hasOrder) return ['order_number'];
+
+  return ['order_number'];
+}
+
 function isCallbackWorkflowContext({ intent, activeFlow, callbackPending }) {
   if (callbackPending) return true;
 
@@ -547,23 +579,11 @@ export async function applyGuardrails(params) {
     };
   }
 
-  // POLICY 1.7: Security Gateway Identity Match (eğer tool output varsa)
-  // verifiedIdentity vs requestedRecord owner karşılaştırması
-  //
-  // IMPORTANT: Tool handler already performs anchor-based verification.
-  // When tool returns outcome=OK + success=true, the data is already verified.
-  // PII-redacted tool output (masked phone/email) cannot be compared to plain
-  // anchor data — this causes false IDENTITY_MISMATCH. Skip for verified tools.
-  if (toolOutputs.length > 0 && verifiedIdentity) {
+  // POLICY 1.7: Security Gateway enforcement on tool outputs
+  // - verificationState != verified + ACCOUNT_VERIFIED fields => NEED_MIN_INFO_FOR_TOOL
+  // - identity mismatch (verified session) => BLOCK
+  if (toolOutputs.length > 0) {
     for (const output of toolOutputs) {
-      // SKIP: Tool already verified this data (anchor-based verification passed)
-      // Tool output contains PII-redacted data (e.g. 559******8271) which can't
-      // be compared to plain identity from anchor (e.g. 5592348271)
-      if (normalizeOutcome(output.outcome) === ToolOutcome.OK && output.success === true) {
-        console.log('✅ [SecurityGateway] Skipping identity match - tool already verified (outcome=OK)');
-        continue;
-      }
-
       // SKIP: NOT_FOUND means no record was returned — nothing to compare
       if (normalizeOutcome(output.outcome) === ToolOutcome.NOT_FOUND) {
         console.log('✅ [SecurityGateway] Skipping identity match - NOT_FOUND (no record to compare)');
@@ -573,52 +593,78 @@ export async function applyGuardrails(params) {
       const requestedRecord = extractRecordOwner(output);
       const requestedFields = extractFieldsFromToolOutput(output);
 
-      if (requestedRecord && requestedFields.length > 0) {
-        const gatewayResult = evaluateSecurityGateway({
-          verificationState,
-          verifiedIdentity,
-          requestedRecord,
-          requestedDataFields: requestedFields
+      if (requestedFields.length === 0) {
+        continue;
+      }
+
+      const gatewayResult = evaluateSecurityGateway({
+        verificationState,
+        verifiedIdentity,
+        requestedRecord,
+        requestedDataFields: requestedFields
+      });
+
+      if (gatewayResult.requiresVerification && verificationState !== 'verified') {
+        const missingFields = mapGatewayDeniedFieldsToMissingFields(gatewayResult.deniedFields);
+        const minInfoVariant = resolveMinInfoQuestion({
+          language,
+          missingFields
         });
 
-        if (gatewayResult.hasIdentityMismatch) {
-          console.error('🚨 [SecurityGateway] IDENTITY MISMATCH!', {
-            verifiedIdentity,
-            requestedRecord,
-            deniedFields: gatewayResult.deniedFields
-          });
+        metrics.securityGatewayVerificationRequired = {
+          missingFields,
+          deniedFields: gatewayResult.deniedFields
+        };
 
-          metrics.identityMismatch = {
-            verifiedIdentity,
-            requestedRecord,
-            deniedFields: gatewayResult.deniedFields
-          };
+        return {
+          finalResponse: minInfoVariant.text,
+          action: GuardrailAction.NEED_MIN_INFO_FOR_TOOL,
+          blocked: true,
+          blockReason: 'VERIFICATION_REQUIRED',
+          missingFields,
+          guardrailsApplied: ['RESPONSE_FIREWALL', 'PII_PREVENTION', 'SECURITY_GATEWAY_VERIFICATION_ENFORCEMENT'],
+          messageKey: minInfoVariant.messageKey,
+          variantIndex: minInfoVariant.variantIndex
+        };
+      }
 
-          // Identity mismatch = hard deny
-          const hardDenyVariant = getMessageVariant('SECURITY_IDENTITY_MISMATCH_HARD_DENY', {
-            language,
-            sessionId,
-            channel,
-            intent,
-            directiveType: 'SECURITY_GATEWAY',
-            severity: 'critical',
-            seedHint: 'IDENTITY_MISMATCH'
-          });
-          const hardDenyResponse = hardDenyVariant.text;
+      if (gatewayResult.hasIdentityMismatch) {
+        console.error('🚨 [SecurityGateway] IDENTITY MISMATCH!', {
+          verifiedIdentity,
+          requestedRecord,
+          deniedFields: gatewayResult.deniedFields
+        });
 
-          return {
-            finalResponse: hardDenyResponse,
-            action: GuardrailAction.BLOCK,
-            guardrailsApplied: ['RESPONSE_FIREWALL', 'PII_PREVENTION', 'SECURITY_GATEWAY_IDENTITY_MISMATCH'],
-            blocked: true,
-            blockReason: 'IDENTITY_MISMATCH',
-            mismatchDetails: gatewayResult.deniedFields,
-            messageKey: hardDenyVariant.messageKey,
-            variantIndex: hardDenyVariant.variantIndex,
-            channel,
-            intent
-          };
-        }
+        metrics.identityMismatch = {
+          verifiedIdentity,
+          requestedRecord,
+          deniedFields: gatewayResult.deniedFields
+        };
+
+        // Identity mismatch = hard deny
+        const hardDenyVariant = getMessageVariant('SECURITY_IDENTITY_MISMATCH_HARD_DENY', {
+          language,
+          sessionId,
+          channel,
+          intent,
+          directiveType: 'SECURITY_GATEWAY',
+          severity: 'critical',
+          seedHint: 'IDENTITY_MISMATCH'
+        });
+        const hardDenyResponse = hardDenyVariant.text;
+
+        return {
+          finalResponse: hardDenyResponse,
+          action: GuardrailAction.BLOCK,
+          guardrailsApplied: ['RESPONSE_FIREWALL', 'PII_PREVENTION', 'SECURITY_GATEWAY_IDENTITY_MISMATCH'],
+          blocked: true,
+          blockReason: 'IDENTITY_MISMATCH',
+          mismatchDetails: gatewayResult.deniedFields,
+          messageKey: hardDenyVariant.messageKey,
+          variantIndex: hardDenyVariant.variantIndex,
+          channel,
+          intent
+        };
       }
     }
   }

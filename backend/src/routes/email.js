@@ -21,6 +21,25 @@ import { queueUnifiedResponseTrace } from '../services/trace/responseTraceLogger
 const router = express.Router();
 const prisma = new PrismaClient();
 
+function deriveAdminDraftVerificationState(tools = []) {
+  const normalizedOutcomes = (Array.isArray(tools) ? tools : [])
+    .map(item => String(item?.outcome || '').toUpperCase())
+    .filter(Boolean);
+
+  if (normalizedOutcomes.includes('VERIFICATION_REQUIRED')) return 'requested';
+  if (normalizedOutcomes.includes('DENIED') || normalizedOutcomes.includes('VALIDATION_ERROR')) return 'failed';
+
+  const hasVerifiedLookup = (Array.isArray(tools) ? tools : []).some((item) => {
+    const name = String(item?.toolName || item?.name || '').toLowerCase();
+    const outcome = String(item?.outcome || '').toUpperCase();
+    if (outcome !== 'OK') return false;
+    return name === 'customer_data_lookup' || name === 'check_ticket_status_crm';
+  });
+  if (hasVerifiedLookup) return 'passed';
+
+  return 'none';
+}
+
 function queueAdminDraftTrace({
   req,
   threadId,
@@ -35,6 +54,7 @@ function queueAdminDraftTrace({
       : Array.isArray(result?.toolsCalled)
         ? result.toolsCalled.map(name => ({ toolName: name, outcome: 'OK', data: {} }))
         : [];
+    const verificationState = deriveAdminDraftVerificationState(tools);
 
     const postprocessors = [];
     if (result?.piiModified) postprocessors.push('pii_output_scrub');
@@ -53,7 +73,7 @@ function queueAdminDraftTrace({
         messageId: messageId || null,
         requestId: req.requestId || null,
         language: req.user?.business?.language || 'TR',
-        verificationState: 'none',
+        verificationState,
         responseSource: isSuccess
           ? (result?.toolRequiredEnforced ? 'TEMPLATE' : 'LLM')
           : 'FALLBACK',

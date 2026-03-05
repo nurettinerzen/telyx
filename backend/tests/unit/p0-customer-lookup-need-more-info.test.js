@@ -320,4 +320,56 @@ describe('P0 customer_data_lookup deterministic outcomes', () => {
     expect(result.outcome).toBe(ToolOutcome.OK);
     expect(prismaMock.crmTicket.findUnique).toHaveBeenCalledWith({ where: { id: 'ticket-1' } });
   });
+
+  it('B9: query_type=genel + ticket lookup should still require verification', async () => {
+    prismaMock.crmTicket.findFirst.mockResolvedValueOnce({
+      id: 'ticket-9',
+      businessId: 1,
+      ticketNumber: 'TKT-2024-0009',
+      customerName: 'Servis Müşteri 9',
+      customerPhone: '+905559998877',
+      status: 'Beklemede'
+    });
+
+    const result = await executeLookup(
+      {
+        query_type: 'genel',
+        ticket_number: 'TKT-2024-0009'
+      },
+      business,
+      {
+        state: { verification: { status: 'none' } },
+        sessionId: 'test-b9'
+      }
+    );
+
+    expect(result.outcome).toBe(ToolOutcome.VERIFICATION_REQUIRED);
+    expect(result.data?.askFor).toBe('phone_last4');
+  });
+
+  it('B10: query_type=genel + order lookup should still require verification', async () => {
+    prismaMock.crmOrder.findMany.mockResolvedValueOnce([{
+      id: 'crm-order-10',
+      businessId: 1,
+      orderNumber: 'ORD-2024-0010',
+      customerName: 'Ahmet Yılmaz',
+      customerPhone: '+905550001010',
+      status: 'Hazırlanıyor'
+    }]);
+
+    const result = await executeLookup(
+      {
+        query_type: 'genel',
+        order_number: 'ORD-2024-0010'
+      },
+      business,
+      {
+        state: { verification: { status: 'none' } },
+        sessionId: 'test-b10'
+      }
+    );
+
+    expect(result.outcome).toBe(ToolOutcome.VERIFICATION_REQUIRED);
+    expect(result.data?.askFor).toBe('phone_last4');
+  });
 });

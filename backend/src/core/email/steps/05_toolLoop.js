@@ -379,24 +379,27 @@ function buildEmailToolState(ctx, toolName, args) {
     return state;
   }
 
-  // EMAIL CHANNEL: Always allow single-pass verification when name is provided.
-  //
-  // WHY: The anti-single-shot-bypass check in customer_data_lookup (line ~469)
-  // was designed for chat/WhatsApp where brute-force is easy (instant messages).
-  // In email, single-shot bypass risk is negligible because:
-  //   1. Each email "attempt" takes minutes (not milliseconds)
-  //   2. Wrong name → NOT_FOUND (no data leak, same as non-existent record)
-  //   3. Customer naturally provides all info in one email body
-  //   4. Asking "now give me your phone last 4 digits" in a second email
-  //      creates terrible UX (days of back-and-forth)
-  //
-  // By setting status='pending', the tool skips the anti-single-shot block
-  // and directly validates the name against the anchor. If it matches → data
-  // returned. If not → NOT_FOUND (enumeration-safe).
-  console.log('📧 [ToolLoop] Email channel — synthesizing pending verification state for single-pass verify');
+  const verificationDigits = String(args.verification_input).replace(/\D/g, '');
+  const looksNumericVerification = verificationDigits.length === 4 || verificationDigits.length >= 10;
+  if (!looksNumericVerification) {
+    // SECURITY: never synthesize pending state for plain-name verification in email.
+    // Name-only single-shot verification can bypass interactive safeguards.
+    return state;
+  }
+
+  const outboundMessages = (ctx.threadMessages || []).filter(msg => msg.direction === 'OUTBOUND');
+  const hasPriorVerificationPrompt = outboundMessages.some((msg) => {
+    const text = `${msg.body || ''} ${msg.content || ''}`.toLowerCase();
+    return /(?:doğrulama|verification|son\s*4|last\s*4|kimlik\s*doğrulama|registered phone)/i.test(text);
+  });
+  if (!hasPriorVerificationPrompt) {
+    return state;
+  }
+
+  console.log('📧 [ToolLoop] Email channel — synthesizing pending verification state for numeric follow-up');
   state.verification = {
     status: 'pending',
-    pendingField: 'name',
+    pendingField: verificationDigits.length === 4 ? 'phone_last4' : 'phone',
     attempts: 0
   };
 

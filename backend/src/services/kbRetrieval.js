@@ -12,8 +12,9 @@ import { ENTITY_MATCH_TYPES, getEntityHint, getEntityMatchType } from './entityT
 import { normalizeForMatch } from './businessIdentity.js';
 
 const MAX_KB_ITEMS = 5;
-const MAX_TOTAL_CHARS = 6000;
-const MAX_CHARS_PER_ITEM = 2000;
+const MAX_TOTAL_CHARS = 2500;
+const MAX_CHARS_PER_ITEM = 800;
+const MAX_DOCUMENT_SNIPPET_CHARS = 320;
 const MAX_QUERY_TERMS = 5;
 const MAX_DB_SCAN_ITEMS = 50;
 
@@ -35,11 +36,39 @@ function truncate(text, maxChars) {
   return `${text.substring(0, maxChars)}...`;
 }
 
+function buildSafeDocumentSnippet(content) {
+  const raw = String(content || '').replace(/\r/g, '').trim();
+  if (!raw) return '';
+
+  const lines = raw
+    .split('\n')
+    .map(line => line.trim())
+    .filter(Boolean);
+
+  // Structured/tabular rows are high exfil risk for prompt injection or raw dumps.
+  const structuredRows = lines.filter((line) => {
+    const delimiters = (line.match(/[|,;\t]/g) || []).length;
+    return delimiters >= 2;
+  });
+  if (structuredRows.length >= 2) {
+    return 'Belge yapılandırılmış kayıt verisi içeriyor. Ham satırları paylaşmadan yalnızca genel bir özet ver.';
+  }
+
+  const cleaned = raw
+    .replace(/`{3}[\s\S]*?`{3}/g, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return truncate(cleaned, MAX_DOCUMENT_SNIPPET_CHARS);
+}
+
 function formatKBItem(item) {
   const type = item.type?.toUpperCase();
 
   if (type === 'DOCUMENT') {
-    return `### ${item.title || 'Belge'}\n${truncate(item.content || '', MAX_CHARS_PER_ITEM)}`;
+    const safeSnippet = buildSafeDocumentSnippet(item.content);
+    return `### ${item.title || 'Belge'}\nÖzet: ${safeSnippet || 'Bu belge için yalnızca genel bilgi paylaşılabilir.'}`;
   }
   if (type === 'FAQ') {
     return `### S: ${item.question || 'Soru'}\nC: ${truncate(item.answer || '', MAX_CHARS_PER_ITEM)}`;

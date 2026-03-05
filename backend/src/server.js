@@ -145,12 +145,8 @@ function buildWebhookEnvDiagnostics() {
   };
 }
 
-// Production security posture — log warnings, don't crash server
-try {
-  assertProductionSecurityPosture();
-} catch (err) {
-  console.warn('⚠️ [SecurityPosture]', err.message);
-}
+// Production security posture — fail-closed.
+assertProductionSecurityPosture();
 
 function normalizeOrigin(value) {
   if (!value || typeof value !== 'string') {

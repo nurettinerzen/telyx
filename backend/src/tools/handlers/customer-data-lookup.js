@@ -228,6 +228,31 @@ function isAccountingQueryType(queryType) {
   return ACCOUNTING_QUERY_TYPES.has(String(queryType || '').toLowerCase());
 }
 
+function resolveVerificationQueryType({
+  queryType,
+  anchor = null,
+  record = null,
+  sourceTable = null,
+  isAccountingQuery = false
+} = {}) {
+  const normalized = normalizeQueryTypeAlias(queryType);
+  if (isAccountingQuery) return 'muhasebe';
+
+  const anchorType = String(anchor?.anchorType || anchor?.type || '').toLowerCase();
+  const source = String(sourceTable || anchor?.sourceTable || '').toLowerCase();
+  const isTicketSource = source === 'crmticket' || anchorType === 'ticket' || Boolean(record?.ticketNumber);
+  if (isTicketSource) return 'servis';
+
+  const isOrderSource =
+    source === 'crmorder' ||
+    anchorType === 'order' ||
+    Boolean(record?.orderNumber) ||
+    Boolean(record?.status && !record?.ticketNumber && source !== 'crmticket');
+  if (isOrderSource) return 'siparis';
+
+  return normalized || 'genel';
+}
+
 function normalizeVerificationCandidate(
   verificationInput,
   customerName,
@@ -442,7 +467,13 @@ export async function execute(args, business, context = {}) {
       console.log('🔐 [Verification] Input:', effectiveVerificationInput, '| Anchor phone:', state.verification.anchor.phone);
 
       const anchor = state.verification.anchor;
-      const verifyResult = checkVerification(anchor, effectiveVerificationInput, normalizedQueryType, language);
+      const pendingVerificationQueryType = resolveVerificationQueryType({
+        queryType: normalizedQueryType,
+        anchor,
+        sourceTable: anchor?.sourceTable,
+        isAccountingQuery
+      });
+      const verifyResult = checkVerification(anchor, effectiveVerificationInput, pendingVerificationQueryType, language);
 
       if (verifyResult.action === 'PROCEED') {
         // Fetch the full record using anchor ID from the CORRECT table
@@ -462,6 +493,12 @@ export async function execute(args, business, context = {}) {
           const fullResult = getFullResult(verifiedRecord, normalizedQueryType, language);
           return {
             ...fullResult,
+            _identityContext: {
+              anchorCustomerId: anchor.customerId || null,
+              anchorId: anchor.id || null,
+              anchorSourceTable: anchor.sourceTable || null,
+              queryType: pendingVerificationQueryType
+            },
             stateEvents: [
               {
                 type: OutcomeEventType.VERIFICATION_PASSED,
@@ -516,7 +553,18 @@ export async function execute(args, business, context = {}) {
     // If verification is pending but the user did not provide verification input
     // and also did not provide a new lookup identifier, keep requesting verification.
     if (isVerificationPending && state.verification?.anchor && !effectiveVerificationInput && !hasLookupIdentifier) {
-      const verificationReminder = checkVerification(state.verification.anchor, null, normalizedQueryType, language);
+      const reminderVerificationQueryType = resolveVerificationQueryType({
+        queryType: normalizedQueryType,
+        anchor: state.verification.anchor,
+        sourceTable: state.verification.anchor?.sourceTable,
+        isAccountingQuery
+      });
+      const verificationReminder = checkVerification(
+        state.verification.anchor,
+        null,
+        reminderVerificationQueryType,
+        language
+      );
       return {
         ...verificationRequired(verificationReminder.message, {
           askFor: verificationReminder.askFor,
@@ -823,6 +871,13 @@ export async function execute(args, business, context = {}) {
     // ============================================================================
 
     const anchor = createAnchor(record, anchorType, anchorValue, sourceTable);
+    const effectiveVerificationQueryType = resolveVerificationQueryType({
+      queryType: normalizedQueryType,
+      anchor,
+      record,
+      sourceTable,
+      isAccountingQuery
+    });
 
     // Resolve customerId for CRM records without FK (CrmOrder/CrmTicket).
     // Look up CustomerData by phone to establish the customer identity chain.
@@ -969,7 +1024,7 @@ export async function execute(args, business, context = {}) {
       verificationInput = null; // Force verification request
     }
 
-    const verificationCheck = checkVerification(anchor, verificationInput, normalizedQueryType, language);
+    const verificationCheck = checkVerification(anchor, verificationInput, effectiveVerificationQueryType, language);
     console.log('🔐 [Verification] Check result:', verificationCheck.action);
 
     // Handle verification result
@@ -1014,6 +1069,7 @@ export async function execute(args, business, context = {}) {
       const result = getFullResult(record, normalizedQueryType, language);
       return {
         ...ok(result.data, result.message),
+        _identityContext,
         stateEvents: [
           {
             type: OutcomeEventType.VERIFICATION_PASSED,

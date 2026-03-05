@@ -13,7 +13,8 @@
  */
 import {
   INTERNAL_METADATA_TERMS,
-  POLICY_RESPONSE_HINT_PATTERNS
+  POLICY_RESPONSE_HINT_PATTERNS,
+  ORDER_FABRICATION_PATTERNS
 } from '../security/patterns/index.js';
 import { comparePhones } from '../utils/text.js';
 import { ToolOutcome, normalizeOutcome } from '../tools/toolResult.js';
@@ -41,7 +42,7 @@ const TOOL_REQUIRED_CLAIM_GATES = Object.freeze({
   TICKET_STATUS: {
     intents: new Set(['ticket_status', 'support_ticket']),
     flows: new Set(['TICKET_STATUS', 'SUPPORT']),
-    requiredTools: new Set(['check_ticket_status_crm', 'customer_data_lookup']),
+    requiredTools: new Set(['check_ticket_status_crm']),
     missingFields: ['ticket_number']
   },
   PRODUCT_INFO: {
@@ -88,7 +89,10 @@ export const DATA_CLASSES = {
       // Müşteri bilgileri
       'customer_name', 'phone_number', 'email',
       // Ticket/Destek
-      'ticket_status', 'ticket_notes', 'assigned_agent'
+      'ticket_status', 'ticket_notes', 'assigned_agent',
+      // Borç/Finans
+      'debt_amount', 'balance', 'invoice_amount', 'payment_due_date',
+      'outstanding_amount', 'tax_balance'
     ],
     requiresVerification: true
   },
@@ -162,6 +166,17 @@ export function evaluateSecurityGateway(context) {
         // Doğrulama yok → izin yok
         deniedFields.push({ field, reason: 'VERIFICATION_REQUIRED' });
         riskLevel = riskLevel === 'high' ? 'high' : 'medium';
+        continue;
+      }
+
+      // verified state exists but no identity context to bind returned record → fail-closed
+      if (requestedRecord && !verifiedIdentity) {
+        deniedFields.push({
+          field,
+          reason: 'IDENTITY_MISMATCH',
+          details: { reason: 'MISSING_VERIFIED_IDENTITY' }
+        });
+        riskLevel = 'high';
         continue;
       }
 
@@ -356,15 +371,12 @@ const INTERNAL_METADATA_PATTERNS = INTERNAL_METADATA_TERMS.map(term =>
 );
 
 // ============================================================================
-// LEAK FILTER PATTERN'LERİ — SADECE phone + internal
+// LEAK FILTER PATTERN'LERİ
 // ============================================================================
-// customerName / address / shipping / delivery / tracking / timeWindow
-// KALDIRILDI. Bu tipler false positive üretiyordu ve LLM'i bozuyordu.
-//
-// GÜVENLİK NASIL SAĞLANIYOR:
-// - Sipariş/CRM verileri zaten tool ile geliyor. Tool çağrılmadan detay yok.
-// - LLM prompt'unda "kanıt yoksa iddia yok" kuralı var.
-// - Guardrail = son bariyer (phone mask + internal block), direksiyon değil.
+// Amaç:
+// - Internal metadata: her koşulda blok
+// - Phone: maskele ve geçir
+// - Contextual data dump (özellikle verification yokken): blok
 // ============================================================================
 const SENSITIVE_PATTERNS = {
   // Telefon — sadece net TR/US formatlari.
@@ -385,11 +397,55 @@ const SENSITIVE_PATTERNS = {
 };
 
 /**
- * Backward-compat stub — contextual detection kaldırıldı.
- * Artık boş array döner. Eski test'ler kırılmasın diye export korunuyor.
+ * Contextual leak detection for structured/account data dumps.
+ * Conservative by design: only triggers for high-signal exfil patterns.
  */
-export function runContextualDetection(_response = '') {
-  return [];
+export function runContextualDetection(response = '') {
+  const text = String(response || '').trim();
+  if (!text) return [];
+
+  const hits = [];
+  const lines = text
+    .split('\n')
+    .map(line => line.trim())
+    .filter(Boolean);
+
+  const structuredRows = lines.filter((line) => {
+    const delimiters = (line.match(/[|,;\t]/g) || []).length;
+    if (delimiters < 2) return false;
+    const tokens = line
+      .split(/[|,;\t]/)
+      .map(token => token.trim())
+      .filter(Boolean);
+    return tokens.length >= 3;
+  });
+
+  const sensitiveHeader = /(customer|musteri|order|siparis|ticket|phone|telefon|email|adres|tracking|takip|vkn|tc|borc|debt)/i;
+  if (structuredRows.length >= 3) {
+    hits.push({ type: 'contextual_structured_dump', pattern: 'structured_rows>=3' });
+    if (lines.some(line => sensitiveHeader.test(line))) {
+      hits.push({ type: 'contextual_structured_dump', pattern: 'sensitive_header_detected' });
+    }
+  }
+
+  const listRows = lines.filter(line =>
+    /^\s*(?:[-*•]|\d+[.)])\s+/.test(line) &&
+    /(customer|musteri|order|siparis|ticket|tracking|takip|telefon|phone|email|adres|vkn|tc|borc|debt)/i.test(line)
+  );
+  if (listRows.length >= 3) {
+    hits.push({ type: 'contextual_record_list', pattern: 'sensitive_list_rows>=3' });
+  }
+
+  const hasFabricationCue = [
+    ...(ORDER_FABRICATION_PATTERNS.TR || []),
+    ...(ORDER_FABRICATION_PATTERNS.EN || [])
+  ].some(pattern => pattern.test(text));
+  const identifierCount = (text.match(/\b\d{4,}\b/g) || []).length;
+  if (hasFabricationCue && identifierCount >= 2) {
+    hits.push({ type: 'contextual_account_claim', pattern: 'fabrication_with_identifiers' });
+  }
+
+  return hits;
 }
 
 /**
@@ -409,6 +465,9 @@ export function applyLeakFilter(response, verificationState = 'none', language =
   if (!response) {
     return { safe: true, action: GuardrailAction.PASS, leaks: [], sanitized: response, telemetry: null };
   }
+
+  const normalizedVerification = String(verificationState || 'none').toLowerCase();
+  const isVerified = normalizedVerification === 'verified' || normalizedVerification === 'passed';
 
   const leaks = [];
 
@@ -430,6 +489,17 @@ export function applyLeakFilter(response, verificationState = 'none', language =
     }
   }
 
+  // ── 3. Contextual exfiltration patterns (verification yokken fail-closed) ──
+  if (!isVerified) {
+    const contextualLeaks = runContextualDetection(response);
+    for (const leak of contextualLeaks) {
+      leaks.push({
+        type: leak.type || 'contextual',
+        pattern: leak.pattern || 'contextual_detection'
+      });
+    }
+  }
+
   // ── Hiç leak yoksa → PASS ──
   if (leaks.length === 0) {
     return { safe: true, action: GuardrailAction.PASS, leaks: [], sanitized: response, telemetry: null };
@@ -437,6 +507,7 @@ export function applyLeakFilter(response, verificationState = 'none', language =
 
   const hasPhoneLeak = leaks.some(l => l.type === 'phone');
   const hasInternalLeak = leaks.some(l => l.type === 'internal');
+  const hasContextualLeak = leaks.some(l => String(l.type || '').startsWith('contextual'));
 
   // ── Internal-only leak → policy response kontrolü ──
   if (hasInternalLeak && !hasPhoneLeak) {
@@ -453,6 +524,23 @@ export function applyLeakFilter(response, verificationState = 'none', language =
         : 'Güvenlik nedeniyle bu detayı şu anda paylaşamıyorum.',
       blockReason: 'INTERNAL_METADATA_LEAK',
       telemetry: { reason: 'internal_metadata_blocked', leakTypes: ['internal'] }
+    };
+  }
+
+  // ── Contextual data leak → hard block ──
+  if (hasContextualLeak) {
+    return {
+      safe: false,
+      action: GuardrailAction.BLOCK,
+      leaks,
+      blockedMessage: String(language || '').toUpperCase() === 'EN'
+        ? 'I cannot share those details without verification.'
+        : 'Doğrulama olmadan bu detayları paylaşamam.',
+      blockReason: 'CONTEXTUAL_DATA_LEAK',
+      telemetry: {
+        reason: 'contextual_data_blocked',
+        leakTypes: leaks.map(leak => leak.type)
+      }
     };
   }
 
@@ -506,7 +594,7 @@ function detectClaimGateTopic({ intent = null, activeFlow = null, userMessage = 
       TOOL_REQUIRED_CLAIM_GATES.TICKET_STATUS.flows.has(normalizedFlow)) {
     return 'TICKET_STATUS';
   }
-  if (/\b(ticket|destek kayd[ıi]|support ticket|ar[ıi]za kayd[ıi]|case id|servis kayd[ıi]|servis durumu|servis takip|servis no|tkt[-_]?\d+)\b/i.test(text)) {
+  if (/\b(ticket|destek kaydı|support ticket|ariza kaydi|case id)\b/i.test(text)) {
     return 'TICKET_STATUS';
   }
 
@@ -618,30 +706,43 @@ export function extractFieldsFromToolOutput(toolResult) {
 
   if (!data) return fields;
 
+  const orderData = data.order && typeof data.order === 'object' ? data.order : {};
+  const ticketData = data.ticket && typeof data.ticket === 'object' ? data.ticket : {};
+
   // Sipariş bilgileri
-  if (data.status || data.orderStatus) fields.push('order_status');
-  if (data.items || data.products || data.orderItems) fields.push('order_items');
-  if (data.total || data.orderTotal) fields.push('order_total');
+  if (data.status || data.orderStatus || orderData.status) fields.push('order_status');
+  if (data.items || data.products || data.orderItems || orderData.items) fields.push('order_items');
+  if (data.total || data.orderTotal || orderData.totalAmount) fields.push('order_total');
 
   // Kargo/Teslimat
-  if (data.trackingNumber || data.tracking) fields.push('tracking_number');
-  if (data.carrier || data.courier || data.shippingCompany) fields.push('carrier_name');
+  if (data.trackingNumber || data.tracking || orderData.trackingNumber) fields.push('tracking_number');
+  if (data.carrier || data.courier || data.shippingCompany || orderData.carrier) fields.push('carrier_name');
   if (data.branch || data.distributionCenter) fields.push('branch_name');
-  if (data.deliveryDate) fields.push('delivery_date');
+  if (data.deliveryDate || orderData.estimatedDelivery) fields.push('delivery_date');
   if (data.deliveryTime || data.deliveryWindow) fields.push('delivery_window');
   if (data.deliveredTo || data.recipient || data.signedBy) fields.push('delivered_to');
 
   // Adres
-  if (data.address) fields.push('address');
+  if (data.address || orderData.address) fields.push('address');
   if (data.neighborhood || data.mahalle) fields.push('neighborhood');
   if (data.district || data.ilce) fields.push('district');
 
   // Müşteri
-  if (data.customerName || data.name) fields.push('customer_name');
-  if (data.phone || data.phoneNumber) fields.push('phone_number');
-  if (data.email) fields.push('email');
+  if (data.customerName || data.name || orderData.customerName) fields.push('customer_name');
+  if (data.phone || data.phoneNumber || orderData.phone) fields.push('phone_number');
+  if (data.email || orderData.email) fields.push('email');
 
-  return fields;
+  // Ticket/Destek
+  if (ticketData.status || data.ticketStatus || data.status_raw) fields.push('ticket_status');
+  if (ticketData.notes || data.notes) fields.push('ticket_notes');
+  if (ticketData.assignedAgent || data.assignedAgent) fields.push('assigned_agent');
+
+  // Borç/Finans
+  if (data.debt || data.balance || data.totalDebt) fields.push('debt_amount');
+  if (data.invoiceAmount || data.faturaTutari) fields.push('invoice_amount');
+  if (data.paymentDueDate || data.sonOdemeTarihi) fields.push('payment_due_date');
+
+  return Array.from(new Set(fields));
 }
 
 /**
@@ -657,11 +758,15 @@ export function extractRecordOwner(toolResult) {
 
   if (!data) return null;
 
+  const identityContext = rawOutput?._identityContext || toolResult?._identityContext || {};
+  const orderData = data.order && typeof data.order === 'object' ? data.order : {};
+  const ticketData = data.ticket && typeof data.ticket === 'object' ? data.ticket : {};
+
   return {
-    phone: data.phone || data.phoneNumber || data.customerPhone,
-    email: data.email || data.customerEmail,
-    customerId: data.customerId || data.customer_id,
-    orderId: data.orderId || data.order_id
+    phone: data.phone || data.phoneNumber || data.customerPhone || orderData.phone || ticketData.customerPhone,
+    email: data.email || data.customerEmail || orderData.email,
+    customerId: data.customerId || data.customer_id || orderData.customerId || identityContext.anchorCustomerId || null,
+    orderId: data.orderId || data.order_id || orderData.orderId || orderData.orderNumber || identityContext.anchorId || null
   };
 }
 
