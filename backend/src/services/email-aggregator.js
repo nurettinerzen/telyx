@@ -325,6 +325,7 @@ async disconnect(businessId) {
         },
         drafts: {
           where: { status: 'PENDING_REVIEW' },
+          orderBy: { createdAt: 'desc' },
           take: 1
         }
       },

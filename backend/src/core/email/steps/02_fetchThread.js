@@ -22,13 +22,13 @@ export async function fetchThreadMessages(ctx) {
   const { thread } = ctx;
 
   try {
-    // Get messages from database (already synced)
+    // Get latest messages from database (already synced)
     const messages = await prisma.emailMessage.findMany({
       where: {
         threadId: thread.id
       },
       orderBy: {
-        createdAt: 'asc'
+        createdAt: 'desc'
       },
       take: MAX_THREAD_MESSAGES,
       select: {
@@ -52,8 +52,13 @@ export async function fetchThreadMessages(ctx) {
       return { success: false, error: 'No messages found in thread' };
     }
 
+    // Re-sort ascending so LLM sees chronological conversation flow.
+    const chronologicalMessages = [...messages].sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+
     // Format messages for LLM context
-    ctx.threadMessages = messages.map(msg => ({
+    ctx.threadMessages = chronologicalMessages.map(msg => ({
       id: msg.id,
       messageId: msg.messageId,
       direction: msg.direction,
@@ -73,7 +78,7 @@ export async function fetchThreadMessages(ctx) {
     ctx.conversationHistory = buildConversationHistory(ctx.threadMessages, ctx.connectedEmail);
 
     console.log(`📧 [FetchThread] Found ${messages.length} messages in thread`);
-    console.log(`📧 [FetchThread] Inbound: ${messages.filter(m => m.direction === 'INBOUND').length}, Outbound: ${messages.filter(m => m.direction === 'OUTBOUND').length}`);
+    console.log(`📧 [FetchThread] Inbound: ${chronologicalMessages.filter(m => m.direction === 'INBOUND').length}, Outbound: ${chronologicalMessages.filter(m => m.direction === 'OUTBOUND').length}`);
 
     return { success: true };
 

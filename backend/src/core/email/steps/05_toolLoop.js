@@ -42,15 +42,33 @@ export async function executeEmailToolLoop(ctx) {
   // P5-FIX: Gemini classifier often sets needs_tools=false for stock queries.
   // Stock keywords in the email body override the classifier's decision.
   if (!classification.needs_tools) {
-    const body = (inboundMessage?.bodyText || '').toLowerCase();
-    const hasStockSignal = /(?:stok|stock|ürün\s*durumu|urun|var\s*mı|mevcut)/i.test(body) ||
-                           /\b[A-Z0-9][A-Z0-9\-]{4,}[A-Z0-9]\b/.test(inboundMessage?.bodyText || '');
-    const hasServiceSignal = /(?:servis|service|arıza|ariza|ticket|tamir|onarım|repair)/i.test(body);
-    if (!hasStockSignal || hasServiceSignal) {
+    const latestBody = inboundMessage?.bodyText || '';
+    const latestSubject = inboundMessage?.subject || '';
+    const inboundThreadText = (ctx.threadMessages || [])
+      .filter(msg => msg.direction === 'INBOUND')
+      .map(msg => `${msg.subject || ''}\n${msg.body || msg.bodyText || ''}`)
+      .join('\n');
+    const signalText = `${latestSubject}\n${latestBody}\n${inboundThreadText}`;
+
+    const hasStockSignal = /(?:stok|stock|ürün\s*durumu|urun|var\s*mı|mevcut)/i.test(signalText) ||
+      /\b[A-Z0-9][A-Z0-9\-]{4,}[A-Z0-9]\b/.test(signalText);
+    const hasServiceSignal = /(?:servis|service|arıza|ariza|ticket|tamir|onarım|repair)/i.test(signalText);
+    const hasIdentifierSignal = Boolean(
+      extractOrderNumber(signalText) ||
+      extractTicket(signalText) ||
+      extractPhone(signalText) ||
+      extractVkn(signalText) ||
+      extractTc(signalText)
+    );
+    const intentNeedsFactLookup = ['ORDER', 'BILLING', 'SUPPORT', 'COMPLAINT', 'FOLLOW_UP']
+      .includes(String(classification.intent || '').toUpperCase());
+
+    if (!hasIdentifierSignal && !intentNeedsFactLookup && (!hasStockSignal || hasServiceSignal)) {
       console.log('📧 [ToolLoop] Classification indicates no tools needed');
       return { success: true };
     }
-    console.log('📧 [ToolLoop] Classification says no tools, but stock/SKU signal detected — overriding');
+
+    console.log('📧 [ToolLoop] Classification says no tools, but identifier/fact signal detected — overriding');
   }
 
   try {
@@ -174,28 +192,30 @@ function determineToolsToRun(classification, availableTools, inboundMessage, thr
   // Aggregate ALL inbound message bodies for identifier extraction
   // Priority: latest message first, then older messages fill gaps
   const latestBody = inboundMessage.bodyText || '';
+  const latestSubject = inboundMessage.subject || '';
+  const latestContent = `${latestSubject}\n${latestBody}`;
 
-  // Collect all inbound message bodies (excluding outbound = our replies)
-  const allInboundBodies = (threadMessages || [])
+  // Collect all inbound message bodies + subjects (excluding outbound = our replies)
+  const allInboundContents = (threadMessages || [])
     .filter(msg => msg.direction === 'INBOUND')
-    .map(msg => msg.body || msg.bodyText || '')
+    .map(msg => `${msg.subject || ''}\n${msg.body || msg.bodyText || ''}`)
     .filter(Boolean);
 
-  // Combined text from all inbound messages (for identifier extraction)
-  const combinedBody = allInboundBodies.join('\n');
+  // Combined text from all inbound messages (for identifier extraction + subject fallback)
+  const combinedContent = allInboundContents.join('\n');
 
   // Extract from latest message first, then fall back to combined thread
-  const extractedPhone = extractPhone(latestBody) || extractPhone(combinedBody);
-  const extractedOrderNumber = extractOrderNumber(latestBody) || extractOrderNumber(combinedBody);
-  const extractedName = extractCustomerName(latestBody) || extractCustomerName(combinedBody);
-  const extractedVkn = extractVkn(latestBody) || extractVkn(combinedBody);
-  const extractedTc = extractTc(latestBody) || extractTc(combinedBody);
-  const extractedTicket = extractTicket(latestBody) || extractTicket(combinedBody);
-  // Extract phone last 4 digits from latest body (follow-up verification answer)
-  const extractedLast4 = extractPhoneLast4(latestBody);
-  const hasServiceSignal = /(?:servis|service|arıza|ariza|ticket|tamir|onarım|repair|rma)/i.test(latestBody)
-    || /(?:servis|service|arıza|ariza|ticket|tamir|onarım|repair|rma)/i.test(combinedBody);
-  const hasStockSignal = /(?:stok|stock|ürün\s*(?:durumu|bilgisi)|urun|var\s*mı|mevcut)/i.test(latestBody);
+  const extractedPhone = extractPhone(latestContent) || extractPhone(combinedContent);
+  const extractedOrderNumber = extractOrderNumber(latestContent) || extractOrderNumber(combinedContent);
+  const extractedName = extractCustomerName(latestBody) || extractCustomerName(combinedContent);
+  const extractedVkn = extractVkn(latestContent) || extractVkn(combinedContent);
+  const extractedTc = extractTc(latestContent) || extractTc(combinedContent);
+  const extractedTicket = extractTicket(latestContent) || extractTicket(combinedContent);
+  // Extract phone last 4 digits from latest message content (follow-up verification answer)
+  const extractedLast4 = extractPhoneLast4(latestContent);
+  const hasServiceSignal = /(?:servis|service|arıza|ariza|ticket|tamir|onarım|repair|rma)/i.test(latestContent)
+    || /(?:servis|service|arıza|ariza|ticket|tamir|onarım|repair|rma)/i.test(combinedContent);
+  const hasStockSignal = /(?:stok|stock|ürün\s*(?:durumu|bilgisi)|urun|var\s*mı|mevcut)/i.test(latestContent);
 
   console.log('📧 [ToolLoop] Extracted identifiers (aggregated from thread):', {
     phone: !!extractedPhone,
@@ -205,7 +225,7 @@ function determineToolsToRun(classification, availableTools, inboundMessage, thr
     tc: !!extractedTc,
     ticket: extractedTicket,
     last4: extractedLast4,
-    threadMessagesCount: allInboundBodies.length
+    threadMessagesCount: allInboundContents.length
   });
 
   // Determine query_type based on classification intent
@@ -292,7 +312,7 @@ function determineToolsToRun(classification, availableTools, inboundMessage, thr
     const stockKeywords = /(?:stok|stock|ürün\s*(?:durumu|bilgisi)|urun|var\s*mı|mevcut)/i;
     // SKU pattern: alphanumeric codes with hyphens (e.g. SMOKE-IPH16P, CK212LGT29)
     const skuPattern = /\b([A-Z0-9][A-Z0-9\-]{4,}[A-Z0-9])\b/;
-    const hasStockKeyword = hasStockSignal || stockKeywords.test(combinedBody);
+    const hasStockKeyword = hasStockSignal || stockKeywords.test(combinedContent);
     const skuMatch = latestBody.match(skuPattern);
     const isServiceContext = classification.intent === 'SUPPORT' || hasServiceSignal || !!extractedTicket;
 
@@ -379,27 +399,30 @@ function buildEmailToolState(ctx, toolName, args) {
     return state;
   }
 
+  const outboundMessages = (ctx.threadMessages || []).filter(msg => msg.direction === 'OUTBOUND');
+  const hasOutboundHistory = outboundMessages.length > 0;
+  const hasPriorVerificationPrompt = outboundMessages.some((msg) => {
+    const text = `${msg.subject || ''} ${msg.body || ''} ${msg.content || ''}`.toLowerCase();
+    return /(?:doğrulama|verification|son\s*4|last\s*(?:4|four)|kimlik\s*doğrulama|registered phone|kayıtlı telefon|ad\s*soyad|isim\s*soyisim|full name|name and surname|adınızı|isminizi)/i.test(text);
+  });
+
   const verificationDigits = String(args.verification_input).replace(/\D/g, '');
   const looksNumericVerification = verificationDigits.length === 4 || verificationDigits.length >= 10;
-  if (!looksNumericVerification) {
-    // SECURITY: never synthesize pending state for plain-name verification in email.
-    // Name-only single-shot verification can bypass interactive safeguards.
+  const shouldAllowNameFollowUp = !looksNumericVerification && hasPriorVerificationPrompt;
+  const shouldAllowNumericFollowUp = looksNumericVerification && hasOutboundHistory;
+
+  if (!shouldAllowNameFollowUp && !shouldAllowNumericFollowUp) {
+    // SECURITY: block single-shot bypass on first email turn.
+    // Name follow-up is allowed only after an explicit verification prompt.
     return state;
   }
 
-  const outboundMessages = (ctx.threadMessages || []).filter(msg => msg.direction === 'OUTBOUND');
-  const hasPriorVerificationPrompt = outboundMessages.some((msg) => {
-    const text = `${msg.body || ''} ${msg.content || ''}`.toLowerCase();
-    return /(?:doğrulama|verification|son\s*4|last\s*4|kimlik\s*doğrulama|registered phone)/i.test(text);
-  });
-  if (!hasPriorVerificationPrompt) {
-    return state;
-  }
-
-  console.log('📧 [ToolLoop] Email channel — synthesizing pending verification state for numeric follow-up');
+  console.log('📧 [ToolLoop] Email channel — synthesizing pending verification state for follow-up');
   state.verification = {
     status: 'pending',
-    pendingField: verificationDigits.length === 4 ? 'phone_last4' : 'phone',
+    pendingField: looksNumericVerification
+      ? (verificationDigits.length === 4 ? 'phone_last4' : 'phone')
+      : 'name',
     attempts: 0
   };
 
@@ -470,6 +493,16 @@ function extractOrderNumber(text) {
     /(?:sipariş|order|siparis)\s*(?:numaranız|numaraniz|numarası|numarasi)?\s*[:;]?\s*(\d[\w-]{5,})/i
   );
   if (directMatch) return directMatch[1].trim();
+
+  // Pattern 3.5: "3769479 sipariş nolu" / "123456 order no"
+  const reverseKeywordMatch = text.match(
+    /\b(\d[\w-]{4,})\s*(?:(?:nolu|numaralı|numarali|numarası|numarasi|no(?:lu|su)?)\s*)?(?:sipariş|siparis|order)\b/i
+  );
+  if (reverseKeywordMatch) return reverseKeywordMatch[1].trim();
+  const reverseKeywordMatchTrailing = text.match(
+    /\b(\d[\w-]{4,})\s*(?:sipariş|siparis|order)\s*(?:nolu|numaralı|numarali|numarası|numarasi|no(?:lu|su)?)\b/i
+  );
+  if (reverseKeywordMatchTrailing) return reverseKeywordMatchTrailing[1].trim();
 
   // Pattern 4: Hashtag format (#12345)
   // Number must start with a digit

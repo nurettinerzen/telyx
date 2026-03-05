@@ -724,20 +724,28 @@ router.post('/threads/:threadId/generate-draft', authenticateToken, async (req, 
 
     const targetMessageId = messageId || latestInbound.id;
 
-    // Check for existing pending draft
-    const existingDraft = await prisma.emailDraft.findFirst({
+    // Archive older pending drafts for deterministic single-active-draft behavior.
+    const archivedDrafts = await prisma.emailDraft.updateMany({
       where: {
-        messageId: targetMessageId,
+        threadId: thread.id,
         status: 'PENDING_REVIEW'
+      },
+      data: { status: 'CANCELLED' }
+    });
+    if (archivedDrafts.count > 0) {
+      console.log(`[Email] Archived ${archivedDrafts.count} stale pending draft(s) before generate`);
+    }
+
+    // Clear stale COMPLETED/FAILED lock so "generate again" can create a fresh draft.
+    // Keep IN_PROGRESS lock untouched to preserve concurrency safety.
+    await prisma.emailDraftLock.deleteMany({
+      where: {
+        businessId: req.businessId,
+        threadId: thread.id,
+        sourceMessageId: targetMessageId,
+        status: { in: ['COMPLETED', 'FAILED'] }
       }
     });
-
-    if (existingDraft) {
-      return res.status(400).json({
-        error: 'A pending draft already exists for this message',
-        draftId: existingDraft.id
-      });
-    }
 
     // Use new orchestrator
     const result = await handleEmailTurn({
@@ -895,11 +903,21 @@ router.post('/drafts/:draftId/regenerate', authenticateToken, async (req, res) =
       return res.status(404).json({ error: 'Draft not found' });
     }
 
-    // 2. Mark old draft as REJECTED
-    await prisma.emailDraft.update({
-      where: { id: draft.id },
-      data: { status: 'REJECTED' }
-    });
+    // 2. Archive old active drafts in the thread, keep the source draft as REJECTED.
+    await prisma.$transaction([
+      prisma.emailDraft.update({
+        where: { id: draft.id },
+        data: { status: 'REJECTED' }
+      }),
+      prisma.emailDraft.updateMany({
+        where: {
+          threadId: draft.threadId,
+          status: 'PENDING_REVIEW',
+          id: { not: draft.id }
+        },
+        data: { status: 'CANCELLED' }
+      })
+    ]);
 
     // 3. Clear idempotency lock so handleEmailTurn can create a new draft.
     // Without this, the lock (status=COMPLETED) blocks new draft generation
@@ -908,7 +926,8 @@ router.post('/drafts/:draftId/regenerate', authenticateToken, async (req, res) =
       where: {
         businessId: req.businessId,
         threadId: draft.threadId,
-        sourceMessageId: draft.messageId
+        sourceMessageId: draft.messageId,
+        status: { in: ['COMPLETED', 'FAILED'] }
       }
     });
 
