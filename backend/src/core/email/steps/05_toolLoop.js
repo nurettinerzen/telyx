@@ -244,15 +244,11 @@ function determineToolsToRun(classification, availableTools, inboundMessage, thr
   // Runs whenever we have ANY identifier (phone, order number, vkn, tc, ticket)
   if (availableTools.includes('customer_data_lookup')) {
     const actionableIntents = ['ORDER', 'BILLING', 'APPOINTMENT', 'SUPPORT', 'COMPLAINT', 'FOLLOW_UP', 'INQUIRY', 'GENERAL'];
-    const hasTicketStatusTool = availableTools.includes('check_ticket_status_crm');
 
     if (actionableIntents.includes(classification.intent)) {
       const hasAnyIdentifier = extractedPhone || extractedOrderNumber || extractedVkn || extractedTc || extractedTicket;
-      const preferTicketTool = hasTicketStatusTool
-        && (classification.intent === 'SUPPORT' || hasServiceSignal)
-        && (extractedTicket || extractedPhone);
 
-      if (hasAnyIdentifier && !preferTicketTool) {
+      if (hasAnyIdentifier) {
         const queryType = classification.intent === 'FOLLOW_UP' && extractedOrderNumber
           ? 'siparis'
           : (intentToQueryType[classification.intent] || 'genel');
@@ -286,23 +282,6 @@ function determineToolsToRun(classification, availableTools, inboundMessage, thr
           args
         });
       }
-    }
-  }
-
-  // Ticket/service lookup should take precedence in support threads.
-  if (availableTools.includes('check_ticket_status_crm')) {
-    const supportContext = classification.intent === 'SUPPORT' || hasServiceSignal || !!extractedTicket;
-
-    if (supportContext && (extractedTicket || extractedPhone)) {
-      const args = {};
-      if (extractedTicket) args.ticket_number = extractedTicket;
-      if (extractedPhone) args.phone = extractedPhone;
-      if (extractedName) args.verification_input = extractedName;
-
-      toolsToRun.push({
-        name: 'check_ticket_status_crm',
-        args
-      });
     }
   }
 

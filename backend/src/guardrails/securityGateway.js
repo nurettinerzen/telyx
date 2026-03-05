@@ -42,7 +42,7 @@ const TOOL_REQUIRED_CLAIM_GATES = Object.freeze({
   TICKET_STATUS: {
     intents: new Set(['ticket_status', 'support_ticket']),
     flows: new Set(['TICKET_STATUS', 'SUPPORT']),
-    requiredTools: new Set(['check_ticket_status_crm']),
+    requiredTools: new Set(['customer_data_lookup']),
     missingFields: ['ticket_number']
   },
   PRODUCT_INFO: {

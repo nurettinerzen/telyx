@@ -20,7 +20,6 @@ const EMAIL_SAFE_TOOLS = [
   'get_product_stock',
   'check_stock_crm',
   'check_order_status_crm',
-  'check_ticket_status_crm',
   'appointment_lookup',
   'crm_contact_lookup',
   'crm_deal_lookup'

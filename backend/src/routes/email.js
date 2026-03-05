@@ -33,7 +33,7 @@ function deriveAdminDraftVerificationState(tools = []) {
     const name = String(item?.toolName || item?.name || '').toLowerCase();
     const outcome = String(item?.outcome || '').toUpperCase();
     if (outcome !== 'OK') return false;
-    return name === 'customer_data_lookup' || name === 'check_ticket_status_crm';
+    return name === 'customer_data_lookup';
   });
   if (hasVerifiedLookup) return 'passed';
 

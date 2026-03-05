@@ -67,7 +67,7 @@ const TOOL_REQUIRED_INTENTS = {
     messageKey: 'EMAIL_TOOL_REQUIRED_APPOINTMENT'
   },
   SUPPORT: {
-    tools: ['check_ticket_status_crm', 'customer_data_lookup'],
+    tools: ['customer_data_lookup'],
     fallbackBehavior: 'ASK_VERIFICATION',
     requiredFields: ['ticket_number', 'phone'],
     messageKey: 'EMAIL_TOOL_REQUIRED_SUPPORT'

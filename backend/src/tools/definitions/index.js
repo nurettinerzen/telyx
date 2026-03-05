@@ -8,13 +8,13 @@
  * - get_product_stock: E-commerce product stock (Shopify/WooCommerce)
  * - customer_data_lookup: Universal customer data lookup (Orders, Accounting, Support, etc.)
  * - check_stock_crm: CRM stock lookup
- * - check_ticket_status_crm: CRM ticket/service lookup
  * - create_callback: Callback scheduling
  *
  * REMOVED (replaced by customer_data_lookup):
  * - check_order_status: REMOVED - use customer_data_lookup instead
  * - get_tracking_info: REMOVED - use customer_data_lookup instead
  * - check_order_status_crm: REMOVED - duplicate of customer_data_lookup CRM order query
+ * - check_ticket_status_crm: REMOVED - duplicate of customer_data_lookup CRM ticket query
  */
 
 import createAppointment from './appointment.js';
@@ -22,8 +22,7 @@ import sendOrderNotification from './order-notification.js';
 import getProductStock from './product-stock.js';
 // CRM Tools
 import checkStockCrm from './crm-stock.js';
-import checkTicketStatusCrm from './crm-ticket-status.js';
-// Customer Data Tool (replaces check_order_status, get_tracking_info, check_order_status_crm)
+// Customer Data Tool (replaces check_order_status, get_tracking_info, check_order_status_crm, check_ticket_status_crm)
 import customerDataLookup from './customer-data-lookup.js';
 // Callback Tool
 import createCallback from './create-callback.js';
@@ -35,7 +34,6 @@ export const definitions = [
   getProductStock,
   // CRM Tools
   checkStockCrm,
-  checkTicketStatusCrm,
   // Customer Data Tool
   customerDataLookup,
   // Callback Tool
@@ -49,7 +47,6 @@ export {
   getProductStock,
   // CRM Tools
   checkStockCrm,
-  checkTicketStatusCrm,
   // Customer Data Tool
   customerDataLookup,
   // Callback Tool
