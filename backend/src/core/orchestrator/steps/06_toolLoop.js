@@ -660,7 +660,8 @@ export async function executeToolLoop(params) {
         expectedFormat: toolResult.expectedFormat ?? null,
         promptStyle: toolResult.promptStyle ?? null,
         validationCode: toolResult.validationCode ?? null,
-        stateEvents: toolResult.stateEvents ?? []
+        stateEvents: toolResult.stateEvents ?? [],
+        _identityContext: toolResult._identityContext ?? null
       });
 
       console.log(`📊 [ToolLoop] Tool result collected:`, {
