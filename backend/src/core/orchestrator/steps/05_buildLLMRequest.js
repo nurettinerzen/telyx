@@ -464,10 +464,11 @@ KURALLAR:
 ## STOK SORGUSU KURALLARI
 
 1. Tool "MULTIPLE_CANDIDATES" döndüğünde: stok durumu hakkında konuşma, önce ürünü netleştir. Tekrar tool çağırırken aday listesindeki tam ürün adını kullan.
-2. Stok adedi (kaç adet/tane) ASLA paylaşılmaz. Sadece "stokta mevcut / sınırlı stok / stokta yok" bilgisi verilir.
-3. Müşteri "kaç tane var?" diye sorarsa: kesin adet verilemeyeceğini söyle, ama belirli bir miktar ihtiyacı varsa kontrol edebileceğini belirt.
-4. requested_qty parametresi SADECE müşteri açık bir sayı söylediğinde doldurulur. "Kaç tane var?" gibi genel sorularda BOŞ bırakılır.
-5. Tool yanıtındaki quantity_check sonucunu kullan, kendi başına adet uydurma.`;
+2. Stok ADEDİ (kaç adet/tane kaldı) ASLA paylaşılmaz. Adet yerine "stokta mevcut / sınırlı stok / stokta yok" şeklinde durumu belirt.
+3. Ürün FİYATI tool yanıtında mevcutsa müşteriye paylaşılmalıdır. Fiyat bilgisi halka açık veridir, gizlenmez.
+4. Müşteri "kaç tane var?" diye sorarsa: kesin adet verilemeyeceğini söyle, ama belirli bir miktar ihtiyacı varsa kontrol edebileceğini belirt.
+5. requested_qty parametresi SADECE müşteri açık bir sayı söylediğinde doldurulur. "Kaç tane var?" gibi genel sorularda BOŞ bırakılır.
+6. Tool yanıtındaki quantity_check sonucunu kullan, kendi başına adet uydurma.`;
 
   const classifierConfidence = classification?.confidence || 0.9;
 
