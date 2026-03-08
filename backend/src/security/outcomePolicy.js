@@ -105,11 +105,16 @@ export function applyOutcomeEventsToState(state, events = []) {
         state.verification.status = 'verified';
         state.verification.pendingField = null;
         state.verification.attempts = 0;
+        state.verification.verifiedAt = Date.now();
         // Track HOW verification happened: 'manual' (user input) or 'channel_proof' (autoverify)
         state.verification.method = event.reason || 'manual';
+        state.verification.matchMethod = event.matchMethod || null;
         state.verification.proofStrength = event.proofStrength || null;
+        // Store verified identity signals for cross-anchor reuse
         if (event.anchor) {
           state.verification.anchor = event.anchor;
+          state.verification.verifiedCustomerPhone = event.anchor.phone || null;
+          state.verification.verifiedCustomerName = event.anchor.name || null;
         }
         break;
       }

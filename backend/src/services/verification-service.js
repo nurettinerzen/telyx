@@ -41,6 +41,20 @@ const VERIFICATION_REQUIRED_QUERY_TYPES = new Set([
   'return'
 ]);
 
+// Actions that always require fresh verification even within a verified session.
+// Short explicit list — no regex. These are destructive/irreversible operations.
+const HIGH_RISK_ACTIONS = new Set([
+  'iade',
+  'refund',
+  'return',
+  'iptal',
+  'cancel',
+  'adres_degisiklik',
+  'address_change',
+  'silme',
+  'delete'
+]);
+
 const VERIFICATION_EXEMPT_QUERY_TYPES = new Set([
   'genel',
   'general',
@@ -84,6 +98,14 @@ export function requiresVerification(queryType) {
 
   return /(siparis|order|servis|service|ariza|ticket|tracking|kargo|cargo|debt|borc|muhasebe|billing|payment|odeme|invoice|fatura|refund|iade|return)/i
     .test(normalizedQueryType);
+}
+
+/**
+ * Check if a query type is a high-risk action that always requires fresh verification.
+ * Used by cross-anchor reuse: even if session is verified, high-risk actions re-verify.
+ */
+export function isHighRiskAction(queryType) {
+  return HIGH_RISK_ACTIONS.has(normalizeQueryType(queryType));
 }
 
 /**

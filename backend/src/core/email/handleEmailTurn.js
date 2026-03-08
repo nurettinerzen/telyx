@@ -52,6 +52,7 @@ import {
   logContentSafetyViolation
 } from '../../utils/content-safety.js';
 import { ToolOutcome, normalizeOutcome } from '../../tools/toolResult.js';
+import { getState, updateState } from '../../services/state-manager.js';
 
 /**
  * Handle email draft generation turn
@@ -103,7 +104,10 @@ export async function handleEmailTurn(params) {
     safeRecipients: null,      // Built by orchestrator, used at send time
 
     // Regeneration context
-    feedback: options.feedback || null  // User feedback from regenerate action
+    feedback: options.feedback || null,  // User feedback from regenerate action
+
+    // Verification state — loaded from DB per email thread
+    emailVerificationState: null
   };
 
   console.log(`\n📧 [EmailTurn] Starting draft generation for thread ${threadId}`);
@@ -158,6 +162,16 @@ export async function handleEmailTurn(params) {
 
     metrics.steps.loadContext = Date.now() - step1Start;
     console.log(`✅ [EmailTurn] Context loaded (${metrics.steps.loadContext}ms)`);
+
+    // Load verification state for this email thread (persists across drafts)
+    const emailSessionId = `email_${threadId}`;
+    try {
+      const threadState = await getState(emailSessionId);
+      ctx.emailVerificationState = threadState || { verification: { status: 'none' } };
+    } catch (stateErr) {
+      console.warn('⚠️ [EmailTurn] Failed to load email verification state:', stateErr.message);
+      ctx.emailVerificationState = { verification: { status: 'none' } };
+    }
 
     // ============================================
     // STEP 1.5: Recipient Ownership Validation (CRITICAL)
@@ -350,6 +364,15 @@ export async function handleEmailTurn(params) {
     metrics.toolsCalled = ctx.toolResults.map(r => r.toolName);
     metrics.hadToolSuccess = ctx.toolResults.some(r => normalizeOutcome(r.outcome) === ToolOutcome.OK);
     console.log(`✅ [EmailTurn] Draft generated: ${ctx.toolResults.length} tool calls (${metrics.steps.generateDraft}ms)`);
+
+    // Persist email verification state after tool execution
+    if (ctx.emailVerificationState?.verification?.status !== 'none') {
+      try {
+        await updateState(emailSessionId, ctx.emailVerificationState);
+      } catch (stateErr) {
+        console.warn('⚠️ [EmailTurn] Failed to persist email verification state:', stateErr.message);
+      }
+    }
 
     // ============================================
     // STEP 6.1: Tool Result PII Scrubbing

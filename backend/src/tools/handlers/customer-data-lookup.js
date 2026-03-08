@@ -11,7 +11,7 @@
  */
 
 import prisma from '../../prismaClient.js';
-import { normalizePhone, phoneSearchVariants } from '../../utils/text.js';
+import { normalizePhone, phoneSearchVariants, compareTurkishNames } from '../../utils/text.js';
 import {
   isLikelyValidOrderNumber,
   normalizeOrderLookupInput,
@@ -104,7 +104,8 @@ import {
   checkVerification,
   getMinimalResult,
   getFullResult,
-  verifyAgainstAnchor
+  verifyAgainstAnchor,
+  isHighRiskAction
 } from '../../services/verification-service.js';
 import {
   ok,
@@ -151,6 +152,55 @@ function isSameVerificationScope(previousAnchor, nextAnchor) {
   }
 
   return false;
+}
+
+// Verification TTL: how long a verification stays valid (default 15 minutes)
+const VERIFICATION_TTL_MS = (parseInt(process.env.VERIFICATION_TTL_MINUTES, 10) || 15) * 60 * 1000;
+
+/**
+ * Check if verification is still within TTL.
+ * Returns false (expired) when verifiedAt is missing or older than TTL.
+ */
+function isVerificationTTLValid(verifiedAt) {
+  if (!verifiedAt) return false;
+  return (Date.now() - verifiedAt) < VERIFICATION_TTL_MS;
+}
+
+/**
+ * Cross-anchor customer match: checks phone + name (dual signal) between
+ * a new anchor and the previously verified identity.
+ *
+ * Per security requirement: phone match alone is not sufficient —
+ * we require an additional customer signal (name match) when available.
+ */
+function isCrossAnchorCustomerMatch(anchor, verificationState) {
+  const verifiedPhone = verificationState?.verifiedCustomerPhone;
+  if (!verifiedPhone || !anchor.phone) return false;
+
+  // Phone match via normalized variants
+  const anchorVariants = new Set(phoneSearchVariants(anchor.phone));
+  const verifiedVariants = phoneSearchVariants(verifiedPhone);
+  const phoneMatches = verifiedVariants.some(v => anchorVariants.has(v));
+
+  if (!phoneMatches) return false;
+
+  // Additional signal: name match (when both available)
+  const verifiedName = verificationState?.verifiedCustomerName;
+  const anchorName = anchor.name;
+  if (verifiedName && anchorName) {
+    // If both names exist, they must match (Turkish-aware comparison)
+    const nameMatches = compareTurkishNames(verifiedName, anchorName);
+    if (!nameMatches) {
+      console.log('⚠️ [CrossAnchor] Phone matches but name mismatch — denying reuse', {
+        verifiedName,
+        anchorName
+      });
+      return false;
+    }
+  }
+
+  // Phone matches + name matches (or name unavailable) → customer match
+  return true;
 }
 
 const ORDER_CUSTOM_FIELD_NAMES = Object.freeze([
@@ -934,22 +984,28 @@ export async function execute(args, business, context = {}) {
       newAnchorCustomerId: anchor.customerId || null,
       sameVerificationScope
     });
-    const identitySwitch = hasPreviousVerificationAnchor && !sameVerificationScope;
+    // SESSION-LEVEL VERIFIED BYPASS (with TTL):
+    // Path A: Same scope — anchor matches previously verified anchor
+    // Path B: Cross-anchor — different anchor but same customer (phone + name)
+    const ttlValid = isVerificationTTLValid(state.verification?.verifiedAt);
+
+    // Identity switch detection: only for truly DIFFERENT customers.
+    // Cross-anchor match (same customer, different record) is NOT an identity switch.
+    const crossAnchorMatch = hasPreviousVerificationAnchor && !sameVerificationScope
+      ? isCrossAnchorCustomerMatch(anchor, state.verification)
+      : false;
+    const identitySwitch = hasPreviousVerificationAnchor && !sameVerificationScope && !crossAnchorMatch;
 
     if (identitySwitch) {
-      console.log('🚨 [SECURITY] Identity switch detected!', {
+      console.log('🚨 [SECURITY] Identity switch detected — different customer!', {
         previousAnchor: previousVerificationAnchor?.id,
         previousCustomerId: previousVerificationAnchor?.customerId || null,
         newAnchor: anchor.id,
         newCustomerId: anchor.customerId || null
       });
 
-      // Force new verification by treating as if no verification data provided
-      // ToolLoop will handle state reset when VERIFICATION_REQUIRED is returned
       console.log('🔐 [SECURITY] Forcing new verification for identity switch');
-
       const askFor = anchor.phone ? 'phone_last4' : 'name';
-      // Return VERIFICATION_REQUIRED immediately - ignore any provided customer_name
       return requestExpectedVerificationInput({
         language,
         anchor,
@@ -957,11 +1013,8 @@ export async function execute(args, business, context = {}) {
       });
     }
 
-    // SESSION-LEVEL VERIFIED BYPASS (scoped):
-    // Only bypass re-verification when current anchor/customer scope matches
-    // the previously verified anchor in session state.
-    if (isSessionVerified && sameVerificationScope) {
-      console.log('✅ [Verification] Session already verified for same scope — bypassing checkVerification');
+    if (isSessionVerified && sameVerificationScope && ttlValid) {
+      console.log('✅ [Verification] Same scope + TTL valid — bypassing checkVerification');
       const fullResult = getFullResult(record, normalizedQueryType, language);
       return {
         ...ok(fullResult.data, fullResult.message),
@@ -976,8 +1029,45 @@ export async function execute(args, business, context = {}) {
       };
     }
 
-    if (isSessionVerified && !sameVerificationScope) {
-      console.log('🔐 [Verification] Verified session scope mismatch — fresh verification required');
+    if (isSessionVerified && sameVerificationScope && !ttlValid) {
+      console.log('⏰ [Verification] Same scope but TTL expired — re-verification required');
+    }
+
+    // Cross-anchor reuse: verified for different record but SAME customer
+    // Requires: phone match + name match (dual signal) + TTL valid + not high-risk
+    if (isSessionVerified && !sameVerificationScope && ttlValid && crossAnchorMatch) {
+      const highRisk = isHighRiskAction(normalizedQueryType);
+
+      if (!highRisk) {
+        console.log('✅ [Verification] Cross-anchor reuse — same customer, different record', {
+          verifiedAnchorId: state.verification?.anchor?.id,
+          newAnchorId: anchor.id,
+          queryType: normalizedQueryType
+        });
+        const fullResult = getFullResult(record, normalizedQueryType, language);
+        return {
+          ...ok(fullResult.data, fullResult.message),
+          _identityContext,
+          stateEvents: [
+            {
+              type: OutcomeEventType.VERIFICATION_PASSED,
+              anchor: toStateAnchor(anchor),
+              reason: 'cross_anchor_reuse',
+              attempts: 0
+            }
+          ]
+        };
+      }
+
+      if (highRisk) {
+        console.log('🔐 [Verification] Cross-anchor match BUT high-risk action — fresh verification required', {
+          queryType: normalizedQueryType
+        });
+      }
+    }
+
+    if (isSessionVerified && !sameVerificationScope && !ttlValid) {
+      console.log('⏰ [Verification] Different scope + TTL expired — fresh verification required');
     }
 
     // P0 SECURITY: Enforce two-step verification AND detect mismatches

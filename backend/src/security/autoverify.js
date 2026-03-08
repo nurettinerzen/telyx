@@ -5,9 +5,10 @@
  * chat/WA and email pipelines can use the same logic.
  *
  * SECURITY INVARIANTS:
- *   1. Autoverify ONLY when proof.matchedCustomerId === anchor.customerId (fail-closed).
- *   2. FINANCIAL distinction removed — STRONG proof is sufficient for all query types.
- *   3. If anchorCustomerId is null → autoverify denied.
+ *   1. Autoverify when proof.matchedCustomerId === anchor.customerId (CustomerData path).
+ *   2. CrmOrder fallback: if BOTH customerIds are null, allow autoverify when
+ *      proof.matchedOrderId === anchorId AND proof.strength === STRONG.
+ *   3. FINANCIAL distinction removed — STRONG proof is sufficient for all query types.
  *   4. Any error → autoverify denied (fail-closed).
  *
  * @module security/autoverify
@@ -110,47 +111,65 @@ export async function tryAutoverify({ toolResult, toolName, business, state, lan
       return { applied: false, toolResult, telemetry };
     }
 
-    // 4. Anchor-proof match: anchor.customerId must match proof.matchedCustomerId
+    // 4. Anchor-proof match: two paths
+    //    A) CustomerData path: proof.matchedCustomerId === anchor.customerId
+    //    B) CrmOrder direct path: both customerIds null, match by orderId
     const anchorId = idCtx.anchorId;
     const anchorCustomerId = idCtx.anchorCustomerId;
+    const anchorSourceTable = idCtx.anchorSourceTable || 'CustomerData';
+    let matchMethod = 'customer_id'; // 'customer_id' or 'order_direct'
 
-    if (anchorCustomerId == null) {
-      telemetry.autoverifySkipReason = 'NO_ANCHOR_CUSTOMERID';
-      console.warn('⚠️ [Autoverify] anchorCustomerId is null — autoverify blocked (fail-closed)', {
+    if (anchorCustomerId != null && proof.matchedCustomerId != null) {
+      // Path A: Both have customerIds — must match
+      if (proof.matchedCustomerId !== anchorCustomerId) {
+        telemetry.autoverifySkipReason = 'CUSTOMERID_MISMATCH';
+        console.warn('⚠️ [Autoverify] Proof mismatch: proof.matchedCustomerId ≠ anchor.customerId', {
+          proofCustomerId: proof.matchedCustomerId,
+          anchorCustomerId,
+          anchorId
+        });
+        if (metrics) metrics.identityProof = { ...telemetry };
+        return { applied: false, toolResult, telemetry };
+      }
+      // customerIds match → proceed
+    } else if (
+      anchorCustomerId == null &&
+      anchorSourceTable === 'CrmOrder' &&
+      proof.matchedOrderId != null &&
+      proof.matchedOrderId === anchorId &&
+      proof.strength === 'STRONG'
+    ) {
+      // Path B: CrmOrder direct match — no CustomerData exists for this customer.
+      // proof.matchedOrderId confirms WP phone matched exactly 1 CrmOrder,
+      // and that CrmOrder IS the anchor we're looking up.
+      matchMethod = 'order_direct';
+      console.log('✅ [Autoverify] CrmOrder direct match — orderId confirmed via channel proof', {
+        matchedOrderId: proof.matchedOrderId,
         anchorId,
-        anchorSourceTable: idCtx.anchorSourceTable
+        proofStrength: proof.strength
       });
-      if (metrics) metrics.identityProof = { ...telemetry };
-      return { applied: false, toolResult, telemetry };
-    }
-
-    if (proof.matchedCustomerId == null) {
-      telemetry.autoverifySkipReason = 'NO_MATCHED_CUSTOMERID';
-      console.warn('⚠️ [Autoverify] proof.matchedCustomerId is null — autoverify blocked', {
-        proofStrength: proof.strength,
-        anchorCustomerId
-      });
-      if (metrics) metrics.identityProof = { ...telemetry };
-      return { applied: false, toolResult, telemetry };
-    }
-
-    if (proof.matchedCustomerId !== anchorCustomerId) {
-      telemetry.autoverifySkipReason = 'CUSTOMERID_MISMATCH';
-      console.warn('⚠️ [Autoverify] Proof mismatch: proof.matchedCustomerId ≠ anchor.customerId', {
-        proofCustomerId: proof.matchedCustomerId,
+    } else {
+      // Neither path matched — fail-closed
+      const skipReason = anchorCustomerId == null
+        ? 'NO_ANCHOR_CUSTOMERID'
+        : 'NO_MATCHED_CUSTOMERID';
+      telemetry.autoverifySkipReason = skipReason;
+      console.warn(`⚠️ [Autoverify] ${skipReason} — autoverify blocked (fail-closed)`, {
+        anchorId,
         anchorCustomerId,
-        anchorId
+        anchorSourceTable,
+        proofMatchedCustomerId: proof.matchedCustomerId,
+        proofMatchedOrderId: proof.matchedOrderId
       });
       if (metrics) metrics.identityProof = { ...telemetry };
       return { applied: false, toolResult, telemetry };
     }
 
     // 5. Re-fetch full record from DB
-    console.log('✅ [Autoverify] Channel proof AUTOVERIFY — skipping second factor');
+    console.log(`✅ [Autoverify] Channel proof AUTOVERIFY (${matchMethod}) — skipping second factor`);
 
-    const sourceTable = idCtx.anchorSourceTable || 'CustomerData';
     let fullRecord;
-    if (sourceTable === 'CrmOrder') {
+    if (anchorSourceTable === 'CrmOrder') {
       fullRecord = await prisma.crmOrder.findUnique({ where: { id: anchorId } });
     } else {
       fullRecord = await prisma.customerData.findUnique({ where: { id: anchorId } });
@@ -173,16 +192,22 @@ export async function tryAutoverify({ toolResult, toolName, business, state, lan
     toolResult.verificationRequired = false;
 
     // Replace stateEvents with VERIFICATION_PASSED (channel_proof method)
+    // Include anchor phone for cross-anchor reuse (verifiedCustomerPhone)
+    const anchorPhone = fullRecord?.customerPhone || fullRecord?.phone || null;
+    const anchorName = fullRecord?.customerName || fullRecord?.contactName || null;
     toolResult.stateEvents = [
       {
         type: OutcomeEventType.VERIFICATION_PASSED,
         anchor: anchorId ? {
           id: anchorId,
           customerId: anchorCustomerId,
-          sourceTable,
+          sourceTable: anchorSourceTable,
+          phone: anchorPhone,
+          name: anchorName,
           type: 'channel_proof'
         } : null,
         reason: 'channel_proof',
+        matchMethod,
         proofStrength: proof.strength,
         attempts: 0
       }
@@ -190,6 +215,7 @@ export async function tryAutoverify({ toolResult, toolName, business, state, lan
 
     telemetry.autoverifyApplied = true;
     telemetry.autoverifySkipReason = null;
+    telemetry.matchMethod = matchMethod;
     if (metrics) metrics.identityProof = { ...telemetry };
 
     console.log('🔓 [Autoverify] Override complete — outcome now OK');

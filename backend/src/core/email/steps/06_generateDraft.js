@@ -35,6 +35,7 @@ import { sanitizeToolResults } from '../toolResultSanitizer.js';
 import { executeTool } from '../../../tools/index.js';
 import { ToolOutcome, normalizeOutcome } from '../../../tools/toolResult.js';
 import { tryAutoverify } from '../../../security/autoverify.js';
+import { applyOutcomeEventsToState, deriveOutcomeEvents } from '../../../security/outcomePolicy.js';
 import {
   estimateTokens,
   recordTokenAccuracy
@@ -311,13 +312,16 @@ export async function generateEmailDraft(ctx) {
 
         console.log(`📧 [DraftToolLoop] LLM calling: ${toolName}`, Object.keys(toolArgs));
 
+        // Use thread-scoped verification state (persists across drafts)
+        const emailState = ctx.emailVerificationState || { verification: { status: 'none' } };
+
         const result = await executeTool(toolName, toolArgs, business, {
           channel: 'EMAIL',
           fromEmail: ctx.customerEmail || null,
           sessionId: ctx.thread?.id,
           messageId: ctx.inboundMessage?.id,
           language: ctx.language,
-          state: {}
+          state: emailState
         });
 
         // Attempt autoverify using email identity
@@ -325,13 +329,19 @@ export async function generateEmailDraft(ctx) {
           toolResult: result,
           toolName,
           business,
-          state: {},
+          state: emailState,
           language: ctx.language,
           metrics: ctx.metrics
         });
 
         if (autoverifyResult.applied) {
           console.log('📧 [DraftToolLoop] Autoverify succeeded');
+        }
+
+        // Apply outcome events to email verification state (for TTL + cross-anchor reuse)
+        const outcomeEvents = deriveOutcomeEvents({ toolName, toolResult: result });
+        if (outcomeEvents.length > 0) {
+          applyOutcomeEventsToState(emailState, outcomeEvents);
         }
 
         // Store tool result for metrics/guardrails

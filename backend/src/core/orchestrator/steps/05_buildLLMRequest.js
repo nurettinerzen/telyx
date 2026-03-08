@@ -292,6 +292,29 @@ KURALLAR:
     delete state.verificationContext;
   }
 
+  // Verified session context — inform LLM that user is already verified
+  // LLM uses this ONLY for natural conversation (e.g., "we already verified you").
+  // Auth decision is made by backend, NOT by LLM.
+  if (
+    state.verification?.status === 'verified' &&
+    !state.verificationContext &&
+    isVerificationRelevant
+  ) {
+    const verifiedMethod = state.verification.method === 'channel_proof'
+      ? 'kanal kimliği ile otomatik doğrulandı'
+      : 'manuel doğrulama ile onaylandı';
+    const verifiedGuidance = `
+
+## DOĞRULAMA TAMAMLANDI
+- Bu görüşmede kullanıcı daha önce ${verifiedMethod}.
+- Aynı müşteriye ait sorgularda tekrar doğrulama isteme.
+- "Kimliğiniz doğrulandı" / "az önce doğruladık" gibi doğal geçişler yap.
+- NOT: Doğrulama kararı backend tarafından verilir. Sen sadece doğal konuş.`;
+
+    enhancedSystemPrompt += verifiedGuidance;
+    console.log('✅ [BuildLLMRequest] Added verified session context for LLM');
+  }
+
   // Dispute context — LLM has anchor/truth data to reference
   if (state.disputeContext) {
     const dc = state.disputeContext;
