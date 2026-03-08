@@ -39,24 +39,29 @@ export async function execute(args, business, context = {}) {
       );
     }
 
-    // Build query
-    const whereClause = { businessId: business.id };
+    // ─── Phase A: Candidate listing ───────────────────────────────
+    let candidates;
 
     if (sku) {
-      // Exact SKU match → single product expected
-      whereClause.sku = { equals: sku, mode: 'insensitive' };
-    } else if (product_name) {
-      whereClause.OR = [
-        { sku: { contains: product_name, mode: 'insensitive' } },
-        { productName: { contains: product_name, mode: 'insensitive' } }
-      ];
+      // Exact SKU match → Prisma is fine
+      candidates = await prisma.crmStock.findMany({
+        where: { businessId: business.id, sku: { equals: sku, mode: 'insensitive' } },
+        take: 20
+      });
+    } else {
+      // Product name search: use translate() for Turkish char normalization
+      // "nova ses gecidi" must match "Nova Ses Geçidi Pro Bulut"
+      candidates = await prisma.$queryRaw`
+        SELECT * FROM "CrmStock"
+        WHERE "businessId" = ${business.id}
+        AND (
+          LOWER("sku") LIKE '%' || LOWER(${product_name}) || '%'
+          OR translate(LOWER("productName"), 'çğıöşü', 'cgiosu')
+             LIKE '%' || translate(LOWER(${product_name}), 'çğıöşü', 'cgiosu') || '%'
+        )
+        LIMIT 20
+      `;
     }
-
-    // ─── Phase A: Candidate listing (findMany) ─────────────────────
-    const candidates = await prisma.crmStock.findMany({
-      where: whereClause,
-      take: 20 // Safety limit
-    });
 
     if (candidates.length === 0) {
       return notFound(
