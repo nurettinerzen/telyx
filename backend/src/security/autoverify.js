@@ -111,13 +111,14 @@ export async function tryAutoverify({ toolResult, toolName, business, state, lan
       return { applied: false, toolResult, telemetry };
     }
 
-    // 4. Anchor-proof match: two paths
+    // 4. Anchor-proof match: three paths
     //    A) CustomerData path: proof.matchedCustomerId === anchor.customerId
     //    B) CrmOrder direct path: both customerIds null, match by orderId
+    //    C) CrmTicket direct path: both customerIds null, match by ticketId
     const anchorId = idCtx.anchorId;
     const anchorCustomerId = idCtx.anchorCustomerId;
     const anchorSourceTable = idCtx.anchorSourceTable || 'CustomerData';
-    let matchMethod = 'customer_id'; // 'customer_id' or 'order_direct'
+    let matchMethod = 'customer_id'; // 'customer_id' | 'order_direct' | 'ticket_direct'
 
     if (anchorCustomerId != null && proof.matchedCustomerId != null) {
       // Path A: Both have customerIds — must match
@@ -148,8 +149,24 @@ export async function tryAutoverify({ toolResult, toolName, business, state, lan
         anchorId,
         proofStrength: proof.strength
       });
+    } else if (
+      anchorCustomerId == null &&
+      anchorSourceTable === 'CrmTicket' &&
+      proof.matchedTicketId != null &&
+      proof.matchedTicketId === anchorId &&
+      proof.strength === 'STRONG'
+    ) {
+      // Path C: CrmTicket direct match — no CustomerData exists for this customer.
+      // proof.matchedTicketId confirms WP phone matched exactly 1 CrmTicket,
+      // and that CrmTicket IS the anchor we're looking up.
+      matchMethod = 'ticket_direct';
+      console.log('✅ [Autoverify] CrmTicket direct match — ticketId confirmed via channel proof', {
+        matchedTicketId: proof.matchedTicketId,
+        anchorId,
+        proofStrength: proof.strength
+      });
     } else {
-      // Neither path matched — fail-closed
+      // No path matched — fail-closed
       const skipReason = anchorCustomerId == null
         ? 'NO_ANCHOR_CUSTOMERID'
         : 'NO_MATCHED_CUSTOMERID';
@@ -159,7 +176,8 @@ export async function tryAutoverify({ toolResult, toolName, business, state, lan
         anchorCustomerId,
         anchorSourceTable,
         proofMatchedCustomerId: proof.matchedCustomerId,
-        proofMatchedOrderId: proof.matchedOrderId
+        proofMatchedOrderId: proof.matchedOrderId,
+        proofMatchedTicketId: proof.matchedTicketId
       });
       if (metrics) metrics.identityProof = { ...telemetry };
       return { applied: false, toolResult, telemetry };
@@ -171,6 +189,8 @@ export async function tryAutoverify({ toolResult, toolName, business, state, lan
     let fullRecord;
     if (anchorSourceTable === 'CrmOrder') {
       fullRecord = await prisma.crmOrder.findUnique({ where: { id: anchorId } });
+    } else if (anchorSourceTable === 'CrmTicket') {
+      fullRecord = await prisma.crmTicket.findUnique({ where: { id: anchorId } });
     } else {
       fullRecord = await prisma.customerData.findUnique({ where: { id: anchorId } });
     }

@@ -142,6 +142,16 @@ async function deriveWhatsAppProof(waPhone, businessId, startTime) {
     take: 3
   });
 
+  // Also check CrmTicket by customerPhone
+  const ticketMatches = await prisma.crmTicket.findMany({
+    where: {
+      businessId,
+      OR: customerPhoneOrConditions
+    },
+    select: { id: true, customerPhone: true, ticketNumber: true },
+    take: 3
+  });
+
   // Deduplicate customer IDs (same customer can have multiple records)
   const uniqueCustomerIds = [...new Set(customerMatches.map(c => c.id))];
 
@@ -151,49 +161,80 @@ async function deriveWhatsAppProof(waPhone, businessId, startTime) {
       strength: ProofStrength.STRONG,
       matchedCustomerId: uniqueCustomerIds[0],
       matchedOrderId: orderMatches.length === 1 ? orderMatches[0].id : null,
+      matchedTicketId: ticketMatches.length === 1 ? ticketMatches[0].id : null,
       reasons: ['whatsapp_phone_single_customer_match'],
       evidence: {
         channel: 'WHATSAPP',
         matchType: 'phone',
         customerMatchCount: uniqueCustomerIds.length,
-        orderMatchCount: orderMatches.length
+        orderMatchCount: orderMatches.length,
+        ticketMatchCount: ticketMatches.length
       },
       durationMs: Date.now() - startTime
     };
   }
 
-  // No CustomerData match — check if exactly one CrmOrder customer
-  if (uniqueCustomerIds.length === 0 && orderMatches.length > 0) {
-    const uniqueOrderCustomers = [...new Set(orderMatches.map(o => o.customerPhone))];
-    if (uniqueOrderCustomers.length === 1) {
-      return {
-        strength: ProofStrength.STRONG,
-        matchedCustomerId: null,
-        matchedOrderId: orderMatches[0].id,
-        reasons: ['whatsapp_phone_single_order_match'],
-        evidence: {
-          channel: 'WHATSAPP',
-          matchType: 'phone_order',
-          customerMatchCount: 0,
-          orderMatchCount: orderMatches.length
-        },
-        durationMs: Date.now() - startTime
-      };
+  // No CustomerData match — check CrmOrder or CrmTicket
+  if (uniqueCustomerIds.length === 0) {
+    // Check CrmOrder first
+    if (orderMatches.length > 0) {
+      const uniqueOrderCustomers = [...new Set(orderMatches.map(o => o.customerPhone))];
+      if (uniqueOrderCustomers.length === 1) {
+        return {
+          strength: ProofStrength.STRONG,
+          matchedCustomerId: null,
+          matchedOrderId: orderMatches[0].id,
+          matchedTicketId: ticketMatches.length === 1 ? ticketMatches[0].id : null,
+          reasons: ['whatsapp_phone_single_order_match'],
+          evidence: {
+            channel: 'WHATSAPP',
+            matchType: 'phone_order',
+            customerMatchCount: 0,
+            orderMatchCount: orderMatches.length,
+            ticketMatchCount: ticketMatches.length
+          },
+          durationMs: Date.now() - startTime
+        };
+      }
+    }
+
+    // No CrmOrder match — check CrmTicket
+    if (orderMatches.length === 0 && ticketMatches.length > 0) {
+      const uniqueTicketCustomers = [...new Set(ticketMatches.map(t => t.customerPhone))];
+      if (uniqueTicketCustomers.length === 1) {
+        return {
+          strength: ProofStrength.STRONG,
+          matchedCustomerId: null,
+          matchedOrderId: null,
+          matchedTicketId: ticketMatches[0].id,
+          reasons: ['whatsapp_phone_single_ticket_match'],
+          evidence: {
+            channel: 'WHATSAPP',
+            matchType: 'phone_ticket',
+            customerMatchCount: 0,
+            orderMatchCount: 0,
+            ticketMatchCount: ticketMatches.length
+          },
+          durationMs: Date.now() - startTime
+        };
+      }
     }
   }
 
   // WEAK: 0 or 2+ matches
-  const totalMatches = uniqueCustomerIds.length + (uniqueCustomerIds.length === 0 ? orderMatches.length : 0);
+  const totalMatches = uniqueCustomerIds.length + (uniqueCustomerIds.length === 0 ? orderMatches.length : 0) + (uniqueCustomerIds.length === 0 && orderMatches.length === 0 ? ticketMatches.length : 0);
   return {
     strength: ProofStrength.WEAK,
     matchedCustomerId: null,
     matchedOrderId: null,
+    matchedTicketId: null,
     reasons: [totalMatches === 0 ? 'whatsapp_phone_no_match' : 'whatsapp_phone_multiple_matches'],
     evidence: {
       channel: 'WHATSAPP',
       matchType: 'phone',
       customerMatchCount: uniqueCustomerIds.length,
-      orderMatchCount: orderMatches.length
+      orderMatchCount: orderMatches.length,
+      ticketMatchCount: ticketMatches.length
     },
     durationMs: Date.now() - startTime
   };
