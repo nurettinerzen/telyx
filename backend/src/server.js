@@ -288,7 +288,7 @@ app.use(WHATSAPP_WEBHOOK_PATH, express.json({
   }
 }));
 app.use('/api/webhook/incoming', express.json()); // External webhooks (Zapier, etc.)
-app.use('/api/webhook/crm', express.json()); // CRM webhook (NO AUTH - secured by header secret + signature)
+app.use('/api/webhook/crm', express.json({ limit: '500kb' })); // CRM webhook (NO AUTH - secured by header secret + signature)
 
 // ✅ OTHER ROUTES - JSON PARSE
 app.use(express.json());
