@@ -566,6 +566,22 @@ export function applyLeakFilter(response, verificationState = 'none', language =
   return { safe: true, action: GuardrailAction.PASS, leaks: [], sanitized: response, telemetry: null };
 }
 
+/**
+ * Detect if user message contains a specific entity reference (order no, ticket no, tracking no).
+ * Used to determine if a fresh tool call is required even for verified users.
+ */
+function containsEntityReference(text) {
+  if (!text) return false;
+  const normalized = String(text).replace(/[\u0130\u0131]/g, 'i').toLowerCase();
+  // Order numbers: ORD-123456, SIP-123456, SIP_123456, or plain patterns
+  if (/\b(ord|sip|order)[-_ ]?\d{4,}/i.test(normalized)) return true;
+  // Ticket/service numbers: TCK-1234, SRV-1234, SERVIS-1234
+  if (/\b(tck|ticket|srv|servis)[-_ ]?\d{3,}/i.test(normalized)) return true;
+  // Tracking numbers: SHP471656, YRT789012, PTT12345, MNG12345
+  if (/\b(shp|yrt|ptt|mng|ups|hn)\d{4,}/i.test(normalized)) return true;
+  return false;
+}
+
 function detectClaimGateTopic({ intent = null, activeFlow = null, userMessage = '' }) {
   const normalizedIntent = String(intent || '').toLowerCase();
   const normalizedFlow = String(activeFlow || '').toUpperCase();
@@ -642,11 +658,17 @@ export function evaluateToolRequiredClaimGate({
     return { needsMinInfo: false };
   }
 
-  // If verification already passed, data was fetched in a previous turn.
-  // Allow follow-up questions without requiring the tool again.
+  // If verification already passed, allow follow-up questions (e.g. "ne zaman gelecek?")
+  // BUT if user message contains a NEW entity reference (order no, ticket no, tracking no),
+  // a fresh tool call is required — conversation history data may be stale or wrong.
   if (verificationState === 'verified') {
-    console.log(`✅ [ClaimGate] Skipping ${topic} — verification already passed, data available from previous turn`);
-    return { needsMinInfo: false };
+    const hasNewEntity = containsEntityReference(userMessage);
+    if (!hasNewEntity) {
+      console.log(`✅ [ClaimGate] Skipping ${topic} — verified + no new entity ref (follow-up OK)`);
+      return { needsMinInfo: false };
+    }
+    console.warn(`⚠️ [ClaimGate] Verified but new entity ref detected in message — requiring fresh tool call for ${topic}`);
+    // Fall through → require tool call
   }
 
   return {

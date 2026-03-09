@@ -20,6 +20,24 @@ const FLOW_TOOL_OVERRIDES = Object.freeze({
 });
 const VERIFICATION_FLOWS = Object.freeze(['ORDER_STATUS', 'DEBT_INQUIRY', 'TRACKING_INFO', 'TICKET_STATUS', 'ACCOUNT_LOOKUP']);
 
+/**
+ * Detect specific entity references (order no, ticket no, tracking no) in user message.
+ * Returns the matched entity string or null.
+ */
+function detectEntityInMessage(text) {
+  if (!text) return null;
+  // Order numbers: ORD-123456, SIP-123456, or with space/underscore
+  const orderMatch = text.match(/\b(ORD[-_ ]?\d{4,}|SIP[-_ ]?\d{4,})\b/i);
+  if (orderMatch) return orderMatch[0];
+  // Ticket/service numbers: TCK-1234, SRV-1234
+  const ticketMatch = text.match(/\b(TCK[-_ ]?\d{3,}|SRV[-_ ]?\d{3,})\b/i);
+  if (ticketMatch) return ticketMatch[0];
+  // Tracking numbers: SHP471656, YRT789012, PTT12345
+  const trackingMatch = text.match(/\b(SHP|YRT|PTT|MNG|UPS|HN)\d{4,}\b/i);
+  if (trackingMatch) return trackingMatch[0];
+  return null;
+}
+
 function getToolAllowlistMode() {
   const mode = String(process.env.TOOL_ALLOWLIST_MODE || 'flow_scoped')
     .toLowerCase()
@@ -480,6 +498,23 @@ KURALLAR:
 - Sipariş sorgusu: SADECE sipariş numarası sor. Telefon, isim, soyisim isteme. Sıra: sipariş no → doğrulama (sistem otomatik isteyecek).
 - Eksik bilgi tamamlanmadan tool çağırma.
 - Tool sonucu olmadan hesap/sipariş/kişisel claim üretme.`;
+
+  // ========================================
+  // ENTITY-AWARE FORCED TOOL CALL
+  // ========================================
+  // If user message contains a specific entity reference (order no, ticket no, tracking no),
+  // inject a mandatory tool call instruction. Prevents LLM from using stale conversation
+  // history data instead of making a fresh lookup.
+  const entityRefMatch = detectEntityInMessage(userMessage);
+  if (entityRefMatch) {
+    enhancedSystemPrompt += `
+
+## ZORUNLU TOOL ÇAĞRISI
+Kullanıcı mesajında spesifik bir kayıt referansı var: "${entityRefMatch}".
+- Bu kayıt için MUTLAKA customer_data_lookup tool'unu çağır.
+- Önceki konuşma geçmişindeki verileri KULLANMA — her sorgu için taze veri al.
+- Tool çağırmadan sipariş durumu, kargo bilgisi, servis durumu PAYLAŞMA.`;
+  }
 
   // LLM decides whether to call tools; backend only passes allowlisted tools.
   const allToolNames = toolsAll.map(t => t.function?.name).filter(Boolean);
