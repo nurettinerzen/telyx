@@ -21,8 +21,18 @@ const prisma = new PrismaClient();
 // In-memory cache for active sessions
 const stateCache = new Map();
 
-// TTL: 30 minutes of inactivity
-const STATE_TTL_MS = 30 * 60 * 1000;
+// Default TTL: 30 minutes of inactivity (chat/whatsapp).
+const DEFAULT_STATE_TTL_MS = 30 * 60 * 1000;
+// Email flows are naturally slower and can span hours/days.
+const EMAIL_STATE_TTL_MS = (parseInt(process.env.EMAIL_STATE_TTL_HOURS, 10) || 72) * 60 * 60 * 1000;
+
+function resolveStateTTL(sessionId) {
+  const normalizedSessionId = String(sessionId || '');
+  if (normalizedSessionId.startsWith('email_')) {
+    return EMAIL_STATE_TTL_MS;
+  }
+  return DEFAULT_STATE_TTL_MS;
+}
 
 /**
  * Deep merge two objects
@@ -107,12 +117,14 @@ export function createInitialState(sessionId) {
  * - Returns fresh state if expired or not found
  */
 export async function getState(sessionId) {
+  const ttlMs = resolveStateTTL(sessionId);
+
   // 1. Check cache (with TTL validation)
   const cached = stateCache.get(sessionId);
   if (cached) {
     const lastActivity = cached.lastActivity ? new Date(cached.lastActivity).getTime() : 0;
     const now = Date.now();
-    if (now - lastActivity > STATE_TTL_MS) {
+    if (now - lastActivity > ttlMs) {
       // Cache entry expired — remove and create fresh state
       console.log(`[StateManager] Cache expired for session ${sessionId} (idle ${Math.round((now - lastActivity) / 60000)}min)`);
       stateCache.delete(sessionId);
@@ -173,6 +185,7 @@ export async function getState(sessionId) {
  */
 export async function updateState(sessionId, updates) {
   console.log(`[StateManager] Updating state for session ${sessionId}`);
+  const ttlMs = resolveStateTTL(sessionId);
 
   // 1. Get current state
   const currentState = await getState(sessionId);
@@ -192,7 +205,7 @@ export async function updateState(sessionId, updates) {
   stateCache.set(sessionId, mergedState);
 
   // 5. Write full state to DB
-  const expiresAt = new Date(Date.now() + STATE_TTL_MS);
+  const expiresAt = new Date(Date.now() + ttlMs);
 
   try {
     await prisma.conversationState.upsert({

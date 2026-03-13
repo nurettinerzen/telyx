@@ -423,16 +423,23 @@ export async function execute(args, business, context = {}) {
     const sessionId = context.sessionId || context.conversationId;
     const language = business.language || 'TR';
     const state = context.state || {};
-    const verificationState = state.verification?.status || state.verificationStatus || 'none';
+    const verificationState = state.verification?.status || state.verificationStatus || state.verification?.state || 'none';
     const isSessionVerified = verificationState === 'verified';
 
     // P0-C SECURITY FIX: verification_input ONLY accepted when state is pending/failed
     // Prevents LLM single-shot bypass (sending all params in one call)
     const isVerificationPending = verificationState === 'pending' || verificationState === 'failed';
-    const pendingAskFor = state.verification?.pendingField || null;
+    const verificationAnchor = state.verification?.anchor || state.verificationAnchor || null;
+    const pendingAskForRaw =
+      state.verification?.pendingField ||
+      state.verification?.askFor ||
+      state.pendingVerificationField ||
+      null;
+    const pendingAskFor = Array.isArray(pendingAskForRaw) ? pendingAskForRaw[0] : pendingAskForRaw;
+    const inferredAskFor = pendingAskFor || (verificationAnchor?.phone ? 'phone_last4' : null);
     const expectsPhoneLast4 = isVerificationPending &&
-      pendingAskFor === 'phone_last4' &&
-      Boolean(state.verification?.anchor?.phone);
+      inferredAskFor === 'phone_last4' &&
+      Boolean(verificationAnchor?.phone);
     const normalizedVerificationCandidate = normalizeVerificationCandidate(
       verification_input,
       customer_name,
@@ -485,7 +492,7 @@ export async function execute(args, business, context = {}) {
       hasState: !!state,
       hasVerification: !!state.verification,
       status: verificationState,
-      hasAnchor: !!state.verification?.anchor,
+      hasAnchor: !!verificationAnchor,
       pendingAskFor,
       hasVerificationInput: !!effectiveVerificationInput,
       verificationInput: effectiveVerificationInput
@@ -496,7 +503,7 @@ export async function execute(args, business, context = {}) {
 
     if (
       isVerificationPending &&
-      state.verification?.anchor &&
+      verificationAnchor &&
       expectsPhoneLast4 &&
       effectiveVerificationInput &&
       !looksLikePhoneVerification
@@ -504,7 +511,7 @@ export async function execute(args, business, context = {}) {
       // Strict mode: when system asks for phone last4, do not accept pure name responses.
       return requestExpectedVerificationInput({
         language,
-        anchor: state.verification.anchor,
+        anchor: verificationAnchor,
         askFor: 'phone_last4'
       });
     }
@@ -512,11 +519,11 @@ export async function execute(args, business, context = {}) {
     // P0-UX FIX: Process verification with ANY verification input (name OR phone_last4)
     // RECOVERY: Also handle 'failed' status — if user provides correct input, forgive past mistakes
     // Note: isVerificationPending already computed above (P0-C fix)
-    if (isVerificationPending && state.verification?.anchor && effectiveVerificationInput) {
-      console.log('🔐 [Verification] Processing verification (status:', state.verification.status, ')');
-      console.log('🔐 [Verification] Input:', effectiveVerificationInput, '| Anchor phone:', state.verification.anchor.phone);
+    if (isVerificationPending && verificationAnchor && effectiveVerificationInput) {
+      console.log('🔐 [Verification] Processing verification (status:', verificationState, ')');
+      console.log('🔐 [Verification] Input:', effectiveVerificationInput, '| Anchor phone:', verificationAnchor.phone);
 
-      const anchor = state.verification.anchor;
+      const anchor = verificationAnchor;
       const pendingVerificationQueryType = resolveVerificationQueryType({
         queryType: normalizedQueryType,
         anchor,
@@ -602,15 +609,15 @@ export async function execute(args, business, context = {}) {
 
     // If verification is pending but the user did not provide verification input
     // and also did not provide a new lookup identifier, keep requesting verification.
-    if (isVerificationPending && state.verification?.anchor && !effectiveVerificationInput && !hasLookupIdentifier) {
+    if (isVerificationPending && verificationAnchor && !effectiveVerificationInput && !hasLookupIdentifier) {
       const reminderVerificationQueryType = resolveVerificationQueryType({
         queryType: normalizedQueryType,
-        anchor: state.verification.anchor,
-        sourceTable: state.verification.anchor?.sourceTable,
+        anchor: verificationAnchor,
+        sourceTable: verificationAnchor?.sourceTable,
         isAccountingQuery
       });
       const verificationReminder = checkVerification(
-        state.verification.anchor,
+        verificationAnchor,
         null,
         reminderVerificationQueryType,
         language
@@ -973,7 +980,7 @@ export async function execute(args, business, context = {}) {
       queryType: normalizedQueryType
     };
 
-    const previousVerificationAnchor = state.verification?.anchor || null;
+    const previousVerificationAnchor = state.verification?.anchor || state.verificationAnchor || null;
     const sameVerificationScope = isSameVerificationScope(previousVerificationAnchor, anchor);
     const hasPreviousVerificationAnchor = Boolean(previousVerificationAnchor?.id);
     console.log('🔐 [Debug] Identity switch check:', {

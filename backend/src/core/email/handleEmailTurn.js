@@ -168,6 +168,25 @@ export async function handleEmailTurn(params) {
     try {
       const threadState = await getState(emailSessionId);
       ctx.emailVerificationState = threadState || { verification: { status: 'none' } };
+
+      // Backward compatibility: normalize older verification shape into state.verification.
+      if (!ctx.emailVerificationState.verification) {
+        ctx.emailVerificationState.verification = {
+          status: ctx.emailVerificationState.verificationStatus || 'none',
+          pendingField: ctx.emailVerificationState.pendingVerificationField || null,
+          anchor: ctx.emailVerificationState.verificationAnchor || null,
+          attempts: Number.isFinite(ctx.emailVerificationState.verificationAttempts)
+            ? ctx.emailVerificationState.verificationAttempts
+            : 0
+        };
+      }
+
+      console.log('📧 [EmailTurn] Verification state loaded:', {
+        status: ctx.emailVerificationState?.verification?.status || 'none',
+        pendingField: ctx.emailVerificationState?.verification?.pendingField || null,
+        hasAnchor: Boolean(ctx.emailVerificationState?.verification?.anchor),
+        attempts: ctx.emailVerificationState?.verification?.attempts || 0
+      });
     } catch (stateErr) {
       console.warn('⚠️ [EmailTurn] Failed to load email verification state:', stateErr.message);
       ctx.emailVerificationState = { verification: { status: 'none' } };
@@ -369,6 +388,12 @@ export async function handleEmailTurn(params) {
     if (ctx.emailVerificationState?.verification?.status !== 'none') {
       try {
         await updateState(emailSessionId, ctx.emailVerificationState);
+        console.log('📧 [EmailTurn] Verification state persisted:', {
+          status: ctx.emailVerificationState?.verification?.status || 'none',
+          pendingField: ctx.emailVerificationState?.verification?.pendingField || null,
+          hasAnchor: Boolean(ctx.emailVerificationState?.verification?.anchor),
+          attempts: ctx.emailVerificationState?.verification?.attempts || 0
+        });
       } catch (stateErr) {
         console.warn('⚠️ [EmailTurn] Failed to persist email verification state:', stateErr.message);
       }

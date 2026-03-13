@@ -96,7 +96,7 @@ export function extractVerificationInputFromText(rawText, askForField) {
   if (!text) return null;
 
   const normalizedAskFor = String(askForField || '').toLowerCase();
-  if (normalizedAskFor !== 'phone_last4') {
+  if (normalizedAskFor !== 'phone_last4' && normalizedAskFor !== 'phone') {
     return null;
   }
 
@@ -137,11 +137,18 @@ export function hydrateLookupArgsWithVerificationInput({
     return { args: toolArgs, hydrated: false };
   }
 
-  const verificationStatus = emailState?.verification?.status;
+  const verificationStatus = emailState?.verification?.status || emailState?.verificationStatus;
   const isVerificationPending = verificationStatus === 'pending' || verificationStatus === 'failed';
-  const askForField = emailState?.verification?.pendingField || null;
+  const verificationAnchor = emailState?.verification?.anchor || emailState?.verificationAnchor || null;
+  const pendingFieldRaw =
+    emailState?.verification?.pendingField ||
+    emailState?.verification?.askFor ||
+    emailState?.pendingVerificationField ||
+    null;
+  const askForField = Array.isArray(pendingFieldRaw) ? pendingFieldRaw[0] : pendingFieldRaw;
+  const inferredAskForField = askForField || (verificationAnchor?.phone ? 'phone_last4' : null);
 
-  if (!isVerificationPending || !askForField) {
+  if (!isVerificationPending || !inferredAskForField) {
     return { args: toolArgs, hydrated: false };
   }
 
@@ -149,10 +156,21 @@ export function hydrateLookupArgsWithVerificationInput({
     return { args: toolArgs, hydrated: false };
   }
 
-  const candidates = collectInboundVerificationCandidates(inboundMessage, threadMessages);
+  const directCandidates = [];
+  const addDirectCandidate = (value) => {
+    if (value === undefined || value === null) return;
+    const normalized = String(value).trim();
+    if (!normalized) return;
+    directCandidates.push(normalized);
+  };
+
+  addDirectCandidate(toolArgs?.phone);
+  addDirectCandidate(toolArgs?.customer_name);
+
+  const candidates = [...directCandidates, ...collectInboundVerificationCandidates(inboundMessage, threadMessages)];
   for (const candidate of candidates) {
     const cleaned = cleanEmailText(candidate, 'INBOUND').cleanedText || candidate;
-    const extracted = extractVerificationInputFromText(cleaned, askForField);
+    const extracted = extractVerificationInputFromText(cleaned, inferredAskForField);
     if (!extracted) {
       continue;
     }
@@ -163,7 +181,7 @@ export function hydrateLookupArgsWithVerificationInput({
         verification_input: extracted
       },
       hydrated: true,
-      askForField
+      askForField: inferredAskForField
     };
   }
 
