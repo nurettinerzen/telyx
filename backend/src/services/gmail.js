@@ -269,9 +269,12 @@ class GmailService {
       const listParams = {
         userId: 'me',
         maxResults,
-        labelIds,
         q: query
       };
+      // Only add labelIds if query doesn't already contain in:inbox (avoid redundancy)
+      if (labelIds?.length && !query.includes('in:inbox')) {
+        listParams.labelIds = labelIds;
+      }
       if (pageToken) listParams.pageToken = pageToken;
 
       const response = await gmail.users.messages.list(listParams);
@@ -419,10 +422,11 @@ async syncNewMessages(businessId) {
     // Her zaman son 7 günün maillerini çek.
     // lastSyncedAt kullanmıyoruz çünkü sayfa yenilenince SSE kesilir,
     // DB'ye kaydedilmemiş mailler kaybolurdu. Duplicate'ler saveMessageToDb'de atlanır (isNew: false).
-    const sevenDaysAgo = Math.floor((Date.now() - 7 * 24 * 60 * 60 * 1000) / 1000);
-    query += ` after:${sevenDaysAgo}`;
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const afterDate = `${sevenDaysAgo.getFullYear()}/${String(sevenDaysAgo.getMonth() + 1).padStart(2, '0')}/${String(sevenDaysAgo.getDate()).padStart(2, '0')}`;
+    query += ` after:${afterDate}`;
 
-    console.log(`📧 [Gmail Sync] Fetching last 7 days (after: ${new Date(sevenDaysAgo * 1000).toISOString()})`);
+    console.log(`📧 [Gmail Sync] Fetching last 7 days (after: ${afterDate})`);
 
     // Paginate through ALL pages — Gmail API returns max ~100 IDs per page
     let allMessages = [];
