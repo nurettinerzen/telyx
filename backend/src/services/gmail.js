@@ -266,13 +266,15 @@ class GmailService {
         pageToken = null
       } = options;
 
-      const response = await gmail.users.messages.list({
+      const listParams = {
         userId: 'me',
         maxResults,
         labelIds,
-        q: query,
-        pageToken
-      });
+        q: query
+      };
+      if (pageToken) listParams.pageToken = pageToken;
+
+      const response = await gmail.users.messages.list(listParams);
 
       const messages = response.data.messages || [];
       const fullMessages = [];
