@@ -10,7 +10,6 @@
  * - Thread history
  */
 
-import OpenAI from 'openai';
 import { getDateTimeContext } from '../../../utils/dateTime.js';
 import { buildAssistantPrompt, getActiveTools } from '../../../services/promptBuilder.js';
 import {
@@ -32,10 +31,7 @@ import {
   getFactGroundingInstructions
 } from '../policies/toolRequiredPolicy.js';
 import { sanitizeToolResults } from '../toolResultSanitizer.js';
-import { executeTool } from '../../../tools/index.js';
 import { ToolOutcome, normalizeOutcome } from '../../../tools/toolResult.js';
-import { tryAutoverify } from '../../../security/autoverify.js';
-import { applyOutcomeEventsToState, deriveOutcomeEvents } from '../../../security/outcomePolicy.js';
 import {
   estimateTokens,
   recordTokenAccuracy
@@ -60,10 +56,6 @@ import {
 } from '../../../services/responseGrounding.js';
 import { logEntityResolver } from '../../../services/entityResolverTelemetry.js';
 import { isFeatureEnabled } from '../../../config/feature-flags.js';
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
 
 function collectInboundVerificationCandidates(inboundMessage, threadMessages = []) {
   const candidates = [];
@@ -189,21 +181,21 @@ export function hydrateLookupArgsWithVerificationInput({
 }
 
 /**
- * Generate email draft content
+ * Phase 1: Prepare email prompts + RAG retrieval
+ *
+ * Runs BEFORE Step 5 tool loop. Builds system/user prompts
+ * and stores them on ctx for the Gemini tool loop to use.
  *
  * @param {Object} ctx - Pipeline context
- * @returns {Promise<Object>} { success, inputTokens, outputTokens, error? }
+ * @returns {Promise<Object>} { success, error? }
  */
-export async function generateEmailDraft(ctx) {
+export async function prepareEmailPrompts(ctx) {
   const {
     businessId,
     business,
     assistant,
     inboundMessage,
-    threadMessages,
     knowledgeItems,
-    toolResults,
-    customerData,
     classification,
     language,
     styleProfile,
@@ -213,6 +205,8 @@ export async function generateEmailDraft(ctx) {
     customerEmail,
     customerName,
     feedback,
+    threadMessages,
+    customerData,
     options = {}
   } = ctx;
 
@@ -269,10 +263,9 @@ export async function generateEmailDraft(ctx) {
           classification,
           maxExamples: ragSettings.maxExamples || 3
         });
-        console.log(`📚 [GenerateDraft] Retrieved ${ragExamples.length} RAG examples`);
+        console.log(`📚 [PreparePrompts] Retrieved ${ragExamples.length} RAG examples`);
       } catch (ragError) {
-        // RAG failure should not block draft generation
-        console.warn('⚠️ [GenerateDraft] RAG retrieval failed:', ragError.message);
+        console.warn('⚠️ [PreparePrompts] RAG retrieval failed:', ragError.message);
       }
     }
 
@@ -288,30 +281,26 @@ export async function generateEmailDraft(ctx) {
           maxSnippets: ragSettings.maxSnippets || 2
         });
 
-        // Resolve variables in selected snippets
         for (const snippet of selectedSnippets) {
           const resolved = applyVariablesToSnippet(snippet, snippet.availableVars || {});
           resolvedSnippets.push(resolved);
-
-          // Record usage for analytics
           if (snippet.id) {
-            recordSnippetUsage(snippet.id).catch(() => {}); // Fire and forget
+            recordSnippetUsage(snippet.id).catch(() => {});
           }
         }
 
-        console.log(`📋 [GenerateDraft] Applied ${resolvedSnippets.length} snippets`);
+        console.log(`📋 [PreparePrompts] Applied ${resolvedSnippets.length} snippets`);
       } catch (snippetError) {
-        console.warn('⚠️ [GenerateDraft] Snippet selection failed:', snippetError.message);
+        console.warn('⚠️ [PreparePrompts] Snippet selection failed:', snippetError.message);
       }
     }
 
-    const ragLatencyMs = Date.now() - ragStartTime;
+    ctx._ragLatencyMs = Date.now() - ragStartTime;
 
-    // NEW: Retrieve similar email PAIRS for tone/style matching
+    // Retrieve similar email PAIRS for tone/style matching
     let similarPairs = [];
     let pairConfidence = 0;
     try {
-      // Classify inbound tone first
       const inboundText = inboundMessage?.bodyText || inboundMessage?.body || '';
       const cleanedInbound = cleanEmailText(inboundText, 'INBOUND');
       const toneResult = await classifyTone(cleanedInbound.cleanedText, 'INBOUND');
@@ -325,25 +314,15 @@ export async function generateEmailDraft(ctx) {
         k: 3
       });
 
-      pairConfidence = similarPairs.length > 0
-        ? similarPairs[0].totalScore
-        : 0;
-
-      console.log(`🎯 [GenerateDraft] Retrieved ${similarPairs.length} similar pairs (confidence: ${(pairConfidence * 100).toFixed(1)}%)`);
-
-      if (similarPairs.length === 0) {
-        console.warn('⚠️ [GenerateDraft] No similar pairs found - tone match confidence low');
-      }
+      pairConfidence = similarPairs.length > 0 ? similarPairs[0].totalScore : 0;
+      console.log(`🎯 [PreparePrompts] Retrieved ${similarPairs.length} similar pairs (confidence: ${(pairConfidence * 100).toFixed(1)}%)`);
     } catch (pairError) {
-      console.warn('⚠️ [GenerateDraft] Pair retrieval failed:', pairError.message);
+      console.warn('⚠️ [PreparePrompts] Pair retrieval failed:', pairError.message);
     }
 
-    // CRITICAL: Sanitize tool results before LLM
-    // - Remove PII-sensitive fields
-    // - Slim verbose data
-    // - Enforce size limits
-    const sanitizedToolResults = toolResults ? sanitizeToolResults(toolResults, {
-      strict: false, // Don't be too aggressive - business data is important
+    // Sanitize any existing tool results (from previous turns in thread)
+    const sanitizedToolResults = ctx.toolResults ? sanitizeToolResults(ctx.toolResults, {
+      strict: false,
       maxTokensPerTool: 3000
     }) : [];
 
@@ -354,12 +333,12 @@ export async function generateEmailDraft(ctx) {
       ragExamples
     });
 
-    // Build system prompt with sanitized tool results
+    // Build system prompt
     const systemPrompt = buildEmailSystemPrompt({
       business,
       assistant,
       knowledgeItems,
-      toolResults: sanitizedToolResults, // Use sanitized version
+      toolResults: sanitizedToolResults,
       customerData,
       language,
       styleProfile,
@@ -369,15 +348,15 @@ export async function generateEmailDraft(ctx) {
       ragExamples,
       snippets: resolvedSnippets,
       factGrounding,
-      similarPairs, // NEW: Pass similar pairs for tone/style matching
-      pairConfidence, // NEW: Pass confidence score
+      similarPairs,
+      pairConfidence,
       businessIdentity,
       entityResolution,
       kbConfidence,
       hasKBMatch
     });
 
-    // Build user prompt (the email to reply to)
+    // Build user prompt
     const userPrompt = buildEmailUserPrompt({
       inboundMessage,
       threadMessages,
@@ -387,139 +366,60 @@ export async function generateEmailDraft(ctx) {
       feedback
     });
 
-    // ─── LLM call with function calling (tool loop) ──────────────
-    const MAX_TOOL_ROUNDS = 3;
-    const messages = [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt }
-    ];
+    // Store on ctx for Step 5 tool loop
+    ctx.systemPrompt = systemPrompt;
+    ctx.userPrompt = userPrompt;
+    ctx.ragExamples = ragExamples;
+    ctx.resolvedSnippets = resolvedSnippets;
+    ctx.ragSettings = ragSettings;
 
-    // Build OpenAI tools array from gated tool definitions
-    const openaiTools = (ctx.gatedToolDefs || []).length > 0
-      ? ctx.gatedToolDefs.map(t => ({ type: 'function', function: t.function }))
-      : undefined;
+    console.log(`✅ [PreparePrompts] Prompts built (system: ${systemPrompt.length} chars, user: ${userPrompt.length} chars)`);
 
-    let response;
-    let totalInputTokens = 0;
-    let totalOutputTokens = 0;
+    return { success: true };
 
-    for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
-      response = await openai.chat.completions.create({
-        model: 'gpt-4o',
-        messages,
-        tools: openaiTools,
-        temperature: 0.7,
-        max_tokens: 1500
-      });
+  } catch (error) {
+    console.error('❌ [PreparePrompts] Error:', error);
+    return { success: false, error: error.message };
+  }
+}
 
-      totalInputTokens += response.usage?.prompt_tokens || 0;
-      totalOutputTokens += response.usage?.completion_tokens || 0;
+/**
+ * Phase 2: Finalize email draft (post-processing after Step 5 tool loop)
+ *
+ * Applies grounding checks, records metrics, validates draft content.
+ * ctx.draftContent should already exist from Step 5 tool loop.
+ *
+ * @param {Object} ctx - Pipeline context
+ * @returns {Promise<Object>} { success, inputTokens, outputTokens, error? }
+ */
+export async function generateEmailDraft(ctx) {
+  const {
+    businessId,
+    business,
+    inboundMessage,
+    classification,
+    language,
+    subject,
+    options = {}
+  } = ctx;
 
-      const assistantMsg = response.choices[0]?.message;
+  try {
+    const effectiveBusinessId = businessId || business?.id;
+    const inboundTextForEntity = inboundMessage?.bodyText || inboundMessage?.body || subject || '';
 
-      if (!assistantMsg?.tool_calls || assistantMsg.tool_calls.length === 0) {
-        break; // No tool calls — LLM is done, draft is ready
-      }
-
-      // LLM wants to call tools — add its message and execute each tool
-      messages.push(assistantMsg);
-
-      for (const toolCall of assistantMsg.tool_calls) {
-        const toolName = toolCall.function.name;
-        let toolArgs;
-        try {
-          toolArgs = JSON.parse(toolCall.function.arguments);
-        } catch {
-          toolArgs = {};
-        }
-
-        console.log(`📧 [DraftToolLoop] LLM calling: ${toolName}`, Object.keys(toolArgs));
-
-        // Use thread-scoped verification state (persists across drafts)
-        const emailState = ctx.emailVerificationState || { verification: { status: 'none' } };
-        const hydratedArgs = hydrateLookupArgsWithVerificationInput({
-          toolName,
-          toolArgs,
-          emailState,
-          inboundMessage: ctx.inboundMessage,
-          threadMessages: ctx.threadMessages
-        });
-        if (hydratedArgs.hydrated) {
-          toolArgs = hydratedArgs.args;
-          console.log(`📧 [DraftToolLoop] Hydrated verification_input for ${toolName} (askFor=${hydratedArgs.askForField})`);
-        }
-
-        const result = await executeTool(toolName, toolArgs, business, {
-          channel: 'EMAIL',
-          fromEmail: ctx.customerEmail || null,
-          sessionId: ctx.thread?.id,
-          messageId: ctx.inboundMessage?.id,
-          language: ctx.language,
-          state: emailState
-        });
-
-        // Attempt autoverify using email identity
-        const autoverifyResult = await tryAutoverify({
-          toolResult: result,
-          toolName,
-          business,
-          state: emailState,
-          language: ctx.language,
-          metrics: ctx.metrics
-        });
-
-        if (autoverifyResult.applied) {
-          console.log('📧 [DraftToolLoop] Autoverify succeeded');
-        }
-
-        // Apply outcome events to email verification state (for TTL + cross-anchor reuse)
-        const outcomeEvents = deriveOutcomeEvents({ toolName, toolResult: result });
-        if (outcomeEvents.length > 0) {
-          applyOutcomeEventsToState(emailState, outcomeEvents);
-        }
-
-        const askForField = result.askFor || result.data?.askFor || null;
-
-        // Store tool result for metrics/guardrails
-        ctx.toolResults.push({
-          toolName,
-          args: toolArgs,
-          outcome: normalizeOutcome(result.outcome) || (result.success ? ToolOutcome.OK : ToolOutcome.INFRA_ERROR),
-          success: result.success,
-          data: result.data || null,
-          message: result.message,
-          askFor: askForField,
-          _askFor: askForField || result._askFor || result.askFor || null
-        });
-
-        // If we got customer data, store it prominently
-        if (toolName === 'customer_data_lookup' && result.success && result.data) {
-          ctx.customerData = result.data;
-        }
-
-        // Send tool result back to LLM
-        messages.push({
-          role: 'tool',
-          tool_call_id: toolCall.id,
-          content: JSON.stringify({
-            outcome: result.outcome,
-            success: result.success,
-            data: result.data,
-            message: result.message,
-            askFor: askForField
-          })
-        });
-      }
-    }
-
-    const draftContent = response.choices[0]?.message?.content || '';
+    const draftContent = ctx.draftContent || '';
 
     if (!draftContent || draftContent.trim().length === 0) {
       return {
         success: false,
-        error: 'LLM returned empty draft'
+        error: 'No draft content produced (Step 5 tool loop may have failed)'
       };
     }
+
+    const kbConfidence = ctx.kbConfidence || 'LOW';
+    const hasKBMatch = ctx.hasKBMatch || false;
+    const entityResolution = ctx.entityResolution || null;
+    const businessIdentity = ctx.businessIdentity || null;
 
     const hadToolSuccess = ctx.toolResults.some((toolResult) =>
       normalizeOutcome(toolResult?.outcome) === ToolOutcome.OK
@@ -547,36 +447,36 @@ export async function generateEmailDraft(ctx) {
 
     ctx.responseGrounding = responseGrounding;
     ctx.draftContent = groundedDraftContent;
-    ctx.rawLLMResponse = response;
 
-    // Store RAG context for metrics
-    ctx.ragExamples = ragExamples;
-    ctx.resolvedSnippets = resolvedSnippets;
-    ctx.ragSettings = ragSettings;
-
-    const inputTokens = totalInputTokens;
-    const outputTokens = totalOutputTokens;
+    const inputTokens = ctx.inputTokens || 0;
+    const outputTokens = ctx.outputTokens || 0;
 
     // Track token estimation accuracy
-    // Estimate vs actual from OpenAI API
-    const estimatedSystemPrompt = estimateTokens(systemPrompt);
-    const estimatedUserPrompt = estimateTokens(userPrompt);
-    const estimatedTotal = estimatedSystemPrompt + estimatedUserPrompt;
+    if (inputTokens > 0 && ctx.systemPrompt) {
+      const estimatedSystemPrompt = estimateTokens(ctx.systemPrompt);
+      const estimatedUserPrompt = estimateTokens(ctx.userPrompt || '');
+      const estimatedTotal = estimatedSystemPrompt + estimatedUserPrompt;
 
-    recordTokenAccuracy(estimatedTotal, inputTokens, 'total_input');
+      recordTokenAccuracy(estimatedTotal, inputTokens, 'total_input');
 
-    if (Math.abs(estimatedTotal - inputTokens) / inputTokens > 0.15) {
-      console.warn(`⚠️ [GenerateDraft] Token estimation off by ${Math.round(((estimatedTotal - inputTokens) / inputTokens) * 100)}%`);
+      if (Math.abs(estimatedTotal - inputTokens) / inputTokens > 0.15) {
+        console.warn(`⚠️ [GenerateDraft] Token estimation off by ${Math.round(((estimatedTotal - inputTokens) / inputTokens) * 100)}%`);
+      }
     }
 
     // Record RAG metrics
+    const ragLatencyMs = ctx._ragLatencyMs || 0;
+    const ragExamples = ctx.ragExamples || [];
+    const resolvedSnippets = ctx.resolvedSnippets || [];
+    const ragSettings = ctx.ragSettings || {};
+
     recordRAGMetrics({
       businessId: effectiveBusinessId,
       threadId: ctx.threadId,
       retrievalLatencyMs: ragLatencyMs,
       examplesFound: ragExamples.length,
       snippetsFound: resolvedSnippets.length,
-      promptTokensBefore: 0, // Would need baseline measurement
+      promptTokensBefore: 0,
       promptTokensAfter: inputTokens,
       ragEnabled: ragSettings.useRAG,
       snippetsEnabled: ragSettings.useSnippets
@@ -590,7 +490,7 @@ export async function generateEmailDraft(ctx) {
         latencyMs: ragLatencyMs,
         examplesUsed: ragExamples.length,
         snippetsUsed: resolvedSnippets.length,
-        factGroundingEnforced: factGrounding.mustUseVerification
+        factGroundingEnforced: ctx.factGrounding?.mustUseVerification || false
       }
     };
 
@@ -662,7 +562,7 @@ function estimateEmailKbConfidence({ knowledgeItems, entityResolution }) {
 /**
  * Build system prompt for email draft generation
  */
-function buildEmailSystemPrompt({
+export function buildEmailSystemPrompt({
   business,
   assistant,
   knowledgeItems,
@@ -822,7 +722,7 @@ Current email classification: ${classification.intent} | Urgency: ${classificati
 /**
  * Build user prompt with email to reply to
  */
-function buildEmailUserPrompt({
+export function buildEmailUserPrompt({
   inboundMessage,
   threadMessages,
   subject,
@@ -1085,4 +985,4 @@ function getToolDataInstructions(toolResults, language) {
   return instructions;
 }
 
-export default { generateEmailDraft };
+export default { prepareEmailPrompts, generateEmailDraft, buildEmailSystemPrompt, buildEmailUserPrompt };

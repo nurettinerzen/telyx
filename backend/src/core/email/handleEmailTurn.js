@@ -16,8 +16,9 @@
  * 2. Fetch Thread (get email history from provider)
  * 3. Classify Email (intent, urgency, needs_tools)
  * 4. Tool Gating (determine which tools are available)
- * 5. Init (no-op — tools called by LLM in Step 6)
- * 6. Generate Draft (LLM generates response + calls tools via function calling)
+ * 5a. Prepare Prompts (build system/user prompts + RAG retrieval)
+ * 5b. Tool Loop (Gemini orchestrator-driven tool execution + draft generation)
+ * 6. Finalize Draft (grounding checks, metrics)
  * 7. Guardrails (recipient, action-claim, verification)
  * 8. Create Draft (save to provider as draft)
  * 9. Persist & Metrics
@@ -28,7 +29,7 @@ import { fetchThreadMessages } from './steps/02_fetchThread.js';
 import { classifyEmail } from './steps/03_classifyEmail.js';
 import { gateEmailTools } from './steps/04_toolGating.js';
 import { executeEmailToolLoop } from './steps/05_toolLoop.js';
-import { generateEmailDraft } from './steps/06_generateDraft.js';
+import { prepareEmailPrompts, generateEmailDraft } from './steps/06_generateDraft.js';
 import { applyEmailGuardrails } from './steps/07_guardrails.js';
 import { createProviderDraft } from './steps/08_createDraft.js';
 import { persistEmailMetrics } from './steps/09_persistAndMetrics.js';
@@ -353,22 +354,42 @@ export async function handleEmailTurn(params) {
     console.log(`✅ [EmailTurn] Tools gated: ${ctx.gatedTools.length} available (${metrics.steps.toolGating}ms)`);
 
     // ============================================
-    // STEP 5: Tool Loop (Read-Only)
+    // STEP 5a: Prepare Prompts (RAG + prompt building)
     // ============================================
-    const step5Start = Date.now();
+    const step5aStart = Date.now();
+    const promptResult = await prepareEmailPrompts(ctx);
+
+    metrics.steps.preparePrompts = Date.now() - step5aStart;
+
+    if (!promptResult.success) {
+      console.error('❌ [EmailTurn] Failed to prepare prompts:', promptResult.error);
+      return {
+        success: false,
+        error: promptResult.error,
+        errorCode: 'PROMPT_PREPARATION_FAILED',
+        metrics
+      };
+    }
+
+    console.log(`✅ [EmailTurn] Prompts prepared (${metrics.steps.preparePrompts}ms)`);
+
+    // ============================================
+    // STEP 5b: Tool Loop (Gemini orchestrator-driven)
+    // ============================================
+    const step5bStart = Date.now();
     const toolLoopResult = await executeEmailToolLoop(ctx);
 
-    metrics.steps.toolLoop = Date.now() - step5Start;
-    console.log(`✅ [EmailTurn] Tool loop init complete (${metrics.steps.toolLoop}ms)`);
+    metrics.steps.toolLoop = Date.now() - step5bStart;
+    console.log(`✅ [EmailTurn] Tool loop complete: ${ctx.toolResults.length} tool calls (${metrics.steps.toolLoop}ms)`);
 
     // ============================================
-    // STEP 6: Generate Draft
+    // STEP 6: Finalize Draft (grounding + metrics)
     // ============================================
     const step6Start = Date.now();
     const generateResult = await generateEmailDraft(ctx);
 
     if (!generateResult.success) {
-      console.error('❌ [EmailTurn] Failed to generate draft:', generateResult.error);
+      console.error('❌ [EmailTurn] Failed to finalize draft:', generateResult.error);
       return {
         success: false,
         error: generateResult.error,
@@ -382,7 +403,7 @@ export async function handleEmailTurn(params) {
     metrics.outputTokens = generateResult.outputTokens;
     metrics.toolsCalled = ctx.toolResults.map(r => r.toolName);
     metrics.hadToolSuccess = ctx.toolResults.some(r => normalizeOutcome(r.outcome) === ToolOutcome.OK);
-    console.log(`✅ [EmailTurn] Draft generated: ${ctx.toolResults.length} tool calls (${metrics.steps.generateDraft}ms)`);
+    console.log(`✅ [EmailTurn] Draft finalized: ${ctx.toolResults.length} tool calls (${metrics.steps.generateDraft}ms)`);
 
     // Persist email verification state after tool execution
     if (ctx.emailVerificationState?.verification?.status !== 'none') {
