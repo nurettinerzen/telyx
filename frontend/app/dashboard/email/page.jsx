@@ -23,8 +23,6 @@ import {
   X,
   Search,
   Paperclip,
-  ChevronDown,
-  ChevronRight,
   Sparkles,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api';
@@ -87,26 +85,30 @@ function dateLabel(dateString, locale) {
 /** Extract quoted content from email body */
 function splitQuotedContent(bodyText) {
   if (!bodyText) return { main: '', quoted: null };
-  // Match common quote headers: "From: ... Date/Sent: ..." with possible lines in between
+  // Normalize line endings
+  const text = bodyText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  // Try each pattern — find the earliest match position
   const patterns = [
-    /\n\s*(?:From|Gönderen|Kimden|De)\s*:.*[\s\S]*?(?:Date|Tarih|Sent|Envoyé)\s*:.*\n/i,
-    /\n\s*(?:From|Gönderen|Kimden|De)\s*:.*\n(?:.*\n){0,3}(?:Date|Tarih|Sent|Envoyé)\s*:.*\n/i,
-    /\n-{3,}\s*\n/,                                        // --- separator
-    /\nOn .+ wrote:\s*\n/i,                                // "On Mon, Jan 1 X wrote:"
-    /\n\s*>+\s/,                                           // > quoted line
+    /^[ \t]*From\s*:.*@/im,                                // "From: ...@..." at line start
+    /^[ \t]*(?:Gönderen|Kimden)\s*:/im,                    // Turkish "From:"
+    /^[ \t]*-{3,}[ \t]*$/m,                                // --- separator on its own line
+    /^[ \t]*On .+ wrote:\s*$/im,                           // "On Mon, Jan 1 X wrote:"
+    /^[ \t]*>+\s/m,                                        // > quoted line at line start
   ];
   let earliest = -1;
   for (const p of patterns) {
-    const idx = bodyText.search(p);
-    if (idx > 0 && (earliest === -1 || idx < earliest)) earliest = idx;
+    const match = p.exec(text);
+    if (match && match.index > 0 && (earliest === -1 || match.index < earliest)) {
+      earliest = match.index;
+    }
   }
   if (earliest > 0) {
     return {
-      main: bodyText.substring(0, earliest).trim(),
-      quoted: bodyText.substring(earliest).trim(),
+      main: text.substring(0, earliest).trim(),
+      quoted: text.substring(earliest).trim(),
     };
   }
-  return { main: bodyText, quoted: null };
+  return { main: text, quoted: null };
 }
 
 /** Get message date for sorting/grouping */
@@ -170,8 +172,10 @@ export default function EmailDashboardPage() {
   // ─── Filtered threads ────────────────────────────────────
   const filteredThreads = useMemo(() => {
     if (activeFolder === 'sent') {
+      // Sent folder: show threads that have been replied to (status REPLIED or DRAFT_READY with sent drafts)
       return threads.filter(th =>
-        th.messages?.some(m => m.direction === 'OUTBOUND')
+        th.messages?.some(m => m.direction === 'OUTBOUND') ||
+        ['REPLIED', 'CLOSED'].includes(th.status)
       );
     }
     return threads;
@@ -362,7 +366,7 @@ export default function EmailDashboardPage() {
   // ════════════════════════════════════════════════════════════
 
   return (
-    <div className="flex h-[calc(100vh-64px)] bg-white dark:bg-neutral-950 -m-6 lg:-m-8">
+    <div className="fixed inset-0 lg:left-60 flex bg-white dark:bg-neutral-950 z-10">
 
       {/* ════════ LEFT: MAIL LIST ════════ */}
       <div className="w-[380px] min-w-[380px] border-r border-neutral-200 dark:border-neutral-800 flex flex-col bg-neutral-50 dark:bg-neutral-900">
@@ -581,7 +585,7 @@ export default function EmailDashboardPage() {
 
                 const msg = item.data;
                 const isInbound = msg.direction === 'INBOUND';
-                const { main, quoted } = splitQuotedContent(msg.bodyText);
+                const { main } = splitQuotedContent(msg.bodyText);
 
                 return (
                   <MessageBubble
@@ -589,7 +593,6 @@ export default function EmailDashboardPage() {
                     msg={msg}
                     isInbound={isInbound}
                     mainContent={main}
-                    quotedContent={quoted}
                     locale={locale}
                     customerName={selectedThread.customerName}
                     customerEmail={selectedThread.customerEmail}
@@ -685,8 +688,7 @@ export default function EmailDashboardPage() {
 // MESSAGE CARD COMPONENT (Outlook-style full-width)
 // ════════════════════════════════════════════════════════════
 
-function MessageBubble({ msg, isInbound, mainContent, quotedContent, locale, customerName, customerEmail }) {
-  const [showQuoted, setShowQuoted] = useState(false);
+function MessageBubble({ msg, isInbound, mainContent, locale, customerName, customerEmail }) {
 
   const senderName = isInbound
     ? (msg.fromName || msg.fromEmail || customerName || customerEmail)
@@ -766,25 +768,6 @@ function MessageBubble({ msg, isInbound, mainContent, quotedContent, locale, cus
           </div>
         )}
 
-        {/* Quoted content toggle */}
-        {quotedContent && (
-          <div className="mt-3 pt-2 border-t border-neutral-100 dark:border-neutral-800">
-            <button
-              onClick={() => setShowQuoted(!showQuoted)}
-              className="flex items-center gap-1 text-[11px] text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
-            >
-              {showQuoted ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-              {showQuoted
-                ? (locale === 'tr' ? 'Alıntıyı gizle' : 'Hide quoted text')
-                : (locale === 'tr' ? 'Alıntıyı göster' : 'Show quoted text')}
-            </button>
-            {showQuoted && (
-              <div className="mt-2 pl-3 border-l-2 border-neutral-300 dark:border-neutral-700 text-xs text-neutral-400 dark:text-neutral-500 whitespace-pre-wrap">
-                {quotedContent}
-              </div>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );
