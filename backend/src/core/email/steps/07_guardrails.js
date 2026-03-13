@@ -87,10 +87,21 @@ export async function applyEmailGuardrails(ctx) {
   // ============================================
   // C) VERIFICATION POLICY
   // ============================================
-  const verificationRequired = toolResults?.some(r => normalizeOutcome(r.outcome) === ToolOutcome.VERIFICATION_REQUIRED);
-  // Extract askFor from tool results so the fallback message only asks for the missing field
-  const verificationToolResult = toolResults?.find(r => normalizeOutcome(r.outcome) === ToolOutcome.VERIFICATION_REQUIRED);
-  const askForField = verificationToolResult?.askFor || verificationToolResult?._askFor || null;
+  // Check if verification is STILL required (not already resolved in the same turn).
+  // When the LLM makes 2 tool calls in one turn (first → VERIFICATION_REQUIRED,
+  // second with verification input → OK), the old `.some()` would still see the
+  // stale VERIFICATION_REQUIRED. Fix: if an OK came after the last VR, it's resolved.
+  const verificationRequired = (() => {
+    if (!toolResults?.length) return false;
+    const lastVRIdx = toolResults.findLastIndex(r => normalizeOutcome(r.outcome) === ToolOutcome.VERIFICATION_REQUIRED);
+    if (lastVRIdx === -1) return false;
+    const resolvedAfter = toolResults.slice(lastVRIdx + 1).some(r => normalizeOutcome(r.outcome) === ToolOutcome.OK);
+    return !resolvedAfter;
+  })();
+  // Extract askFor from the unresolved VERIFICATION_REQUIRED (if any)
+  const askForField = verificationRequired
+    ? toolResults?.findLast(r => normalizeOutcome(r.outcome) === ToolOutcome.VERIFICATION_REQUIRED)?._askFor || null
+    : null;
 
   const verificationResult = checkVerificationPolicy(modifiedContent, verificationRequired, language, askForField);
   ctx.guardrailsApplied.push({

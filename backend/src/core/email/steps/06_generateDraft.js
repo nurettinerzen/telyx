@@ -489,7 +489,7 @@ export async function generateEmailDraft(ctx) {
           data: result.data || null,
           message: result.message,
           askFor: askForField,
-          _askFor: askForField
+          _askFor: askForField || result._askFor || result.askFor || null
         });
 
         // If we got customer data, store it prominently
