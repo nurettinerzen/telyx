@@ -680,8 +680,8 @@ ${getToolDataInstructions(toolResults, language)}
 - You are generating a DRAFT that will be reviewed before sending
 - Do NOT claim you have already taken actions (e.g., "I have processed your order")
 - Use tentative language: "I can help with...", "Based on our records...", "I see that..."
-- If tool data is NOT_FOUND (no record at all), ask for clarifying information
-- If tool data is VERIFICATION_REQUIRED (record found, needs identity check), acknowledge what the customer provided and ask ONLY for the missing verification piece
+- ALWAYS use tools to look up data before responding — never skip tool calls to ask for verification directly
+- Base your response on actual tool outcomes (OK, NOT_FOUND, VERIFICATION_REQUIRED)
 
 ### 5. NO PLACEHOLDERS OR INVENTED INFORMATION
 - ABSOLUTELY FORBIDDEN: [Your Name], [Company], [İletişim Bilgileri], etc.
@@ -947,8 +947,8 @@ function buildToolResultsContext(toolResults, customerData, language) {
 function getToolDataInstructions(toolResults, language) {
   if (!toolResults || toolResults.length === 0) {
     return language === 'TR'
-      ? '- Müşteri verisi bulunamadı. Gerekirse doğrulama için bilgi isteyin.'
-      : '- No customer data found. Ask for verification info if needed.';
+      ? '- Henüz müşteri verisi sorgulanmadı. Müşterinin sorusunu yanıtlamak için mevcut tool\'ları kullanarak gerekli verileri sorgula.'
+      : '- Customer data has not been queried yet. Use available tools to look up the data needed to answer the customer\'s question.';
   }
 
   const hasSuccess = toolResults.some(r => normalizeOutcome(r.outcome) === ToolOutcome.OK);
