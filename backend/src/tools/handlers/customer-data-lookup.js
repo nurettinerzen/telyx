@@ -1038,14 +1038,6 @@ export async function execute(args, business, context = {}) {
 
     if (isSessionVerified && sameVerificationScope && !ttlValid) {
       console.log('⏰ [Verification] Same scope but TTL expired — re-verification required');
-      // TTL expired: treat as pending so verification_input is accepted again
-      // and hydration logic can kick in on next turn
-      const askFor = anchor.phone ? 'phone_last4' : 'name';
-      return requestExpectedVerificationInput({
-        language,
-        anchor,
-        askFor
-      });
     }
 
     // Cross-anchor reuse: verified for different record but SAME customer
