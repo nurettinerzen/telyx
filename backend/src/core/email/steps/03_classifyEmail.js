@@ -87,15 +87,23 @@ JSON response:`;
     // Parse JSON response
     let classification;
     try {
-      // Clean response if needed
-      const cleanedResponse = responseText
+      // Clean response — strip markdown, extract JSON object
+      let cleanedResponse = responseText
         .replace(/```json\n?/g, '')
         .replace(/```\n?/g, '')
         .trim();
 
+      // If response contains JSON embedded in text, extract it
+      if (!cleanedResponse.startsWith('{')) {
+        const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          cleanedResponse = jsonMatch[0];
+        }
+      }
+
       classification = JSON.parse(cleanedResponse);
     } catch (parseError) {
-      console.warn('⚠️ [ClassifyEmail] Failed to parse classification, using defaults');
+      console.warn('⚠️ [ClassifyEmail] Failed to parse classification, using defaults. Raw response:', responseText?.substring(0, 200));
       classification = getDefaultClassification();
     }
 
