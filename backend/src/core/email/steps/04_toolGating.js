@@ -64,12 +64,11 @@ export async function gateEmailTools(ctx) {
       return EMAIL_SAFE_TOOLS.includes(toolName) && !EMAIL_BLOCKED_TOOLS.includes(toolName);
     });
 
-    // If classification says no tools needed, disable all
+    // LLM-FIRST: Even if classifier says needs_tools=false, keep read-only tools available.
+    // All EMAIL_SAFE_TOOLS are read-only so there's no risk — LLM decides if it needs data.
+    // This prevents classifier parse failures from blocking legitimate tool usage.
     if (!classification.needs_tools) {
-      console.log('📧 [ToolGating] Classification indicates no tools needed');
-      ctx.gatedTools = [];
-      ctx.gatedToolDefs = [];
-      return { success: true };
+      console.log('📧 [ToolGating] Classification says no tools needed — keeping read-only tools available (LLM-first)');
     }
 
     // NOTE: Confidence-based gating removed for email.

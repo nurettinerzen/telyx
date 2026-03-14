@@ -562,25 +562,19 @@ export async function applyGuardrails(params) {
     }
   }
 
-  // POLICY 1.6: NOT_FOUND claim gate (single clarification, no content rewrite policy)
+  // POLICY 1.6: NOT_FOUND claim gate — REMOVED (LLM-FIRST)
+  // LLM now sees tool outcome (NOT_FOUND) directly and decides how to respond.
+  // No deterministic override needed — LLM naturally asks the right follow-up.
+  // Metrics only: log for observability without blocking.
   const notFoundGate = evaluateNotFoundClaimGate(toolOutputs, { userMessage, intent, activeFlow });
   if (notFoundGate.needsClarification) {
-    const clarification = buildNotFoundClarification(language, notFoundGate.missingFields || []);
     metrics.notFoundClaimGate = {
       reason: notFoundGate.reason,
       toolName: notFoundGate.toolName || null,
-      missingFields: notFoundGate.missingFields || []
-    };
-    return {
-      finalResponse: clarification.text,
-      action: GuardrailAction.NEED_MIN_INFO_FOR_TOOL,
-      blocked: true,
-      blockReason: notFoundGate.reason || 'TOOL_NOT_FOUND',
       missingFields: notFoundGate.missingFields || [],
-      guardrailsApplied: ['RESPONSE_FIREWALL', 'PII_PREVENTION', 'CLAIM_GATE_NOT_FOUND'],
-      messageKey: clarification.messageKey,
-      variantIndex: clarification.variantIndex
+      action: 'LLM_FIRST_PASSTHROUGH'
     };
+    console.log('⚪ [Guardrails] NOT_FOUND claim gate — LLM-first passthrough (no deterministic override)');
   }
 
   // POLICY 1.7: Security Gateway enforcement on tool outputs
@@ -609,26 +603,23 @@ export async function applyGuardrails(params) {
       });
 
       if (gatewayResult.requiresVerification && verificationState !== 'verified') {
-        const missingFields = mapGatewayDeniedFieldsToMissingFields(gatewayResult.deniedFields);
-        const minInfoVariant = resolveMinInfoQuestion({
-          language,
-          missingFields
-        });
-
+        // LLM-FIRST: Don't override with deterministic question.
+        // Use needsCorrection so LLM regenerates naturally without leaking unverified data.
         metrics.securityGatewayVerificationRequired = {
-          missingFields,
-          deniedFields: gatewayResult.deniedFields
+          deniedFields: gatewayResult.deniedFields,
+          action: 'LLM_REGENERATE'
         };
 
+        console.log('🔄 [SecurityGateway] Verification required — LLM will regenerate without unverified data');
         return {
-          finalResponse: minInfoVariant.text,
+          needsCorrection: true,
+          correctionType: 'VERIFICATION_REQUIRED',
+          correctionConstraint: language === 'TR'
+            ? 'Kullanıcının kimliği doğrulanmamış. Hassas sipariş/müşteri verisi paylaşma. Kullanıcıdan doğrulama için gerekli bilgiyi doğal bir şekilde iste.'
+            : 'User identity is not verified. Do not share sensitive order/customer data. Naturally ask the user for verification information.',
           action: GuardrailAction.NEED_MIN_INFO_FOR_TOOL,
-          blocked: true,
-          blockReason: 'VERIFICATION_REQUIRED',
-          missingFields,
-          guardrailsApplied: ['RESPONSE_FIREWALL', 'PII_PREVENTION', 'SECURITY_GATEWAY_VERIFICATION_ENFORCEMENT'],
-          messageKey: minInfoVariant.messageKey,
-          variantIndex: minInfoVariant.variantIndex
+          blocked: false,
+          guardrailsApplied: ['RESPONSE_FIREWALL', 'PII_PREVENTION', 'SECURITY_GATEWAY_VERIFICATION_ENFORCEMENT']
         };
       }
 

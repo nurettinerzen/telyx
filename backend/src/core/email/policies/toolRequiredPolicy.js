@@ -185,22 +185,13 @@ export function enforceToolRequiredPolicy({ classification, toolResults, languag
   const calledRequiredTools = requiredTools.filter(t => toolsCalled.includes(t));
 
   if (calledRequiredTools.length === 0) {
-    // No required tools were called
-    console.warn(`⚠️ [ToolRequired] Intent ${intent} requires tools but none were called`);
-
-    const requiredFields = policy.requiredFields?.length > 0
-      ? [policy.requiredFields[0]]
-      : ['order_number'];
-
+    // LLM-FIRST: LLM sees tool outcomes and decides how to respond.
+    // Don't override draft with deterministic question — LLM already knows
+    // no tools were called and will ask for needed info naturally.
+    console.log(`⚪ [ToolRequired] Intent ${intent} — no required tools called, LLM-first passthrough`);
     return {
-      enforced: true,
-      action: 'NEED_MIN_INFO_FOR_TOOL',
-      message: buildNeedMinInfoQuestion({
-        language,
-        requiredFields,
-        reason: 'NO_TOOLS_CALLED'
-      }),
-      requiredFields,
+      enforced: false,
+      action: 'LLM_FIRST_PASSTHROUGH',
       reason: 'NO_TOOLS_CALLED'
     };
   }
@@ -265,19 +256,12 @@ export function enforceToolRequiredPolicy({ classification, toolResults, languag
     }
 
     if (hasNotFound) {
-      // Data not found - ask one minimal clarification question
-      const requiredFields = policy.requiredFields?.length > 0
-        ? [policy.requiredFields[0]]
-        : ['order_number'];
+      // LLM-FIRST: LLM sees NOT_FOUND outcome and responds naturally.
+      // No deterministic override — LLM knows the record wasn't found.
+      console.log(`⚪ [ToolRequired] Intent ${intent} — NOT_FOUND, LLM-first passthrough`);
       return {
-        enforced: true,
-        action: 'NEED_MIN_INFO_FOR_TOOL',
-        message: buildNeedMinInfoQuestion({
-          language,
-          requiredFields,
-          reason: 'NOT_FOUND'
-        }),
-        requiredFields,
+        enforced: false,
+        action: 'LLM_FIRST_PASSTHROUGH',
         reason: 'NOT_FOUND'
       };
     }

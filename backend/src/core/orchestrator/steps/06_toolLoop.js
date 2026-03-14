@@ -840,23 +840,26 @@ export async function executeToolLoop(params) {
         };
       }
 
-      // P0-2 FIX: Strip internal flags from LLM response
-      // SECURITY: outcome, success, notFound flags are internal - LLM shouldn't see them
-      // Only send: message (for context) and data (if verified)
+      // LLM-FIRST: Show outcome to LLM so it can decide next action naturally.
+      // Strip only internal/anchor data — outcome + message are visible.
       const responseData = {
+        outcome: outcome || 'UNKNOWN',
         message: toolResult.message || null
       };
 
-      // Only include data if outcome is OK (verified data)
-      // VERIFICATION_REQUIRED: Don't leak anchor data to LLM
+      // Include data only if outcome is OK (verified data)
+      // VERIFICATION_REQUIRED: Don't leak anchor/internal data to LLM
       if (outcome === ToolOutcome.OK && toolResult.data) {
         responseData.data = toolResult.data;
       }
 
-      // Log payload for debugging (show what's stripped)
+      // For VERIFICATION_REQUIRED, include askFor hint so LLM knows what to ask
+      if (outcome === ToolOutcome.VERIFICATION_REQUIRED && toolResult._identityContext?.askFor) {
+        responseData.askFor = toolResult._identityContext.askFor;
+      }
+
       console.log(`📤 [ToolLoop] functionResponse for ${toolName}:`, {
-        originalOutcome: toolResult.outcome,
-        strippedFields: ['outcome', 'success', 'notFound', 'verificationRequired'],
+        outcome,
         sentToLLM: JSON.stringify(responseData)
       });
 

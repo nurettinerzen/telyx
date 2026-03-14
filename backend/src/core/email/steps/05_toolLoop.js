@@ -216,15 +216,20 @@ export async function executeEmailToolLoop(ctx) {
           ctx._terminalState = outcome;
         }
 
-        // Build sanitized function response for Gemini
-        // SECURITY: Don't leak outcome/success flags to LLM
+        // LLM-FIRST: Show outcome to LLM so it can decide next action naturally.
         const responseData = {
+          outcome: outcome || 'UNKNOWN',
           message: toolResult.message || null
         };
 
         // Only include data if outcome is OK (verified data)
         if (outcome === ToolOutcome.OK && toolResult.data) {
           responseData.data = toolResult.data;
+        }
+
+        // For VERIFICATION_REQUIRED, include askFor hint
+        if (outcome === ToolOutcome.VERIFICATION_REQUIRED && toolResult._identityContext?.askFor) {
+          responseData.askFor = toolResult._identityContext.askFor;
         }
 
         functionResponses.push({
