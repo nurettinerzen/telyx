@@ -423,15 +423,6 @@ export async function execute(args, business, context = {}) {
     const sessionId = context.sessionId || context.conversationId;
     const language = business.language || 'TR';
 
-    // DEBUG: trace verification flow for E2E diagnosis
-    console.log('🔍 [CDL-DEBUG] Entry:', JSON.stringify({
-      channel: context.channel,
-      order_number, phone, customer_name,
-      verification_input: verification_input ? `${String(verification_input).slice(0,4)}...` : null,
-      verificationStatus: context.state?.verification?.status,
-      anchorValue: context.state?.verification?.anchor?.value,
-      sessionId
-    }));
     const state = context.state || {};
     const verificationState = state.verification?.status || state.verificationStatus || state.verification?.state || 'none';
     const isSessionVerified = verificationState === 'verified';
@@ -1052,7 +1043,6 @@ export async function execute(args, business, context = {}) {
 
     if (isSessionVerified && sameVerificationScope && ttlValid) {
       console.log('✅ [Verification] Same scope + TTL valid — bypassing checkVerification');
-      console.log('🔍 [CDL-DEBUG] SESSION BYPASS:', JSON.stringify({ isSessionVerified, sameVerificationScope, ttlValid, verificationState }));
       const fullResult = getFullResult(record, normalizedQueryType, language);
       return {
         ...ok(fullResult.data, fullResult.message),
@@ -1152,16 +1142,8 @@ export async function execute(args, business, context = {}) {
       verificationInput = null; // Force verification request
     }
 
-    console.log('🔍 [CDL-DEBUG] Pre-checkVerification:', JSON.stringify({
-      verificationInput: verificationInput ? `${String(verificationInput).slice(0,10)}` : null,
-      effectiveVerificationQueryType,
-      isSessionVerified,
-      isVerificationPending,
-      anchorPhone: anchor?.phone?.slice(-4),
-      anchorName: anchor?.name
-    }));
     const verificationCheck = checkVerification(anchor, verificationInput, effectiveVerificationQueryType, language);
-    console.log('🔍 [CDL-DEBUG] checkVerification result:', JSON.stringify({ action: verificationCheck.action, verified: verificationCheck.verified }));
+    console.log('🔐 [Verification] Check result:', verificationCheck.action);
 
     // Handle verification result
     if (verificationCheck.action === 'REQUEST_VERIFICATION') {
