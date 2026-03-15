@@ -20,6 +20,238 @@ import {
 } from './06_generateDraft.js';
 
 const MAX_ITERATIONS = 3;
+const TOOL_ALIASES = Object.freeze({
+  check_order_status: 'customer_data_lookup',
+  check_order_status_crm: 'customer_data_lookup',
+  get_tracking_info: 'customer_data_lookup',
+  order_search: 'customer_data_lookup',
+  appointment_lookup: 'customer_data_lookup',
+  search_products: 'get_product_stock',
+  product_lookup: 'get_product_stock',
+  inventory_check: 'check_stock_crm',
+  price_check: 'check_stock_crm'
+});
+
+const ALIAS_DEFAULT_ARGS = Object.freeze({
+  check_order_status: { query_type: 'siparis' },
+  check_order_status_crm: { query_type: 'siparis' },
+  get_tracking_info: { query_type: 'siparis' },
+  order_search: { query_type: 'siparis' },
+  appointment_lookup: { query_type: 'randevu' }
+});
+
+const ORDER_NUMBER_PATTERN = /\b(?:B\d+-ORD-\d{4}-\d+|ORD-\d{4}-\d+)\b/i;
+const TICKET_NUMBER_PATTERN = /\b(?:TKT-\d{4}-\d+|SRV-\d{4}-\d+)\b/i;
+const FULL_PHONE_PATTERN = /(?:\+?90|0)?5\d{9}\b/;
+const LOOKUP_INTENTS = new Set([
+  'ORDER',
+  'TRACKING',
+  'RETURN',
+  'REFUND',
+  'COMPLAINT',
+  'SUPPORT',
+  'APPOINTMENT',
+  'BILLING',
+  'ACCOUNT'
+]);
+
+function getIntentQueryType(intent) {
+  const normalizedIntent = String(intent || '').toUpperCase();
+  switch (normalizedIntent) {
+    case 'SUPPORT':
+      return 'ariza';
+    case 'APPOINTMENT':
+      return 'randevu';
+    case 'BILLING':
+      return 'muhasebe';
+    default:
+      return 'siparis';
+  }
+}
+
+function getInboundText(ctx) {
+  return String(ctx?.inboundMessage?.bodyText || ctx?.inboundMessage?.body || '').trim();
+}
+
+function collectLookupTextCandidates(ctx) {
+  const candidates = [];
+
+  const push = (value) => {
+    const normalized = String(value || '').trim();
+    if (!normalized) return;
+    if (!candidates.includes(normalized)) {
+      candidates.push(normalized);
+    }
+  };
+
+  push(getInboundText(ctx));
+  push(ctx?.inboundMessage?.snippet);
+  push(ctx?.subject);
+
+  if (Array.isArray(ctx?.threadMessages)) {
+    for (let idx = ctx.threadMessages.length - 1; idx >= 0; idx--) {
+      const msg = ctx.threadMessages[idx];
+      const direction = String(msg?.direction || '').toUpperCase();
+      if (direction !== 'INBOUND') continue;
+      push(msg?.body || msg?.content);
+      if (candidates.length >= 8) {
+        break;
+      }
+    }
+  }
+
+  return candidates;
+}
+
+function firstPatternMatch(pattern, texts = []) {
+  for (const text of texts) {
+    const match = String(text || '').match(pattern);
+    if (match?.[0]) {
+      return match[0].trim();
+    }
+  }
+  return null;
+}
+
+function getEmailVerificationState(emailVerificationState) {
+  const state = emailVerificationState || { verification: { status: 'none' } };
+  const verificationStatus = state?.verification?.status || state?.verificationStatus || 'none';
+  const isPending = verificationStatus === 'pending' || verificationStatus === 'failed';
+  const anchor = state?.verification?.anchor || state?.verificationAnchor || null;
+  return { state, verificationStatus, isPending, anchor };
+}
+
+function hasLookupIdentifier(toolArgs) {
+  return Boolean(
+    toolArgs?.order_number ||
+    toolArgs?.ticket_number ||
+    toolArgs?.phone ||
+    toolArgs?.vkn ||
+    toolArgs?.tc
+  );
+}
+
+function isContextlessLast4Message(text) {
+  return /^\d{4}$/.test(String(text || '').trim());
+}
+
+function shouldSuppressContextlessLookup({ executionToolName, toolArgs, ctx, verificationInfo }) {
+  if (executionToolName !== 'customer_data_lookup') return false;
+  if (verificationInfo.isPending) return false;
+
+  const inboundText = getInboundText(ctx);
+  if (!isContextlessLast4Message(inboundText)) return false;
+
+  const orderCandidate = String(toolArgs?.order_number || '').trim();
+  const ticketCandidate = String(toolArgs?.ticket_number || '').trim();
+  const phoneCandidate = String(toolArgs?.phone || '').trim();
+  const hasStrongIdentifier =
+    ORDER_NUMBER_PATTERN.test(orderCandidate) ||
+    TICKET_NUMBER_PATTERN.test(ticketCandidate) ||
+    String(phoneCandidate).replace(/\D/g, '').length >= 10;
+
+  return !hasStrongIdentifier;
+}
+
+function buildDeterministicLookupArgs(ctx, verificationInfo) {
+  const intent = String(ctx?.classification?.intent || '').toUpperCase();
+  const inboundText = getInboundText(ctx);
+  const textCandidates = collectLookupTextCandidates(ctx);
+
+  if (!verificationInfo.isPending && !LOOKUP_INTENTS.has(intent)) {
+    return null;
+  }
+
+  const orderNumber = firstPatternMatch(ORDER_NUMBER_PATTERN, textCandidates);
+  const ticketNumber = firstPatternMatch(TICKET_NUMBER_PATTERN, textCandidates);
+  const rawPhone = firstPatternMatch(FULL_PHONE_PATTERN, textCandidates);
+  const normalizedPhone = rawPhone ? rawPhone.replace(/[^\d+]/g, '') : null;
+
+  // Avoid lookup on bare 4-digit messages unless verification is already pending.
+  if (!verificationInfo.isPending && isContextlessLast4Message(inboundText) && !orderNumber && !ticketNumber) {
+    return null;
+  }
+
+  let args = {
+    query_type: getIntentQueryType(intent)
+  };
+
+  if (orderNumber) args.order_number = orderNumber;
+  if (ticketNumber) args.ticket_number = ticketNumber;
+  if (!orderNumber && normalizedPhone && normalizedPhone.replace(/\D/g, '').length >= 10) {
+    args.phone = normalizedPhone;
+  }
+
+  if (verificationInfo.anchor) {
+    const anchor = verificationInfo.anchor;
+    if (!args.order_number && anchor.anchorType === 'order' && anchor.anchorValue) {
+      args.order_number = anchor.anchorValue;
+    }
+    if (!args.ticket_number && anchor.anchorType === 'ticket' && anchor.anchorValue) {
+      args.ticket_number = anchor.anchorValue;
+      args.query_type = 'ariza';
+    }
+    if (!args.phone && anchor.phone && String(anchor.phone).replace(/\D/g, '').length >= 10) {
+      args.phone = anchor.phone;
+    }
+  }
+
+  if (verificationInfo.isPending) {
+    const hydrated = hydrateLookupArgsWithVerificationInput({
+      toolName: 'customer_data_lookup',
+      toolArgs: args,
+      emailState: verificationInfo.state,
+      inboundMessage: ctx.inboundMessage,
+      threadMessages: ctx.threadMessages
+    });
+    args = hydrated.args;
+  }
+
+  if (!hasLookupIdentifier(args)) {
+    return null;
+  }
+
+  return args;
+}
+
+function resolveToolAliasForEmail(requestedToolName, gatedTools = []) {
+  const normalizedRequested = String(requestedToolName || '').trim();
+  const gated = Array.isArray(gatedTools) ? gatedTools : [];
+
+  if (gated.includes(normalizedRequested)) {
+    return {
+      requestedToolName: normalizedRequested,
+      executionToolName: normalizedRequested,
+      aliasApplied: false
+    };
+  }
+
+  const alias = TOOL_ALIASES[normalizedRequested];
+  if (alias && gated.includes(alias)) {
+    return {
+      requestedToolName: normalizedRequested,
+      executionToolName: alias,
+      aliasApplied: true
+    };
+  }
+
+  return {
+    requestedToolName: normalizedRequested,
+    executionToolName: normalizedRequested,
+    aliasApplied: false
+  };
+}
+
+function applyAliasDefaultArgs(requestedToolName, executionToolName, toolArgs) {
+  const args = { ...(toolArgs || {}) };
+  if (executionToolName === 'customer_data_lookup' && !args.query_type) {
+    const defaults = ALIAS_DEFAULT_ARGS[requestedToolName];
+    if (defaults?.query_type) {
+      args.query_type = defaults.query_type;
+    }
+  }
+  return args;
+}
 
 /**
  * Execute email tool loop with Gemini
@@ -32,8 +264,9 @@ export async function executeEmailToolLoop(ctx) {
     business,
     language,
     gatedToolDefs,
-    gatedTools
+    gatedTools: rawGatedTools
   } = ctx;
+  const gatedTools = Array.isArray(rawGatedTools) ? rawGatedTools : [];
 
   ctx.toolResults = [];
 
@@ -77,6 +310,7 @@ export async function executeEmailToolLoop(ctx) {
 
     let iterations = 0;
     let responseText = '';
+    let forcedLookupAttempted = false;
 
     // Try to get initial text
     try {
@@ -96,6 +330,111 @@ export async function executeEmailToolLoop(ctx) {
       const functionCalls = result.response.functionCalls();
 
       if (!functionCalls || functionCalls.length === 0) {
+        const verificationInfo = getEmailVerificationState(ctx.emailVerificationState);
+        const intent = String(ctx?.classification?.intent || '').toUpperCase();
+        const hasCustomerLookupCall = ctx.toolResults.some(
+          (toolResult) => toolResult.toolName === 'customer_data_lookup'
+        );
+        const shouldTryDeterministicLookup = (
+          !forcedLookupAttempted &&
+          gatedTools.includes('customer_data_lookup') &&
+          !hasCustomerLookupCall &&
+          (verificationInfo.isPending || LOOKUP_INTENTS.has(intent))
+        );
+
+        if (shouldTryDeterministicLookup) {
+          const forcedArgs = buildDeterministicLookupArgs(ctx, verificationInfo);
+          forcedLookupAttempted = true;
+
+          if (forcedArgs) {
+            iterations++;
+            console.log('🧭 [EmailToolLoop] Deterministic fallback lookup:', {
+              intent,
+              query_type: forcedArgs.query_type,
+              hasOrder: !!forcedArgs.order_number,
+              hasTicket: !!forcedArgs.ticket_number,
+              hasPhone: !!forcedArgs.phone,
+              hasVerificationInput: !!forcedArgs.verification_input
+            });
+
+            const toolResult = await executeTool('customer_data_lookup', forcedArgs, business, {
+              channel: 'EMAIL',
+              fromEmail: ctx.customerEmail || null,
+              sessionId: ctx.thread?.id,
+              messageId: ctx.inboundMessage?.id,
+              language,
+              state: verificationInfo.state
+            });
+
+            const autoverifyResult = await tryAutoverify({
+              toolResult,
+              toolName: 'customer_data_lookup',
+              business,
+              state: verificationInfo.state,
+              language,
+              metrics: ctx.metrics
+            });
+            if (autoverifyResult.applied) {
+              console.log('📧 [EmailToolLoop] Autoverify succeeded (deterministic fallback)');
+            }
+
+            const outcomeEvents = deriveOutcomeEvents({ toolName: 'customer_data_lookup', toolResult });
+            if (outcomeEvents.length > 0) {
+              applyOutcomeEventsToState(verificationInfo.state, outcomeEvents);
+              console.log('🧭 [EmailToolLoop] Applied fallback outcome events:', outcomeEvents.map(e => e.type));
+            }
+
+            const outcome = normalizeOutcome(toolResult.outcome);
+            const askForField = toolResult.askFor || toolResult.data?.askFor || null;
+            ctx.toolResults.push({
+              toolName: 'customer_data_lookup',
+              requestedToolName: 'customer_data_lookup',
+              args: forcedArgs,
+              outcome: outcome || (toolResult.success ? ToolOutcome.OK : ToolOutcome.INFRA_ERROR),
+              success: toolResult.success,
+              data: toolResult.data || null,
+              message: toolResult.message,
+              askFor: askForField,
+              _askFor: askForField || toolResult._askFor || toolResult.askFor || null,
+              _identityContext: toolResult._identityContext ?? null
+            });
+
+            if (outcome === ToolOutcome.OK && toolResult.data) {
+              ctx.customerData = toolResult.data;
+            }
+
+            if (shouldTerminate(outcome)) {
+              ctx._terminalState = outcome;
+            }
+
+            const responseData = {
+              outcome: outcome || 'UNKNOWN',
+              message: toolResult.message || null
+            };
+            if (outcome === ToolOutcome.OK && toolResult.data) {
+              responseData.data = toolResult.data;
+            }
+
+            result = await chat.sendMessage([{
+              functionResponse: {
+                name: 'customer_data_lookup',
+                response: responseData
+              }
+            }]);
+
+            totalInputTokens += result.response.usageMetadata?.promptTokenCount || 0;
+            totalOutputTokens += result.response.usageMetadata?.candidatesTokenCount || 0;
+            try {
+              responseText = result.response.text() || responseText;
+            } catch { /* keep existing */ }
+
+            if (ctx._terminalState) {
+              break;
+            }
+            continue;
+          }
+        }
+
         // No more tool calls — LLM returned text response
         try {
           responseText = result.response.text() || responseText;
@@ -111,25 +450,33 @@ export async function executeEmailToolLoop(ctx) {
       for (const functionCall of functionCalls) {
         const toolName = functionCall.name;
         let toolArgs = functionCall.args || {};
+        const resolvedTool = resolveToolAliasForEmail(toolName, gatedTools);
+        const requestedToolName = resolvedTool.requestedToolName;
+        const executionToolName = resolvedTool.executionToolName;
 
         console.log(`🔧 [EmailToolLoop] Calling tool: ${toolName}`, Object.keys(toolArgs));
 
-        // Check if tool is in gated list
-        if (!gatedTools.includes(toolName)) {
+        // Check if tool is in gated list (directly or via alias)
+        if (!gatedTools.includes(executionToolName)) {
           console.warn(`⚠️ [EmailToolLoop] Tool ${toolName} not in gated list, skipping`);
           functionResponses.push({
             functionResponse: {
-              name: toolName,
+              name: requestedToolName,
               response: { message: 'Tool not available for email drafts.' }
             }
           });
           continue;
         }
 
+        if (resolvedTool.aliasApplied) {
+          toolArgs = applyAliasDefaultArgs(requestedToolName, executionToolName, toolArgs);
+          console.log(`♻️ [EmailToolLoop] Tool alias: ${requestedToolName} -> ${executionToolName}`);
+        }
+
         // Hydrate verification input from email thread (email-specific)
         const emailState = ctx.emailVerificationState || { verification: { status: 'none' } };
         const hydrateResult = hydrateLookupArgsWithVerificationInput({
-          toolName,
+          toolName: executionToolName,
           toolArgs,
           emailState,
           inboundMessage: ctx.inboundMessage,
@@ -137,11 +484,33 @@ export async function executeEmailToolLoop(ctx) {
         });
         if (hydrateResult.hydrated) {
           toolArgs = hydrateResult.args;
-          console.log(`📧 [EmailToolLoop] Hydrated verification_input for ${toolName} (askFor=${hydrateResult.askForField})`);
+          console.log(`📧 [EmailToolLoop] Hydrated verification_input for ${executionToolName} (askFor=${hydrateResult.askForField})`);
+        }
+
+        const verificationInfo = getEmailVerificationState(emailState);
+        if (shouldSuppressContextlessLookup({
+          executionToolName,
+          toolArgs,
+          ctx,
+          verificationInfo
+        })) {
+          console.log('🛑 [EmailToolLoop] Suppressing contextless lookup call (last4 without anchor)');
+          functionResponses.push({
+            functionResponse: {
+              name: requestedToolName,
+              response: {
+                outcome: ToolOutcome.NEED_MORE_INFO,
+                message: language === 'TR'
+                  ? 'Size yardımcı olabilmem için sipariş numaranızı paylaşır mısınız?'
+                  : 'Could you share your order number so I can help you?'
+              }
+            }
+          });
+          continue;
         }
 
         // Execute tool (orchestrator-driven, not LLM)
-        const toolResult = await executeTool(toolName, toolArgs, business, {
+        const toolResult = await executeTool(executionToolName, toolArgs, business, {
           channel: 'EMAIL',
           fromEmail: ctx.customerEmail || null,
           sessionId: ctx.thread?.id,
@@ -153,7 +522,7 @@ export async function executeEmailToolLoop(ctx) {
         // Attempt autoverify using email identity
         const autoverifyResult = await tryAutoverify({
           toolResult,
-          toolName,
+          toolName: executionToolName,
           business,
           state: emailState,
           language,
@@ -165,7 +534,7 @@ export async function executeEmailToolLoop(ctx) {
         }
 
         // Apply outcome events to email verification state
-        const outcomeEvents = deriveOutcomeEvents({ toolName, toolResult });
+        const outcomeEvents = deriveOutcomeEvents({ toolName: executionToolName, toolResult });
         if (outcomeEvents.length > 0) {
           applyOutcomeEventsToState(emailState, outcomeEvents);
           console.log('🧭 [EmailToolLoop] Applied outcome events:', outcomeEvents.map(e => e.type));
@@ -176,7 +545,8 @@ export async function executeEmailToolLoop(ctx) {
 
         // Collect tool result for guardrails
         ctx.toolResults.push({
-          toolName,
+          toolName: executionToolName,
+          requestedToolName,
           args: toolArgs,
           outcome: outcome || (toolResult.success ? ToolOutcome.OK : ToolOutcome.INFRA_ERROR),
           success: toolResult.success,
@@ -188,14 +558,14 @@ export async function executeEmailToolLoop(ctx) {
         });
 
         console.log(`📊 [EmailToolLoop] Tool result:`, {
-          name: toolName,
+          name: executionToolName,
           outcome: toolResult.outcome,
           success: toolResult.success,
           hasData: !!toolResult.data
         });
 
         // If we got customer data, store it
-        if (toolName === 'customer_data_lookup' && toolResult.success && toolResult.data) {
+        if (executionToolName === 'customer_data_lookup' && toolResult.success && toolResult.data) {
           ctx.customerData = toolResult.data;
 
           // Update anchor with tool truth
@@ -234,7 +604,7 @@ export async function executeEmailToolLoop(ctx) {
 
         functionResponses.push({
           functionResponse: {
-            name: toolName,
+            name: requestedToolName,
             response: responseData
           }
         });

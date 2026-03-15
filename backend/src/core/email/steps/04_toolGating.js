@@ -18,11 +18,7 @@ import { getActiveTools } from '../../../tools/index.js';
 const EMAIL_SAFE_TOOLS = [
   'customer_data_lookup',
   'get_product_stock',
-  'check_stock_crm',
-  'check_order_status_crm',
-  'appointment_lookup',
-  'crm_contact_lookup',
-  'crm_deal_lookup'
+  'check_stock_crm'
 ];
 
 // Tools that are WRITE operations - NOT allowed during draft
@@ -69,18 +65,6 @@ export async function gateEmailTools(ctx) {
     // This prevents classifier parse failures from blocking legitimate tool usage.
     if (!classification.needs_tools) {
       console.log('📧 [ToolGating] Classification says no tools needed — keeping read-only tools available (LLM-first)');
-    }
-
-    // NOTE: Confidence-based gating removed for email.
-    // All EMAIL_SAFE_TOOLS are already read-only, so additional confidence
-    // gating was overly aggressive — it blocked stock/order lookups even when
-    // the classifier correctly identified needs_tools: true.
-    if (classification.confidence < 0.4) {
-      console.log('📧 [ToolGating] Very low confidence (<0.4) - limiting to customer lookup only');
-      gatedTools = gatedTools.filter(tool => {
-        const toolName = tool.function?.name || tool.name;
-        return toolName === 'customer_data_lookup';
-      });
     }
 
     // Extract tool names for logging and state

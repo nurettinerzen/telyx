@@ -11,7 +11,7 @@
  */
 
 import { getDateTimeContext } from '../../../utils/dateTime.js';
-import { buildAssistantPrompt, getActiveTools } from '../../../services/promptBuilder.js';
+import { buildAssistantPrompt } from '../../../services/promptBuilder.js';
 import {
   retrieveExamplesForPrompt,
   formatExamplesForPrompt
@@ -353,7 +353,8 @@ export async function prepareEmailPrompts(ctx) {
       businessIdentity,
       entityResolution,
       kbConfidence,
-      hasKBMatch
+      hasKBMatch,
+      gatedTools: ctx.gatedTools
     });
 
     // Build user prompt
@@ -581,17 +582,18 @@ export function buildEmailSystemPrompt({
   businessIdentity = null,
   entityResolution = null,
   kbConfidence = 'LOW',
-  hasKBMatch = false
+  hasKBMatch = false,
+  gatedTools = []
 }) {
   const timezone = business.timezone || 'UTC';
   const dateTimeContext = getDateTimeContext(timezone, language);
+  const availableTools = normalizeToolNameList(gatedTools);
+  const hasCustomerLookup = availableTools.includes('customer_data_lookup');
 
   // Base prompt from assistant or default
   let basePrompt = '';
   if (assistant && business) {
-    const integrations = business.integrations || [];
-    const activeToolsList = getActiveTools(business, integrations);
-    basePrompt = buildAssistantPrompt(assistant, business, activeToolsList);
+    basePrompt = buildAssistantPrompt(assistant, business, availableTools);
   } else {
     basePrompt = `You are an AI email assistant for ${business.name}, a ${business.businessType?.toLowerCase() || 'general'} business.`;
   }
@@ -675,11 +677,14 @@ ${languageInstruction}
 
 ### 3. TOOL USAGE (OVERRIDES BASE PROMPT TOOL RULES FOR EMAIL)
 CRITICAL: This is EMAIL mode, not chat. You see the ENTIRE email thread at once.
-- You MUST call tools (customer_data_lookup, check_order_status_crm, etc.) to look up data BEFORE generating any response text.
-- DO NOT generate text asking for information that you can look up with a tool call.
-- If the customer provided an order number, phone number, or name → call the tool immediately with that data.
-- NEVER skip tool calls to ask for verification — the tool handles verification internally.
-- If the customer mentions an order, ALWAYS call customer_data_lookup first.
+- AVAILABLE TOOLS (call ONLY from this list): ${availableTools.length > 0 ? availableTools.join(', ') : 'none'}
+- If a relevant lookup tool is available, call it BEFORE generating response text.
+- DO NOT ask for data that can be looked up by an available tool.
+- If the customer provided an order number, phone number, or name and customer_data_lookup is available → call it immediately with that data.
+- NEVER skip tool calls just to ask for generic verification — tools return exact verification requirements.
+- ${hasCustomerLookup
+    ? 'If the customer mentions an order/tracking issue, call customer_data_lookup first.'
+    : 'If no lookup tools are available, explicitly ask for the missing information and avoid factual claims.'}
 ${getToolDataInstructions(toolResults, language)}
 
 ### 4. DRAFT-ONLY MODE
@@ -988,6 +993,15 @@ function getToolDataInstructions(toolResults, language) {
   }
 
   return instructions;
+}
+
+function normalizeToolNameList(toolNames) {
+  if (!Array.isArray(toolNames)) return [];
+  return [...new Set(
+    toolNames
+      .map(name => String(name || '').trim())
+      .filter(Boolean)
+  )];
 }
 
 export default { prepareEmailPrompts, generateEmailDraft, buildEmailSystemPrompt, buildEmailUserPrompt };

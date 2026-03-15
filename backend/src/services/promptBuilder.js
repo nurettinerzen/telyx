@@ -110,11 +110,12 @@ ONLY provide information from these sources:
   if (integrations.length > 0) {
     const integrationNames = integrations.map(i => {
       const names = {
-        'check_order_status': 'Sipariş durumu sorgulama',
-        'customer_data_lookup': 'Müşteri bilgisi sorgulama',
-        'get_product_stock': 'Stok kontrolü',
-        'get_tracking_info': 'Kargo takip',
+        'customer_data_lookup': 'Müşteri/sipariş bilgisi sorgulama',
+        'get_product_stock': 'Stok kontrolü (e-ticaret)',
+        'check_stock_crm': 'Stok kontrolü (CRM)',
         'create_appointment': 'Randevu oluşturma',
+        'create_callback': 'Geri arama talebi',
+        'send_order_notification': 'Sipariş bildirimi',
       };
       return names[i] || i;
     });
@@ -400,15 +401,12 @@ export function buildAssistantPrompt(assistant, business, integrations = [], opt
   if (integrations.length > 0) {
     const integrationNames = integrations.map(i => {
       const names = {
-        'check_order_status': 'Sipariş durumu sorgulama',
+        'customer_data_lookup': 'Müşteri/sipariş bilgisi sorgulama',
         'get_product_stock': 'Stok kontrolü',
-        'get_tracking_info': 'Kargo takip',
+        'check_stock_crm': 'Stok kontrolü (CRM)',
         'create_appointment': 'Randevu oluşturma',
-        'check_appointment': 'Randevu sorgulama',
-        'cancel_appointment': 'Randevu iptal',
-        'take_order': 'Sipariş alma',
-        'check_menu': 'Menü bilgisi',
-        'customer_data_lookup': 'Müşteri bilgisi sorgulama'
+        'create_callback': 'Geri arama talebi',
+        'send_order_notification': 'Sipariş bildirimi'
       };
       return names[i] || i;
     });
@@ -607,48 +605,43 @@ function buildOutboundGeneralPrompt(assistant, business) {
  * @returns {Array} Tool isimleri
  */
 export function getActiveTools(business, integrations = []) {
-  const tools = [];
+  const tools = new Set();
+  const businessType = String(business?.businessType || 'OTHER').toUpperCase();
+  const activeIntegrationTypes = (Array.isArray(integrations) ? integrations : [])
+    .filter(i => i?.isActive !== false && i?.connected !== false)
+    .map(i => String(i?.type || '').toUpperCase())
+    .filter(Boolean);
 
-  // Integration'lara göre tool ekle
-  const integrationTypes = integrations.map(i => i.type);
+  const hasEcommerceIntegration = activeIntegrationTypes.some(type => (
+    type === 'SHOPIFY'
+    || type === 'WOOCOMMERCE'
+    || type === 'IKAS'
+    || type === 'IDEASOFT'
+    || type === 'TICIMAX'
+    || type === 'ZAPIER'
+  ));
 
-  // E-ticaret entegrasyonları
-  if (integrationTypes.includes('SHOPIFY') ||
-      integrationTypes.includes('WOOCOMMERCE') ||
-      integrationTypes.includes('TRENDYOL') ||
-      integrationTypes.includes('IKAS') ||
-      integrationTypes.includes('IDEASOFT') ||
-      integrationTypes.includes('TICIMAX')) {
-    tools.push('check_order_status', 'get_product_stock', 'get_tracking_info');
+  // Standalone core tools (no external integration required)
+  tools.add('customer_data_lookup');
+  tools.add('create_callback');
+
+  // Business-type capabilities (aligned with registry-backed tool set)
+  if (businessType === 'RESTAURANT') {
+    tools.add('create_appointment');
+    tools.add('send_order_notification');
+  } else if (businessType === 'SALON' || businessType === 'CLINIC') {
+    tools.add('create_appointment');
+  } else if (businessType === 'SERVICE' || businessType === 'OTHER') {
+    tools.add('create_appointment');
+    tools.add('check_stock_crm');
+  } else if (businessType === 'ECOMMERCE') {
+    tools.add('check_stock_crm');
   }
 
-  // Takvim entegrasyonları
-  if (integrationTypes.includes('GOOGLE_CALENDAR') ||
-      integrationTypes.includes('CALENDLY')) {
-    tools.push('create_appointment', 'check_appointment', 'cancel_appointment');
+  // Product stock lookup requires an e-commerce integration
+  if (hasEcommerceIntegration) {
+    tools.add('get_product_stock');
   }
 
-  // Kargo entegrasyonları
-  if (integrationTypes.includes('YURTICI_KARGO') ||
-      integrationTypes.includes('ARAS_KARGO') ||
-      integrationTypes.includes('MNG_KARGO') ||
-      integrationTypes.includes('SHIPSTATION')) {
-    if (!tools.includes('get_tracking_info')) {
-      tools.push('get_tracking_info');
-    }
-  }
-
-  // Restoran ise sipariş alma + rezervasyon
-  if (business.businessType === 'RESTAURANT') {
-    tools.push('take_order', 'check_menu', 'create_appointment');
-  }
-
-  // Randevu bazlı işletmeler
-  if (business.businessType === 'SALON' || business.businessType === 'CLINIC') {
-    if (!tools.includes('create_appointment')) {
-      tools.push('create_appointment', 'check_appointment', 'cancel_appointment');
-    }
-  }
-
-  return tools;
+  return Array.from(tools);
 }

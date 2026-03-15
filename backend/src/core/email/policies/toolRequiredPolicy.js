@@ -49,7 +49,7 @@ const FIELD_LABELS = {
 
 const TOOL_REQUIRED_INTENTS = {
   ORDER: {
-    tools: ['customer_data_lookup', 'check_order_status_crm'],
+    tools: ['customer_data_lookup'],
     fallbackBehavior: 'ASK_VERIFICATION',
     requiredFields: ['order_number', 'phone'],
     messageKey: 'EMAIL_TOOL_REQUIRED_ORDER'
@@ -61,7 +61,7 @@ const TOOL_REQUIRED_INTENTS = {
     messageKey: 'EMAIL_TOOL_REQUIRED_BILLING'
   },
   APPOINTMENT: {
-    tools: ['customer_data_lookup', 'appointment_lookup'],
+    tools: ['customer_data_lookup'],
     fallbackBehavior: 'ASK_VERIFICATION',
     requiredFields: ['phone'],
     messageKey: 'EMAIL_TOOL_REQUIRED_APPOINTMENT'
@@ -79,7 +79,7 @@ const TOOL_REQUIRED_INTENTS = {
     messageKey: 'EMAIL_TOOL_REQUIRED_COMPLAINT'
   },
   TRACKING: {
-    tools: ['customer_data_lookup', 'check_order_status_crm'],
+    tools: ['customer_data_lookup'],
     fallbackBehavior: 'ASK_VERIFICATION',
     requiredFields: ['tracking_number', 'order_number'],
     messageKey: 'EMAIL_TOOL_REQUIRED_TRACKING'
@@ -97,7 +97,7 @@ const TOOL_REQUIRED_INTENTS = {
     messageKey: 'EMAIL_TOOL_REQUIRED_STOCK'
   },
   RETURN: {
-    tools: ['customer_data_lookup', 'check_order_status_crm'],
+    tools: ['customer_data_lookup'],
     fallbackBehavior: 'ASK_VERIFICATION',
     requiredFields: ['order_number', 'return_number'],
     messageKey: 'EMAIL_TOOL_REQUIRED_RETURN'

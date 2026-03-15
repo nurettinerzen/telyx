@@ -16,6 +16,42 @@ import registry from './registry.js';
 import { getActiveToolNames } from './utils/business-rules.js';
 import { normalizeToolArguments } from './argumentNormalizer.js';
 
+const LEGACY_TOOL_ALIASES = Object.freeze({
+  check_order_status: 'customer_data_lookup',
+  check_order_status_crm: 'customer_data_lookup',
+  get_tracking_info: 'customer_data_lookup',
+  order_search: 'customer_data_lookup',
+  appointment_lookup: 'customer_data_lookup',
+  search_products: 'get_product_stock',
+  product_lookup: 'get_product_stock',
+  inventory_check: 'check_stock_crm',
+  price_check: 'check_stock_crm'
+});
+
+const LEGACY_TOOL_DEFAULT_ARGS = Object.freeze({
+  check_order_status: { query_type: 'siparis' },
+  check_order_status_crm: { query_type: 'siparis' },
+  get_tracking_info: { query_type: 'siparis' },
+  order_search: { query_type: 'siparis' },
+  appointment_lookup: { query_type: 'randevu' }
+});
+
+function resolveLegacyToolAlias(toolName, args) {
+  const requestedToolName = String(toolName || '').trim();
+  const resolvedToolName = LEGACY_TOOL_ALIASES[requestedToolName] || requestedToolName;
+  const aliasApplied = requestedToolName !== resolvedToolName;
+  const resolvedArgs = { ...(args || {}) };
+
+  if (resolvedToolName === 'customer_data_lookup' && !resolvedArgs.query_type) {
+    const defaults = LEGACY_TOOL_DEFAULT_ARGS[requestedToolName];
+    if (defaults?.query_type) {
+      resolvedArgs.query_type = defaults.query_type;
+    }
+  }
+
+  return { requestedToolName, resolvedToolName, aliasApplied, resolvedArgs };
+}
+
 /**
  * Get active tool definitions for a business (OpenAI format)
  * Filters tools based on business type and active integrations
@@ -85,22 +121,33 @@ export function getActiveToolsForElevenLabs(business, serverUrl = null, agentId 
  * @returns {Object} - Result object with success, data/error, and message
  */
 export async function executeTool(toolName, args, business, context = {}) {
+  const {
+    requestedToolName,
+    resolvedToolName,
+    aliasApplied,
+    resolvedArgs
+  } = resolveLegacyToolAlias(toolName, args);
+
+  if (aliasApplied) {
+    console.log(`♻️ [Tools] Legacy alias mapped: ${requestedToolName} -> ${resolvedToolName}`);
+  }
+
   // Get handler
-  const handler = registry.getHandler(toolName);
+  const handler = registry.getHandler(resolvedToolName);
 
   if (!handler) {
-    console.error(`❌ No handler found for tool: ${toolName}`);
+    console.error(`❌ No handler found for tool: ${resolvedToolName}`);
     return {
       success: false,
-      error: `Unknown tool: ${toolName}`
+      error: `Unknown tool: ${requestedToolName}`
     };
   }
 
   // Verify business has access to this tool
   const activeToolNames = getActiveToolNames(business);
 
-  if (!activeToolNames.includes(toolName)) {
-    console.warn(`⚠️ Tool "${toolName}" not allowed for business type "${business.businessType}"`);
+  if (!activeToolNames.includes(resolvedToolName)) {
+    console.warn(`⚠️ Tool "${resolvedToolName}" not allowed for business type "${business.businessType}"`);
     return {
       success: false,
       error: business.language === 'TR'
@@ -110,10 +157,10 @@ export async function executeTool(toolName, args, business, context = {}) {
   }
 
   // NORMALIZATION LAYER: Fill missing args from extractedSlots
-  const toolDefinition = registry.getDefinition(toolName);
+  const toolDefinition = registry.getDefinition(resolvedToolName);
   const { normalizedArgs, filledCount } = normalizeToolArguments(
-    toolName,
-    args,
+    resolvedToolName,
+    resolvedArgs,
     toolDefinition,
     context
   );
@@ -131,12 +178,12 @@ export async function executeTool(toolName, args, business, context = {}) {
     const result = await handler.execute(finalArgs, business, context);
     return result;
   } catch (error) {
-    console.error(`❌ Tool execution error for ${toolName}:`, error);
+    console.error(`❌ Tool execution error for ${resolvedToolName}:`, error);
 
     // Persist to ErrorLog (non-blocking)
     import('../services/errorLogger.js')
       .then(({ logToolError }) => {
-        logToolError(toolName, error, {
+        logToolError(resolvedToolName, error, {
           businessId: business?.id,
           endpoint: context?.endpoint || null,
         }).catch(() => {});
