@@ -450,8 +450,28 @@ export async function execute(args, business, context = {}) {
     const expectsPhoneLast4 = isVerificationPending &&
       inferredAskFor === 'phone_last4' &&
       Boolean(verificationAnchor?.phone);
+    // SECURITY: Reject verification_input that equals the phone arg or anchor phone.
+    // LLM can copy the full phone from state/anchor into verification_input,
+    // bypassing verification by matching against itself.
+    let sanitizedVerificationInput = verification_input;
+    if (sanitizedVerificationInput && phone) {
+      const cleanVI = String(sanitizedVerificationInput).replace(/\D/g, '');
+      const cleanPhone = String(phone).replace(/\D/g, '');
+      if (cleanVI === cleanPhone) {
+        console.warn('🚨 [CDL-SECURITY] verification_input matches phone arg — rejecting copy-paste bypass');
+        sanitizedVerificationInput = null;
+      }
+    }
+    if (sanitizedVerificationInput && verificationAnchor?.phone) {
+      const cleanVI = String(sanitizedVerificationInput).replace(/\D/g, '');
+      const cleanAnchor = String(verificationAnchor.phone).replace(/\D/g, '');
+      if (cleanVI === cleanAnchor) {
+        console.warn('🚨 [CDL-SECURITY] verification_input matches anchor phone — rejecting copy-paste bypass');
+        sanitizedVerificationInput = null;
+      }
+    }
     const normalizedVerificationCandidate = normalizeVerificationCandidate(
-      verification_input,
+      sanitizedVerificationInput,
       customer_name,
       {
         allowNameFallback: true,

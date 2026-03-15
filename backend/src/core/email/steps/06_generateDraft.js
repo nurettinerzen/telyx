@@ -156,7 +156,10 @@ export function hydrateLookupArgsWithVerificationInput({
     directCandidates.push(normalized);
   };
 
-  addDirectCandidate(toolArgs?.phone);
+  // SECURITY: Do NOT use toolArgs.phone as verification candidate.
+  // LLM can copy the full phone number from anchor/state into the phone arg,
+  // which would bypass verification by matching against itself.
+  // Only customer_name is a safe direct candidate (name-based verification).
   addDirectCandidate(toolArgs?.customer_name);
 
   const candidates = [...directCandidates, ...collectInboundVerificationCandidates(inboundMessage, threadMessages)];
