@@ -469,6 +469,7 @@ export async function executeEmailToolLoop(ctx) {
       console.log(`🔄 [EmailToolLoop] Iteration ${iterations}/${MAX_ITERATIONS}: ${functionCalls.length} tool call(s)`);
 
       const functionResponses = [];
+      let lookupCalledThisIteration = false;
 
       for (const functionCall of functionCalls) {
         const toolName = functionCall.name;
@@ -478,6 +479,25 @@ export async function executeEmailToolLoop(ctx) {
         const executionToolName = resolvedTool.executionToolName;
 
         console.log(`🔧 [EmailToolLoop] Calling tool: ${toolName}`, Object.keys(toolArgs));
+
+        // SECURITY: Block duplicate customer_data_lookup in same iteration.
+        // LLM sometimes calls lookup twice — first gets VERIFICATION_FAILED,
+        // outcome events update in-memory state, second piggybacks on stale session.
+        if (executionToolName === 'customer_data_lookup' && lookupCalledThisIteration) {
+          console.warn('🚨 [EmailToolLoop] SECURITY: Blocking duplicate customer_data_lookup in same iteration');
+          functionResponses.push({
+            functionResponse: {
+              name: requestedToolName,
+              response: {
+                outcome: ToolOutcome.VERIFICATION_REQUIRED,
+                message: language === 'TR'
+                  ? 'Güvenlik doğrulaması için kayıtlı telefon numaranızın son 4 hanesini paylaşır mısınız?'
+                  : 'For security verification, could you share the last 4 digits of your registered phone number?'
+              }
+            }
+          });
+          continue;
+        }
 
         // Check if tool is in gated list (directly or via alias)
         if (!gatedTools.includes(executionToolName)) {
@@ -534,6 +554,9 @@ export async function executeEmailToolLoop(ctx) {
         }
 
         // Execute tool (orchestrator-driven, not LLM)
+        if (executionToolName === 'customer_data_lookup') {
+          lookupCalledThisIteration = true;
+        }
         const toolResult = await executeTool(executionToolName, toolArgs, business, {
           channel: 'EMAIL',
           fromEmail: ctx.customerEmail || null,
