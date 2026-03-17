@@ -72,3 +72,21 @@ export function useEmailStats() {
     staleTime: 30000, // 30 seconds
   });
 }
+
+/**
+ * Hook to fetch customer data by email address
+ * Used by email panel sidebar for customer context
+ * @param {string} email - Customer email address
+ * @returns {object} Query result with customer data + order stats
+ */
+export function useCustomerByEmail(email) {
+  return useQuery({
+    queryKey: ['customer-data', 'by-email', email],
+    queryFn: async () => {
+      const response = await apiClient.get('/api/customer-data/by-email', { params: { email } });
+      return response.data;
+    },
+    enabled: !!email,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}

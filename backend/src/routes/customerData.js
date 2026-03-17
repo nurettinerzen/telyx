@@ -1121,6 +1121,76 @@ router.get('/lookup', auditSensitiveDataAccess('customer_data_lookup', (req) => 
 });
 
 /**
+ * GET /api/customer-data/by-email
+ * Lookup customer by email address + order stats from CrmOrder
+ * Used by email panel sidebar to show customer context
+ */
+router.get('/by-email', async (req, res) => {
+  try {
+    const businessId = req.businessId;
+    const { email } = req.query;
+
+    if (!email || !email.trim()) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const trimmedEmail = email.trim();
+
+    // 1. CustomerData lookup by email (case-insensitive)
+    const customers = await prisma.customerData.findMany({
+      where: {
+        businessId,
+        email: { equals: trimmedEmail, mode: 'insensitive' }
+      },
+      select: {
+        id: true,
+        companyName: true,
+        contactName: true,
+        phone: true,
+        email: true,
+        tags: true,
+        notes: true,
+        customFields: true,
+        orderNo: true,
+        createdAt: true,
+        // NOT selecting: vkn, tcNo (sensitive)
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    // 2. CrmOrder stats by email
+    const orders = await prisma.crmOrder.findMany({
+      where: {
+        businessId,
+        customerEmail: { equals: trimmedEmail, mode: 'insensitive' }
+      },
+      select: {
+        totalAmount: true,
+        createdAt: true,
+        status: true,
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const orderStats = {
+      orderCount: orders.length,
+      totalSpent: orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0),
+      lastOrderDate: orders.length > 0 ? orders[0].createdAt : null,
+    };
+
+    res.json({
+      customer: customers.length > 0 ? customers[0] : null,
+      customers,
+      orderStats,
+    });
+
+  } catch (error) {
+    console.error('By-email lookup error:', error);
+    res.status(500).json({ error: 'Failed to lookup customer by email' });
+  }
+});
+
+/**
  * GET /api/customer-data/debug
  * Debug endpoint to see raw customFields data
  * Helps identify field name mismatches
