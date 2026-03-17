@@ -1158,16 +1158,22 @@ router.get('/by-email', async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
 
-    // 2. CrmOrder stats by email
+    // 2. CrmOrder by email (all for stats, last 5 for display)
     const orders = await prisma.crmOrder.findMany({
       where: {
         businessId,
         customerEmail: { equals: trimmedEmail, mode: 'insensitive' }
       },
       select: {
-        totalAmount: true,
-        createdAt: true,
+        id: true,
+        orderNumber: true,
+        customerPhone: true,
         status: true,
+        totalAmount: true,
+        items: true,
+        trackingNumber: true,
+        carrier: true,
+        createdAt: true,
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -1178,10 +1184,32 @@ router.get('/by-email', async (req, res) => {
       lastOrderDate: orders.length > 0 ? orders[0].createdAt : null,
     };
 
+    // 3. CrmTicket by phone (if we have customer's phone from CustomerData or CrmOrder)
+    const customerPhone = customers[0]?.phone || orders[0]?.customerPhone || null;
+    let tickets = [];
+    if (customerPhone) {
+      tickets = await prisma.crmTicket.findMany({
+        where: { businessId, customerPhone },
+        select: {
+          id: true,
+          ticketNumber: true,
+          product: true,
+          issue: true,
+          status: true,
+          cost: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+      }).catch(() => []);
+    }
+
     res.json({
       customer: customers.length > 0 ? customers[0] : null,
       customers,
       orderStats,
+      recentOrders: orders.slice(0, 5),
+      tickets,
     });
 
   } catch (error) {

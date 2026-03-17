@@ -36,6 +36,8 @@ import {
   BarChart3,
   UserCircle,
   ExternalLink,
+  Wrench,
+  ShoppingBag,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api';
 import { toast } from '@/lib/toast';
@@ -712,6 +714,8 @@ export default function EmailDashboardPage() {
         <CustomerSidebar
           customer={customerData?.customer}
           orderStats={customerData?.orderStats}
+          recentOrders={customerData?.recentOrders}
+          tickets={customerData?.tickets}
           loading={customerLoading}
           locale={locale}
           customerEmail={selectedThread.customerEmail}
@@ -726,7 +730,7 @@ export default function EmailDashboardPage() {
 // CUSTOMER SIDEBAR COMPONENT
 // ════════════════════════════════════════════════════════════
 
-function CustomerSidebar({ customer, orderStats, loading, locale, customerEmail, customerName }) {
+function CustomerSidebar({ customer, orderStats, recentOrders, tickets, loading, locale, customerEmail, customerName }) {
   if (loading) {
     return (
       <div className="w-[300px] min-w-[300px] border-l border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900 hidden lg:flex flex-col items-center justify-center">
@@ -752,8 +756,20 @@ function CustomerSidebar({ customer, orderStats, loading, locale, customerEmail,
     } catch { return '-'; }
   };
 
-  // No customer found state
-  if (!customer) {
+  const STATUS_LABELS = {
+    'hazırlanıyor': { label: 'Hazırlanıyor', cls: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' },
+    'kargoda': { label: 'Kargoda', cls: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' },
+    'onaylandı': { label: 'Onaylandı', cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' },
+    'dağıtımda': { label: 'Dağıtımda', cls: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300' },
+    'teslim edildi': { label: 'Teslim Edildi', cls: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300' },
+    'iptal': { label: 'İptal', cls: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' },
+  };
+
+  const customFieldEntries = customer?.customFields ? Object.entries(customer.customFields).filter(([, v]) => v != null && v !== '') : [];
+  const hasAnyData = customer || (orderStats && orderStats.orderCount > 0) || (tickets && tickets.length > 0);
+
+  // Completely empty — no customer data, no orders, no tickets
+  if (!hasAnyData) {
     return (
       <div className="w-[300px] min-w-[300px] border-l border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900 hidden lg:flex flex-col">
         <div className="p-4 border-b border-neutral-200 dark:border-neutral-800">
@@ -765,23 +781,15 @@ function CustomerSidebar({ customer, orderStats, loading, locale, customerEmail,
         <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
           <UserCircle className="h-10 w-10 text-neutral-300 dark:text-neutral-600 mb-3" />
           <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-1">
-            {locale === 'tr' ? 'Müşteri kaydı bulunamadı' : 'No customer record found'}
+            {locale === 'tr' ? 'CRM verisi bulunamadı' : 'No CRM data found'}
           </p>
-          <p className="text-xs text-neutral-400 dark:text-neutral-500 mb-4">
+          <p className="text-xs text-neutral-400 dark:text-neutral-500">
             {customerEmail}
           </p>
-          <Link href="/dashboard/customer-data">
-            <Button variant="outline" size="sm" className="text-xs h-7">
-              <ExternalLink className="h-3 w-3 mr-1.5" />
-              {locale === 'tr' ? 'CRM\'de Oluştur' : 'Create in CRM'}
-            </Button>
-          </Link>
         </div>
       </div>
     );
   }
-
-  const customFieldEntries = customer.customFields ? Object.entries(customer.customFields).filter(([, v]) => v != null && v !== '') : [];
 
   return (
     <div className="w-[300px] min-w-[300px] border-l border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900 hidden lg:flex flex-col overflow-y-auto">
@@ -793,45 +801,47 @@ function CustomerSidebar({ customer, orderStats, loading, locale, customerEmail,
         </h3>
       </div>
 
-      {/* Customer Info */}
-      <div className="p-4 border-b border-neutral-200 dark:border-neutral-800 space-y-2.5">
-        {customer.companyName && (
-          <div className="flex items-start gap-2.5">
-            <Building2 className="h-3.5 w-3.5 mt-0.5 text-neutral-400 flex-shrink-0" />
-            <div className="min-w-0">
-              <p className="text-[11px] text-neutral-400">{locale === 'tr' ? 'Firma' : 'Company'}</p>
-              <p className="text-sm font-medium text-neutral-900 dark:text-white truncate">{customer.companyName}</p>
+      {/* Customer Info (from CustomerData table) */}
+      {customer && (
+        <div className="p-4 border-b border-neutral-200 dark:border-neutral-800 space-y-2.5">
+          {customer.companyName && (
+            <div className="flex items-start gap-2.5">
+              <Building2 className="h-3.5 w-3.5 mt-0.5 text-neutral-400 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[11px] text-neutral-400">{locale === 'tr' ? 'Firma' : 'Company'}</p>
+                <p className="text-sm font-medium text-neutral-900 dark:text-white truncate">{customer.companyName}</p>
+              </div>
             </div>
-          </div>
-        )}
-        {customer.contactName && (
-          <div className="flex items-start gap-2.5">
-            <UserCircle className="h-3.5 w-3.5 mt-0.5 text-neutral-400 flex-shrink-0" />
-            <div className="min-w-0">
-              <p className="text-[11px] text-neutral-400">{locale === 'tr' ? 'İletişim' : 'Contact'}</p>
-              <p className="text-sm text-neutral-700 dark:text-neutral-300 truncate">{customer.contactName}</p>
+          )}
+          {customer.contactName && (
+            <div className="flex items-start gap-2.5">
+              <UserCircle className="h-3.5 w-3.5 mt-0.5 text-neutral-400 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[11px] text-neutral-400">{locale === 'tr' ? 'İletişim' : 'Contact'}</p>
+                <p className="text-sm text-neutral-700 dark:text-neutral-300 truncate">{customer.contactName}</p>
+              </div>
             </div>
-          </div>
-        )}
-        {customer.phone && (
-          <div className="flex items-start gap-2.5">
-            <Phone className="h-3.5 w-3.5 mt-0.5 text-neutral-400 flex-shrink-0" />
-            <div className="min-w-0">
-              <p className="text-[11px] text-neutral-400">{locale === 'tr' ? 'Telefon' : 'Phone'}</p>
-              <p className="text-sm text-neutral-700 dark:text-neutral-300">{customer.phone}</p>
+          )}
+          {customer.phone && (
+            <div className="flex items-start gap-2.5">
+              <Phone className="h-3.5 w-3.5 mt-0.5 text-neutral-400 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[11px] text-neutral-400">{locale === 'tr' ? 'Telefon' : 'Phone'}</p>
+                <p className="text-sm text-neutral-700 dark:text-neutral-300">{customer.phone}</p>
+              </div>
             </div>
-          </div>
-        )}
-        {customer.email && (
-          <div className="flex items-start gap-2.5">
-            <AtSign className="h-3.5 w-3.5 mt-0.5 text-neutral-400 flex-shrink-0" />
-            <div className="min-w-0">
-              <p className="text-[11px] text-neutral-400">Email</p>
-              <p className="text-sm text-neutral-700 dark:text-neutral-300 truncate">{customer.email}</p>
+          )}
+          {customer.email && (
+            <div className="flex items-start gap-2.5">
+              <AtSign className="h-3.5 w-3.5 mt-0.5 text-neutral-400 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[11px] text-neutral-400">Email</p>
+                <p className="text-sm text-neutral-700 dark:text-neutral-300 truncate">{customer.email}</p>
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
       {/* Order Stats */}
       {orderStats && orderStats.orderCount > 0 && (
@@ -860,8 +870,71 @@ function CustomerSidebar({ customer, orderStats, loading, locale, customerEmail,
         </div>
       )}
 
+      {/* Recent Orders */}
+      {recentOrders?.length > 0 && (
+        <div className="p-4 border-b border-neutral-200 dark:border-neutral-800">
+          <div className="flex items-center gap-2 mb-2">
+            <ShoppingBag className="h-3.5 w-3.5 text-neutral-400" />
+            <p className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">
+              {locale === 'tr' ? 'Son Siparişler' : 'Recent Orders'}
+            </p>
+          </div>
+          <div className="space-y-2">
+            {recentOrders.map((order) => {
+              const statusCfg = STATUS_LABELS[order.status?.toLowerCase()] || { label: order.status, cls: 'bg-neutral-100 text-neutral-600 dark:bg-neutral-700 dark:text-neutral-300' };
+              return (
+                <div key={order.id} className="bg-white dark:bg-neutral-800 rounded-lg p-2.5">
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <span className="text-xs font-mono font-medium text-neutral-700 dark:text-neutral-200 truncate">
+                      {order.orderNumber}
+                    </span>
+                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full whitespace-nowrap ${statusCfg.cls}`}>
+                      {statusCfg.label}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    {order.totalAmount != null && (
+                      <span className="text-xs font-semibold text-neutral-900 dark:text-white">{formatCurrency(order.totalAmount)}</span>
+                    )}
+                    <span className="text-[10px] text-neutral-400">{formatDate(order.createdAt)}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Tickets / Service Records */}
+      {tickets?.length > 0 && (
+        <div className="p-4 border-b border-neutral-200 dark:border-neutral-800">
+          <div className="flex items-center gap-2 mb-2">
+            <Wrench className="h-3.5 w-3.5 text-neutral-400" />
+            <p className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">
+              {locale === 'tr' ? 'Servis Kayıtları' : 'Service Records'}
+            </p>
+          </div>
+          <div className="space-y-2">
+            {tickets.map((ticket) => (
+              <div key={ticket.id} className="bg-white dark:bg-neutral-800 rounded-lg p-2.5">
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <span className="text-xs font-mono font-medium text-neutral-700 dark:text-neutral-200 truncate">
+                    {ticket.ticketNumber}
+                  </span>
+                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-neutral-100 text-neutral-600 dark:bg-neutral-700 dark:text-neutral-300">
+                    {ticket.status}
+                  </span>
+                </div>
+                <p className="text-[11px] text-neutral-600 dark:text-neutral-400 truncate">{ticket.product}</p>
+                {ticket.issue && <p className="text-[10px] text-neutral-400 truncate mt-0.5">{ticket.issue}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Tags */}
-      {customer.tags?.length > 0 && (
+      {customer?.tags?.length > 0 && (
         <div className="p-4 border-b border-neutral-200 dark:border-neutral-800">
           <div className="flex items-center gap-2 mb-2">
             <Tag className="h-3.5 w-3.5 text-neutral-400" />
@@ -880,7 +953,7 @@ function CustomerSidebar({ customer, orderStats, loading, locale, customerEmail,
       )}
 
       {/* Notes */}
-      {customer.notes && (
+      {customer?.notes && (
         <div className="p-4 border-b border-neutral-200 dark:border-neutral-800">
           <div className="flex items-center gap-2 mb-2">
             <StickyNote className="h-3.5 w-3.5 text-neutral-400" />
