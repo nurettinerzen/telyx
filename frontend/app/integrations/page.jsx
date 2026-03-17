@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import Image from 'next/image';
 import Navigation from '@/components/Navigation';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
@@ -31,10 +32,9 @@ export default function IntegrationsPage() {
       icon: MessagesSquare,
       color: 'from-emerald-500 to-teal-500',
       integrations: [
-        { name: 'WhatsApp Business', descKey: 'integrationsPage.whatsapp.desc', status: STATUS.AVAILABLE, cta: '/dashboard/integrations' },
-        { name: 'Gmail', descKey: 'integrationsPage.gmail.desc', status: STATUS.AVAILABLE, cta: '/dashboard/integrations' },
-        { name: 'Outlook', descKey: 'integrationsPage.outlook.desc', status: STATUS.AVAILABLE, cta: '/dashboard/integrations' },
-        { name: 'Netgsm', descKey: 'integrationsPage.netgsm.desc', status: STATUS.SOON, cta: '/contact' },
+        { name: 'WhatsApp Business', descKey: 'integrationsPage.whatsapp.desc', status: STATUS.AVAILABLE, cta: '/dashboard/integrations', logo: '/assets/integrations/whatsapp.svg' },
+        { name: 'Gmail', descKey: 'integrationsPage.gmail.desc', status: STATUS.AVAILABLE, cta: '/dashboard/integrations', logo: '/assets/integrations/gmail.svg' },
+        { name: 'Outlook', descKey: 'integrationsPage.outlook.desc', status: STATUS.AVAILABLE, cta: '/dashboard/integrations', logo: '/assets/integrations/outlook.png' },
       ]
     },
     {
@@ -43,10 +43,10 @@ export default function IntegrationsPage() {
       icon: ShoppingCart,
       color: 'from-blue-500 to-cyan-500',
       integrations: [
-        { name: 'Shopify', descKey: 'integrationsPage.shopify.desc', status: STATUS.AVAILABLE, cta: '/dashboard/integrations' },
-        { name: 'ikas', descKey: 'integrationsPage.ikas.desc', status: STATUS.AVAILABLE, cta: '/dashboard/integrations' },
-        { name: 'Ticimax', descKey: 'integrationsPage.ticimax.desc', status: STATUS.SOON, cta: '/contact' },
-        { name: 'IdeaSoft', descKey: 'integrationsPage.ideasoft.desc', status: STATUS.SOON, cta: '/contact' },
+        { name: 'Shopify', descKey: 'integrationsPage.shopify.desc', status: STATUS.AVAILABLE, cta: '/dashboard/integrations', logo: '/assets/integrations/shopify.svg' },
+        { name: 'ikas', descKey: 'integrationsPage.ikas.desc', status: STATUS.AVAILABLE, cta: '/dashboard/integrations', logo: '/assets/integrations/ikas.ico' },
+        { name: 'Ticimax', descKey: 'integrationsPage.ticimax.desc', status: STATUS.SOON, cta: '/contact', logo: '/assets/integrations/ticimax.svg' },
+        { name: 'IdeaSoft', descKey: 'integrationsPage.ideasoft.desc', status: STATUS.SOON, cta: '/contact', logo: '/assets/integrations/ideasoft.svg' },
       ]
     },
     {
@@ -55,8 +55,8 @@ export default function IntegrationsPage() {
       icon: Users2,
       color: 'from-violet-500 to-blue-500',
       integrations: [
-        { name: 'Custom CRM', descKey: 'integrationsPage.customCrm.desc', status: STATUS.AVAILABLE, cta: '/dashboard/integrations/custom-crm' },
-        { name: 'HubSpot', descKey: 'integrationsPage.hubspot.desc', status: STATUS.SOON, cta: '/contact' },
+        { name: 'Custom CRM', descKey: 'integrationsPage.customCrm.desc', status: STATUS.AVAILABLE, cta: '/dashboard/integrations/custom-crm', logo: '/assets/integrations/crm.png' },
+        { name: 'HubSpot', descKey: 'integrationsPage.hubspot.desc', status: STATUS.SOON, cta: '/contact', logo: '/assets/integrations/hubspot.svg' },
       ]
     },
     {
@@ -65,7 +65,7 @@ export default function IntegrationsPage() {
       icon: CalendarDays,
       color: 'from-orange-500 to-red-500',
       integrations: [
-        { name: 'Google Calendar', descKey: 'integrationsPage.googleCalendar.desc', status: STATUS.AVAILABLE, cta: '/dashboard/integrations' },
+        { name: 'Google Calendar', descKey: 'integrationsPage.googleCalendar.desc', status: STATUS.AVAILABLE, cta: '/dashboard/integrations', logo: '/assets/integrations/googlecalendar.svg' },
       ]
     },
     {
@@ -74,9 +74,8 @@ export default function IntegrationsPage() {
       icon: Database,
       color: 'from-green-500 to-emerald-500',
       integrations: [
-        { name: 'Google Sheets', descKey: 'integrationsPage.googleSheets.desc', status: STATUS.AVAILABLE, cta: '/dashboard/integrations/google-sheets' },
-        { name: 'Webhook API', descKey: 'integrationsPage.webhookApi.desc', status: STATUS.AVAILABLE, cta: '/dashboard/integrations' },
-        { name: 'Paraşüt', descKey: 'integrationsPage.parasut.desc', status: STATUS.SOON, cta: '/contact' },
+        { name: 'Webhook API', descKey: 'integrationsPage.webhookApi.desc', status: STATUS.AVAILABLE, cta: '/dashboard/integrations', logo: '/assets/integrations/webhook.png' },
+        { name: 'Paraşüt', descKey: 'integrationsPage.parasut.desc', status: STATUS.SOON, cta: '/contact', logo: '/assets/integrations/parasut.svg' },
       ]
     },
   ];
@@ -156,18 +155,25 @@ export default function IntegrationsPage() {
                           className="bg-white dark:bg-neutral-800 rounded-xl p-5 border border-gray-100 dark:border-neutral-700 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col"
                         >
                           <div className="flex items-start justify-between gap-3 mb-3">
-                            <h3 className="text-base font-semibold text-gray-900 dark:text-white leading-snug">
-                              {integration.name}
-                            </h3>
-                            <span
-                              className={`text-[11px] font-semibold px-2 py-1 rounded-full whitespace-nowrap ${
-                                isAvailable
-                                  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
-                                  : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
-                              }`}
-                            >
-                              {isAvailable ? t('integrationsPage.status.available') : t('integrationsPage.status.soon')}
-                            </span>
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 relative flex-shrink-0">
+                                <Image
+                                  src={integration.logo}
+                                  alt={integration.name}
+                                  width={32}
+                                  height={32}
+                                  className="object-contain"
+                                />
+                              </div>
+                              <h3 className="text-base font-semibold text-gray-900 dark:text-white leading-snug">
+                                {integration.name}
+                              </h3>
+                            </div>
+                            {!isAvailable && (
+                              <span className="text-[11px] font-semibold px-2 py-1 rounded-full whitespace-nowrap bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                                {t('integrationsPage.status.soon')}
+                              </span>
+                            )}
                           </div>
 
                           <p className="text-sm text-gray-600 dark:text-gray-400 mb-5 flex-grow">

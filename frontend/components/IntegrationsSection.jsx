@@ -12,11 +12,11 @@ export const IntegrationsSection = () => {
 
   // Integrations that are actually available in the product
   const integrations = [
-    { name: 'Shopify', icon: '/assets/integrations/shopify.svg' },
-    { name: 'ikas', icon: '/assets/integrations/ikas.svg' },
     { name: 'WhatsApp Business', icon: '/assets/integrations/whatsapp.svg' },
-    { name: 'Google Calendar', icon: '/assets/integrations/google-calendar.svg' },
-    { name: 'Webhook API', icon: '/assets/integrations/webhook.svg' },
+    { name: 'Gmail', icon: '/assets/integrations/gmail.svg' },
+    { name: 'Shopify', icon: '/assets/integrations/shopify.svg' },
+    { name: 'ikas', icon: '/assets/integrations/ikas.ico' },
+    { name: 'Google Calendar', icon: '/assets/integrations/googlecalendar.svg' },
   ];
 
   return (

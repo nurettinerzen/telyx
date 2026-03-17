@@ -18,6 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import Image from 'next/image';
 import EmptyState from '@/components/EmptyState';
 import {
   Puzzle, Check, ExternalLink, Star, Copy, CheckCircle2, CreditCard, Zap,
@@ -63,49 +64,31 @@ import {
   useCrmWebhookStatus,
 } from '@/hooks/useIntegrations';
 
-// App Logo Components (Official brand logos from Simple Icons)
-const GmailLogo = ({ className }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none">
-    <path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L12 9.366l8.073-5.873C21.69 2.28 24 3.434 24 5.457z" fill="#EA4335"/>
-  </svg>
-);
+// Integration logo paths
+const INTEGRATION_LOGOS = {
+  GOOGLE_CALENDAR: '/assets/integrations/googlecalendar.svg',
+  WHATSAPP: '/assets/integrations/whatsapp.svg',
+  SHOPIFY: '/assets/integrations/shopify.svg',
+  IKAS: '/assets/integrations/ikas.ico',
+  GMAIL: '/assets/integrations/gmail.svg',
+  OUTLOOK: '/assets/integrations/outlook.png',
+  CUSTOM: '/assets/integrations/crm.png',
+  WEBHOOK: '/assets/integrations/webhook.png',
+};
 
-const OutlookLogo = ({ className }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none">
-    <path d="M7.88 12.04q0 .45-.11.87-.1.41-.33.74-.22.33-.58.52-.37.2-.87.2t-.85-.2q-.35-.21-.57-.55-.22-.33-.33-.75-.1-.42-.1-.86t.1-.87q.1-.43.34-.76.22-.34.59-.54.36-.2.87-.2t.86.2q.35.21.57.55.22.34.31.77.1.43.1.88zM24 12v9.38q0 .46-.33.8-.33.32-.8.32H7.13q-.46 0-.8-.33-.32-.33-.32-.8V18H1.6q-.33 0-.57-.24-.23-.23-.23-.57V6.8q0-.33.22-.57.22-.23.58-.23h14.16q.34 0 .57.22.24.24.24.58v11.53h6.4V12h1.6zm-7.36 4.17V6.8H2.4v9.37h12.64v-3.44q.54.02 1.04.08.49.07.96.19zm4.1-5.95H24v3.4h-3.25V10.2zm-4.1-3.4V1.61l6.4 6.4h-6.4z" fill="#0078D4"/>
-  </svg>
-);
-
-const ShopifyLogo = ({ className }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none">
-    <path d="M15.337 2.127c-.141-.019-.29-.019-.413.019-.123.038-2.045.57-2.045.57s-1.319 1.282-1.804 1.767c-.123.122-.256.293-.389.484-.807-.236-1.538-.35-2.119-.35-.913 0-1.196.247-1.423.494-.759.76-1.348 2.35-1.652 3.736-.76.236-1.29.398-1.348.417-.807.227-1.538.455-1.745.683-.228.228-.228.512-.228.76l-.076 12.88c0 .228 0 .493.228.72l1.917 1.918c.228.228.494.228.722.228h13.793c.228 0 .493 0 .722-.228l1.918-1.918c.227-.227.227-.492.227-.72V4.42c0-.228 0-.493-.227-.72l-1.918-1.918c-.114-.114-.304-.228-.493-.228-.095.057-.19.095-.304.133zm-2.382 12.187c-2.045.76-3.507 1.196-5.21 1.196-2.616 0-3.735-1.614-3.735-2.963 0-2.331 2.083-4.566 5.741-4.566.646 0 1.234.076 1.765.209l-.076 6.124zm.836-6.505c-.494-.114-1.044-.209-1.728-.209-3.964 0-7.566 2.805-7.566 6.617 0 2.007 1.348 3.774 3.926 3.774 1.537 0 2.73-.456 4.414-1.196l-.046-9.986z" fill="#95BF47"/>
-  </svg>
-);
-
-const GoogleCalendarLogo = ({ className }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none">
-    <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z" fill="#4285F4"/>
-  </svg>
-);
-
-const WhatsAppLogo = ({ className }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none">
-    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" fill="#25D366"/>
-  </svg>
-);
-
-const IkasLogo = ({ className }) => (
-  <svg className={className} viewBox="0 0 100 100" fill="none">
-    <rect width="100" height="100" rx="20" fill="#FF6B35"/>
-    <text x="50" y="70" fontSize="60" fontWeight="bold" fill="white" textAnchor="middle" fontFamily="Arial, sans-serif">i</text>
-  </svg>
-);
+const IntegrationLogo = ({ type, className = 'h-6 w-6' }) => {
+  const logo = INTEGRATION_LOGOS[type];
+  if (logo) {
+    return <Image src={logo} alt={type} width={24} height={24} className={className} />;
+  }
+  return <Hash className={className} />;
+};
 
 const INTEGRATION_ICONS = {
-  GOOGLE_CALENDAR: GoogleCalendarLogo,
-  WHATSAPP: WhatsAppLogo,
-  SHOPIFY: ShopifyLogo,
-  IKAS: IkasLogo,
+  GOOGLE_CALENDAR: ({ className }) => <IntegrationLogo type="GOOGLE_CALENDAR" className={className} />,
+  WHATSAPP: ({ className }) => <IntegrationLogo type="WHATSAPP" className={className} />,
+  SHOPIFY: ({ className }) => <IntegrationLogo type="SHOPIFY" className={className} />,
+  IKAS: ({ className }) => <IntegrationLogo type="IKAS" className={className} />,
   CUSTOM: Hash
 };
 
@@ -710,7 +693,7 @@ const handleShopifyConnect = async () => {
             <div className={`bg-white dark:bg-neutral-900 rounded-xl border p-6 transition-shadow ${isCRMLocked ? 'opacity-70 bg-neutral-50 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700' : isCrmConnected ? 'border-neutral-400 dark:border-neutral-600 hover:shadow-md' : 'border-neutral-200 dark:border-neutral-700 hover:shadow-md'}`}>
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <Hash className={`h-6 w-6 ${isCRMLocked ? 'text-neutral-400 dark:text-neutral-500' : 'text-neutral-600 dark:text-neutral-400'}`} />
+                  <IntegrationLogo type="CUSTOM" />
                   <div>
                     <div className="flex items-center gap-2">
                       <h3 className={`font-semibold ${isCRMLocked ? 'text-neutral-500 dark:text-neutral-400' : 'text-neutral-900 dark:text-white'}`}>
@@ -802,7 +785,7 @@ const handleShopifyConnect = async () => {
           <div className={`bg-white dark:bg-neutral-900 rounded-xl border p-6 hover:shadow-md transition-shadow ${emailStatus?.connected && emailStatus?.provider === 'GMAIL' ? 'border-neutral-400 dark:border-neutral-600' : 'border-neutral-200 dark:border-neutral-700'}`}>
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-3">
-                <GmailLogo className="h-6 w-6" />
+                <IntegrationLogo type="GMAIL" />
                 <div>
                   <h3 className="font-semibold text-neutral-900 dark:text-white">Gmail</h3>
                 </div>
@@ -836,7 +819,7 @@ const handleShopifyConnect = async () => {
           <div className={`bg-white dark:bg-neutral-900 rounded-xl border p-6 hover:shadow-md transition-shadow ${emailStatus?.connected && emailStatus?.provider === 'OUTLOOK' ? 'border-neutral-400 dark:border-neutral-600' : 'border-neutral-200 dark:border-neutral-700'}`}>
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-3">
-                <OutlookLogo className="h-6 w-6" />
+                <IntegrationLogo type="OUTLOOK" />
                 <div>
                   <h3 className="font-semibold text-neutral-900 dark:text-white">Microsoft 365</h3>
                 </div>
