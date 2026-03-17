@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Telyx AI — Email Redesign</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg-primary: #0f1724;
+    --bg-secondary: #162033;
+    --bg-tertiary: #1a2740;
+    --bg-hover: #1e2d4a;
+    --bg-active: #233456;
+    --border: #243049;
+    --border-light: #2a3a58;
+    --text-primary: #e8ecf4;
+    --text-secondary: #8c9bb5;
+    --text-muted: #5e6e8a;
+    --accent-blue: #3b82f6;
+    --accent-blue-dim: #2563eb;
+    --accent-green: #22c55e;
+    --accent-orange: #f59e0b;
+    --accent-red: #ef4444;
+    --accent-purple: #a855f7;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ========== LAYOUT: 2-panel Outlook style ========== */
+  .app-layout {
+    display: flex;
+    height: 100vh;
+  }
+
+  /* ========== MAIL LIST (LEFT) ========== */
+  .mail-list-panel {
+    width: 380px;
+    min-width: 380px;
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .mail-list-header {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .mail-list-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  .mail-list-title {
+    font-size: 18px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .mail-count {
+    font-size: 11px;
+    color: var(--text-muted);
+    background: var(--bg-tertiary);
+    padding: 2px 8px;
+    border-radius: 10px;
+  }
+
+  .compose-btn {
+    background: var(--accent-blue);
+    color: white;
+    border: none;
+    padding: 7px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: background 0.15s;
+  }
+
+  .compose-btn:hover { background: var(--accent-blue-dim); }
+
+  /* Folder tabs */
+  .folder-tabs {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 10px;
+    background: var(--bg-primary);
+    border-radius: 8px;
+    padding: 3px;
+  }
+
+  .folder-tab {
+    flex: 1;
+    padding: 7px 0;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+  }
+
+  .folder-tab:hover { color: var(--text-primary); }
+  .folder-tab.active { background: var(--bg-tertiary); color: var(--text-primary); }
+
+  .folder-tab .tab-count {
+    font-size: 10px;
+    background: var(--accent-blue);
+    color: white;
+    padding: 1px 5px;
+    border-radius: 8px;
+    font-weight: 700;
+  }
+
+  /* Filter chips */
+  .filter-chips {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .filter-chip {
+    padding: 4px 10px;
+    border-radius: 14px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border: 1px solid var(--border);
+    transition: all 0.15s;
+    font-weight: 500;
+  }
+
+  .filter-chip:hover { border-color: var(--text-muted); color: var(--text-primary); }
+  .filter-chip.active { background: var(--accent-blue); border-color: var(--accent-blue); color: white; }
+
+  /* Search */
+  .mail-search {
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .search-input {
+    width: 100%;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px 8px 32px;
+    font-size: 12px;
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color 0.15s;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='%235e6e8a' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.44.856a5 5 0 1 1 0-10 5 5 0 0 1 0 10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: 10px center;
+  }
+
+  .search-input::placeholder { color: var(--text-muted); }
+  .search-input:focus { border-color: var(--accent-blue); }
+
+  /* Mail items */
+  .mail-list-scroll {
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .mail-item {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.1s;
+    position: relative;
+  }
+
+  .mail-item:hover { background: var(--bg-hover); }
+  .mail-item.active { background: var(--bg-active); border-left: 3px solid var(--accent-blue); }
+  .mail-item.unread { border-left: 3px solid var(--accent-blue); }
+
+  .mail-item-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 4px;
+  }
+
+  .mail-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    color: white;
+    flex-shrink: 0;
+  }
+
+  .mail-item-meta { flex: 1; min-width: 0; }
+
+  .mail-item-name-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .mail-item-name {
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .mail-item.unread .mail-item-name { color: var(--text-primary); }
+  .mail-item:not(.unread) .mail-item-name { color: var(--text-secondary); }
+
+  .mail-item-time {
+    font-size: 11px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    margin-left: 8px;
+  }
+
+  .mail-item-email {
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .mail-item-subject {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 4px 0 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .mail-item:not(.unread) .mail-item-subject { color: var(--text-secondary); font-weight: 500; }
+
+  .mail-item-preview {
+    font-size: 12px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .mail-item-tags {
+    display: flex;
+    gap: 4px;
+    margin-top: 6px;
+  }
+
+  .tag {
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+
+  .tag-urgent { background: rgba(239, 68, 68, 0.15); color: var(--accent-red); }
+  .tag-open { background: rgba(59, 130, 246, 0.15); color: var(--accent-blue); }
+  .tag-ticket { background: rgba(168, 85, 247, 0.15); color: var(--accent-purple); }
+  .tag-closed { background: rgba(107, 114, 128, 0.15); color: #6b7280; }
+  .tag-pending { background: rgba(245, 158, 11, 0.15); color: var(--accent-orange); }
+  .tag-resolved { background: rgba(34, 197, 94, 0.15); color: var(--accent-green); }
+
+  .msg-count-badge {
+    font-size: 10px;
+    color: var(--text-muted);
+    background: var(--bg-primary);
+    padding: 1px 6px;
+    border-radius: 8px;
+    margin-left: 4px;
+  }
+
+  /* ========== THREAD VIEW (RIGHT) ========== */
+  .thread-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg-primary);
+  }
+
+  /* Thread header */
+  .thread-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .thread-header-left { flex: 1; min-width: 0; }
+
+  .thread-subject {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+
+  .thread-participants {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .thread-actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .thread-action-btn {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.15s;
+    font-weight: 500;
+  }
+
+  .thread-action-btn:hover { background: var(--bg-hover); color: var(--text-primary); border-color: var(--border-light); }
+
+  /* Customer profile strip */
+  .customer-strip {
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-secondary);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .customer-strip-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #10b981;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    font-weight: 700;
+    color: white;
+  }
+
+  .customer-strip-info { flex: 1; }
+  .customer-strip-name { font-size: 13px; font-weight: 600; }
+  .customer-strip-email { font-size: 11px; color: var(--text-muted); }
+
+  .customer-strip-stats {
+    display: flex;
+    gap: 20px;
+  }
+
+  .cs-stat { text-align: center; }
+  .cs-stat-value { font-size: 14px; font-weight: 700; color: var(--accent-blue); }
+  .cs-stat-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; }
+
+  .customer-profile-btn {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .customer-profile-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+  /* Messages area */
+  .thread-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  /* Date separator */
+  .date-separator {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 12px 0;
+  }
+
+  .date-separator::before, .date-separator::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .date-separator span {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  /* Message bubble */
+  .message {
+    display: flex;
+    gap: 10px;
+    max-width: 85%;
+    position: relative;
+  }
+
+  .message.received { align-self: flex-start; }
+  .message.sent { align-self: flex-end; flex-direction: row-reverse; }
+
+  .message-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: white;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .message-body { flex: 1; }
+
+  .message-sender-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 3px;
+  }
+
+  .message-sender {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  .message-time {
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+
+  .message-direction-badge {
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-weight: 600;
+  }
+
+  .badge-incoming { background: rgba(59, 130, 246, 0.12); color: var(--accent-blue); }
+  .badge-outgoing { background: rgba(168, 85, 247, 0.12); color: var(--accent-purple); }
+
+  .message-bubble {
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .message.received .message-bubble {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-top-left-radius: 4px;
+  }
+
+  .message.sent .message-bubble {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-light);
+    border-top-right-radius: 4px;
+  }
+
+  .message.sent .message-sender-row { flex-direction: row-reverse; }
+
+  .message-bubble p { margin-bottom: 6px; }
+  .message-bubble p:last-child { margin-bottom: 0; }
+
+  /* AI draft indicator */
+  .ai-draft-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    color: var(--accent-purple);
+    margin-top: 4px;
+  }
+
+  /* Quoted content (collapsed) */
+  .quoted-toggle {
+    font-size: 11px;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 6px;
+  }
+
+  .quoted-toggle:hover { color: var(--text-secondary); }
+
+  .quoted-content {
+    display: none;
+    margin-top: 6px;
+    padding: 8px 10px;
+    border-left: 2px solid var(--border);
+    font-size: 12px;
+    color: var(--text-muted);
+    background: rgba(0,0,0,0.15);
+    border-radius: 0 6px 6px 0;
+  }
+
+  .quoted-content.expanded { display: block; }
+
+  /* Reply composer */
+  .reply-composer {
+    padding: 12px 20px 16px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-secondary);
+  }
+
+  .reply-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .ai-suggest-btn {
+    background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
+    color: white;
+    border: none;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .reply-textarea {
+    width: 100%;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--text-primary);
+    outline: none;
+    resize: none;
+    min-height: 60px;
+    font-family: inherit;
+    line-height: 1.5;
+    transition: border-color 0.15s;
+  }
+
+  .reply-textarea::placeholder { color: var(--text-muted); }
+  .reply-textarea:focus { border-color: var(--accent-blue); }
+
+  .reply-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+  }
+
+  .reply-tools {
+    display: flex;
+    gap: 4px;
+  }
+
+  .reply-tool-btn {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .reply-tool-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+  .send-btn {
+    background: var(--accent-blue);
+    color: white;
+    border: none;
+    padding: 7px 16px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: background 0.15s;
+  }
+
+  .send-btn:hover { background: var(--accent-blue-dim); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<div class="app-layout">
+  <!-- MAIL LIST -->
+  <div class="mail-list-panel">
+    <div class="mail-list-header">
+      <div class="mail-list-title-row">
+        <div class="mail-list-title">
+          📧 Email <span class="mail-count">24</span>
+        </div>
+        <button class="compose-btn">✏️ Compose</button>
+      </div>
+
+      <!-- Folder Tabs: Inbox / Sent -->
+      <div class="folder-tabs">
+        <div class="folder-tab active" onclick="switchFolder('inbox')">
+          📥 Gelen Kutusu <span class="tab-count">12</span>
+        </div>
+        <div class="folder-tab" onclick="switchFolder('sent')">
+          📤 Gönderilenler <span class="tab-count">48</span>
+        </div>
+      </div>
+
+      <!-- Filter Chips -->
+      <div class="filter-chips">
+        <div class="filter-chip active">Tümü</div>
+        <div class="filter-chip">Okunmamış</div>
+        <div class="filter-chip">Açık</div>
+        <div class="filter-chip">Acil</div>
+        <div class="filter-chip">Bekleyen</div>
+      </div>
+    </div>
+
+    <div class="mail-search">
+      <input type="text" class="search-input" placeholder="Gönderen, konu veya içerik ara...">
+    </div>
+
+    <!-- Inbox list -->
+    <div class="mail-list-scroll" id="inbox-list">
+      <div class="mail-item active unread" onclick="selectThread(this)">
+        <div class="mail-item-top">
+          <div class="mail-avatar" style="background:#10b981;">ZK</div>
+          <div class="mail-item-meta">
+            <div class="mail-item-name-row">
+              <span class="mail-item-name">Zeynep Kaya</span>
+              <span class="mail-item-time">08:52</span>
+            </div>
+            <div class="mail-item-email">zeynep.kaya@hotmail.com</div>
+          </div>
+        </div>
+        <div class="mail-item-subject">AirPods Pro kargom nerede? <span class="msg-count-badge">4</span></div>
+        <div class="mail-item-preview">Sipariş numaram #SP-5102. Bugün 5 Mart, 3 gündür hiç hareket yok...</div>
+        <div class="mail-item-tags">
+          <span class="tag tag-open">Açık</span>
+          <span class="tag tag-urgent">Acil</span>
+        </div>
+      </div>
+
+      <div class="mail-item unread" onclick="selectThread(this)">
+        <div class="mail-item-top">
+          <div class="mail-avatar" style="background:#6366f1;">AY</div>
+          <div class="mail-item-meta">
+            <div class="mail-item-name-row">
+              <span class="mail-item-name">Ahmet Yılmaz</span>
+              <span class="mail-item-time">09:14</span>
+            </div>
+            <div class="mail-item-email">ahmet.yilmaz@gmail.com</div>
+          </div>
+        </div>
+        <div class="mail-item-subject">Telefonum garanti kapsamında mı? <span class="msg-count-badge">2</span></div>
+        <div class="mail-item-preview">Merhaba, geçen ay aldığım Xiaomi Redmi telefonun batarya...</div>
+        <div class="mail-item-tags">
+          <span class="tag tag-open">Açık</span>
+          <span class="tag tag-ticket">Ticket</span>
+        </div>
+      </div>
+
+      <div class="mail-item" onclick="selectThread(this)">
+        <div class="mail-item-top">
+          <div class="mail-avatar" style="background:#f59e0b;">ED</div>
+          <div class="mail-item-meta">
+            <div class="mail-item-name-row">
+              <span class="mail-item-name">Emre Demir</span>
+              <span class="mail-item-time">07:30</span>
+            </div>
+            <div class="mail-item-email">emre.demir@outlook.com</div>
+          </div>
+        </div>
+        <div class="mail-item-subject">Samsung S24 Ultra hakkında teşekkür</div>
+        <div class="mail-item-preview">Geçen hafta aldığım Samsung Galaxy S24 Ultra için çok me...</div>
+        <div class="mail-item-tags">
+          <span class="tag tag-closed">Kapalı</span>
+        </div>
+      </div>
+
+      <div class="mail-item unread" onclick="selectThread(this)">
+        <div class="mail-item-top">
+          <div class="mail-avatar" style="background:#ef4444;">FŞ</div>
+          <div class="mail-item-meta">
+            <div class="mail-item-name-row">
+              <span class="mail-item-name">Fatma Şahin</span>
+              <span class="mail-item-time">Dün</span>
+            </div>
+            <div class="mail-item-email">fatma.sahin@gmail.com</div>
+          </div>
+        </div>
+        <div class="mail-item-subject">Airfryer kapağı açılmıyor, defolu geldi <span class="msg-count-badge">3</span></div>
+        <div class="mail-item-preview">Az önce teslim aldığım Philips Airfryer XXL'nin kapağı fabrika...</div>
+        <div class="mail-item-tags">
+          <span class="tag tag-urgent">Acil</span>
+          <span class="tag tag-open">Açık</span>
+        </div>
+      </div>
+
+      <div class="mail-item unread" onclick="selectThread(this)">
+        <div class="mail-item-top">
+          <div class="mail-avatar" style="background:#3b82f6;">MA</div>
+          <div class="mail-item-meta">
+            <div class="mail-item-name-row">
+              <span class="mail-item-name">Murat Ak</span>
+              <span class="mail-item-time">Dün</span>
+            </div>
+            <div class="mail-item-email">murat.ak@yahoo.com</div>
+          </div>
+        </div>
+        <div class="mail-item-subject">Dyson V15 iade talebi — acil <span class="msg-count-badge">5</span></div>
+        <div class="mail-item-preview">Dyson V15 emme gücü son derece düşük, vaatler karşılanmı...</div>
+        <div class="mail-item-tags">
+          <span class="tag tag-urgent">Acil</span>
+          <span class="tag tag-open">Açık</span>
+        </div>
+      </div>
+
+      <div class="mail-item" onclick="selectThread(this)">
+        <div class="mail-item-top">
+          <div class="mail-avatar" style="background:#8b5cf6;">SK</div>
+          <div class="mail-item-meta">
+            <div class="mail-item-name-row">
+              <span class="mail-item-name">Selin Koç</span>
+              <span class="mail-item-time">Dün</span>
+            </div>
+            <div class="mail-item-email">selin.koc@gmail.com</div>
+          </div>
+        </div>
+        <div class="mail-item-subject">Sipariş B21-ORD-2026-0042 durumu</div>
+        <div class="mail-item-preview">Merhaba, siparişimin ne zaman kargoya verileceğini öğren...</div>
+        <div class="mail-item-tags">
+          <span class="tag tag-pending">Bekliyor</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sent list (hidden by default) -->
+    <div class="mail-list-scroll" id="sent-list" style="display:none;">
+      <div class="mail-item" onclick="selectThread(this)">
+        <div class="mail-item-top">
+          <div class="mail-avatar" style="background:#10b981;">ZK</div>
+          <div class="mail-item-meta">
+            <div class="mail-item-name-row">
+              <span class="mail-item-name">→ Zeynep Kaya</span>
+              <span class="mail-item-time">09:01</span>
+            </div>
+            <div class="mail-item-email">zeynep.kaya@hotmail.com</div>
+          </div>
+        </div>
+        <div class="mail-item-subject">Re: AirPods Pro kargom nerede?</div>
+        <div class="mail-item-preview">Kaydınızı buldum. Güvenlik doğrulaması için telefon numaranızın...</div>
+        <div class="mail-item-tags">
+          <span class="tag tag-resolved">Gönderildi</span>
+        </div>
+      </div>
+
+      <div class="mail-item" onclick="selectThread(this)">
+        <div class="mail-item-top">
+          <div class="mail-avatar" style="background:#6366f1;">AY</div>
+          <div class="mail-item-meta">
+            <div class="mail-item-name-row">
+              <span class="mail-item-name">→ Ahmet Yılmaz</span>
+              <span class="mail-item-time">09:20</span>
+            </div>
+            <div class="mail-item-email">ahmet.yilmaz@gmail.com</div>
+          </div>
+        </div>
+        <div class="mail-item-subject">Re: Telefonum garanti kapsamında mı?</div>
+        <div class="mail-item-preview">Garanti kapsamındaki cihazınız için lütfen fatura numaranızı...</div>
+        <div class="mail-item-tags">
+          <span class="tag tag-resolved">Gönderildi</span>
+        </div>
+      </div>
+
+      <div class="mail-item" onclick="selectThread(this)">
+        <div class="mail-item-top">
+          <div class="mail-avatar" style="background:#f59e0b;">ED</div>
+          <div class="mail-item-meta">
+            <div class="mail-item-name-row">
+              <span class="mail-item-name">→ Emre Demir</span>
+              <span class="mail-item-time">07:45</span>
+            </div>
+            <div class="mail-item-email">emre.demir@outlook.com</div>
+          </div>
+        </div>
+        <div class="mail-item-subject">Re: Samsung S24 Ultra hakkında teşekkür</div>
+        <div class="mail-item-preview">Güzel geri bildiriminiz için çok teşekkür ederiz! Samsung S24...</div>
+        <div class="mail-item-tags">
+          <span class="tag tag-resolved">Gönderildi</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- THREAD VIEW -->
+  <div class="thread-panel">
+    <!-- Thread Header -->
+    <div class="thread-header">
+      <div class="thread-header-left">
+        <div class="thread-subject">AirPods Pro kargom nerede?</div>
+        <div class="thread-participants">zeynep.kaya@hotmail.com → nurettinerzen@hotmail.com · 4 mesaj</div>
+      </div>
+      <div class="thread-actions">
+        <button class="thread-action-btn">📌 Sipariş Bağla</button>
+        <button class="thread-action-btn">🎫 Ticket Oluştur</button>
+        <button class="thread-action-btn">✅ Çözümlendi</button>
+        <button class="thread-action-btn" title="Müşteri Profili">👤</button>
+      </div>
+    </div>
+
+    <!-- Customer Strip -->
+    <div class="customer-strip">
+      <div class="customer-strip-avatar">ZK</div>
+      <div class="customer-strip-info">
+        <div class="customer-strip-name">Zeynep Kaya</div>
+        <div class="customer-strip-email">zeynep.kaya@hotmail.com</div>
+      </div>
+      <div class="customer-strip-stats">
+        <div class="cs-stat">
+          <div class="cs-stat-value">2</div>
+          <div class="cs-stat-label">Sipariş</div>
+        </div>
+        <div class="cs-stat">
+          <div class="cs-stat-value">1</div>
+          <div class="cs-stat-label">Arıza</div>
+        </div>
+        <div class="cs-stat">
+          <div class="cs-stat-value">₺9,598</div>
+          <div class="cs-stat-label">Harcama</div>
+        </div>
+        <div class="cs-stat">
+          <div class="cs-stat-value">3.8 ⭐</div>
+          <div class="cs-stat-label">CSAT</div>
+        </div>
+      </div>
+      <button class="customer-profile-btn">Müşteri Profili →</button>
+    </div>
+
+    <!-- Messages -->
+    <div class="thread-messages">
+      <div class="date-separator"><span>Bugün · 5 Mart 2026</span></div>
+
+      <!-- Message 4: Customer follow-up (NEWEST) -->
+      <div class="message received">
+        <div class="message-avatar" style="background:#10b981;">ZK</div>
+        <div class="message-body">
+          <div class="message-sender-row">
+            <span class="message-sender">Zeynep Kaya</span>
+            <span class="message-direction-badge badge-incoming">← Gelen</span>
+            <span class="message-time">08:52</span>
+          </div>
+          <div class="message-bubble">
+            <p>Son 4 hane: 4829</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Message 3: Our verification request (SENT) -->
+      <div class="message sent">
+        <div class="message-avatar" style="background:var(--accent-blue);">T</div>
+        <div class="message-body">
+          <div class="message-sender-row">
+            <span class="message-sender">Telyx AI</span>
+            <span class="message-direction-badge badge-outgoing">→ Gönderilen</span>
+            <span class="message-time">08:35</span>
+          </div>
+          <div class="message-bubble">
+            <p>Merhaba Zeynep Hanım,</p>
+            <p>SP-5102 numaralı siparişinizi buldum. Güvenlik doğrulaması için telefon numaranızın son 4 hanesini paylaşır mısınız?</p>
+            <p>Teşekkürler,<br>Telyx Destek</p>
+            <div class="ai-draft-indicator">✨ AI tarafından oluşturuldu</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="date-separator"><span>Dün · 4 Mart 2026</span></div>
+
+      <!-- Message 2: Our initial reply (SENT) -->
+      <div class="message sent">
+        <div class="message-avatar" style="background:var(--accent-blue);">T</div>
+        <div class="message-body">
+          <div class="message-sender-row">
+            <span class="message-sender">Telyx AI</span>
+            <span class="message-direction-badge badge-outgoing">→ Gönderilen</span>
+            <span class="message-time">14:20</span>
+          </div>
+          <div class="message-bubble">
+            <p>Merhaba Zeynep Hanım,</p>
+            <p>Kargo takip sorununuzu inceleyebilmem için sipariş numaranıza ihtiyacım var. Sipariş numaranızı paylaşır mısınız?</p>
+            <p>İyi günler,<br>Telyx Destek</p>
+            <div class="ai-draft-indicator">✨ AI tarafından oluşturuldu</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Message 1: Customer initial email (OLDEST) -->
+      <div class="message received">
+        <div class="message-avatar" style="background:#10b981;">ZK</div>
+        <div class="message-body">
+          <div class="message-sender-row">
+            <span class="message-sender">Zeynep Kaya</span>
+            <span class="message-direction-badge badge-incoming">← Gelen</span>
+            <span class="message-time">14:02</span>
+          </div>
+          <div class="message-bubble">
+            <p>İyi günler,</p>
+            <p>2 Mart tarihinde sipariş ettiğim Apple AirPods Pro 2. Nesil ürününün kargo takibini yapamıyorum. Kargo firmasının sitesinde "Süreçte" yazıyor ama hiç güncelleme yok.</p>
+            <p>Sipariş numaram #SP-5102. Bugün 5 Mart, 3 gündür hiç hareket yok. Kargom kayboldu mu? Yeniden gönderi yapılabilir mi?</p>
+            <p>Teşekkürler</p>
+
+            <div class="quoted-toggle" onclick="toggleQuote(this)">
+              ▸ Alıntılanan içeriği göster
+            </div>
+            <div class="quoted-content">
+              From: zeynep.kaya@hotmail.com<br>
+              Date: 4 March 2026, 14:02<br>
+              To: destek@telyx.com<br>
+              Subject: AirPods Pro kargom nerede?
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reply Composer -->
+    <div class="reply-composer">
+      <div class="reply-label">
+        YANIT YAZ
+        <button class="ai-suggest-btn">✨ AI Öneri</button>
+      </div>
+      <textarea class="reply-textarea" placeholder="Yanıtınızı buraya yazın..."></textarea>
+      <div class="reply-actions">
+        <div class="reply-tools">
+          <button class="reply-tool-btn">📎 Ekle</button>
+          <button class="reply-tool-btn">🏷️ Etiket</button>
+          <button class="reply-tool-btn">🔔 Hatırlat</button>
+          <button class="reply-tool-btn" style="background:rgba(239,68,68,0.1);border-color:rgba(239,68,68,0.3);color:var(--accent-red);">📦 Sipariş Bağla</button>
+        </div>
+        <button class="send-btn">📤 Gönder</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function switchFolder(folder) {
+  document.querySelectorAll('.folder-tab').forEach(t => t.classList.remove('active'));
+  if (folder === 'inbox') {
+    document.querySelectorAll('.folder-tab')[0].classList.add('active');
+    document.getElementById('inbox-list').style.display = 'block';
+    document.getElementById('sent-list').style.display = 'none';
+  } else {
+    document.querySelectorAll('.folder-tab')[1].classList.add('active');
+    document.getElementById('inbox-list').style.display = 'none';
+    document.getElementById('sent-list').style.display = 'block';
+  }
+}
+
+function selectThread(el) {
+  document.querySelectorAll('.mail-item').forEach(i => i.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function toggleQuote(el) {
+  const content = el.nextElementSibling;
+  if (content.classList.contains('expanded')) {
+    content.classList.remove('expanded');
+    el.textContent = '▸ Alıntılanan içeriği göster';
+  } else {
+    content.classList.add('expanded');
+    el.textContent = '▾ Alıntılanan içeriği gizle';
+  }
+}
+</script>
+
+</body>
+</html>
