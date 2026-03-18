@@ -200,7 +200,12 @@ export function useWhatsAppEmbeddedSignup({
     setFlowState('preparing');
 
     try {
-      const sessionResponse = await apiClient.post('/api/integrations/whatsapp/embedded-signup/session');
+      const redirectUri = typeof window !== 'undefined'
+        ? `${window.location.origin}/auth/meta/whatsapp-callback`
+        : null;
+      const sessionResponse = await apiClient.post('/api/integrations/whatsapp/embedded-signup/session', {
+        redirectUri,
+      });
       const sessionData = sessionResponse.data || {};
 
       sessionRef.current = sessionData;

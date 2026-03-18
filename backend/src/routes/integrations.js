@@ -62,6 +62,24 @@ function getWhatsAppEmbeddedSignupRedirectUri() {
   return `${frontendUrl}/auth/meta/whatsapp-callback`;
 }
 
+function normalizeRedirectUri(redirectUri) {
+  if (!redirectUri || typeof redirectUri !== 'string') {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(redirectUri);
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      return null;
+    }
+
+    parsed.hash = '';
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
 function getIntegrationCredentials(integration) {
   if (!integration || !isPlainObject(integration.credentials)) {
     return {};
@@ -877,7 +895,8 @@ router.post('/whatsapp/connect/manual', requireOwner, async (req, res) => {
 router.post('/whatsapp/embedded-signup/session', requireOwner, async (req, res) => {
   try {
     const { appId, configId, graphApiVersion } = getWhatsAppEmbeddedSignupConfig();
-    const redirectUri = getWhatsAppEmbeddedSignupRedirectUri();
+    const requestedRedirectUri = normalizeRedirectUri(req.body?.redirectUri);
+    const redirectUri = requestedRedirectUri || getWhatsAppEmbeddedSignupRedirectUri();
     const expiresAt = new Date(Date.now() + WHATSAPP_EMBEDDED_SIGNUP_SESSION_TTL_MS);
 
     const session = await prisma.whatsappEmbeddedSignupSession.create({
