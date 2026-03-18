@@ -58,31 +58,110 @@ function normalizeEmbeddedSignupPayload(payload = {}) {
   };
 }
 
-function extractAuthorizationCodeFromMessage(messageData) {
+function extractAuthorizationCodeFromString(messageData) {
   if (typeof messageData !== 'string') {
     return null;
   }
 
   const trimmedValue = messageData.trim();
-  if (!trimmedValue || !trimmedValue.includes('code=')) {
+  if (!trimmedValue) {
     return null;
   }
 
-  const normalizedValue = trimmedValue.startsWith('?')
-    ? trimmedValue.slice(1)
-    : trimmedValue;
-  const params = new URLSearchParams(normalizedValue);
-  let code = params.get('code');
-
-  if (!code) {
-    const nestedData = params.get('data');
-    if (nestedData) {
-      const nestedParams = new URLSearchParams(nestedData);
-      code = nestedParams.get('code');
+  if (trimmedValue.startsWith('{') || trimmedValue.startsWith('[')) {
+    try {
+      return extractAuthorizationCode(JSON.parse(trimmedValue));
+    } catch {
+      // Fall through to query-string style parsing.
     }
   }
 
-  return code || null;
+  const candidates = [trimmedValue];
+
+  try {
+    const decoded = decodeURIComponent(trimmedValue);
+    if (decoded !== trimmedValue) {
+      candidates.push(decoded);
+    }
+  } catch {
+    // Keep the original value only.
+  }
+
+  for (const candidate of candidates) {
+    if (!candidate.includes('code=')) {
+      continue;
+    }
+
+    const normalizedValue = candidate.replace(/^[?#]/, '');
+    const params = new URLSearchParams(normalizedValue);
+    let code = params.get('code');
+
+    if (!code) {
+      const nestedData = params.get('data');
+      if (nestedData) {
+        code = extractAuthorizationCode(nestedData);
+      }
+    }
+
+    if (code) {
+      return code;
+    }
+  }
+
+  return null;
+}
+
+function extractAuthorizationCode(payload, seen = new WeakSet()) {
+  if (!payload) {
+    return null;
+  }
+
+  if (typeof payload === 'string') {
+    return extractAuthorizationCodeFromString(payload);
+  }
+
+  if (!isPlainObject(payload)) {
+    return null;
+  }
+
+  if (seen.has(payload)) {
+    return null;
+  }
+
+  seen.add(payload);
+
+  const directCandidates = [
+    payload.code,
+    payload.authorization_code,
+    payload.authorizationCode,
+    payload.authCode,
+    payload?.authResponse?.code,
+    payload?.authResponse?.authorizationCode,
+  ];
+
+  for (const candidate of directCandidates) {
+    if (typeof candidate === 'string' && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+
+  const nestedCandidates = [
+    payload.data,
+    payload.payload,
+    payload.response,
+    payload.params,
+    payload.authResponse,
+    payload.message,
+  ];
+
+  for (const candidate of nestedCandidates) {
+    const code = extractAuthorizationCode(candidate, seen);
+    if (code) {
+      return code;
+    }
+  }
+
+  return null;
 }
 
 async function cancelEmbeddedSignupSession({ sessionId, reason, currentStep, eventPayload }) {
@@ -247,19 +326,19 @@ export function useWhatsAppEmbeddedSignup({
           return;
         }
 
+        const authorizationCode = extractAuthorizationCode(event.data);
+
+        if (authorizationCode) {
+          codeRef.current = authorizationCode;
+          setFlowState(eventPayloadRef.current ? 'completing' : 'awaiting_completion');
+          await completeIfReady();
+        }
+
         let parsedPayload = event.data;
         if (typeof parsedPayload === 'string') {
           try {
             parsedPayload = JSON.parse(parsedPayload);
           } catch {
-            const authorizationCode = extractAuthorizationCodeFromMessage(parsedPayload);
-
-            if (authorizationCode) {
-              codeRef.current = authorizationCode;
-              setFlowState(eventPayloadRef.current ? 'completing' : 'awaiting_completion');
-              await completeIfReady();
-            }
-
             return;
           }
         }
@@ -292,7 +371,7 @@ export function useWhatsAppEmbeddedSignup({
 
       setFlowState('launching');
       FB.login((response) => {
-        const code = response?.authResponse?.code;
+        const code = extractAuthorizationCode(response);
 
         if (code) {
           codeRef.current = code;
