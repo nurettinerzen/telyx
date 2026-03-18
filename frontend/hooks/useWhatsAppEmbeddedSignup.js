@@ -241,11 +241,11 @@ export function useWhatsAppEmbeddedSignup({
           return;
         }
 
-        window.setTimeout(() => {
-          if (!settledRef.current && !eventPayloadRef.current) {
-            finalizeCancel(null, 'USER_CANCELLED');
-          }
-        }, 800);
+        // Meta may invoke the callback before the hosted flow is actually completed.
+        // We only treat explicit WA_EMBEDDED_SIGNUP CANCEL events as a user cancellation.
+        setFlowState((currentState) => (
+          currentState === 'launching' ? 'awaiting_completion' : currentState
+        ));
       }, {
         config_id: sessionData.configId,
         response_type: 'code',
