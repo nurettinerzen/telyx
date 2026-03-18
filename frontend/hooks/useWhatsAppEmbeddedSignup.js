@@ -23,11 +23,14 @@ function isMetaMessageOrigin(origin) {
     return false;
   }
 
-  return (
-    origin === 'https://www.facebook.com' ||
-    origin === 'https://web.facebook.com' ||
-    origin === 'https://business.facebook.com'
-  );
+  try {
+    const parsed = new URL(origin);
+    const hostname = parsed.hostname.toLowerCase();
+
+    return hostname === 'facebook.com' || hostname.endsWith('.facebook.com');
+  } catch {
+    return false;
+  }
 }
 
 function isSameOriginMessage(origin) {
@@ -69,7 +72,15 @@ function extractAuthorizationCodeFromMessage(messageData) {
     ? trimmedValue.slice(1)
     : trimmedValue;
   const params = new URLSearchParams(normalizedValue);
-  const code = params.get('code');
+  let code = params.get('code');
+
+  if (!code) {
+    const nestedData = params.get('data');
+    if (nestedData) {
+      const nestedParams = new URLSearchParams(nestedData);
+      code = nestedParams.get('code');
+    }
+  }
 
   return code || null;
 }
