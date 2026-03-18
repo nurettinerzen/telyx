@@ -47,6 +47,25 @@ function normalizeEmbeddedSignupPayload(payload = {}) {
   };
 }
 
+function extractAuthorizationCodeFromMessage(messageData) {
+  if (typeof messageData !== 'string') {
+    return null;
+  }
+
+  const trimmedValue = messageData.trim();
+  if (!trimmedValue || !trimmedValue.includes('code=')) {
+    return null;
+  }
+
+  const normalizedValue = trimmedValue.startsWith('?')
+    ? trimmedValue.slice(1)
+    : trimmedValue;
+  const params = new URLSearchParams(normalizedValue);
+  const code = params.get('code');
+
+  return code || null;
+}
+
 async function cancelEmbeddedSignupSession({ sessionId, reason, currentStep, eventPayload }) {
   if (!sessionId) {
     return;
@@ -194,6 +213,14 @@ export function useWhatsAppEmbeddedSignup({
           try {
             parsedPayload = JSON.parse(parsedPayload);
           } catch {
+            const authorizationCode = extractAuthorizationCodeFromMessage(parsedPayload);
+
+            if (authorizationCode) {
+              codeRef.current = authorizationCode;
+              setFlowState(eventPayloadRef.current ? 'completing' : 'awaiting_completion');
+              await completeIfReady();
+            }
+
             return;
           }
         }
