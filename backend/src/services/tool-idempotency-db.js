@@ -12,6 +12,50 @@ import prisma from '../config/database.js';
 // In-memory fallback (if DB fails)
 const memoryCache = new Map();
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days (webhook retries can be delayed)
+const TOOL_RESULT_CACHE_VERSION = 1;
+
+function toJsonSafe(value) {
+  if (value === undefined) {
+    return null;
+  }
+
+  return JSON.parse(JSON.stringify(value));
+}
+
+function packCachedToolResult(result) {
+  return toJsonSafe({
+    __toolResultCache: TOOL_RESULT_CACHE_VERSION,
+    result: result || {}
+  });
+}
+
+function isPackedToolResult(data) {
+  return !!data &&
+    typeof data === 'object' &&
+    !Array.isArray(data) &&
+    data.__toolResultCache === TOOL_RESULT_CACHE_VERSION &&
+    Object.prototype.hasOwnProperty.call(data, 'result');
+}
+
+function unpackCachedToolResult(cached) {
+  if (isPackedToolResult(cached?.data)) {
+    const unpacked = cached.data.result || {};
+
+    return {
+      ...unpacked,
+      success: unpacked.success ?? cached.success,
+      error: unpacked.error ?? cached.error ?? null,
+      data: unpacked.data ?? null
+    };
+  }
+
+  // Legacy cache rows only stored success/data/error. Keep them readable.
+  return {
+    success: cached.success,
+    data: cached.data,
+    error: cached.error
+  };
+}
 
 /**
  * Get tool execution result (DB-first, memory fallback)
@@ -56,11 +100,7 @@ export async function getToolExecutionResult(key) {
     console.log(`♻️ [Idempotency] DB Cache HIT for ${toolName} (messageId: ${messageId})`);
 
     // Return result
-    return {
-      success: cached.success,
-      data: cached.data,
-      error: cached.error
-    };
+    return unpackCachedToolResult(cached);
 
   } catch (error) {
     console.error('⚠️ [Idempotency] DB error, falling back to memory:', error.message);
@@ -98,7 +138,7 @@ export async function setToolExecutionResult(key, result) {
       },
       update: {
         success: result.success,
-        data: result.data || null,
+        data: packCachedToolResult(result),
         error: result.error || null,
         expiresAt
       },
@@ -108,7 +148,7 @@ export async function setToolExecutionResult(key, result) {
         messageId,
         toolName,
         success: result.success,
-        data: result.data || null,
+        data: packCachedToolResult(result),
         error: result.error || null,
         expiresAt
       }
