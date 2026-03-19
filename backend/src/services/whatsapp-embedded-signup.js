@@ -281,6 +281,49 @@ export async function fetchAccessibleWhatsAppAssets(accessToken) {
   return candidates;
 }
 
+export async function subscribeAppToWhatsAppBusinessAccount(wabaId, accessToken) {
+  if (!wabaId) {
+    return {
+      success: false,
+      skipped: true,
+      reason: 'missing_waba_id',
+    };
+  }
+
+  try {
+    const response = await axios.post(
+      getGraphUrl(`${wabaId}/subscribed_apps`),
+      {},
+      {
+        headers: buildBearerHeaders(accessToken),
+      }
+    );
+
+    return {
+      success: true,
+      alreadySubscribed: false,
+      data: response.data || null,
+    };
+  } catch (error) {
+    const message = String(extractRawErrorMessage(error) || '').toLowerCase();
+    const alreadySubscribed = (
+      message.includes('already subscribed') ||
+      message.includes('already associated') ||
+      message.includes('duplicate')
+    );
+
+    if (alreadySubscribed) {
+      return {
+        success: true,
+        alreadySubscribed: true,
+        data: error?.response?.data || null,
+      };
+    }
+
+    throw error;
+  }
+}
+
 export function buildWhatsAppConnectionCredentials({
   businessId,
   configId,

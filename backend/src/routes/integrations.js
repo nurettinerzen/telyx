@@ -26,6 +26,7 @@ import {
   getWhatsAppEmbeddedSignupConfig,
   isEmbeddedSignupFinishEvent,
   normalizeEmbeddedSignupEventPayload,
+  subscribeAppToWhatsAppBusinessAccount,
 } from '../services/whatsapp-embedded-signup.js';
 import axios from 'axios';
 
@@ -1206,10 +1207,14 @@ router.post('/whatsapp/embedded-signup/complete', requireOwner, async (req, res)
       fetchWhatsAppPhoneNumber(effectiveEvent.phoneNumberId, accessToken),
       fetchWhatsAppBusinessAccount(effectiveEvent.wabaId, accessToken),
     ]);
+    const webhookSubscription = await subscribeAppToWhatsAppBusinessAccount(
+      effectiveEvent.wabaId,
+      accessToken
+    );
 
     const webhookUrl = getWhatsAppWebhookUrl();
     const verifyToken = getWebhookVerifyToken(business?.whatsappVerifyToken);
-    const connectionCredentials = buildWhatsAppConnectionCredentials({
+    const connectionCredentialsBase = buildWhatsAppConnectionCredentials({
       businessId: req.businessId,
       configId: session.configId,
       webhookUrl,
@@ -1221,6 +1226,20 @@ router.post('/whatsapp/embedded-signup/complete', requireOwner, async (req, res)
       wabaData,
       tokenSource,
     });
+    const connectionCredentials = {
+      ...connectionCredentialsBase,
+      webhookSubscription: {
+        status: webhookSubscription?.success ? 'SUBSCRIBED' : 'ERROR',
+        alreadySubscribed: Boolean(webhookSubscription?.alreadySubscribed),
+        lastSubscribedAt: new Date().toISOString(),
+        lastError: webhookSubscription?.success
+          ? null
+          : {
+            message: 'Failed to subscribe WhatsApp Business Account to Telyx webhooks.',
+            updatedAt: new Date().toISOString(),
+          },
+      },
+    };
     const encryptedAccessToken = tokenSource === 'PARTNER_SYSTEM_USER'
       ? null
       : encryptTokenValue(accessToken);
@@ -1372,8 +1391,12 @@ router.post('/whatsapp/refresh', requireOwner, async (req, res) => {
         fetchWhatsAppPhoneNumber(normalizedEvent.phoneNumberId, accessToken),
         fetchWhatsAppBusinessAccount(normalizedEvent.wabaId, accessToken),
       ]);
+      const webhookSubscription = await subscribeAppToWhatsAppBusinessAccount(
+        normalizedEvent.wabaId,
+        accessToken
+      );
 
-      const refreshedCredentials = buildWhatsAppConnectionCredentials({
+      const refreshedCredentialsBase = buildWhatsAppConnectionCredentials({
         businessId: req.businessId,
         configId: existingCredentials.configId || getWhatsAppEmbeddedSignupConfig().configId,
         webhookUrl: business.whatsappWebhookUrl || getWhatsAppWebhookUrl(),
@@ -1385,6 +1408,20 @@ router.post('/whatsapp/refresh', requireOwner, async (req, res) => {
         wabaData,
         tokenSource: business?.whatsappAccessToken ? 'EMBEDDED_SIGNUP_CODE_EXCHANGE' : 'PARTNER_SYSTEM_USER',
       });
+      const refreshedCredentials = {
+        ...refreshedCredentialsBase,
+        webhookSubscription: {
+          status: webhookSubscription?.success ? 'SUBSCRIBED' : 'ERROR',
+          alreadySubscribed: Boolean(webhookSubscription?.alreadySubscribed),
+          lastSubscribedAt: new Date().toISOString(),
+          lastError: webhookSubscription?.success
+            ? null
+            : {
+              message: 'Failed to subscribe WhatsApp Business Account to Telyx webhooks.',
+              updatedAt: new Date().toISOString(),
+            },
+        },
+      };
       const isConnected = refreshedCredentials.connectionStatus === 'CONNECTED';
 
       await prisma.integration.update({
