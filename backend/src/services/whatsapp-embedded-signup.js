@@ -98,6 +98,18 @@ function extractRawErrorMessage(error) {
   );
 }
 
+function isNonExpiringSystemUserToken(tokenDebugData, tokenSource) {
+  const tokenType = String(tokenDebugData?.type || '').toUpperCase();
+  const expiresAt = tokenDebugData?.expires_at;
+
+  return (
+    tokenSource === 'PARTNER_SYSTEM_USER' ||
+    tokenType === 'SYSTEM_USER' ||
+    expiresAt === 0 ||
+    expiresAt === '0'
+  );
+}
+
 export function getWhatsAppEmbeddedSignupConfig() {
   const appId = getMetaAppId();
   const appSecret = getMetaAppSecret();
@@ -285,11 +297,15 @@ export function buildWhatsAppConnectionCredentials({
   const existingTokenMetadata = existingCredentials?.tokenMetadata && typeof existingCredentials.tokenMetadata === 'object'
     ? existingCredentials.tokenMetadata
     : {};
-  const tokenExpiresAt = toIsoDate(tokenDebugData?.expires_at) || (
-    Number.isFinite(tokenExchange?.expires_in)
-      ? new Date(Date.now() + (tokenExchange.expires_in * 1000)).toISOString()
-      : toIsoDate(existingTokenMetadata.expiresAt)
-  );
+  const tokenExpiresAt = isNonExpiringSystemUserToken(tokenDebugData, tokenSource)
+    ? null
+    : (
+      toIsoDate(tokenDebugData?.expires_at) || (
+        Number.isFinite(tokenExchange?.expires_in)
+          ? new Date(Date.now() + (tokenExchange.expires_in * 1000)).toISOString()
+          : toIsoDate(existingTokenMetadata.expiresAt)
+      )
+    );
 
   const connectionStatus = isTokenExpired(tokenExpiresAt) ? 'EXPIRED' : 'CONNECTED';
   const grantedScopes = extractGrantedScopes(tokenDebugData);
