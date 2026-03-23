@@ -29,6 +29,7 @@ import { ToolOutcome, normalizeOutcome } from '../../../tools/toolResult.js';
  */
 export async function applyEmailGuardrails(ctx) {
   const { draftContent, toolResults, customerEmail, language } = ctx;
+  const sharedCoreOwnsVerification = ctx.useCoreEmailOrchestrator === true;
 
   ctx.guardrailsApplied = [];
   ctx.assistantMessageMeta = ctx.assistantMessageMeta || {
@@ -87,38 +88,47 @@ export async function applyEmailGuardrails(ctx) {
   // ============================================
   // C) VERIFICATION POLICY
   // ============================================
-  // Check if verification is STILL required (not already resolved in the same turn).
-  // When the LLM makes 2 tool calls in one turn (first → VERIFICATION_REQUIRED,
-  // second with verification input → OK), the old `.some()` would still see the
-  // stale VERIFICATION_REQUIRED. Fix: if an OK came after the last VR, it's resolved.
-  const verificationRequired = (() => {
-    if (!toolResults?.length) return false;
-    const lastVRIdx = toolResults.findLastIndex(r => normalizeOutcome(r.outcome) === ToolOutcome.VERIFICATION_REQUIRED);
-    if (lastVRIdx === -1) return false;
-    const resolvedAfter = toolResults.slice(lastVRIdx + 1).some(r => normalizeOutcome(r.outcome) === ToolOutcome.OK);
-    return !resolvedAfter;
-  })();
-  // Extract askFor from the unresolved VERIFICATION_REQUIRED (if any)
-  const askForField = verificationRequired
-    ? toolResults?.findLast(r => normalizeOutcome(r.outcome) === ToolOutcome.VERIFICATION_REQUIRED)?._askFor || null
-    : null;
+  if (sharedCoreOwnsVerification) {
+    ctx.guardrailsApplied.push({
+      name: 'VERIFICATION_POLICY',
+      passed: true,
+      skipped: true,
+      reason: 'SHARED_CORE_OWNS_VERIFICATION'
+    });
+  } else {
+    // Check if verification is STILL required (not already resolved in the same turn).
+    // When the LLM makes 2 tool calls in one turn (first → VERIFICATION_REQUIRED,
+    // second with verification input → OK), the old `.some()` would still see the
+    // stale VERIFICATION_REQUIRED. Fix: if an OK came after the last VR, it's resolved.
+    const verificationRequired = (() => {
+      if (!toolResults?.length) return false;
+      const lastVRIdx = toolResults.findLastIndex(r => normalizeOutcome(r.outcome) === ToolOutcome.VERIFICATION_REQUIRED);
+      if (lastVRIdx === -1) return false;
+      const resolvedAfter = toolResults.slice(lastVRIdx + 1).some(r => normalizeOutcome(r.outcome) === ToolOutcome.OK);
+      return !resolvedAfter;
+    })();
+    // Extract askFor from the unresolved VERIFICATION_REQUIRED (if any)
+    const askForField = verificationRequired
+      ? toolResults?.findLast(r => normalizeOutcome(r.outcome) === ToolOutcome.VERIFICATION_REQUIRED)?._askFor || null
+      : null;
 
-  const verificationResult = checkVerificationPolicy(modifiedContent, verificationRequired, language, askForField);
-  ctx.guardrailsApplied.push({
-    name: 'VERIFICATION_POLICY',
-    passed: verificationResult.passed,
-    verificationRequired
-  });
+    const verificationResult = checkVerificationPolicy(modifiedContent, verificationRequired, language, askForField);
+    ctx.guardrailsApplied.push({
+      name: 'VERIFICATION_POLICY',
+      passed: verificationResult.passed,
+      verificationRequired
+    });
 
-  if (!verificationResult.passed) {
-    // Don't block, but modify content to include verification request
-    modifiedContent = verificationResult.content;
-    console.warn('🛡️ [Guardrails] Verification policy applied');
-    ctx.assistantMessageMeta = {
-      messageType: 'clarification',
-      guardrailAction: 'NEED_MIN_INFO_FOR_TOOL',
-      guardrailReason: 'VERIFICATION_POLICY'
-    };
+    if (!verificationResult.passed) {
+      // Don't block, but modify content to include verification request
+      modifiedContent = verificationResult.content;
+      console.warn('🛡️ [Guardrails] Verification policy applied');
+      ctx.assistantMessageMeta = {
+        messageType: 'clarification',
+        guardrailAction: 'NEED_MIN_INFO_FOR_TOOL',
+        guardrailReason: 'VERIFICATION_POLICY'
+      };
+    }
   }
 
   // ============================================

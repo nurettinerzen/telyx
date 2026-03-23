@@ -79,14 +79,40 @@ function mapCoreToolsToEmailResults(tools = []) {
   });
 }
 
+function stripHtmlToText(value = '') {
+  return String(value || '')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function getCleanEmailInboundText(inboundMessage = {}) {
+  const candidates = [
+    inboundMessage.bodyText,
+    inboundMessage.textPlain,
+    inboundMessage.body,
+    inboundMessage.snippet
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate !== 'string') continue;
+    const trimmed = candidate.trim();
+    if (!trimmed) continue;
+    return trimmed;
+  }
+
+  if (typeof inboundMessage.bodyHtml === 'string' && inboundMessage.bodyHtml.trim()) {
+    return stripHtmlToText(inboundMessage.bodyHtml);
+  }
+
+  return '';
+}
+
 async function runCoreEmailOrchestratorTurn(ctx) {
-  const inboundText = String(
-    ctx?.inboundMessage?._originalBody
-    || ctx?.inboundMessage?.bodyText
-    || ctx?.inboundMessage?.body
-    || ctx?.inboundMessage?.snippet
-    || ''
-  ).trim();
+  const inboundText = getCleanEmailInboundText(ctx?.inboundMessage);
 
   if (!inboundText) {
     return {
@@ -220,7 +246,10 @@ export async function handleEmailTurn(params) {
     feedback: options.feedback || null,  // User feedback from regenerate action
 
     // Verification state — loaded from DB per email thread
-    emailVerificationState: null
+    emailVerificationState: null,
+
+    // Shared core orchestrator is the source of truth when enabled.
+    useCoreEmailOrchestrator
   };
 
   console.log(`\n📧 [EmailTurn] Starting draft generation for thread ${threadId}`);
@@ -425,15 +454,20 @@ export async function handleEmailTurn(params) {
 
     // Also scrub the latest inbound message specifically
     if (ctx.inboundMessage) {
-      const inboundBodyResult = preventPIILeak(ctx.inboundMessage.body || ctx.inboundMessage.bodyHtml, { strict: false });
+      const inboundSource = getCleanEmailInboundText(ctx.inboundMessage);
+      const inboundBodyResult = preventPIILeak(inboundSource, { strict: false });
+      const normalizedInboundText = inboundBodyResult.content || inboundSource;
+
+      ctx.inboundMessage = {
+        ...ctx.inboundMessage,
+        bodyText: normalizedInboundText,
+        textPlain: normalizedInboundText,
+        body: normalizedInboundText,
+        _originalBody: inboundSource,
+        _piiScrubbed: inboundBodyResult.modified || Boolean(ctx.inboundMessage._piiScrubbed)
+      };
+
       if (inboundBodyResult.modified) {
-        ctx.inboundMessage = {
-          ...ctx.inboundMessage,
-          body: inboundBodyResult.content,
-          bodyHtml: inboundBodyResult.content,
-          _originalBody: ctx.inboundMessage.body || ctx.inboundMessage.bodyHtml,
-          _piiScrubbed: true
-        };
         inputPiiCount += inboundBodyResult.modifications?.length || 0;
       }
     }
