@@ -165,6 +165,20 @@ export default function EmailDashboardPage() {
   const { data: selectedThread } = useEmailThread(selectedThreadId, !!selectedThreadId);
   const loading = statusLoading || threadsLoading;
 
+  // ─── UI State ────────────────────────────────────────────
+  const [activeFolder, setActiveFolder] = useState('inbox'); // 'inbox' | 'sent'
+  const [syncing, setSyncing] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [editedContent, setEditedContent] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
+  const [generatingDraft, setGeneratingDraft] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [snippetsOpen, setSnippetsOpen] = useState(false);
+  const [snippets, setSnippets] = useState([]);
+  const [snippetsLoaded, setSnippetsLoaded] = useState(false);
+  const snippetsRef = useRef(null);
+
   // Debounce search (300ms)
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchInput), 300);
@@ -180,20 +194,6 @@ export default function EmailDashboardPage() {
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, [snippetsOpen]);
-
-  // ─── UI State ────────────────────────────────────────────
-  const [activeFolder, setActiveFolder] = useState('inbox'); // 'inbox' | 'sent'
-  const [syncing, setSyncing] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [editedContent, setEditedContent] = useState('');
-  const [isEditing, setIsEditing] = useState(false);
-  const [regenerating, setRegenerating] = useState(false);
-  const [generatingDraft, setGeneratingDraft] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [snippetsOpen, setSnippetsOpen] = useState(false);
-  const [snippets, setSnippets] = useState([]);
-  const [snippetsLoaded, setSnippetsLoaded] = useState(false);
-  const snippetsRef = useRef(null);
 
   // Customer data for sidebar
   const { data: customerData, isLoading: customerLoading } = useCustomerByEmail(selectedThread?.customerEmail);
