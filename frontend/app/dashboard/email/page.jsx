@@ -7,7 +7,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
@@ -38,6 +38,9 @@ import {
   ExternalLink,
   Wrench,
   ShoppingBag,
+  ShieldAlert,
+  Zap,
+  ChevronDown,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api';
 import { toast } from '@/lib/toast';
@@ -140,6 +143,7 @@ const TAG_CONFIG = {
   REPLIED:          { label: 'Yanıtlandı', labelEn: 'Replied',       cls: 'bg-emerald-500/15 text-emerald-400' },
   CLOSED:           { label: 'Kapalı',     labelEn: 'Closed',        cls: 'bg-neutral-500/15 text-neutral-400' },
   NO_REPLY_NEEDED:  { label: 'Bekliyor',   labelEn: 'Pending',       cls: 'bg-amber-500/15 text-amber-400' },
+  SPAM:             { label: 'Spam',       labelEn: 'Spam',           cls: 'bg-red-500/15 text-red-400' },
 };
 
 // ════════════════════════════════════════════════════════════
@@ -167,6 +171,16 @@ export default function EmailDashboardPage() {
     return () => clearTimeout(timer);
   }, [searchInput]);
 
+  // Close snippets dropdown on outside click
+  useEffect(() => {
+    if (!snippetsOpen) return;
+    const handleClick = (e) => {
+      if (snippetsRef.current && !snippetsRef.current.contains(e.target)) setSnippetsOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [snippetsOpen]);
+
   // ─── UI State ────────────────────────────────────────────
   const [activeFolder, setActiveFolder] = useState('inbox'); // 'inbox' | 'sent'
   const [syncing, setSyncing] = useState(false);
@@ -176,6 +190,10 @@ export default function EmailDashboardPage() {
   const [regenerating, setRegenerating] = useState(false);
   const [generatingDraft, setGeneratingDraft] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [snippetsOpen, setSnippetsOpen] = useState(false);
+  const [snippets, setSnippets] = useState([]);
+  const [snippetsLoaded, setSnippetsLoaded] = useState(false);
+  const snippetsRef = useRef(null);
 
   // Customer data for sidebar
   const { data: customerData, isLoading: customerLoading } = useCustomerByEmail(selectedThread?.customerEmail);
@@ -191,14 +209,17 @@ export default function EmailDashboardPage() {
   // ─── Filtered threads ────────────────────────────────────
   const filteredThreads = useMemo(() => {
     if (activeFolder === 'sent') {
-      // Sent folder: show threads that have been replied to (status REPLIED or DRAFT_READY with sent drafts)
       return threads.filter(th =>
         th.messages?.some(m => m.direction === 'OUTBOUND') ||
         ['REPLIED', 'CLOSED'].includes(th.status)
       );
     }
+    // Hide spam from inbox unless spam filter is active
+    if (statusFilter !== 'SPAM') {
+      return threads.filter(th => th.status !== 'SPAM');
+    }
     return threads;
-  }, [threads, activeFolder]);
+  }, [threads, activeFolder, statusFilter]);
 
   // ─── Sorted messages (newest first) ──────────────────────
   const sortedMessages = useMemo(() => {
@@ -338,6 +359,48 @@ export default function EmailDashboardPage() {
       queryClient.invalidateQueries({ queryKey: ['email'] });
     } catch {
       toast.error(locale === 'tr' ? 'İşaretleme başarısız' : 'Failed to mark');
+    }
+  };
+
+  const loadSnippets = async () => {
+    if (snippetsLoaded) { setSnippetsOpen(prev => !prev); return; }
+    try {
+      const res = await apiClient.get('/api/email-snippets');
+      setSnippets(res.data?.snippets || []);
+      setSnippetsLoaded(true);
+      setSnippetsOpen(true);
+    } catch {
+      toast.error(locale === 'tr' ? 'Hazır yanıtlar yüklenemedi' : 'Failed to load snippets');
+    }
+  };
+
+  const handleSelectSnippet = async (snippet) => {
+    setSnippetsOpen(false);
+    setEditedContent(snippet.body);
+    setIsEditing(true);
+    toast.success(locale === 'tr' ? `"${snippet.name}" yüklendi` : `"${snippet.name}" loaded`);
+  };
+
+  const handleMarkSpam = async () => {
+    if (!selectedThread) return;
+    try {
+      await apiClient.email.updateThread(selectedThread.id, { status: 'SPAM' });
+      toast.success(locale === 'tr' ? 'Spam olarak işaretlendi' : 'Marked as spam');
+      queryClient.invalidateQueries({ queryKey: ['email'] });
+      setSelectedThreadId(null);
+    } catch {
+      toast.error(locale === 'tr' ? 'İşaretleme başarısız' : 'Failed to mark as spam');
+    }
+  };
+
+  const handleUnmarkSpam = async () => {
+    if (!selectedThread) return;
+    try {
+      await apiClient.email.updateThread(selectedThread.id, { status: 'PENDING_REPLY' });
+      toast.success(locale === 'tr' ? 'Spam işareti kaldırıldı' : 'Removed spam mark');
+      queryClient.invalidateQueries({ queryKey: ['email'] });
+    } catch {
+      toast.error(locale === 'tr' ? 'İşaretleme başarısız' : 'Failed to update');
     }
   };
 
@@ -572,6 +635,17 @@ export default function EmailDashboardPage() {
                   <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
                   {locale === 'tr' ? 'Çözümlendi' : 'Resolve'}
                 </Button>
+                {selectedThread.status === 'SPAM' ? (
+                  <Button variant="outline" size="sm" className="h-8 text-xs text-emerald-600 border-emerald-300 hover:bg-emerald-50 dark:border-emerald-800 dark:hover:bg-emerald-900/30" onClick={handleUnmarkSpam}>
+                    <ShieldAlert className="h-3.5 w-3.5 mr-1.5" />
+                    {locale === 'tr' ? 'Spam Değil' : 'Not Spam'}
+                  </Button>
+                ) : (
+                  <Button variant="outline" size="sm" className="h-8 text-xs text-red-500 border-red-200 hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-900/30" onClick={handleMarkSpam}>
+                    <ShieldAlert className="h-3.5 w-3.5 mr-1.5" />
+                    Spam
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   size="sm"
@@ -685,6 +759,34 @@ export default function EmailDashboardPage() {
                     <Sparkles className={`h-3.5 w-3.5 mr-1.5 ${generatingDraft ? 'animate-spin' : ''}`} />
                     {generatingDraft ? (locale === 'tr' ? 'Oluşturuluyor...' : 'Generating...') : 'AI Öneri'}
                   </Button>
+                  <div className="relative" ref={snippetsRef}>
+                    <Button variant="outline" size="sm" onClick={loadSnippets} className="h-8 text-xs">
+                      <Zap className="h-3.5 w-3.5 mr-1" />
+                      {locale === 'tr' ? 'Hızlı Yanıt' : 'Quick Reply'}
+                      <ChevronDown className="h-3 w-3 ml-1" />
+                    </Button>
+                    {snippetsOpen && (
+                      <div className="absolute bottom-full mb-1 right-0 w-64 bg-white dark:bg-neutral-800 rounded-lg shadow-xl border border-neutral-200 dark:border-neutral-700 py-1 z-50 max-h-64 overflow-y-auto">
+                        {snippets.length === 0 ? (
+                          <div className="px-3 py-4 text-center">
+                            <p className="text-xs text-neutral-500">{locale === 'tr' ? 'Henüz hazır yanıt yok' : 'No snippets yet'}</p>
+                            <Link href="/dashboard/email-snippets" className="text-xs text-blue-500 hover:underline mt-1 inline-block">
+                              {locale === 'tr' ? 'Oluştur →' : 'Create →'}
+                            </Link>
+                          </div>
+                        ) : snippets.map(s => (
+                          <button
+                            key={s.id}
+                            onClick={() => handleSelectSnippet(s)}
+                            className="w-full text-left px-3 py-2 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+                          >
+                            <p className="text-xs font-medium text-neutral-900 dark:text-white">{s.name}</p>
+                            <p className="text-[10px] text-neutral-500 truncate mt-0.5">{s.body?.substring(0, 60)}...</p>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <Button variant="outline" size="sm" onClick={handleMarkNoReplyNeeded} className="h-8 text-xs">
                     <X className="h-3.5 w-3.5 mr-1" />
                     {locale === 'tr' ? 'Gerek Yok' : 'No Reply'}
@@ -1061,7 +1163,7 @@ function MessageBubble({ msg, isInbound, mainContent, locale, customerName, cust
       {/* Body */}
       <div className="px-4 py-3 bg-white dark:bg-neutral-900">
         <p className="whitespace-pre-wrap text-sm leading-relaxed text-neutral-700 dark:text-neutral-300">
-          {mainContent || msg.bodyText?.substring(0, 500)}
+          {(mainContent || msg.bodyText?.substring(0, 500))?.replace(/\n{3,}/g, '\n\n')?.trim()}
         </p>
 
         {/* Attachments */}

@@ -390,7 +390,7 @@ router.post('/threads/:threadId/close', authenticateToken, async (req, res) => {
 router.patch('/threads/:threadId', authenticateToken, async (req, res) => {
   try {
     const { status } = req.body;
-    const validStatuses = ['PENDING_REPLY', 'NO_REPLY_NEEDED', 'CLOSED'];
+    const validStatuses = ['PENDING_REPLY', 'NO_REPLY_NEEDED', 'CLOSED', 'SPAM'];
 
     if (!status || !validStatuses.includes(status)) {
       return res.status(400).json({

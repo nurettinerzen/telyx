@@ -916,6 +916,7 @@ enum EmailThreadStatus {
   REPLIED // Email has been replied to
   CLOSED // Thread closed manually
   NO_REPLY_NEEDED // User marked as no reply needed
+  SPAM // User marked as spam
 }
 
 enum EmailMessageDirection {
