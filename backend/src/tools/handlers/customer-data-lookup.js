@@ -36,6 +36,39 @@ async function findRecordByPhone({ businessId, phone, queryType }) {
   const normalizedPhone = normalizePhone(phone) || String(phone || '');
   const normalizedQueryType = String(queryType || '').toLowerCase();
 
+  // Service/ticket lookups should prefer CrmTicket records first and surface
+  // ambiguity instead of silently picking an arbitrary ticket.
+  if (SERVICE_QUERY_TYPES.has(normalizedQueryType) && prisma.crmTicket?.findMany) {
+    const crmTicketMatches = await prisma.crmTicket.findMany({
+      where: {
+        businessId,
+        OR: variants.map(v => ({ customerPhone: v }))
+      },
+      orderBy: { updatedAt: 'desc' },
+      take: 3
+    });
+
+    if (crmTicketMatches.length > 1) {
+      return {
+        record: null,
+        sourceTable: 'CrmTicket',
+        normalizedPhone,
+        variantsCount: variants.length,
+        ambiguity: true,
+        matchCount: crmTicketMatches.length
+      };
+    }
+
+    if (crmTicketMatches.length === 1) {
+      return {
+        record: crmTicketMatches[0],
+        sourceTable: 'CrmTicket',
+        normalizedPhone,
+        variantsCount: variants.length
+      };
+    }
+  }
+
   // First try CustomerData table
   let record = await prisma.customerData.findFirst({
     where: {
@@ -405,6 +438,66 @@ function buildAccountingMissingIdentityResponse(language = 'TR') {
   };
 }
 
+function buildLookupIdentifierRequiredResponse({ language = 'TR', queryType, hasPartialPhone = false }) {
+  const normalizedQueryType = normalizeQueryTypeAlias(queryType);
+  const isEnglish = String(language || '').toUpperCase() === 'EN';
+
+  if (SERVICE_QUERY_TYPES.has(normalizedQueryType)) {
+    const message = hasPartialPhone
+      ? (isEnglish
+        ? 'The last 4 digits alone are not enough to identify your service record. Could you share your service/fault number or your full registered phone number?'
+        : 'Sadece son 4 hane servis kaydınızı bulmam için yeterli değil. Servis/arıza numaranızı ya da kayıtlı telefon numaranızın tamamını paylaşır mısınız?')
+      : (isEnglish
+        ? 'To check your service record, could you share your service/fault number or your full registered phone number?'
+        : 'Servis kaydınızı kontrol edebilmem için servis/arıza numaranızı ya da kayıtlı telefon numaranızın tamamını paylaşır mısınız?');
+
+    return {
+      outcome: ToolOutcome.NEED_MORE_INFO,
+      success: true,
+      data: { askFor: ['ticket_number_or_phone'] },
+      askFor: ['ticket_number_or_phone'],
+      field: 'ticket_number_or_phone',
+      message
+    };
+  }
+
+  if (normalizedQueryType === 'siparis') {
+    const message = hasPartialPhone
+      ? (isEnglish
+        ? 'The last 4 digits alone are not enough to identify your order. Could you share your order number or your full registered phone number?'
+        : 'Sadece son 4 hane siparişinizi bulmam için yeterli değil. Sipariş numaranızı ya da kayıtlı telefon numaranızın tamamını paylaşır mısınız?')
+      : (isEnglish
+        ? 'To check your order, could you share your order number or your full registered phone number?'
+        : 'Siparişinizi kontrol edebilmem için sipariş numaranızı ya da kayıtlı telefon numaranızın tamamını paylaşır mısınız?');
+
+    return {
+      outcome: ToolOutcome.NEED_MORE_INFO,
+      success: true,
+      data: { askFor: ['order_number_or_phone'] },
+      askFor: ['order_number_or_phone'],
+      field: 'order_number_or_phone',
+      message
+    };
+  }
+
+  return buildAccountingMissingIdentityResponse(language);
+}
+
+function buildServiceAmbiguityResponse(language = 'TR') {
+  const isEnglish = String(language || '').toUpperCase() === 'EN';
+  return {
+    outcome: ToolOutcome.NEED_MORE_INFO,
+    success: true,
+    data: { askFor: ['ticket_number'] },
+    askFor: ['ticket_number'],
+    field: 'ticket_number',
+    ambiguity: true,
+    message: isEnglish
+      ? 'There are multiple service records linked to this phone number. Could you share the exact service/fault number?'
+      : 'Bu telefon numarasıyla ilişkili birden fazla servis kaydı görünüyor. Tam servis/arıza numarasını paylaşır mısınız?'
+  };
+}
+
 /**
  * Execute customer data lookup
  */
@@ -479,6 +572,15 @@ export async function execute(args, business, context = {}) {
     const isAccountingQuery = isAccountingQueryType(normalizedQueryType);
     const hasLookupIdentifier = Boolean(order_number || ticket_number || phone || vkn || tc);
     const orderLookup = order_number ? buildOrderLookupCandidates(order_number) : null;
+    const phoneDigits = String(phone || '').replace(/\D/g, '');
+    const hasPartialPhoneIdentifier = phoneDigits.length > 0 && phoneDigits.length < 10;
+    const hasStrongLookupIdentifier = Boolean(
+      order_number ||
+      ticket_number ||
+      vkn ||
+      tc ||
+      phoneDigits.length >= 10
+    );
 
     // Minimal validation only: reject empty/too-short values.
     // Do not apply format/prefix regex gates before DB lookup.
@@ -489,6 +591,16 @@ export async function execute(args, business, context = {}) {
           : 'The order number looks too short. Please share it again with at least 3 characters.',
         'order_number'
       );
+    }
+
+    // If the model routed into a lookup tool without a usable primary identifier,
+    // treat it as missing identity information instead of a hard NOT_FOUND.
+    if (!isVerificationPending && (isOrderQuery || isTicketQuery) && !hasStrongLookupIdentifier) {
+      return buildLookupIdentifierRequiredResponse({
+        language,
+        queryType: normalizedQueryType,
+        hasPartialPhone: hasPartialPhoneIdentifier
+      });
     }
 
     // SECURITY: Don't log PII (phone, vkn, tc, names)
@@ -851,6 +963,10 @@ export async function execute(args, business, context = {}) {
           queryType: normalizedQueryType
         });
 
+        if (phoneLookup.ambiguity) {
+          return buildServiceAmbiguityResponse(language);
+        }
+
         if (phoneLookup.record) {
           record = phoneLookup.record;
           sourceTable = phoneLookup.sourceTable;
@@ -923,6 +1039,10 @@ export async function execute(args, business, context = {}) {
         normalized: phoneLookup.normalizedPhone,
         variants: phoneLookup.variantsCount
       });
+
+      if (phoneLookup.ambiguity) {
+        return buildServiceAmbiguityResponse(language);
+      }
 
       if (phoneLookup.record) {
         record = phoneLookup.record;

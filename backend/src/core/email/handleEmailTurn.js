@@ -52,6 +52,7 @@ import {
   getBlockedContentMessage,
   logContentSafetyViolation
 } from '../../utils/content-safety.js';
+import { cleanEmailText } from '../../services/email-text-cleaner.js';
 import { ToolOutcome, normalizeOutcome } from '../../tools/toolResult.js';
 import { getState, updateState } from '../../services/state-manager.js';
 import { handleIncomingMessage } from '../handleIncomingMessage.js';
@@ -101,11 +102,14 @@ function getCleanEmailInboundText(inboundMessage = {}) {
     if (typeof candidate !== 'string') continue;
     const trimmed = candidate.trim();
     if (!trimmed) continue;
-    return trimmed;
+    const cleaned = cleanEmailText(trimmed, 'INBOUND')?.cleanedText || trimmed;
+    return cleaned.trim();
   }
 
   if (typeof inboundMessage.bodyHtml === 'string' && inboundMessage.bodyHtml.trim()) {
-    return stripHtmlToText(inboundMessage.bodyHtml);
+    const asText = stripHtmlToText(inboundMessage.bodyHtml);
+    const cleaned = cleanEmailText(asText, 'INBOUND')?.cleanedText || asText;
+    return cleaned.trim();
   }
 
   return '';

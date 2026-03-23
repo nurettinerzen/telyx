@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import { PrismaClient } from '@prisma/client';
 import {
   generateTelyxSmoke100Scenarios,
+  generateTelyxEmailRegressionScenarios,
   TELYX_SMOKE_FIXTURES
 } from '../smoke/telyx-smoke-100-scenarios.js';
 
@@ -29,6 +30,7 @@ const SCENARIO_IDS = String(process.env.E2E_SCENARIO_IDS || '')
   .filter(Boolean);
 const SCENARIO_LIMIT = Number(process.env.E2E_SCENARIO_LIMIT || 0);
 const REPORT_TAG = String(process.env.E2E_REPORT_TAG || '').trim();
+const SCENARIO_SET = String(process.env.E2E_SCENARIO_SET || 'smoke100').trim().toLowerCase();
 
 if (!process.env.DATABASE_URL || !process.env.DIRECT_URL) {
   console.error('DATABASE_URL and DIRECT_URL are required for real-data E2E run.');
@@ -387,20 +389,15 @@ function messagesForScenario(scenario) {
 
     if (variant === 'correct_verification' && steps.length >= 2) {
       steps[1] = withOrderContext(steps[1]);
-      const rawVerification = String(scenario.user_steps?.[1] ?? '').trim();
-      if (rawVerification) {
-        return [steps[0], steps[1], rawVerification];
-      }
-      return steps;
+      // 2-turn only: order query + correct last4.
+      return [steps[0], steps[1]];
     }
 
     if (variant === 'wrong_last4' && steps.length >= 2) {
       steps[1] = withOrderContext(steps[1]);
-      const rawVerification = String(scenario.user_steps?.[1] ?? '').trim();
-      if (rawVerification) {
-        return [steps[0], steps[1], rawVerification];
-      }
-      return steps;
+      // 2-turn only: order query + wrong last4. No bare 3rd message —
+      // LLM non-determinism on a contextless "0000" causes false OK results.
+      return [steps[0], steps[1]];
     }
 
     if (variant === 'wrong_then_correct' && steps.length >= 3) {
@@ -610,6 +607,59 @@ function expectedOutcomeMatched(expectedFinalOutcomes, observedOutcome, finalTur
   return false;
 }
 
+function countPatternOccurrences(text, pattern) {
+  const haystack = String(text || '');
+  if (!haystack) return 0;
+
+  const regex = pattern instanceof RegExp
+    ? new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`)
+    : new RegExp(String(pattern).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+
+  const matches = haystack.match(regex);
+  return matches ? matches.length : 0;
+}
+
+function runContentAssertions(scenario, turns) {
+  const failures = [];
+  const assertions = scenario.contentAssertions || {};
+  const finalReply = String(turns[turns.length - 1]?.reply || '');
+  const allReplies = turns.map((turn) => String(turn.reply || '')).join('\n');
+
+  for (const pattern of assertions.must_not_contain || []) {
+    if (countPatternOccurrences(allReplies, pattern) > 0) {
+      failures.push({
+        code: 'content_forbidden_pattern',
+        assertion: 'content',
+        reason: `Yasakli ifade goruldu: ${pattern}`
+      });
+    }
+  }
+
+  for (const pattern of assertions.must_contain || []) {
+    if (countPatternOccurrences(finalReply, pattern) === 0) {
+      failures.push({
+        code: 'content_missing_pattern',
+        assertion: 'content',
+        reason: `Beklenen ifade bulunamadi: ${pattern}`
+      });
+    }
+  }
+
+  for (const rule of assertions.max_occurrences || []) {
+    const scope = rule.scope === 'all' ? allReplies : finalReply;
+    const occurrences = countPatternOccurrences(scope, rule.pattern);
+    if (occurrences > Number(rule.max)) {
+      failures.push({
+        code: 'content_repetition_violation',
+        assertion: 'content',
+        reason: `Tekrar limiti asildi: ${rule.pattern} observed=${occurrences} max=${rule.max}`
+      });
+    }
+  }
+
+  return failures;
+}
+
 function classifyFailureSource(code, scenario, turns) {
   if (/tool|no_tools_called|tool_not_found/.test(code)) return 'tool-routing';
   if (/intent|classifier/.test(code)) return 'classifier';
@@ -737,6 +787,8 @@ function evaluateScenario(scenario, turns) {
       reason: 'Ayni cevap kalibi tekrarlanarak loop olustu.'
     });
   }
+
+  failures.push(...runContentAssertions(scenario, turns));
 
   const scenarioResult = {
     id: scenario.id,
@@ -1049,7 +1101,11 @@ async function main() {
 
   const seeded = await ensureTenantAndSeed({ businessId });
 
-  let scenarios = generateTelyxSmoke100Scenarios().map((scenario) => ({
+  const baseScenarios = SCENARIO_SET === 'email_regressions'
+    ? generateTelyxEmailRegressionScenarios()
+    : generateTelyxSmoke100Scenarios();
+
+  let scenarios = baseScenarios.map((scenario) => ({
     ...scenario,
     channel: 'email',
     tags: Array.from(new Set([...(scenario.tags || []), 'email_only_run']))

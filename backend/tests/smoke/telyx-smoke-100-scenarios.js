@@ -193,7 +193,8 @@ function baseScenario({
   severity,
   tags,
   fixtureRefs,
-  runtime
+  runtime,
+  contentAssertions
 }) {
   return {
     id,
@@ -217,7 +218,8 @@ function baseScenario({
     severity,
     tags,
     fixtureRefs,
-    runtime
+    runtime,
+    contentAssertions: contentAssertions || null
   };
 }
 
@@ -1181,7 +1183,8 @@ function buildPolicyScenarios() {
       title: 'Email tool-required: NO_TOOLS_CALLED loop olusmamasi (order)',
       channel: 'email',
       severity: 'blocker',
-      variant: 'email_tool_required_order'
+      variant: 'email_tool_required_order',
+      expectedFinalOutcomes: ['OK']
     },
     {
       title: 'Email tool-required: NO_TOOLS_CALLED loop olusmamasi (account)',
@@ -1243,7 +1246,7 @@ function buildPolicyScenarios() {
       },
       expected_assistant_behavior: {
         requires_verification: false,
-        expected_final_outcomes: ['POLICY_OK'],
+        expected_final_outcomes: policyCase.expectedFinalOutcomes || ['POLICY_OK'],
         allow_data_after_verification: false
       },
       must_not_happen: [
@@ -1266,6 +1269,182 @@ function buildPolicyScenarios() {
   }
 
   return scenarios;
+}
+
+export function generateTelyxEmailRegressionScenarios() {
+  return [
+    baseScenario({
+      id: 'EMR-001',
+      channel: 'email',
+      domain: 'email_regression',
+      title: 'Quoted callback metni yeni turu zehirlememeli',
+      purpose: 'Quoted eski asistan metni yeni email turunu callback/handoff niyetine cevirmemeli.',
+      preconditions: ['policy_module_active', 'service_fixture:SRV_A'],
+      user_steps: [
+        `Ürün fotoğraflarını gönderdim.\n\nOn Mon, Telyx wrote:\nCanlı destek ekibimizin sizinle iletişime geçmesi için e-posta adresinizi ve telefon numaranızı paylaşabilir misiniz?`
+      ],
+      expected_tool_behavior: {
+        tool_required: false,
+        must_call: [],
+        must_not_call: ['create_callback']
+      },
+      expected_assistant_behavior: {
+        requires_verification: false,
+        expected_final_outcomes: ['NEED_MORE_INFO', 'KB_ANSWER', 'OK'],
+        allow_data_after_verification: false
+      },
+      must_not_happen: ['quoted eski cevap yuzunden callback akisini tetikleme'],
+      severity: 'blocker',
+      tags: ['email_regression', 'quoted_thread', 'callback_poison'],
+      fixtureRefs: { service: ['SRV_A'] },
+      runtime: {
+        variant: 'quoted_callback_poison'
+      },
+      contentAssertions: {
+        must_not_contain: [
+          'canlı destek ekibimizin sizinle iletişime geçmesi',
+          'e-posta adresinizi ve telefon numaranızı paylaş'
+        ]
+      }
+    }),
+    baseScenario({
+      id: 'EMR-002',
+      channel: 'email',
+      domain: 'email_regression',
+      title: 'Email kanalinda callback icin tekrar mail istememeli',
+      purpose: 'Email thread zaten kullanici mailini biliyorken tekrar mail+telefon istememeli.',
+      preconditions: ['policy_module_active', 'service_fixture:SRV_A'],
+      user_steps: [
+        'Ürün fotoğraflarını gönderdim, ne zaman dönüş yapılır?'
+      ],
+      expected_tool_behavior: {
+        tool_required: false,
+        must_call: [],
+        must_not_call: ['create_callback']
+      },
+      expected_assistant_behavior: {
+        requires_verification: false,
+        expected_final_outcomes: ['NEED_MORE_INFO', 'KB_ANSWER', 'OK'],
+        allow_data_after_verification: false
+      },
+      must_not_happen: ['email kanalinda gereksiz callback formu isteme'],
+      severity: 'high',
+      tags: ['email_regression', 'email_channel', 'callback_contact'],
+      fixtureRefs: { service: ['SRV_A'] },
+      runtime: {
+        variant: 'no_email_phone_reask'
+      },
+      contentAssertions: {
+        must_not_contain: [
+          'e-posta adresinizi',
+          'telefon numaranızı paylaş',
+          'canlı destek ekibimizin'
+        ]
+      }
+    }),
+    baseScenario({
+      id: 'EMR-003',
+      channel: 'email',
+      domain: 'email_regression',
+      title: 'Prosedur sorusu guvenlik blokuna dusmemeli',
+      purpose: 'Ne zaman donus yapilir gibi prosedurel soru gereksiz guvenlik bariyerine dusmemeli.',
+      preconditions: ['policy_module_active', 'service_fixture:SRV_A'],
+      user_steps: [
+        'Telefon numaram 9055500996463 mail adresim e.yorulmaz@incehesap.com. Ne zaman geri dönüş yapılır?'
+      ],
+      expected_tool_behavior: {
+        tool_required: false,
+        must_call: [],
+        must_not_call: ['create_callback']
+      },
+      expected_assistant_behavior: {
+        requires_verification: false,
+        expected_final_outcomes: ['NEED_MORE_INFO', 'KB_ANSWER', 'OK'],
+        allow_data_after_verification: false
+      },
+      must_not_happen: ['prosedur sorusuna security block verme'],
+      severity: 'blocker',
+      tags: ['email_regression', 'security_guard', 'callback_process'],
+      fixtureRefs: { service: ['SRV_A'] },
+      runtime: {
+        variant: 'no_security_block_for_process_question'
+      },
+      contentAssertions: {
+        must_not_contain: [
+          'Güvenlik nedeniyle bu detayı şu anda paylaşamıyorum',
+          'güvenlik nedeniyle'
+        ]
+      }
+    }),
+    baseScenario({
+      id: 'EMR-004',
+      channel: 'email',
+      domain: 'email_regression',
+      title: 'Servis dogrulama sorusu draftta iki kez tekrarlanmamali',
+      purpose: 'Ayni draft icinde son 4 hane sorusu semantik olarak iki kez uretilmemeli.',
+      preconditions: ['service_fixture:SRV_A'],
+      user_steps: [
+        'Servise gönderdiğim ürünün işlemleri ne zaman bitecek TKT-2024-1001 servis numaram'
+      ],
+      expected_tool_behavior: {
+        tool_required: true,
+        must_call: ['customer_data_lookup'],
+        must_not_call: []
+      },
+      expected_assistant_behavior: {
+        requires_verification: true,
+        expected_final_outcomes: ['VERIFICATION_REQUIRED', 'NEED_MORE_INFO'],
+        allow_data_after_verification: false
+      },
+      must_not_happen: ['tek draftta ayni verification istemini ciftleme'],
+      severity: 'blocker',
+      tags: ['email_regression', 'verification', 'duplicate_ask'],
+      fixtureRefs: { service: ['SRV_A'] },
+      runtime: {
+        variant: 'no_duplicate_verification_ask'
+      },
+      contentAssertions: {
+        max_occurrences: [
+          { pattern: 'son 4', max: 1, scope: 'final' }
+        ]
+      }
+    }),
+    baseScenario({
+      id: 'EMR-005',
+      channel: 'email',
+      domain: 'email_regression',
+      title: 'Iade/THH drafti celiskili kargo ismi uydurmamali',
+      purpose: 'Return/THH cevabi grounded degilse birden fazla kargo ismi veya alakasiz tasiyici uydurmamali.',
+      preconditions: ['order_fixture:ORD_B'],
+      user_steps: [
+        'ORD-2024-0002 siparişim için cayma hakkımı kullanmak istiyorum. Ürünü size gönderebilmem için kod verin.',
+        '4402'
+      ],
+      expected_tool_behavior: {
+        tool_required: true,
+        must_call: ['customer_data_lookup'],
+        must_not_call: []
+      },
+      expected_assistant_behavior: {
+        requires_verification: true,
+        expected_final_outcomes: ['OK', 'NEED_MORE_INFO'],
+        allow_data_after_verification: true
+      },
+      must_not_happen: ['celiskili kargo firmasi/codesi uydurma'],
+      severity: 'high',
+      tags: ['email_regression', 'return_flow', 'grounding'],
+      fixtureRefs: { orders: ['ORD_B'] },
+      runtime: {
+        variant: 'no_conflicting_carrier_in_return_flow'
+      },
+      contentAssertions: {
+        must_not_contain: ['Yurtiçi Kargo'],
+        max_occurrences: [
+          { pattern: 'Aras Kargo', max: 1, scope: 'all' }
+        ]
+      }
+    })
+  ];
 }
 
 export function generateTelyxSmoke100Scenarios() {
@@ -1294,5 +1473,6 @@ export const TELYX_SMOKE_FIXTURES = {
 
 export default {
   generateTelyxSmoke100Scenarios,
+  generateTelyxEmailRegressionScenarios,
   TELYX_SMOKE_FIXTURES
 };
