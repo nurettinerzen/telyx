@@ -261,6 +261,18 @@ const MESSAGE_CATALOG = {
       'This session has been closed for a security review. Please try again later.'
     ]
   },
+  LOCK_SECURITY_BYPASS: {
+    TR: [
+      'Güvenlik kurallarını devre dışı bırakarak devam edemem. Lütfen 30 dakika sonra tekrar deneyin.',
+      'Doğrulama ve güvenlik adımları zorunludur. Bu oturum 30 dakika süreyle kapatıldı.',
+      'Güvenlik önlemlerini atlamaya yönelik denemeler nedeniyle bu görüşme geçici olarak durduruldu. 30 dakika sonra tekrar deneyin.'
+    ],
+    EN: [
+      'I cannot continue by disabling security rules. Please try again in 30 minutes.',
+      'Verification and security steps are mandatory. This session has been paused for 30 minutes.',
+      'This conversation has been temporarily stopped due to attempts to bypass required safeguards. Please try again in 30 minutes.'
+    ]
+  },
   LOCK_LOOP: {
     TR: [
       'Teknik sorun nedeniyle sohbet geçici olarak kapatıldı. 10 dakika sonra tekrar deneyin.',

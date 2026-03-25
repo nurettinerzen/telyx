@@ -18,6 +18,7 @@
 import { routeMessage } from '../../../services/message-router.js';
 import { buildChatterDirective, isPureChatter } from '../../../services/chatter-response.js';
 import { hasAccountHint, classifyRedirectCategory, buildKbOnlyRedirectVariables } from '../../../config/channelMode.js';
+import { classifySemanticCallbackIntent } from '../../../services/semantic-guard-classifier.js';
 
 function isRouterPassthroughEnabled() {
   return String(process.env.ROUTER_PASSTHROUGH || '').toLowerCase() === 'true';
@@ -71,9 +72,8 @@ function handleChatter({ userMessage, state, language, sessionId, messageRouting
 }
 
 // ════════════════════════════════════════════════════════════════════
-// TWO-LAYER CALLBACK DETECTION
-// Layer A: Cheap stem-based hint (no word boundaries, normalized text)
-// Layer B: Mini LLM classifier confirms when hint fires
+// CALLBACK DETECTION
+// Semantic classifier is primary. Stem hints remain only as fallback/helper.
 // ════════════════════════════════════════════════════════════════════
 
 // Layer A stems — just enough to filter candidates, NOT to decide.
@@ -129,65 +129,44 @@ function hasCallbackHint(message = '') {
   return false;
 }
 
-/**
- * Layer B: Mini LLM classifier — confirms callback intent.
- * Only called when Layer A hint fires.
- * Uses gemini-2.5-flash-lite for speed (~200ms).
- * Returns { isCallback: boolean, confidence: number }
- */
 async function classifyCallbackIntent(message = '', language = 'TR') {
   try {
-    const { getGeminiClient } = await import('../../../services/gemini-utils.js');
-    const genAI = getGeminiClient();
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-2.5-flash-lite',
-      generationConfig: {
-        temperature: 0,
-        maxOutputTokens: 30,
-        responseMimeType: 'application/json'
-      }
-    });
-
-    const prompt = language === 'TR'
-      ? `Kullanıcı mesajı bir geri arama / yetkili / temsilci / canlı destek talebi mi?
-Mesaj: "${message}"
-Sadece JSON döndür: {"cb":true} veya {"cb":false}`
-      : `Is this user message a callback / agent / representative / live support request?
-Message: "${message}"
-Return only JSON: {"cb":true} or {"cb":false}`;
-
-    const result = await Promise.race([
-      model.generateContent(prompt),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 3000))
-    ]);
-
-    const raw = result.response?.text()?.trim();
-    const parsed = JSON.parse(raw);
-    console.log(`🤖 [CallbackClassifier] "${message}" → ${JSON.stringify(parsed)}`);
-    return { isCallback: !!parsed.cb, confidence: parsed.cb ? 0.95 : 0.1 };
+    const semantic = await classifySemanticCallbackIntent(message, language);
+    if (semantic) {
+      console.log(`🤖 [CallbackClassifier] "${message}" → ${JSON.stringify(semantic)}`);
+      return semantic;
+    }
   } catch (err) {
-    // Fail-OPEN: If classifier fails, trust the hint (Layer A already fired)
-    console.warn(`⚠️ [CallbackClassifier] Error: ${err.message} — fail-open, trusting hint`);
-    return { isCallback: true, confidence: 0.7 };
+    console.warn(`⚠️ [CallbackClassifier] Error: ${err.message} — falling back to heuristic hint`);
   }
+
+  const hint = hasCallbackHint(message);
+  return {
+    isCallback: hint,
+    confidence: hint ? 0.6 : 0,
+    reason: hint ? 'heuristic_fallback' : 'heuristic_negative',
+    source: hint ? 'heuristic_fallback' : 'heuristic_negative'
+  };
 }
 
 /**
- * Combined two-layer callback detection.
- * Layer A (hint) → if true → Layer B (classifier) → final decision.
- * If callbackFlow.pending is already true, skip both layers.
+ * Semantic callback detection with heuristic fallback.
+ * If callbackFlow.pending is already true, detection is skipped upstream.
  */
 async function detectCallbackIntent(message = '', language = 'TR') {
-  const hint = hasCallbackHint(message);
-  if (!hint) {
-    return { isCallback: false, confidence: 0, source: 'hint_negative' };
+  const classifierResult = await classifyCallbackIntent(message, language);
+  if (classifierResult?.isCallback === true) {
+    return {
+      isCallback: true,
+      confidence: classifierResult.confidence ?? 0.9,
+      source: classifierResult.source || 'semantic_confirmed'
+    };
   }
 
-  console.log(`🔎 [CallbackDetect] Hint fired for: "${message}" — calling mini classifier`);
-  const classifierResult = await classifyCallbackIntent(message, language);
   return {
-    ...classifierResult,
-    source: classifierResult.isCallback ? 'classifier_confirmed' : 'classifier_rejected'
+    isCallback: false,
+    confidence: classifierResult?.confidence ?? 0,
+    source: classifierResult?.source || 'semantic_rejected'
   };
 }
 
@@ -346,8 +325,8 @@ export async function makeRoutingDecision(params) {
   }
 
   // ════════════════════════════════════════════════════════════════════
-  // TWO-LAYER CALLBACK INTERCEPT
-  // Layer A (hint) + Layer B (mini classifier) → deterministic flow
+  // SEMANTIC CALLBACK INTERCEPT
+  // Semantic classifier is primary; heuristic stems are fallback only.
   // If callbackFlow.pending is already true, skip detection (already in flow).
   // ════════════════════════════════════════════════════════════════════
   const callbackPending = state.callbackFlow?.pending === true;

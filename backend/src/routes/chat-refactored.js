@@ -1090,12 +1090,14 @@ router.post('/widget', async (req, res) => {
 
     // GUARD 2: Detect user input risks (abuse, threats, spam, PII)
     const state = await getState(sessionId);
-    const riskDetection = detectUserRisks(message, language, state);
+    const riskDetection = await detectUserRisks(message, language, state);
 
-    // Persist state if abuse counter was updated
-    if (riskDetection.warnings.some(w => w.type === 'PROFANITY')) {
+    if (riskDetection.stateUpdated) {
       await updateState(sessionId, state);
-      console.log(`[Chat Guard] State updated - abuse counter: ${state.abuseCounter}`);
+      console.log('[Chat Guard] Risk state updated', {
+        abuseCounter: state.abuseCounter,
+        securityBypassCounter: state.securityBypassCounter
+      });
     }
 
     // If critical risk detected → lock session immediately

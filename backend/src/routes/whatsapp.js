@@ -479,12 +479,14 @@ async function processWhatsAppMessage(business, from, messageBody, messageId, tr
 
     // GUARD 2: Detect user input risks (abuse, threats, spam, PII)
     const state = await getState(sessionId);
-    const riskDetection = detectUserRisks(messageBody, language, state);
+    const riskDetection = await detectUserRisks(messageBody, language, state);
 
-    // Persist state if abuse counter was updated
-    if (riskDetection.warnings.some(w => w.type === 'PROFANITY')) {
+    if (riskDetection.stateUpdated) {
       await updateState(sessionId, state);
-      console.log(`[WhatsApp Guard] State updated - abuse counter: ${state.abuseCounter}`);
+      console.log('[WhatsApp Guard] Risk state updated', {
+        abuseCounter: state.abuseCounter,
+        securityBypassCounter: state.securityBypassCounter
+      });
     }
 
     // If critical risk detected → lock session immediately

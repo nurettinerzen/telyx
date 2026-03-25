@@ -611,21 +611,29 @@ export async function applyGuardrails(params) {
       });
 
       if (gatewayResult.requiresVerification && verificationState !== 'verified') {
-        // HARD BLOCK: Authorization decision is NOT delegated to LLM.
-        // Previously used needsCorrection (LLM regenerate) — that's a request, not a barrier.
-        // Now: if tool output has protected fields and user is NOT verified, hard block.
+        const missingFields = mapGatewayDeniedFieldsToMissingFields(gatewayResult.deniedFields);
+        const minInfoVariant = resolveMinInfoQuestion({
+          language,
+          missingFields
+        });
+
         metrics.securityGatewayVerificationRequired = {
           deniedFields: gatewayResult.deniedFields,
-          action: 'HARD_BLOCK'
+          action: 'NEED_MIN_INFO_FOR_TOOL',
+          missingFields
         };
 
-        console.warn('🚫 [SecurityGateway] Verification HARD BLOCK — unverified user, protected fields in tool output');
+        console.warn('🛡️ [SecurityGateway] Verification clarification — unverified user, protected fields in tool output');
         return {
-          finalResponse: getBarrierMessage(language),
-          action: GuardrailAction.BLOCK,
+          finalResponse: minInfoVariant.text,
+          action: GuardrailAction.NEED_MIN_INFO_FOR_TOOL,
           blocked: true,
-          blockReason: 'VERIFICATION_NOT_COMPLETED',
-          guardrailsApplied: ['RESPONSE_FIREWALL', 'PII_PREVENTION', 'SECURITY_GATEWAY_VERIFICATION_HARD_BLOCK']
+          blockReason: 'VERIFICATION_REQUIRED',
+          needsVerification: true,
+          missingFields,
+          messageKey: minInfoVariant.messageKey,
+          variantIndex: minInfoVariant.variantIndex,
+          guardrailsApplied: ['RESPONSE_FIREWALL', 'PII_PREVENTION', 'SECURITY_GATEWAY_VERIFICATION_REQUIRED']
         };
       }
 

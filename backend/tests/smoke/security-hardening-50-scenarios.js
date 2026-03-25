@@ -263,8 +263,8 @@ addScenario('VS-checkVerification asks phone_last4 when no input', () => {
 // ============================================================================
 const modeChannels = ['CHAT', 'WHATSAPP', 'EMAIL', 'PHONE'];
 modeChannels.forEach((channel, index) => {
-  addScenario(`CM-missing-config-${index + 1} defaults to KB_ONLY (${channel})`, () => {
-    assert.equal(getChannelMode({ channelConfig: null }, channel), 'KB_ONLY');
+  addScenario(`CM-missing-config-${index + 1} defaults to FULL (${channel})`, () => {
+    assert.equal(getChannelMode({ channelConfig: null }, channel), 'FULL');
   });
 });
 

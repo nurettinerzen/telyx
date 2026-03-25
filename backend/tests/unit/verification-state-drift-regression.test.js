@@ -3,7 +3,7 @@
  *
  * Validates that:
  * 1. outcomePolicy sets 'failed' (not 'pending') on VERIFICATION_FAILED
- * 2. Guardrails hard-block unverified data (not needsCorrection)
+ * 2. Guardrails deterministically request verification info for unverified protected data
  * 3. Enumeration reset preserves notFoundAttempts
  * 4. Wrong last4 → deny → repeat → still deny (state machine integrity)
  */
@@ -122,11 +122,11 @@ describe('outcomePolicy — VERIFICATION_FAILED state machine', () => {
 });
 
 // ============================================================================
-// FIX 2: Guardrails — hard block when unverified + protected fields
+// FIX 2: Guardrails — deterministic clarification when unverified + protected fields
 // ============================================================================
 
-describe('Guardrails — verification hard block (not needsCorrection)', () => {
-  it('returns hard BLOCK (not needsCorrection) when unverified + protected tool output', async () => {
+describe('Guardrails — verification clarification (not leakage)', () => {
+  it('returns NEED_MIN_INFO_FOR_TOOL when unverified + protected tool output', async () => {
     const result = await applyGuardrails({
       responseText: 'Siparişiniz kargoda.',
       hadToolSuccess: true,
@@ -155,14 +155,15 @@ describe('Guardrails — verification hard block (not needsCorrection)', () => {
       collectedData: {}
     });
 
-    // Must be hard BLOCK, not needsCorrection
+    // Must ask for deterministic min info without leaking tool data
     expect(result.blocked).toBe(true);
     expect(result.needsCorrection).toBeUndefined();
-    expect(result.action).toBe('BLOCK');
-    expect(result.blockReason).toBe('VERIFICATION_NOT_COMPLETED');
+    expect(result.action).toBe('NEED_MIN_INFO_FOR_TOOL');
+    expect(result.blockReason).toBe('VERIFICATION_REQUIRED');
+    expect(result.finalResponse).toMatch(/sipariş numaranızı|son 4 hanesini/i);
   });
 
-  it('returns hard BLOCK when verification status is "failed"', async () => {
+  it('returns NEED_MIN_INFO_FOR_TOOL when verification status is "failed"', async () => {
     const result = await applyGuardrails({
       responseText: 'Siparişiniz teslim edildi.',
       hadToolSuccess: true,
@@ -189,7 +190,8 @@ describe('Guardrails — verification hard block (not needsCorrection)', () => {
 
     expect(result.blocked).toBe(true);
     expect(result.needsCorrection).toBeUndefined();
-    expect(result.action).toBe('BLOCK');
+    expect(result.action).toBe('NEED_MIN_INFO_FOR_TOOL');
+    expect(result.blockReason).toBe('VERIFICATION_REQUIRED');
   });
 
   it('allows response when verification status is "verified"', async () => {

@@ -141,6 +141,19 @@ export const FEATURE_FLAGS = {
   // Rollback: Set FEATURE_DISABLE_AUTO_DECODE=false
   DISABLE_AUTO_DECODE: process.env.FEATURE_DISABLE_AUTO_DECODE !== 'false', // Default: ON
 
+  // Semantic safety classification for abuse/threat/spam/prompt-injection.
+  // When enabled: pre-LLM route guard uses Gemini Flash Lite semantic classifier,
+  // with deterministic fallback if the classifier fails.
+  SEMANTIC_RISK_CLASSIFIER: process.env.FEATURE_SEMANTIC_RISK_CLASSIFIER !== 'false', // Default: ON
+
+  // Semantic callback/live-support intent classifier.
+  // When enabled: callback interception no longer depends on stem/regex hints.
+  SEMANTIC_CALLBACK_CLASSIFIER: process.env.FEATURE_SEMANTIC_CALLBACK_CLASSIFIER !== 'false', // Default: ON
+
+  // Semantic prompt-injection / security-bypass classifier for orchestrator pre-check.
+  // When enabled: prompt injection severity is decided semantically with heuristic fallback.
+  SEMANTIC_INJECTION_CLASSIFIER: process.env.FEATURE_SEMANTIC_INJECTION_CLASSIFIER !== 'false', // Default: ON
+
   // P0 Launch Guard: strict grounding for business claims in text channels
   // When enabled: business/product/feature claims with KB LOW and no tool evidence
   // are force-downgraded to clarification (no claim leakage).

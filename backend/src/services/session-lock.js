@@ -8,6 +8,7 @@
  * - ABUSE: Profanity, harassment (1 hour lock)
  * - THREAT: Violent threats (permanent lock)
  * - PII_RISK: Sensitive data leak (1 hour lock)
+ * - SECURITY_BYPASS: Attempts to disable safeguards / override policy (30 min lock)
  * - LOOP: Infinite loop detected (10 min lock)
  * - SPAM: Spam/flooding (5 min lock)
  */
@@ -22,6 +23,7 @@ const LOCK_DURATIONS = {
   ABUSE: 60 * 60 * 1000,        // 1 hour
   THREAT: null,                  // Permanent
   PII_RISK: 60 * 60 * 1000,     // 1 hour
+  SECURITY_BYPASS: 30 * 60 * 1000, // 30 minutes
   LOOP: 10 * 60 * 1000,         // 10 minutes
   SPAM: 5 * 60 * 1000,          // 5 minutes
   ENUMERATION: 2 * 60 * 1000,   // 2 minutes cooldown for enumeration attempts
@@ -71,6 +73,7 @@ const LOCK_REASON_TO_MESSAGE_KEY = {
   ABUSE: 'LOCK_ABUSE',
   THREAT: 'LOCK_THREAT',
   PII_RISK: 'LOCK_PII_RISK',
+  SECURITY_BYPASS: 'LOCK_SECURITY_BYPASS',
   LOOP: 'LOCK_LOOP',
   SPAM: 'LOCK_SPAM',
   ENUMERATION: 'LOCK_ENUMERATION'

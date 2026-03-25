@@ -938,7 +938,7 @@ export async function handleIncomingMessage({
     console.log('\n[STEP 0.5] Prompt injection check (pre-LLM)...');
 
     const injectionEnabled = isFeatureEnabled('PLAINTEXT_INJECTION_BLOCK');
-    const injectionCheck = injectionEnabled ? detectPromptInjection(userMessage) : { detected: false };
+    const injectionCheck = injectionEnabled ? await detectPromptInjection(userMessage) : { detected: false };
     let injectionContext = null;
 
     if (!injectionEnabled) {
