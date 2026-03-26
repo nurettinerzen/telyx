@@ -19,6 +19,7 @@ const FLOW_TOOL_OVERRIDES = Object.freeze({
   CALLBACK_REQUEST: ['create_callback']
 });
 const VERIFICATION_FLOWS = Object.freeze(['ORDER_STATUS', 'DEBT_INQUIRY', 'TRACKING_INFO', 'TICKET_STATUS', 'ACCOUNT_LOOKUP']);
+const STOCK_TOOLS = Object.freeze(['get_product_stock', 'check_stock_crm']);
 
 /**
  * Detect specific entity references (order no, ticket no, tracking no) in user message.
@@ -76,7 +77,13 @@ function inferFlowFromMessage(message = '') {
     return 'TICKET_STATUS';
   }
 
-  if (/\b(stok|stock|envanter|available|availability|kac tane|kac adet|adet|tane|kac var|ne kadar var)\b/.test(text)) {
+  const stockPattern = /\b(stok|stokta|stoklarda|stock|envanter|mevcut|available|availability|kac tane|kac adet|adet|tane|kac var|ne kadar var|varmi|var mi|satiliyor mu|satiyor musunuz|satiliyor musunuz)\b/;
+  const hasStockPhrase = stockPattern.test(text);
+  const asksAvailability =
+    /\b(var|mevcut)\b/.test(text) &&
+    /\b(mi|mı|mu|mü)\b/.test(text);
+
+  if (hasStockPhrase || asksAvailability) {
     return 'STOCK_CHECK';
   }
 
@@ -177,6 +184,34 @@ export function resolveFlowScopedTools({ state, classification, routingResult, u
   };
 }
 
+export function shouldForceStockToolCall({ resolvedFlow, gatedTools = [] }) {
+  if (resolvedFlow !== 'STOCK_CHECK') return false;
+  return (Array.isArray(gatedTools) ? gatedTools : []).some(tool => STOCK_TOOLS.includes(tool));
+}
+
+export function buildFunctionCallingConfig({ resolvedFlow, gatedTools = [] }) {
+  const normalizedTools = Array.isArray(gatedTools) ? gatedTools.filter(Boolean) : [];
+  if (normalizedTools.length === 0) {
+    return null;
+  }
+
+  if (shouldForceStockToolCall({ resolvedFlow, gatedTools: normalizedTools })) {
+    const allowedFunctionNames = normalizedTools.filter(tool => STOCK_TOOLS.includes(tool));
+    return {
+      functionCallingConfig: {
+        mode: 'ANY',
+        allowedFunctionNames
+      }
+    };
+  }
+
+  return {
+    functionCallingConfig: {
+      mode: 'AUTO'
+    }
+  };
+}
+
 export async function buildLLMRequest(params) {
   const {
     systemPrompt,
@@ -191,6 +226,14 @@ export async function buildLLMRequest(params) {
     business,
     entityResolution
   } = params;
+  const allToolNames = toolsAll.map(t => t.function?.name).filter(Boolean);
+  const { gatedTools, resolvedFlow, allowlistMode } = resolveFlowScopedTools({
+    state,
+    classification,
+    routingResult,
+    userMessage,
+    allToolNames
+  });
 
   // STEP 0: Enhance system prompt with known customer info
   // SECURITY: Only send non-PII identifiers to LLM, not actual customer data
@@ -488,6 +531,15 @@ KURALLAR:
 5. requested_qty parametresi SADECE müşteri açık bir sayı söylediğinde doldurulur. "Kaç tane var?" gibi genel sorularda BOŞ bırakılır.
 6. Tool yanıtındaki quantity_check sonucunu kullan, kendi başına adet uydurma.`;
 
+  if (shouldForceStockToolCall({ resolvedFlow, gatedTools })) {
+    enhancedSystemPrompt += `
+
+## ZORUNLU STOK TOOL ÇAĞRISI
+- Kullanıcı stok/ürün mevcudiyeti soruyorsa, İLK yanıttan önce mutlaka stok tool'u çağır.
+- "Bu ürün hakkında bilgim yok", "bulunamadı", "tam adını yazın" gibi cümleleri tool çağırmadan kurma.
+- Geniş ürün adı bile olsa önce tool ile adayları getir; tool çoklu aday döndürürse oradan netleştir.`;
+  }
+
   const classifierConfidence = classification?.confidence || 0.9;
 
   enhancedSystemPrompt += `
@@ -517,14 +569,6 @@ Kullanıcı mesajında spesifik bir kayıt referansı var: "${entityRefMatch}".
   }
 
   // LLM decides whether to call tools; backend only passes allowlisted tools.
-  const allToolNames = toolsAll.map(t => t.function?.name).filter(Boolean);
-  const { gatedTools, resolvedFlow, allowlistMode } = resolveFlowScopedTools({
-    state,
-    classification,
-    routingResult,
-    userMessage,
-    allToolNames
-  });
   metrics.toolDecisionMode = 'llm_authority_allowlist_only';
   console.log('🔧 [BuildLLMRequest] Allowlist tools passed to LLM:', {
     count: gatedTools.length,
@@ -579,15 +623,16 @@ Kullanıcı mesajında spesifik bir kayıt referansı var: "${entityRefMatch}".
     console.log('💬 [BuildLLMRequest] CHATTER budget: maxOutputTokens=200, temperature=0.8');
   }
 
+  const toolConfig = buildFunctionCallingConfig({
+    resolvedFlow,
+    gatedTools
+  });
+
   const model = genAI.getGenerativeModel({
     model: 'gemini-2.5-flash',
     systemInstruction: enhancedSystemPrompt,
     tools: geminiTools.length > 0 ? [{ functionDeclarations: geminiTools }] : undefined,
-    toolConfig: geminiTools.length > 0 ? {
-      functionCallingConfig: {
-        mode: 'AUTO'
-      }
-    } : undefined,
+    toolConfig: geminiTools.length > 0 ? toolConfig : undefined,
     generationConfig
   });
 

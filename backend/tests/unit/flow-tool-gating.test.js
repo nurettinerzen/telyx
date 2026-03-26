@@ -1,7 +1,9 @@
 import { describe, expect, it } from '@jest/globals';
 import {
   resolveFlowScopedTools,
-  isVerificationContextRelevant
+  isVerificationContextRelevant,
+  shouldForceStockToolCall,
+  buildFunctionCallingConfig
 } from '../../src/core/orchestrator/steps/05_buildLLMRequest.js';
 
 describe('flow scoped tool gating', () => {
@@ -29,6 +31,39 @@ describe('flow scoped tool gating', () => {
     expect(result.gatedTools).toEqual(['get_product_stock', 'check_stock_crm']);
   });
 
+  it('forces a tool call when stock flow is active and stock tools are available', () => {
+    expect(shouldForceStockToolCall({
+      resolvedFlow: 'STOCK_CHECK',
+      gatedTools: ['get_product_stock', 'check_stock_crm']
+    })).toBe(true);
+
+    expect(buildFunctionCallingConfig({
+      resolvedFlow: 'STOCK_CHECK',
+      gatedTools: ['get_product_stock', 'check_stock_crm']
+    })).toEqual({
+      functionCallingConfig: {
+        mode: 'ANY',
+        allowedFunctionNames: ['get_product_stock', 'check_stock_crm']
+      }
+    });
+  });
+
+  it('keeps auto tool mode for non-stock flows', () => {
+    expect(shouldForceStockToolCall({
+      resolvedFlow: 'PRODUCT_INFO',
+      gatedTools: ['get_product_stock']
+    })).toBe(false);
+
+    expect(buildFunctionCallingConfig({
+      resolvedFlow: 'PRODUCT_INFO',
+      gatedTools: ['get_product_stock']
+    })).toEqual({
+      functionCallingConfig: {
+        mode: 'AUTO'
+      }
+    });
+  });
+
   it('uses CALLBACK_REQUEST override for callback collection turns', () => {
     const result = resolveFlowScopedTools({
       state: { activeFlow: 'CALLBACK_REQUEST' },
@@ -47,6 +82,32 @@ describe('flow scoped tool gating', () => {
       classification: {},
       routingResult: {},
       userMessage: 'Bu model stokta var mı, kaç tane kaldı?',
+      allToolNames: ['customer_data_lookup', 'get_product_stock', 'check_stock_crm']
+    });
+
+    expect(result.resolvedFlow).toBe('STOCK_CHECK');
+    expect(result.gatedTools).toEqual(['get_product_stock', 'check_stock_crm']);
+  });
+
+  it('infers STOCK_CHECK from natural availability phrasing without quantity words', () => {
+    const result = resolveFlowScopedTools({
+      state: {},
+      classification: {},
+      routingResult: {},
+      userMessage: 'artemis var mi stokta',
+      allToolNames: ['customer_data_lookup', 'get_product_stock', 'check_stock_crm']
+    });
+
+    expect(result.resolvedFlow).toBe('STOCK_CHECK');
+    expect(result.gatedTools).toEqual(['get_product_stock', 'check_stock_crm']);
+  });
+
+  it('infers STOCK_CHECK from "mevcut mu" availability phrasing', () => {
+    const result = resolveFlowScopedTools({
+      state: {},
+      classification: {},
+      routingResult: {},
+      userMessage: 'artemis mevcut mu',
       allToolNames: ['customer_data_lookup', 'get_product_stock', 'check_stock_crm']
     });
 
