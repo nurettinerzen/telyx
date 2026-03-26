@@ -574,11 +574,23 @@ export function LandingPage() {
               </div>
               <div className="feature-visual reveal-right reveal-late">
                 <div className="feature-visual-title">{t('landing.integrationsFeature.visualTitle')}</div>
-                <div className="integration-logos">
-                  <div className="integration-logo"><span>{'\u{1F6CD}\u{FE0F}'}</span> Shopify</div>
-                  <div className="integration-logo"><span>{'\u2709\uFE0F'}</span> Gmail</div>
-                  <div className="integration-logo"><span>{'\u{1F4E8}'}</span> Outlook</div>
-                  <div className="integration-logo"><span>{'\u{1F517}'}</span> CRM Webhook</div>
+                <div className="integration-logos-grid">
+                  <div className="integration-logo-card">
+                    <img src="/assets/integrations/shopify.svg" alt="Shopify" className="integration-logo-img" />
+                    <span>Shopify</span>
+                  </div>
+                  <div className="integration-logo-card">
+                    <img src="/assets/integrations/gmail.svg" alt="Gmail" className="integration-logo-img" />
+                    <span>Gmail</span>
+                  </div>
+                  <div className="integration-logo-card">
+                    <img src="/assets/integrations/outlook.png" alt="Outlook" className="integration-logo-img" />
+                    <span>Outlook</span>
+                  </div>
+                  <div className="integration-logo-card">
+                    <img src="/assets/integrations/webhook.png" alt="CRM Webhook" className="integration-logo-img" />
+                    <span>CRM Webhook</span>
+                  </div>
                 </div>
               </div>
             </div>
