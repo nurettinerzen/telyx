@@ -27,6 +27,7 @@ import { PrismaClient } from '@prisma/client';
 import { getDateTimeContext } from '../utils/dateTime.js';
 import { buildAssistantPrompt, getActiveTools as getPromptBuilderTools } from '../services/promptBuilder.js';
 import { isFreePlanExpired } from '../middleware/checkPlanExpiry.js';
+import { isChatWidgetResetEnabledForBusiness } from '../config/feature-flags.js';
 import { getActiveTools, executeTool } from '../tools/index.js';
 import { calculateTokenCost, hasFreeChat } from '../config/plans.js';
 import callAnalysis from '../services/callAnalysis.js';
@@ -812,7 +813,8 @@ router.get('/widget/status/:assistantId', async (req, res) => {
     res.json({
       active: true,
       assistantName: assistant.name,
-      businessName: assistant.business?.name
+      businessName: assistant.business?.name,
+      allowReset: isChatWidgetResetEnabledForBusiness(assistant.business?.id)
     });
 
   } catch (error) {
@@ -866,7 +868,8 @@ router.get('/widget/status/embed/:embedKey', async (req, res) => {
     res.json({
       active: true,
       assistantName: business.assistants[0].name,
-      businessName: business.name
+      businessName: business.name,
+      allowReset: isChatWidgetResetEnabledForBusiness(business.id)
     });
 
   } catch (error) {
