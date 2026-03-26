@@ -282,13 +282,13 @@
     },
     "proofSection": {
       "stat1Value": "85",
-      "stat1Title": "faster response time",
+      "stat1Title": "Faster Response Time",
       "stat1Desc": "Customers get answers in seconds. Wait time is nearly zero.",
       "stat2Value": "24/7",
-      "stat2Title": "uninterrupted customer service",
+      "stat2Title": "Uninterrupted Customer Service",
       "stat2Desc": "Night, weekend, holiday — AI assistant never takes a day off.",
       "stat3Value": "4",
-      "stat3Title": "more customer capacity",
+      "stat3Title": "More Customer Capacity",
       "stat3Desc": "Serve 4x more customers with the same team."
     },
     "workflowSection": {

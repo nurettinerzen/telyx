@@ -59,7 +59,7 @@
   border: 1px solid rgba(20,184,166,0.18);
   background: rgba(20,184,166,0.07);
   color: #7ee8d4; font-size: 11px; font-weight: 700;
-  letter-spacing: 0.12em; text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 .landing-page .kicker-purple {
   border-color: rgba(167,139,250,0.25);
@@ -171,7 +171,7 @@
   position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%);
   display: flex; flex-direction: column; align-items: center; gap: 6px;
   color: var(--text-muted); font-size: 11px; font-weight: 600;
-  letter-spacing: 0.1em; text-transform: uppercase;
+  letter-spacing: 0.08em;
   animation: lp-bounce-down 2s ease-in-out infinite;
 }
 @keyframes lp-bounce-down {
@@ -229,7 +229,7 @@
   padding: 18px 16px; border-radius: 16px;
   background: rgba(255,255,255,0.03); border: 1px solid var(--border);
 }
-.landing-page .metric-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+.landing-page .metric-label { font-size: 11px; font-weight: 600; color: var(--text-muted); letter-spacing: 0.04em; margin-bottom: 8px; }
 .landing-page .metric-value { font-size: 28px; font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
 .landing-page .metric-value[data-color="primary"] { color: var(--lp-primary); }
 .landing-page .metric-value[data-color="accent"]  { color: var(--lp-accent); }
@@ -372,7 +372,7 @@
 .landing-page .proof-value[data-color="primary"] { color: var(--lp-primary-light); }
 .landing-page .proof-value[data-color="accent"]  { color: var(--lp-accent); }
 .landing-page .proof-value[data-color="info"]    { color: var(--lp-info); }
-.landing-page .proof-card h2 { font-size: 1.1rem; line-height: 1.2; letter-spacing: -0.02em; margin-bottom: 10px; }
+.landing-page .proof-card h2 { font-size: 1.35rem; line-height: 1.2; letter-spacing: -0.02em; margin-bottom: 10px; }
 .landing-page .proof-card p { font-size: 14px; line-height: 1.7; color: var(--text-secondary); }
 
 /* --- Workflow --- */
@@ -417,7 +417,7 @@
   padding: 28px; min-height: 280px;
   display: flex; flex-direction: column; justify-content: center;
 }
-.landing-page .feature-visual-title { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 16px; }
+.landing-page .feature-visual-title { font-size: 12px; font-weight: 700; color: var(--text-muted); letter-spacing: 0.04em; margin-bottom: 16px; }
 .landing-page .integration-logos { display: flex; flex-wrap: wrap; gap: 10px; }
 .landing-page .integration-logo {
   display: inline-flex; align-items: center; gap: 8px;

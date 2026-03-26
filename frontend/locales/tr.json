@@ -282,13 +282,13 @@
     },
     "proofSection": {
       "stat1Value": "85",
-      "stat1Title": "daha hızlı yanıt süresi",
+      "stat1Title": "Daha Hızlı Yanıt Süresi",
       "stat1Desc": "Müşteriler saniyeler içinde cevap alır. Bekleme süresi neredeyse sıfır.",
       "stat2Value": "7/24",
-      "stat2Title": "kesintisiz müşteri hizmeti",
+      "stat2Title": "Kesintisiz Müşteri Hizmeti",
       "stat2Desc": "Gece, hafta sonu, bayram — AI asistan hiç tatil yapmaz.",
       "stat3Value": "4",
-      "stat3Title": "daha fazla müşteri kapasitesi",
+      "stat3Title": "Daha Fazla Müşteri Kapasitesi",
       "stat3Desc": "Aynı ekiple 4 kat daha fazla müşteriye hizmet verin."
     },
     "workflowSection": {
