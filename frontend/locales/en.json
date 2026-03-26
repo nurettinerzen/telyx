@@ -258,7 +258,7 @@
     },
     "channelCards": {
       "kicker": "Omni-channel",
-      "title": "All channels, one AI",
+      "title": "All Channels, One AI",
       "subtitle": "Wherever your customers are — same intelligence, same quality, same speed.",
       "phoneTitle": "Phone",
       "phoneDesc": "Answer calls with voice AI assistant. Appointment booking, information and routing — all automatic.",
@@ -270,8 +270,8 @@
       "emailDesc": "Manage your inbox with AI. Auto-drafts, smart classification and fast replies."
     },
     "chatDemoSection": {
-      "kicker": "Live experience",
-      "title": "Customer response in 1.8 seconds",
+      "kicker": "Live Experience",
+      "title": "Customer Response in 1.8 Seconds",
       "desc": "AI assistant understands your customer's question, checks your CRM data and delivers the right answer in seconds. Like a human agent — but 24/7.",
       "assistantName": "Telyx AI Assistant",
       "online": "Online",
@@ -292,8 +292,8 @@
       "stat3Desc": "Serve 4x more customers with the same team."
     },
     "workflowSection": {
-      "kicker": "How it works",
-      "title": "AI customer service in 4 steps",
+      "kicker": "How It Works",
+      "title": "AI Customer Service in 4 Steps",
       "subtitle": "Setup takes minutes. No technical knowledge required.",
       "step1Title": "Define your business",
       "step1Desc": "Upload your FAQ, knowledge base and business details. Let the AI assistant learn about you.",
@@ -306,13 +306,13 @@
     },
     "integrationsFeature": {
       "kicker": "Integrations",
-      "title": "Works instantly with your existing system",
+      "title": "Works Instantly With Your Existing System",
       "desc": "Connect to your existing systems with Shopify, Gmail, Outlook and CRM Webhook integrations. Automatically answer order, shipping and customer queries.",
       "visualTitle": "Supported integrations"
     },
     "securityFeature": {
       "kicker": "Security",
-      "title": "Customer data under protection",
+      "title": "Customer Data Under Protection",
       "desc": "Identity verification, data masking, guardrail system and GDPR-compliant infrastructure keeps your data safe at all times.",
       "visualTitle": "Security layers",
       "auth": "Identity Verification",
@@ -325,8 +325,8 @@
       "kvkkDesc": "Data processing compliant with regulations"
     },
     "ctaSection": {
-      "kicker": "Get started",
-      "title": "Transform your customer service with AI",
+      "kicker": "Get Started",
+      "title": "Transform Your Customer Service With AI",
       "subtitle": "Try with 15 minutes of free calls. No credit card required, setup takes minutes.",
       "btn1": "Create Free Account",
       "btn2": "Request Demo"

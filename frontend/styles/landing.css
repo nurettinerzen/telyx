@@ -372,7 +372,7 @@
 .landing-page .proof-value[data-color="primary"] { color: var(--lp-primary-light); }
 .landing-page .proof-value[data-color="accent"]  { color: var(--lp-accent); }
 .landing-page .proof-value[data-color="info"]    { color: var(--lp-info); }
-.landing-page .proof-card h2 { font-size: 1.35rem; line-height: 1.2; letter-spacing: -0.02em; margin-bottom: 10px; }
+.landing-page .proof-card h2 { font-size: 1.6rem; line-height: 1.2; letter-spacing: -0.02em; margin-bottom: 10px; }
 .landing-page .proof-card p { font-size: 14px; line-height: 1.7; color: var(--text-secondary); }
 
 /* --- Workflow --- */

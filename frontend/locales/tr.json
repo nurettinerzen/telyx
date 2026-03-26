@@ -258,7 +258,7 @@
     },
     "channelCards": {
       "kicker": "Omni-channel",
-      "title": "Tüm kanallar, tek AI",
+      "title": "Tüm Kanallar, Tek AI",
       "subtitle": "Müşterileriniz nerede olursa olsun — aynı zekâ, aynı kalite, aynı hız.",
       "phoneTitle": "Telefon",
       "phoneDesc": "Sesli AI asistan ile çağrıları karşılayın. Randevu oluşturma, bilgi verme ve yönlendirme otomatik.",
@@ -270,8 +270,8 @@
       "emailDesc": "Gelen kutusunu AI ile yönetin. Otomatik taslak, akıllı sınıflandırma ve hızlı yanıt."
     },
     "chatDemoSection": {
-      "kicker": "Canlı deneyim",
-      "title": "1.8 saniyede müşteri yanıtı",
+      "kicker": "Canlı Deneyim",
+      "title": "1.8 Saniyede Müşteri Yanıtı",
       "desc": "AI asistan, müşterinizin sorusunu anlar, CRM verinize bakar ve saniyeler içinde doğru yanıtı verir. İnsan müşteri temsilcisi gibi — ama 7/24.",
       "assistantName": "Telyx AI Asistan",
       "online": "Çevrimiçi",
@@ -292,8 +292,8 @@
       "stat3Desc": "Aynı ekiple 4 kat daha fazla müşteriye hizmet verin."
     },
     "workflowSection": {
-      "kicker": "Nasıl çalışır",
-      "title": "4 adımda AI müşteri hizmeti",
+      "kicker": "Nasıl Çalışır",
+      "title": "4 Adımda AI Müşteri Hizmeti",
       "subtitle": "Kurulum dakikalar içerisinde. Teknik bilgi gerektirmez.",
       "step1Title": "İşletmenizi tanımlayın",
       "step1Desc": "SSS, bilgi tabanı ve işletme detaylarınızı yükleyin. AI asistan sizi öğrensin.",
@@ -306,13 +306,13 @@
     },
     "integrationsFeature": {
       "kicker": "Entegrasyonlar",
-      "title": "Mevcut sisteminizle anında çalışın",
+      "title": "Mevcut Sisteminizle Anında Çalışın",
       "desc": "Shopify, Gmail, Outlook ve CRM Webhook entegrasyonları ile mevcut sisteminize bağlanın. Sipariş, kargo ve müşteri sorgularını otomatik yanıtlayın.",
       "visualTitle": "Desteklenen entegrasyonlar"
     },
     "securityFeature": {
       "kicker": "Güvenlik",
-      "title": "Müşteri verisi koruma altında",
+      "title": "Müşteri Verisi Koruma Altında",
       "desc": "Kimlik doğrulama, veri maskeleme, guardrail sistemi ve KVKK uyumlu altyapı ile verileriniz her zaman güvende.",
       "visualTitle": "Güvenlik katmanları",
       "auth": "Kimlik Doğrulama",
@@ -325,8 +325,8 @@
       "kvkkDesc": "Türkiye mevzuatına uygun veri işleme"
     },
     "ctaSection": {
-      "kicker": "Hemen başlayın",
-      "title": "Müşteri hizmetlerinizi AI ile dönüştürün",
+      "kicker": "Hemen Başlayın",
+      "title": "Müşteri Hizmetlerinizi AI ile Dönüştürün",
       "subtitle": "15 dakika ücretsiz arama ile deneyin. Kredi kartı gerekmez, kurulum dakikalar içerisinde.",
       "btn1": "Ücretsiz Hesap Oluştur",
       "btn2": "Demo Talep Et"
