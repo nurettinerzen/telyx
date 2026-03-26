@@ -30,6 +30,7 @@ export default function ChatWidget({
   const [conversationHistory, setConversationHistory] = useState([]);
   const [sessionId, setSessionId] = useState(null);
   const [isWidgetEnabled, setIsWidgetEnabled] = useState(null); // null = loading, true/false = result
+  const [allowReset, setAllowReset] = useState(false);
   const { t } = useLanguage();
 
   // Check widget status on mount
@@ -37,6 +38,7 @@ export default function ChatWidget({
   useEffect(() => {
     if (preview) {
       setIsWidgetEnabled(true);
+      setAllowReset(false);
       return;
     }
 
@@ -55,9 +57,11 @@ export default function ChatWidget({
         const response = await fetch(statusUrl);
         const data = await response.json();
         setIsWidgetEnabled(data.active === true);
+        setAllowReset(data.allowReset === true);
       } catch (error) {
         console.error('Failed to check widget status:', error);
         setIsWidgetEnabled(false);
+        setAllowReset(false);
       }
     };
 
@@ -303,13 +307,15 @@ useEffect(() => {
               <span className="font-semibold">{displayButtonText}</span>
             </div>
             <div className="flex items-center gap-1">
-              <button
-                onClick={startNewChat}
-                className="hover:bg-white/20 rounded p-1 transition-colors"
-                title={t('dashboard.chatWidgetPage.newChat') || 'Yeni sohbet'}
-              >
-                <RotateCcw className="h-4 w-4" />
-              </button>
+              {allowReset && (
+                <button
+                  onClick={startNewChat}
+                  className="hover:bg-white/20 rounded p-1 transition-colors"
+                  title={t('dashboard.chatWidgetPage.newChat') || 'Yeni sohbet'}
+                >
+                  <RotateCcw className="h-4 w-4" />
+                </button>
+              )}
               <button
                 onClick={() => setIsOpen(false)}
                 className="hover:bg-white/20 rounded p-1 transition-colors"

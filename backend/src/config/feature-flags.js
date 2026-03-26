@@ -154,6 +154,11 @@ export const FEATURE_FLAGS = {
   // When enabled: prompt injection severity is decided semantically with heuristic fallback.
   SEMANTIC_INJECTION_CLASSIFIER: process.env.FEATURE_SEMANTIC_INJECTION_CLASSIFIER !== 'false', // Default: ON
 
+  // Chat widget reset button allowlist.
+  // Only businesses in this list will see the public widget reset/new-chat button.
+  CHAT_WIDGET_RESET_CANARY_BUSINESS_IDS: (process.env.CHAT_WIDGET_RESET_CANARY_BUSINESS_IDS || '')
+    .split(',').map(k => k.trim()).filter(Boolean),
+
   // P0 Launch Guard: strict grounding for business claims in text channels
   // When enabled: business/product/feature claims with KB LOW and no tool evidence
   // are force-downgraded to clarification (no claim leakage).
@@ -218,6 +223,14 @@ export function getFeatureFlag(featureName, context = {}) {
   }
 
   return baseFlag;
+}
+
+export function isChatWidgetResetEnabledForBusiness(businessId) {
+  if (businessId === null || businessId === undefined) {
+    return false;
+  }
+
+  return FEATURE_FLAGS.CHAT_WIDGET_RESET_CANARY_BUSINESS_IDS.includes(String(businessId));
 }
 
 /**

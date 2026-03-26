@@ -65,10 +65,73 @@ describe('user risk detector hardening', () => {
       source: 'semantic'
     });
 
-    const risk = await detectUserRisks('seni var ya doverim he', 'TR', {});
+    const state = {};
+    const first = await detectUserRisks('seni var ya doverim he', 'TR', state);
+
+    expect(first.shouldLock).toBe(false);
+    expect(first.softRefusal).toBe(true);
+    expect(first.softBlockReason).toBe('THREAT_WARNING');
+    expect(state.threatCounter).toBe(1);
+
+    const risk = await detectUserRisks('seni var ya doverim he', 'TR', state);
 
     expect(risk.shouldLock).toBe(true);
     expect(risk.reason).toBe('THREAT');
+  });
+
+  it('warns on first abuse and locks on third abuse within the window', async () => {
+    classifySemanticRiskMock.mockResolvedValue({
+      category: 'ABUSE',
+      action: 'WARN',
+      lockReason: 'ABUSE',
+      severity: 'HIGH',
+      confidence: 0.95,
+      rationale: 'abusive profanity toward the assistant',
+      source: 'semantic'
+    });
+
+    const state = {};
+
+    const first = await detectUserRisks('sus lan got', 'TR', state);
+    expect(first.shouldLock).toBe(false);
+    expect(first.softRefusal).toBe(true);
+    expect(first.softBlockReason).toBe('ABUSE_WARNING');
+    expect(state.abuseCounter).toBe(1);
+
+    const second = await detectUserRisks('yok got', 'TR', state);
+    expect(second.shouldLock).toBe(false);
+    expect(second.softRefusal).toBe(true);
+    expect(state.abuseCounter).toBe(2);
+
+    const third = await detectUserRisks('cekinirsem nolcak lan got', 'TR', state);
+    expect(third.shouldLock).toBe(true);
+    expect(third.reason).toBe('ABUSE');
+    expect(state.abuseCounter).toBe(0);
+  });
+
+  it('warns on first spam and locks on repeated spam within the window', async () => {
+    classifySemanticRiskMock.mockResolvedValue({
+      category: 'SPAM',
+      action: 'WARN',
+      lockReason: 'SPAM',
+      severity: 'MEDIUM',
+      confidence: 0.91,
+      rationale: 'repetitive flooding',
+      source: 'semantic'
+    });
+
+    const state = {};
+
+    const first = await detectUserRisks('aaaa aaaa aaaa aaaa', 'TR', state);
+    expect(first.shouldLock).toBe(false);
+    expect(first.softRefusal).toBe(true);
+    expect(first.softBlockReason).toBe('SPAM_WARNING');
+    expect(state.spamCounter).toBe(1);
+
+    const second = await detectUserRisks('aaaa aaaa aaaa aaaa', 'TR', state);
+    expect(second.shouldLock).toBe(true);
+    expect(second.reason).toBe('SPAM');
+    expect(state.spamCounter).toBe(0);
   });
 
   it('soft-refuses then locks repeated security bypass attempts semantically', async () => {

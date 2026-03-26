@@ -19,6 +19,12 @@ import {
   classifySemanticRisk
 } from './semantic-guard-classifier.js';
 
+const ABUSE_WINDOW_MS = 5 * 60 * 1000;
+const ABUSE_LOCK_THRESHOLD = 3;
+const THREAT_WINDOW_MS = 30 * 60 * 1000;
+const THREAT_LOCK_THRESHOLD = 2;
+const SPAM_WINDOW_MS = 2 * 60 * 1000;
+const SPAM_LOCK_THRESHOLD = 2;
 const SECURITY_BYPASS_WINDOW_MS = 30 * 60 * 1000;
 const SECURITY_BYPASS_LOCK_THRESHOLD = 2;
 
@@ -355,6 +361,45 @@ function buildSecurityBypassRefusal(language = 'TR') {
     : 'I cannot continue by disabling security rules. I can still help you while following those safeguards.';
 }
 
+function buildAbuseWarningMessage(language = 'TR', count = 1, threshold = ABUSE_LOCK_THRESHOLD) {
+  const remaining = Math.max(0, threshold - count);
+  if (String(language || '').toUpperCase() === 'EN') {
+    return remaining > 0
+      ? `I can continue helping, but please mind your language. Repeated abusive language may close this session. Warnings used: ${count}/${threshold}.`
+      : 'I cannot continue with this language. This session will be closed if abusive language continues.';
+  }
+
+  return remaining > 0
+    ? `Size yardımcı olmaya devam edebilirim, ancak lütfen üslubunuza dikkat edin. Hakaret veya küfür devam ederse bu oturum kapatılabilir. Uyarı: ${count}/${threshold}.`
+    : 'Bu üslupla devam edemem. Hakaret veya küfür sürerse bu oturum kapatılacaktır.';
+}
+
+function buildThreatWarningMessage(language = 'TR', count = 1, threshold = THREAT_LOCK_THRESHOLD) {
+  const remaining = Math.max(0, threshold - count);
+  if (String(language || '').toUpperCase() === 'EN') {
+    return remaining > 0
+      ? `Threatening language is not acceptable. Please change your tone. Further threatening messages may permanently close this session. Warning: ${count}/${threshold}.`
+      : 'I cannot continue with threatening language. This session will be closed if it continues.';
+  }
+
+  return remaining > 0
+    ? `Tehdit içeren bir üslupla devam edemem. Lütfen tonunuzu değiştirin. Bu şekilde devam ederse bu oturum kalıcı olarak kapatılabilir. Uyarı: ${count}/${threshold}.`
+    : 'Tehdit içeren bu dille devam edemem. Bu şekilde sürerse oturum kalıcı olarak kapatılacaktır.';
+}
+
+function buildSpamWarningMessage(language = 'TR', count = 1, threshold = SPAM_LOCK_THRESHOLD) {
+  const remaining = Math.max(0, threshold - count);
+  if (String(language || '').toUpperCase() === 'EN') {
+    return remaining > 0
+      ? `I received repetitive/spam-like input. Please send a normal message so I can help you. Warning: ${count}/${threshold}.`
+      : 'I cannot continue while receiving spam-like messages. This session will be paused if it continues.';
+  }
+
+  return remaining > 0
+    ? `Tekrarlı veya spam benzeri mesaj algıladım. Size yardımcı olabilmem için lütfen normal bir mesaj gönderin. Uyarı: ${count}/${threshold}.`
+    : 'Spam benzeri mesajlarla devam edemem. Bu şekilde sürerse bu oturum geçici olarak durdurulacaktır.';
+}
+
 function collectPiiWarnings(message, language, warnings) {
   const cardMatches = message.match(PII_PATTERNS.credit_card);
   if (cardMatches && cardMatches.length > 0) {
@@ -448,16 +493,41 @@ function detectUserRisksHeuristic(message, language = 'TR', state = {}) {
 
   const violenceMatches = message.match(THREAT_PATTERNS.violence);
   if (violenceMatches && violenceMatches.length >= 1) {
+    resetTimedCounter(state, 'threatCounter', 'threatWindowStart', THREAT_WINDOW_MS);
+    incrementTimedCounter(state, 'threatCounter', 'threatWindowStart');
+
+    if (state.threatCounter >= THREAT_LOCK_THRESHOLD) {
+      state.threatCounter = 0;
+      state.threatWindowStart = null;
+
+      return {
+        shouldLock: true,
+        reason: 'THREAT',
+        severity: 'CRITICAL',
+        message: getLockMessage('THREAT', language),
+        warnings: [{
+          type: 'THREAT_VIOLENCE',
+          severity: 'CRITICAL',
+          action: 'LOCK_PERMANENT'
+        }],
+        stateUpdated: true
+      };
+    }
+
     return {
-      shouldLock: true,
-      reason: 'THREAT',
-      severity: 'CRITICAL',
-      message: getLockMessage('THREAT', language),
+      shouldLock: false,
+      reason: null,
+      softRefusal: true,
+      softBlockReason: 'THREAT_WARNING',
+      refusalMessage: buildThreatWarningMessage(language, state.threatCounter, THREAT_LOCK_THRESHOLD),
       warnings: [{
         type: 'THREAT_VIOLENCE',
         severity: 'CRITICAL',
-        action: 'LOCK_PERMANENT'
-      }]
+        action: 'WARN',
+        warningNumber: state.threatCounter,
+        remaining: Math.max(0, THREAT_LOCK_THRESHOLD - state.threatCounter)
+      }],
+      stateUpdated: true
     };
   }
 
@@ -478,29 +548,10 @@ function detectUserRisksHeuristic(message, language = 'TR', state = {}) {
 
   const profanityMatches = message.match(ABUSE_PATTERNS.severe_profanity);
   if (profanityMatches && profanityMatches.length > 0) {
-    const now = new Date();
-    const TEN_MINUTES = 10 * 60 * 1000;
+    resetTimedCounter(state, 'abuseCounter', 'abuseWindowStart', ABUSE_WINDOW_MS);
+    incrementTimedCounter(state, 'abuseCounter', 'abuseWindowStart');
 
-    if (!state.abuseCounter) {
-      state.abuseCounter = 0;
-      state.abuseWindowStart = null;
-    }
-
-    if (state.abuseWindowStart) {
-      const windowStart = new Date(state.abuseWindowStart);
-      if (now - windowStart > TEN_MINUTES) {
-        state.abuseCounter = 0;
-        state.abuseWindowStart = null;
-      }
-    }
-
-    state.abuseCounter++;
-
-    if (!state.abuseWindowStart) {
-      state.abuseWindowStart = now.toISOString();
-    }
-
-    if (state.abuseCounter >= 3) {
+    if (state.abuseCounter >= ABUSE_LOCK_THRESHOLD) {
       state.abuseCounter = 0;
       state.abuseWindowStart = null;
 
@@ -519,14 +570,22 @@ function detectUserRisksHeuristic(message, language = 'TR', state = {}) {
       };
     }
 
-    warnings.push({
-      type: 'PROFANITY',
-      severity: 'MEDIUM',
-      count: profanityMatches.length,
-      action: 'WARN',
-      warningNumber: state.abuseCounter,
-      remaining: 3 - state.abuseCounter
-    });
+    return {
+      shouldLock: false,
+      reason: null,
+      softRefusal: true,
+      softBlockReason: 'ABUSE_WARNING',
+      refusalMessage: buildAbuseWarningMessage(language, state.abuseCounter, ABUSE_LOCK_THRESHOLD),
+      warnings: [{
+        type: 'PROFANITY',
+        severity: 'MEDIUM',
+        count: profanityMatches.length,
+        action: 'WARN',
+        warningNumber: state.abuseCounter,
+        remaining: Math.max(0, ABUSE_LOCK_THRESHOLD - state.abuseCounter)
+      }],
+      stateUpdated: true
+    };
   }
 
   const harassmentMatches = message.match(ABUSE_PATTERNS.harassment);
@@ -540,30 +599,78 @@ function detectUserRisksHeuristic(message, language = 'TR', state = {}) {
   }
 
   if (SPAM_PATTERNS.char_repeat.test(message)) {
+    resetTimedCounter(state, 'spamCounter', 'spamWindowStart', SPAM_WINDOW_MS);
+    incrementTimedCounter(state, 'spamCounter', 'spamWindowStart');
+
+    if (state.spamCounter >= SPAM_LOCK_THRESHOLD) {
+      state.spamCounter = 0;
+      state.spamWindowStart = null;
+      return {
+        shouldLock: true,
+        reason: 'SPAM',
+        severity: 'MEDIUM',
+        message: getLockMessage('SPAM', language),
+        warnings: [{
+          type: 'CHAR_SPAM',
+          severity: 'MEDIUM',
+          action: 'LOCK_5M'
+        }],
+        stateUpdated: true
+      };
+    }
+
     return {
-      shouldLock: true,
-      reason: 'SPAM',
-      severity: 'MEDIUM',
-      message: getLockMessage('SPAM', language),
+      shouldLock: false,
+      reason: null,
+      softRefusal: true,
+      softBlockReason: 'SPAM_WARNING',
+      refusalMessage: buildSpamWarningMessage(language, state.spamCounter, SPAM_LOCK_THRESHOLD),
       warnings: [{
         type: 'CHAR_SPAM',
         severity: 'MEDIUM',
-        action: 'LOCK_5M'
-      }]
+        action: 'WARN',
+        warningNumber: state.spamCounter,
+        remaining: Math.max(0, SPAM_LOCK_THRESHOLD - state.spamCounter)
+      }],
+      stateUpdated: true
     };
   }
 
   if (SPAM_PATTERNS.word_repeat.test(message)) {
+    resetTimedCounter(state, 'spamCounter', 'spamWindowStart', SPAM_WINDOW_MS);
+    incrementTimedCounter(state, 'spamCounter', 'spamWindowStart');
+
+    if (state.spamCounter >= SPAM_LOCK_THRESHOLD) {
+      state.spamCounter = 0;
+      state.spamWindowStart = null;
+      return {
+        shouldLock: true,
+        reason: 'SPAM',
+        severity: 'MEDIUM',
+        message: getLockMessage('SPAM', language),
+        warnings: [{
+          type: 'WORD_SPAM',
+          severity: 'MEDIUM',
+          action: 'LOCK_5M'
+        }],
+        stateUpdated: true
+      };
+    }
+
     return {
-      shouldLock: true,
-      reason: 'SPAM',
-      severity: 'MEDIUM',
-      message: getLockMessage('SPAM', language),
+      shouldLock: false,
+      reason: null,
+      softRefusal: true,
+      softBlockReason: 'SPAM_WARNING',
+      refusalMessage: buildSpamWarningMessage(language, state.spamCounter, SPAM_LOCK_THRESHOLD),
       warnings: [{
         type: 'WORD_SPAM',
         severity: 'MEDIUM',
-        action: 'LOCK_5M'
-      }]
+        action: 'WARN',
+        warningNumber: state.spamCounter,
+        remaining: Math.max(0, SPAM_LOCK_THRESHOLD - state.spamCounter)
+      }],
+      stateUpdated: true
     };
   }
 
@@ -710,28 +817,12 @@ export async function detectUserRisks(message, language = 'TR', state = {}) {
   if (semanticRisk && semanticRisk.confidence >= 0.65) {
     console.log('🤖 [Risk Detector] Semantic risk result:', semanticRisk);
 
-    if (semanticRisk.category === 'THREAT' || semanticRisk.category === 'DOXXING') {
-      return {
-        shouldLock: true,
-        reason: 'THREAT',
-        severity: 'CRITICAL',
-        message: getLockMessage('THREAT', language),
-        warnings: [{
-          type: semanticRisk.category,
-          severity: 'CRITICAL',
-          action: 'LOCK_PERMANENT',
-          rationale: semanticRisk.rationale
-        }],
-        stateUpdated
-      };
-    }
-
     if (semanticRisk.category === 'ABUSE') {
-      resetTimedCounter(state, 'abuseCounter', 'abuseWindowStart', 10 * 60 * 1000);
+      resetTimedCounter(state, 'abuseCounter', 'abuseWindowStart', ABUSE_WINDOW_MS);
       incrementTimedCounter(state, 'abuseCounter', 'abuseWindowStart');
       stateUpdated = true;
 
-      if (semanticRisk.action === 'LOCK_TEMP' || state.abuseCounter >= 3) {
+      if (semanticRisk.action === 'LOCK_TEMP' || state.abuseCounter >= ABUSE_LOCK_THRESHOLD) {
         state.abuseCounter = 0;
         state.abuseWindowStart = null;
         stateUpdated = true;
@@ -751,27 +842,122 @@ export async function detectUserRisks(message, language = 'TR', state = {}) {
         };
       }
 
-      warnings.push({
-        type: 'PROFANITY',
-        severity: semanticRisk.severity === 'CRITICAL' ? 'HIGH' : 'MEDIUM',
-        action: 'WARN',
-        warningNumber: state.abuseCounter,
-        remaining: Math.max(0, 3 - state.abuseCounter),
-        rationale: semanticRisk.rationale,
-        source: semanticRisk.source
-      });
+      return {
+        shouldLock: false,
+        reason: null,
+        softRefusal: true,
+        softBlockReason: 'ABUSE_WARNING',
+        refusalMessage: buildAbuseWarningMessage(language, state.abuseCounter, ABUSE_LOCK_THRESHOLD),
+        warnings: [{
+          type: 'PROFANITY',
+          severity: semanticRisk.severity === 'CRITICAL' ? 'HIGH' : 'MEDIUM',
+          action: 'WARN',
+          warningNumber: state.abuseCounter,
+          remaining: Math.max(0, ABUSE_LOCK_THRESHOLD - state.abuseCounter),
+          rationale: semanticRisk.rationale,
+          source: semanticRisk.source
+        }],
+        stateUpdated
+      };
+    }
+
+    if (semanticRisk.category === 'THREAT') {
+      resetTimedCounter(state, 'threatCounter', 'threatWindowStart', THREAT_WINDOW_MS);
+      incrementTimedCounter(state, 'threatCounter', 'threatWindowStart');
+      stateUpdated = true;
+
+      if (semanticRisk.action === 'LOCK_PERMANENT' && state.threatCounter >= THREAT_LOCK_THRESHOLD) {
+        state.threatCounter = 0;
+        state.threatWindowStart = null;
+        stateUpdated = true;
+
+        return {
+          shouldLock: true,
+          reason: 'THREAT',
+          severity: 'CRITICAL',
+          message: getLockMessage('THREAT', language),
+          warnings: [{
+            type: 'THREAT',
+            severity: 'CRITICAL',
+            action: 'LOCK_PERMANENT',
+            rationale: semanticRisk.rationale
+          }],
+          stateUpdated
+        };
+      }
+
+      return {
+        shouldLock: false,
+        reason: null,
+        softRefusal: true,
+        softBlockReason: 'THREAT_WARNING',
+        refusalMessage: buildThreatWarningMessage(language, state.threatCounter, THREAT_LOCK_THRESHOLD),
+        warnings: [{
+          type: 'THREAT',
+          severity: 'CRITICAL',
+          action: 'WARN',
+          warningNumber: state.threatCounter,
+          remaining: Math.max(0, THREAT_LOCK_THRESHOLD - state.threatCounter),
+          rationale: semanticRisk.rationale,
+          source: semanticRisk.source
+        }],
+        stateUpdated
+      };
+    }
+
+    if (semanticRisk.category === 'DOXXING') {
+      return {
+        shouldLock: true,
+        reason: 'THREAT',
+        severity: 'CRITICAL',
+        message: getLockMessage('THREAT', language),
+        warnings: [{
+          type: 'DOXXING',
+          severity: 'CRITICAL',
+          action: 'LOCK_PERMANENT',
+          rationale: semanticRisk.rationale
+        }],
+        stateUpdated
+      };
     }
 
     if (semanticRisk.category === 'SPAM') {
+      resetTimedCounter(state, 'spamCounter', 'spamWindowStart', SPAM_WINDOW_MS);
+      incrementTimedCounter(state, 'spamCounter', 'spamWindowStart');
+      stateUpdated = true;
+
+      if (semanticRisk.action === 'LOCK_TEMP' || state.spamCounter >= SPAM_LOCK_THRESHOLD) {
+        state.spamCounter = 0;
+        state.spamWindowStart = null;
+        stateUpdated = true;
+
+        return {
+          shouldLock: true,
+          reason: 'SPAM',
+          severity: 'MEDIUM',
+          message: getLockMessage('SPAM', language),
+          warnings: [{
+            type: 'SPAM',
+            severity: 'MEDIUM',
+            action: 'LOCK_5M',
+            rationale: semanticRisk.rationale
+          }],
+          stateUpdated
+        };
+      }
+
       return {
-        shouldLock: true,
-        reason: 'SPAM',
-        severity: 'MEDIUM',
-        message: getLockMessage('SPAM', language),
+        shouldLock: false,
+        reason: null,
+        softRefusal: true,
+        softBlockReason: 'SPAM_WARNING',
+        refusalMessage: buildSpamWarningMessage(language, state.spamCounter, SPAM_LOCK_THRESHOLD),
         warnings: [{
           type: 'SPAM',
           severity: 'MEDIUM',
-          action: 'LOCK_5M',
+          action: 'WARN',
+          warningNumber: state.spamCounter,
+          remaining: Math.max(0, SPAM_LOCK_THRESHOLD - state.spamCounter),
           rationale: semanticRisk.rationale
         }],
         stateUpdated

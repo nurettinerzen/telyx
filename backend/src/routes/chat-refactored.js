@@ -26,7 +26,7 @@ import { shouldRunIntentRouter } from '../services/router-decision.js';
 import { processSlotInput } from '../services/slot-processor.js';
 import { routeIntent } from '../services/intent-router.js';
 import { routeMessage, handleDispute } from '../services/message-router.js';
-import { isFeatureEnabled, FEATURE_FLAGS } from '../config/feature-flags.js';
+import { isFeatureEnabled, FEATURE_FLAGS, isChatWidgetResetEnabledForBusiness } from '../config/feature-flags.js';
 import { validateActionClaim } from '../services/action-claim-validator.js';
 import { validateComplaintResolution, forceCallbackCreation } from '../services/complaint-enforcer.js';
 import { logClassification, logRoutingDecision, logViolation, logToolExecution } from '../services/routing-metrics.js';
@@ -1055,6 +1055,8 @@ router.post('/widget', async (req, res) => {
       console.log('🔓 [Widget] Dashboard preview bypass — trial expiry check skipped');
     }
 
+    // ===== ROUTE-LEVEL GUARD: CHECK SESSION LOCK =====
+    // GUARD 1: Check if session is locked
     // NEW: Get or create universal session ID
     // WARN: temp_ fallback creates a new session every request — avoid this by ensuring
     // the widget always sends a stable clientSessionId (persisted in localStorage).
@@ -1065,9 +1067,6 @@ router.post('/widget', async (req, res) => {
     console.log(`🔑 [Session] Universal ID: ${sessionId}, Client ID: ${clientSessionId || '(temp)'}`);
     console.log(`⏱️ [Widget] Session create: ${Date.now() - _t}ms`); _t = Date.now();
 
-    // ===== ROUTE-LEVEL GUARD: CHECK SESSION LOCK =====
-
-    // GUARD 1: Check if session is locked
     const lockStatus = await isSessionLocked(sessionId);
     if (lockStatus.locked) {
       console.log(`🔒 [Chat Guard] Session ${sessionId} is LOCKED (${lockStatus.reason})`);
@@ -1136,11 +1135,16 @@ router.post('/widget', async (req, res) => {
     // Session stays open but this specific message is rejected
     if (riskDetection.softRefusal) {
       console.log(`🛡️ [Chat Guard] SOFT REFUSAL - message rejected, session stays open`);
+      const softBlockReason =
+        riskDetection.softBlockReason
+        || riskDetection.reason
+        || riskDetection.warnings?.[0]?.type
+        || 'SOFT_REFUSAL';
 
       // Pre-LLM SecurityTelemetry (route-level soft refusal)
       console.log('📊 [SecurityTelemetry]', {
         blocked: true,
-        blockReason: 'PROMPT_INJECTION',
+        blockReason: softBlockReason,
         stage: 'pre-llm',
         source: 'route-guard',
         softRefusal: true,
@@ -1554,7 +1558,8 @@ router.get('/widget/status/:assistantId', async (req, res) => {
       active: true,
       assistantName: assistant.name,
       assistantId: assistant.id,
-      businessName: business?.name
+      businessName: business?.name,
+      allowReset: isChatWidgetResetEnabledForBusiness(business?.id)
     });
 
   } catch (error) {
@@ -1618,7 +1623,8 @@ router.get('/widget/status/embed/:embedKey', async (req, res) => {
       active: true,
       assistantName: assistant.name,
       assistantId: assistant.id,
-      businessName: business.name
+      businessName: business.name,
+      allowReset: isChatWidgetResetEnabledForBusiness(business.id)
     });
 
   } catch (error) {
