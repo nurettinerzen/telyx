@@ -219,6 +219,117 @@
       "privacy": "Privacy Policy",
       "terms": "Terms of Service",
       "copyright": "2025 Telyx.ai - All rights reserved."
+    },
+    "scrollHero": {
+      "line1": "Phone.",
+      "line2": "WhatsApp.",
+      "line3": "Chat.",
+      "line4": "Email.",
+      "tagline": "One AI, all channels.",
+      "sub": "Automate customer service 24/7. Phone, WhatsApp, chat and email — same AI assistant, same quality on every channel.",
+      "cta": "Get Started Free",
+      "howItWorks": "How it works?"
+    },
+    "manifesto": {
+      "text": "Every day thousands of customer messages come in. But responding on time still feels impossible. Telyx is changing that.",
+      "emphasisWords": "impossible,that."
+    },
+    "dashboardSection": {
+      "title": "Telyx Dashboard",
+      "today": "Today",
+      "week": "7 Days",
+      "month": "30 Days",
+      "conversations": "Conversations",
+      "conversationsTrend": "↑ 18% increase",
+      "resolutionRate": "Resolution Rate",
+      "resolutionTrend": "↑ 3.1% improvement",
+      "avgResponse": "Avg. Response",
+      "avgResponseTrend": "↓ 12% faster",
+      "satisfaction": "Satisfaction",
+      "satisfactionTrend": "↑ 5.2% increase",
+      "activity1": "New web chat conversation started",
+      "activity1Time": "2m ago",
+      "activity2": "WhatsApp order query resolved",
+      "activity2Time": "4m ago",
+      "activity3": "Email draft awaiting approval",
+      "activity3Time": "7m ago",
+      "activity4": "Phone call routed",
+      "activity4Time": "12m ago"
+    },
+    "channelCards": {
+      "kicker": "Omni-channel",
+      "title": "All channels, one AI",
+      "subtitle": "Wherever your customers are — same intelligence, same quality, same speed.",
+      "phoneTitle": "Phone",
+      "phoneDesc": "Answer calls with voice AI assistant. Appointment booking, information and routing — all automatic.",
+      "whatsappTitle": "WhatsApp",
+      "whatsappDesc": "Instant replies on the most popular channel. Order tracking, appointments, support — all via WhatsApp.",
+      "chatTitle": "Web Chat",
+      "chatDesc": "Integrate with a single line of code. Smart conversations that turn visitors into customers.",
+      "emailTitle": "Email",
+      "emailDesc": "Manage your inbox with AI. Auto-drafts, smart classification and fast replies."
+    },
+    "chatDemoSection": {
+      "kicker": "Live experience",
+      "title": "Customer response in 1.8 seconds",
+      "desc": "AI assistant understands your customer's question, checks your CRM data and delivers the right answer in seconds. Like a human agent — but 24/7.",
+      "assistantName": "Telyx AI Assistant",
+      "online": "Online",
+      "msg1": "Hi, where is my order?",
+      "msg2": "Hello! Could you please share your order number so I can check?",
+      "msg3": "My order number is ORD-12345.",
+      "msg4": "Your order is currently being prepared and is expected to ship today. 📦"
+    },
+    "proofSection": {
+      "stat1Value": "85",
+      "stat1Title": "faster response time",
+      "stat1Desc": "Customers get answers in seconds. Wait time is nearly zero.",
+      "stat2Value": "24/7",
+      "stat2Title": "uninterrupted customer service",
+      "stat2Desc": "Night, weekend, holiday — AI assistant never takes a day off.",
+      "stat3Value": "4",
+      "stat3Title": "more customer capacity",
+      "stat3Desc": "Serve 4x more customers with the same team."
+    },
+    "workflowSection": {
+      "kicker": "How it works",
+      "title": "AI customer service in 4 steps",
+      "subtitle": "Setup takes minutes. No technical knowledge required.",
+      "step1Title": "Define your business",
+      "step1Desc": "Upload your FAQ, knowledge base and business details. Let the AI assistant learn about you.",
+      "step2Title": "Connect channels",
+      "step2Desc": "Phone, WhatsApp, email and web chat — integrate with a single click. CRM connection included.",
+      "step3Title": "Let AI take over",
+      "step3Desc": "Your customers write, call or email. AI responds instantly, accurately and securely.",
+      "step4Title": "Monitor and optimize",
+      "step4Desc": "Track all channels from the dashboard. Performance and satisfaction in one place."
+    },
+    "integrationsFeature": {
+      "kicker": "Integrations",
+      "title": "Works instantly with your existing system",
+      "desc": "Shopify, ikas, Google Calendar, Gmail and more. Access your CRM data to automatically answer order, shipping and appointment queries.",
+      "visualTitle": "Supported integrations"
+    },
+    "securityFeature": {
+      "kicker": "Security",
+      "title": "Customer data under protection",
+      "desc": "Identity verification, data masking, guardrail system and GDPR-compliant infrastructure keeps your data safe at all times.",
+      "visualTitle": "Security layers",
+      "auth": "Identity Verification",
+      "authDesc": "Phone & name based two-step verification",
+      "guardrail": "Guardrail",
+      "guardrailDesc": "8+ policy layered AI security barrier",
+      "masking": "Data Masking",
+      "maskingDesc": "Phone and sensitive data automatically masked",
+      "kvkk": "GDPR Compliance",
+      "kvkkDesc": "Data processing compliant with regulations"
+    },
+    "ctaSection": {
+      "kicker": "Get started",
+      "title": "Transform your customer service with AI",
+      "subtitle": "Try with 15 minutes of free calls. No credit card required, setup takes minutes.",
+      "btn1": "Create Free Account",
+      "btn2": "Request Demo"
     }
   },
   "navigation": {

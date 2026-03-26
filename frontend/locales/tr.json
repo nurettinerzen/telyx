@@ -219,6 +219,117 @@
       "privacy": "Gizlilik Politikası",
       "terms": "Kullanım Koşulları",
       "copyright": "2025 Telyx.ai - Tüm hakları saklıdır."
+    },
+    "scrollHero": {
+      "line1": "Telefon.",
+      "line2": "WhatsApp.",
+      "line3": "Chat.",
+      "line4": "Email.",
+      "tagline": "Tek AI, tüm kanallar.",
+      "sub": "Müşteri hizmetlerini 7/24 otomatize edin. Telefon, WhatsApp, chat ve email — her kanalda aynı AI asistan, aynı kalite.",
+      "cta": "Ücretsiz Başla",
+      "howItWorks": "Nasıl çalışır?"
+    },
+    "manifesto": {
+      "text": "Her gün binlerce müşteri mesajı geliyor. Ama zamanında yanıt vermek hâlâ imkânsız gibi hissettiriyor. Telyx bunu değiştiriyor.",
+      "emphasisWords": "imkânsız,değiştiriyor."
+    },
+    "dashboardSection": {
+      "title": "Telyx Dashboard",
+      "today": "Bugün",
+      "week": "7 Gün",
+      "month": "30 Gün",
+      "conversations": "Görüşme",
+      "conversationsTrend": "↑ 18% artış",
+      "resolutionRate": "Çözüm Oranı",
+      "resolutionTrend": "↑ 3.1% iyileşme",
+      "avgResponse": "Ort. Yanıt",
+      "avgResponseTrend": "↓ 12% daha hızlı",
+      "satisfaction": "Memnuniyet",
+      "satisfactionTrend": "↑ 5.2% artış",
+      "activity1": "Yeni web chat görüşmesi başladı",
+      "activity1Time": "2dk önce",
+      "activity2": "WhatsApp sipariş sorgusu çözüldü",
+      "activity2Time": "4dk önce",
+      "activity3": "Email taslağı onay bekliyor",
+      "activity3Time": "7dk önce",
+      "activity4": "Telefon görüşmesi yönlendirildi",
+      "activity4Time": "12dk önce"
+    },
+    "channelCards": {
+      "kicker": "Omni-channel",
+      "title": "Tüm kanallar, tek AI",
+      "subtitle": "Müşterileriniz nerede olursa olsun — aynı zekâ, aynı kalite, aynı hız.",
+      "phoneTitle": "Telefon",
+      "phoneDesc": "Sesli AI asistan ile çağrıları karşılayın. Randevu oluşturma, bilgi verme ve yönlendirme otomatik.",
+      "whatsappTitle": "WhatsApp",
+      "whatsappDesc": "En çok kullanılan kanalda anında yanıt. Sipariş takibi, randevu, destek — hepsi WhatsApp üzerinden.",
+      "chatTitle": "Web Chat",
+      "chatDesc": "Sitenize tek satırlık kodla entegre edin. Ziyaretçileri müşteriye çeviren akıllı sohbet.",
+      "emailTitle": "Email",
+      "emailDesc": "Gelen kutusunu AI ile yönetin. Otomatik taslak, akıllı sınıflandırma ve hızlı yanıt."
+    },
+    "chatDemoSection": {
+      "kicker": "Canlı deneyim",
+      "title": "1.8 saniyede müşteri yanıtı",
+      "desc": "AI asistan, müşterinizin sorusunu anlar, CRM verinize bakar ve saniyeler içinde doğru yanıtı verir. İnsan müşteri temsilcisi gibi — ama 7/24.",
+      "assistantName": "Telyx AI Asistan",
+      "online": "Çevrimiçi",
+      "msg1": "Merhaba, siparişim nerede?",
+      "msg2": "Merhaba! Kontrol edebilmem için sipariş numaranızı rica edebilir miyim?",
+      "msg3": "Sipariş numaram SİP-12345.",
+      "msg4": "Siparişiniz şu an hazırlanıyor aşamasında ve bugün kargoya verilmesi bekleniyor. 📦"
+    },
+    "proofSection": {
+      "stat1Value": "85",
+      "stat1Title": "daha hızlı yanıt süresi",
+      "stat1Desc": "Müşteriler saniyeler içinde cevap alır. Bekleme süresi neredeyse sıfır.",
+      "stat2Value": "7/24",
+      "stat2Title": "kesintisiz müşteri hizmeti",
+      "stat2Desc": "Gece, hafta sonu, bayram — AI asistan hiç tatil yapmaz.",
+      "stat3Value": "4",
+      "stat3Title": "daha fazla müşteri kapasitesi",
+      "stat3Desc": "Aynı ekiple 4 kat daha fazla müşteriye hizmet verin."
+    },
+    "workflowSection": {
+      "kicker": "Nasıl çalışır",
+      "title": "4 adımda AI müşteri hizmeti",
+      "subtitle": "Kurulum dakikalar içerisinde. Teknik bilgi gerektirmez.",
+      "step1Title": "İşletmenizi tanımlayın",
+      "step1Desc": "SSS, bilgi tabanı ve işletme detaylarınızı yükleyin. AI asistan sizi öğrensin.",
+      "step2Title": "Kanalları bağlayın",
+      "step2Desc": "Telefon, WhatsApp, email ve web chat — tek tıkla entegre edin. CRM bağlantısı da dahil.",
+      "step3Title": "AI devreye girsin",
+      "step3Desc": "Müşterileriniz yazar, arar veya email atar. AI anında, doğru ve güvenli yanıt verir.",
+      "step4Title": "İzleyin ve optimize edin",
+      "step4Desc": "Dashboard'dan tüm kanalları takip edin. Performans ve memnuniyet tek yerde."
+    },
+    "integrationsFeature": {
+      "kicker": "Entegrasyonlar",
+      "title": "Mevcut sisteminizle anında çalışın",
+      "desc": "Shopify, ikas, Google Calendar, Gmail ve daha fazlası. CRM verinize erişerek sipariş, kargo, randevu sorgularını otomatik yanıtlayın.",
+      "visualTitle": "Desteklenen entegrasyonlar"
+    },
+    "securityFeature": {
+      "kicker": "Güvenlik",
+      "title": "Müşteri verisi koruma altında",
+      "desc": "Kimlik doğrulama, veri maskeleme, guardrail sistemi ve KVKK uyumlu altyapı ile verileriniz her zaman güvende.",
+      "visualTitle": "Güvenlik katmanları",
+      "auth": "Kimlik Doğrulama",
+      "authDesc": "Telefon & isim bazlı iki adımlı doğrulama",
+      "guardrail": "Guardrail",
+      "guardrailDesc": "8+ politika katmanlı AI güvenlik bariyeri",
+      "masking": "Veri Maskeleme",
+      "maskingDesc": "Telefon ve hassas veri otomatik maskelenir",
+      "kvkk": "KVKK Uyumu",
+      "kvkkDesc": "Türkiye mevzuatına uygun veri işleme"
+    },
+    "ctaSection": {
+      "kicker": "Hemen başlayın",
+      "title": "Müşteri hizmetlerinizi AI ile dönüştürün",
+      "subtitle": "15 dakika ücretsiz arama ile deneyin. Kredi kartı gerekmez, kurulum dakikalar içerisinde.",
+      "btn1": "Ücretsiz Hesap Oluştur",
+      "btn2": "Demo Talep Et"
     }
   },
   "navigation": {

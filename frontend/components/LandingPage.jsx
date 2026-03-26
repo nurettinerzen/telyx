@@ -1,12 +1,33 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
+import { useLanguage } from '@/contexts/LanguageContext';
 import '@/styles/landing.css';
 
 export function LandingPage() {
+  const { t } = useLanguage();
   const pageRef = useRef(null);
   const chatDemoStarted = useRef(false);
   const chatLoopTimeout = useRef(null);
+
+  /* ── Manifesto: split text into words, mark emphasis ── */
+  const manifestoWords = useMemo(() => {
+    const text = t('landing.manifesto.text');
+    const emphasisRaw = t('landing.manifesto.emphasisWords') || '';
+    const emphasisSet = new Set(emphasisRaw.split(',').map((w) => w.trim().toLowerCase()));
+    return text.split(/\s+/).map((word) => ({
+      word,
+      em: emphasisSet.has(word.toLowerCase()),
+    }));
+  }, [t]);
+
+  /* ── Chat demo messages ── */
+  const chatMessages = useMemo(() => [
+    { type: 'customer', text: t('landing.chatDemoSection.msg1') },
+    { type: 'bot', text: t('landing.chatDemoSection.msg2') },
+    { type: 'customer', text: t('landing.chatDemoSection.msg3') },
+    { type: 'bot', text: t('landing.chatDemoSection.msg4') },
+  ], [t]);
 
   useEffect(() => {
     const root = pageRef.current;
@@ -204,12 +225,12 @@ export function LandingPage() {
     {
       const container = root.querySelector('#chatDemo');
       if (container) {
-        const messages = [
-          { type: 'customer', text: 'Merhaba, siparişim nerede?' },
-          { type: 'bot', text: 'Merhaba! Kontrol edebilmem için sipariş numaranızı rica edebilir miyim?' },
-          { type: 'customer', text: 'Sipariş numaram SİP-12345.' },
-          { type: 'bot', text: 'Siparişiniz şu an hazırlanıyor aşamasında ve bugün kargoya verilmesi bekleniyor. \u{1F4E6}' },
-        ];
+        // Read messages from data attributes injected by React
+        const msgEls = root.querySelectorAll('[data-chat-msg]');
+        const messages = Array.from(msgEls).map((el) => ({
+          type: el.dataset.chatType,
+          text: el.dataset.chatMsg,
+        }));
 
         let cancelled = false;
 
@@ -293,10 +314,15 @@ export function LandingPage() {
       cleanups.forEach((fn) => fn());
       chatDemoStarted.current = false;
     };
-  }, []);
+  }, [t]);
 
   return (
     <div className="landing-page" ref={pageRef}>
+      {/* Hidden data carriers for chat messages (read by useEffect) */}
+      {chatMessages.map((m, i) => (
+        <span key={i} hidden data-chat-msg={m.text} data-chat-type={m.type} />
+      ))}
+
       <div className="lp-page">
         <div className="glow glow-l" aria-hidden="true" />
         <div className="glow glow-r" aria-hidden="true" />
@@ -305,20 +331,17 @@ export function LandingPage() {
         <section className="hero" id="hero">
           <div className="hero-grid-bg" aria-hidden="true" />
           <div className="hero-text-stack">
-            <span className="hero-line" data-index="0">Telefon.</span>
-            <span className="hero-line" data-index="1">WhatsApp.</span>
-            <span className="hero-line" data-index="2">Chat.</span>
-            <span className="hero-line" data-index="3">Email.</span>
-            <span className="hero-tagline">Tek AI, tüm kanallar.</span>
+            <span className="hero-line" data-index="0">{t('landing.scrollHero.line1')}</span>
+            <span className="hero-line" data-index="1">{t('landing.scrollHero.line2')}</span>
+            <span className="hero-line" data-index="2">{t('landing.scrollHero.line3')}</span>
+            <span className="hero-line" data-index="3">{t('landing.scrollHero.line4')}</span>
+            <span className="hero-tagline">{t('landing.scrollHero.tagline')}</span>
           </div>
           <div className="hero-bottom">
-            <p className="hero-sub">
-              Müşteri hizmetlerini 7/24 otomatize edin. Telefon, WhatsApp, chat ve email —
-              her kanalda aynı AI asistan, aynı kalite.
-            </p>
+            <p className="hero-sub">{t('landing.scrollHero.sub')}</p>
             <div className="hero-actions">
-              <a href="#" className="lp-btn">Ücretsiz Başla</a>
-              <a href="#workflow" className="lp-btn-ghost">Nasıl çalışır?</a>
+              <a href="#" className="lp-btn">{t('landing.scrollHero.cta')}</a>
+              <a href="#workflow" className="lp-btn-ghost">{t('landing.scrollHero.howItWorks')}</a>
             </div>
           </div>
           <div className="hero-scroll-cue" aria-hidden="true">
@@ -332,23 +355,12 @@ export function LandingPage() {
         <section className="manifesto" id="manifesto">
           <div className="shell">
             <p className="manifesto-text" id="manifestoText">
-              <span className="mw">Her</span>{' '}
-              <span className="mw">gün</span>{' '}
-              <span className="mw">binlerce</span>{' '}
-              <span className="mw">müşteri</span>{' '}
-              <span className="mw">mesajı</span>{' '}
-              <span className="mw">geliyor.</span>{' '}
-              <span className="mw">Ama</span>{' '}
-              <span className="mw">zamanında</span>{' '}
-              <span className="mw">yanıt</span>{' '}
-              <span className="mw">vermek</span>{' '}
-              <span className="mw">hâlâ</span>{' '}
-              <span className="mw em">imkânsız</span>{' '}
-              <span className="mw">gibi</span>{' '}
-              <span className="mw">hissettiriyor.</span>{' '}
-              <span className="mw">Telyx</span>{' '}
-              <span className="mw">bunu</span>{' '}
-              <span className="mw em">değiştiriyor.</span>
+              {manifestoWords.map((w, i) => (
+                <span key={i}>
+                  <span className={`mw${w.em ? ' em' : ''}`}>{w.word}</span>
+                  {i < manifestoWords.length - 1 ? ' ' : ''}
+                </span>
+              ))}
             </p>
           </div>
         </section>
@@ -358,33 +370,33 @@ export function LandingPage() {
           <div className="shell">
             <div className="dashboard-frame reveal-scale">
               <div className="dashboard-topbar">
-                <span className="dashboard-topbar-title">Telyx Dashboard</span>
+                <span className="dashboard-topbar-title">{t('landing.dashboardSection.title')}</span>
                 <div className="dashboard-topbar-pills">
-                  <span>Bugün</span>
-                  <span className="active-pill">7 Gün</span>
-                  <span>30 Gün</span>
+                  <span>{t('landing.dashboardSection.today')}</span>
+                  <span className="active-pill">{t('landing.dashboardSection.week')}</span>
+                  <span>{t('landing.dashboardSection.month')}</span>
                 </div>
               </div>
               <div className="metrics-row">
                 <div className="metric-card reveal reveal-delay-1">
-                  <div className="metric-label">Görüşme</div>
+                  <div className="metric-label">{t('landing.dashboardSection.conversations')}</div>
                   <div className="metric-value" data-color="primary" data-count="1247">0</div>
-                  <div className="metric-trend">&uarr; 18% artış</div>
+                  <div className="metric-trend">{t('landing.dashboardSection.conversationsTrend')}</div>
                 </div>
                 <div className="metric-card reveal reveal-delay-2">
-                  <div className="metric-label">Çözüm Oranı</div>
+                  <div className="metric-label">{t('landing.dashboardSection.resolutionRate')}</div>
                   <div className="metric-value" data-color="accent" data-count="94.2" data-suffix="%" data-decimal="1">0</div>
-                  <div className="metric-trend">&uarr; 3.1% iyileşme</div>
+                  <div className="metric-trend">{t('landing.dashboardSection.resolutionTrend')}</div>
                 </div>
                 <div className="metric-card reveal reveal-delay-3">
-                  <div className="metric-label">Ort. Yanıt</div>
+                  <div className="metric-label">{t('landing.dashboardSection.avgResponse')}</div>
                   <div className="metric-value" data-color="info" data-count="1.8" data-suffix="s" data-decimal="1">0</div>
-                  <div className="metric-trend">&darr; 12% daha hızlı</div>
+                  <div className="metric-trend">{t('landing.dashboardSection.avgResponseTrend')}</div>
                 </div>
                 <div className="metric-card reveal reveal-delay-4">
-                  <div className="metric-label">Memnuniyet</div>
+                  <div className="metric-label">{t('landing.dashboardSection.satisfaction')}</div>
                   <div className="metric-value" data-color="warning" data-count="4.7" data-suffix="/5" data-decimal="1">0</div>
-                  <div className="metric-trend">&uarr; 5.2% artış</div>
+                  <div className="metric-trend">{t('landing.dashboardSection.satisfactionTrend')}</div>
                 </div>
               </div>
               <div className="dashboard-body">
@@ -405,7 +417,7 @@ export function LandingPage() {
                     <span className="channel-bar-pct">18%</span>
                   </div>
                   <div className="channel-bar-item">
-                    <span className="channel-bar-name">Telefon</span>
+                    <span className="channel-bar-name">{t('landing.channelCards.phoneTitle')}</span>
                     <div className="channel-bar-track"><div className="channel-bar-fill" data-color="primary" data-width="9" /></div>
                     <span className="channel-bar-pct">9%</span>
                   </div>
@@ -413,23 +425,23 @@ export function LandingPage() {
                 <div className="activity-feed">
                   <div className="activity-item">
                     <span className="activity-dot" style={{ background: 'var(--lp-accent)' }} />
-                    <span className="activity-text">Yeni web chat görüşmesi başladı</span>
-                    <span className="activity-time">2dk önce</span>
+                    <span className="activity-text">{t('landing.dashboardSection.activity1')}</span>
+                    <span className="activity-time">{t('landing.dashboardSection.activity1Time')}</span>
                   </div>
                   <div className="activity-item">
                     <span className="activity-dot" style={{ background: 'var(--lp-info)' }} />
-                    <span className="activity-text">WhatsApp sipariş sorgusu çözüldü</span>
-                    <span className="activity-time">4dk önce</span>
+                    <span className="activity-text">{t('landing.dashboardSection.activity2')}</span>
+                    <span className="activity-time">{t('landing.dashboardSection.activity2Time')}</span>
                   </div>
                   <div className="activity-item">
                     <span className="activity-dot" style={{ background: 'var(--lp-warning)' }} />
-                    <span className="activity-text">Email taslağı onay bekliyor</span>
-                    <span className="activity-time">7dk önce</span>
+                    <span className="activity-text">{t('landing.dashboardSection.activity3')}</span>
+                    <span className="activity-time">{t('landing.dashboardSection.activity3Time')}</span>
                   </div>
                   <div className="activity-item">
                     <span className="activity-dot" style={{ background: 'var(--lp-primary)' }} />
-                    <span className="activity-text">Telefon görüşmesi yönlendirildi</span>
-                    <span className="activity-time">12dk önce</span>
+                    <span className="activity-text">{t('landing.dashboardSection.activity4')}</span>
+                    <span className="activity-time">{t('landing.dashboardSection.activity4Time')}</span>
                   </div>
                 </div>
               </div>
@@ -441,30 +453,30 @@ export function LandingPage() {
         <section className="channels" id="channels">
           <div className="shell">
             <div className="channels-header reveal">
-              <span className="kicker">Omni-channel</span>
-              <h2 className="section-title">Tüm kanallar, tek AI</h2>
-              <p className="section-sub" style={{ margin: '0 auto' }}>Müşterileriniz nerede olursa olsun — aynı zekâ, aynı kalite, aynı hız.</p>
+              <span className="kicker">{t('landing.channelCards.kicker')}</span>
+              <h2 className="section-title">{t('landing.channelCards.title')}</h2>
+              <p className="section-sub" style={{ margin: '0 auto' }}>{t('landing.channelCards.subtitle')}</p>
             </div>
             <div className="channels-grid" id="channelsGrid">
               <div className="channel-card ch-2 scroll-card">
                 <div className="channel-icon">{'\u{1F4DE}'}</div>
-                <h3>Telefon</h3>
-                <p>Sesli AI asistan ile çağrıları karşılayın. Randevu oluşturma, bilgi verme ve yönlendirme otomatik.</p>
+                <h3>{t('landing.channelCards.phoneTitle')}</h3>
+                <p>{t('landing.channelCards.phoneDesc')}</p>
               </div>
               <div className="channel-card ch-1 scroll-card">
                 <div className="channel-icon">{'\u{1F4AC}'}</div>
-                <h3>WhatsApp</h3>
-                <p>En çok kullanılan kanalda anında yanıt. Sipariş takibi, randevu, destek — hepsi WhatsApp üzerinden.</p>
+                <h3>{t('landing.channelCards.whatsappTitle')}</h3>
+                <p>{t('landing.channelCards.whatsappDesc')}</p>
               </div>
               <div className="channel-card ch-3 scroll-card">
                 <div className="channel-icon">{'\u{1F310}'}</div>
-                <h3>Web Chat</h3>
-                <p>Sitenize tek satırlık kodla entegre edin. Ziyaretçileri müşteriye çeviren akıllı sohbet.</p>
+                <h3>{t('landing.channelCards.chatTitle')}</h3>
+                <p>{t('landing.channelCards.chatDesc')}</p>
               </div>
               <div className="channel-card ch-4 scroll-card">
                 <div className="channel-icon">{'\u{1F4E7}'}</div>
-                <h3>Email</h3>
-                <p>Gelen kutusunu AI ile yönetin. Otomatik taslak, akıllı sınıflandırma ve hızlı yanıt.</p>
+                <h3>{t('landing.channelCards.emailTitle')}</h3>
+                <p>{t('landing.channelCards.emailDesc')}</p>
               </div>
             </div>
           </div>
@@ -475,16 +487,16 @@ export function LandingPage() {
           <div className="shell">
             <div className="chat-demo-grid reveal-sync" id="chatDemoGrid">
               <div className="chat-demo-copy sync-left">
-                <span className="kicker">Canlı deneyim</span>
-                <h2 className="section-title">1.8 saniyede müşteri yanıtı</h2>
-                <p className="section-sub">AI asistan, müşterinizin sorusunu anlar, CRM verinize bakar ve saniyeler içinde doğru yanıtı verir. İnsan müşteri temsilcisi gibi — ama 7/24.</p>
+                <span className="kicker">{t('landing.chatDemoSection.kicker')}</span>
+                <h2 className="section-title">{t('landing.chatDemoSection.title')}</h2>
+                <p className="section-sub">{t('landing.chatDemoSection.desc')}</p>
               </div>
               <div className="chat-window sync-right">
                 <div className="chat-header">
                   <div className="chat-avatar">TX</div>
                   <div className="chat-header-info">
-                    <strong>Telyx AI Asistan</strong>
-                    <span>&#9679; Çevrimiçi</span>
+                    <strong>{t('landing.chatDemoSection.assistantName')}</strong>
+                    <span>&#9679; {t('landing.chatDemoSection.online')}</span>
                   </div>
                 </div>
                 <div className="chat-messages" id="chatDemo">
@@ -500,19 +512,19 @@ export function LandingPage() {
           <div className="shell">
             <div className="proof-grid" id="proofGrid">
               <div className="proof-card scroll-card">
-                <p className="proof-value" data-color="primary" data-count="85" data-prefix="%">0</p>
-                <h2>daha hızlı yanıt süresi</h2>
-                <p>Müşteriler saniyeler içinde cevap alır. Bekleme süresi neredeyse sıfır.</p>
+                <p className="proof-value" data-color="primary" data-count={t('landing.proofSection.stat1Value')} data-prefix="%">0</p>
+                <h2>{t('landing.proofSection.stat1Title')}</h2>
+                <p>{t('landing.proofSection.stat1Desc')}</p>
               </div>
               <div className="proof-card scroll-card">
-                <p className="proof-value" data-color="accent">7/24</p>
-                <h2>kesintisiz müşteri hizmeti</h2>
-                <p>Gece, hafta sonu, bayram — AI asistan hiç tatil yapmaz.</p>
+                <p className="proof-value" data-color="accent">{t('landing.proofSection.stat2Value')}</p>
+                <h2>{t('landing.proofSection.stat2Title')}</h2>
+                <p>{t('landing.proofSection.stat2Desc')}</p>
               </div>
               <div className="proof-card scroll-card">
-                <p className="proof-value" data-color="info" data-count="4" data-suffix="x">0</p>
-                <h2>daha fazla müşteri kapasitesi</h2>
-                <p>Aynı ekiple 4 kat daha fazla müşteriye hizmet verin.</p>
+                <p className="proof-value" data-color="info" data-count={t('landing.proofSection.stat3Value')} data-suffix="x">0</p>
+                <h2>{t('landing.proofSection.stat3Title')}</h2>
+                <p>{t('landing.proofSection.stat3Desc')}</p>
               </div>
             </div>
           </div>
@@ -522,30 +534,30 @@ export function LandingPage() {
         <section className="workflow" id="workflow">
           <div className="shell">
             <div className="workflow-header reveal">
-              <span className="kicker">Nasıl çalışır</span>
-              <h2 className="section-title">4 adımda AI müşteri hizmeti</h2>
-              <p className="section-sub" style={{ margin: '0 auto' }}>Kurulum dakikalar içerisinde. Teknik bilgi gerektirmez.</p>
+              <span className="kicker">{t('landing.workflowSection.kicker')}</span>
+              <h2 className="section-title">{t('landing.workflowSection.title')}</h2>
+              <p className="section-sub" style={{ margin: '0 auto' }}>{t('landing.workflowSection.subtitle')}</p>
             </div>
             <div className="steps-grid" id="stepsGrid">
               <div className="step-card scroll-card">
                 <span className="step-num">01</span>
-                <h3>İşletmenizi tanımlayın</h3>
-                <p>SSS, bilgi tabanı ve işletme detaylarınızı yükleyin. AI asistan sizi öğrensin.</p>
+                <h3>{t('landing.workflowSection.step1Title')}</h3>
+                <p>{t('landing.workflowSection.step1Desc')}</p>
               </div>
               <div className="step-card scroll-card">
                 <span className="step-num">02</span>
-                <h3>Kanalları bağlayın</h3>
-                <p>Telefon, WhatsApp, email ve web chat — tek tıkla entegre edin. CRM bağlantısı da dahil.</p>
+                <h3>{t('landing.workflowSection.step2Title')}</h3>
+                <p>{t('landing.workflowSection.step2Desc')}</p>
               </div>
               <div className="step-card scroll-card">
                 <span className="step-num">03</span>
-                <h3>AI devreye girsin</h3>
-                <p>Müşterileriniz yazar, arar veya email atar. AI anında, doğru ve güvenli yanıt verir.</p>
+                <h3>{t('landing.workflowSection.step3Title')}</h3>
+                <p>{t('landing.workflowSection.step3Desc')}</p>
               </div>
               <div className="step-card scroll-card">
                 <span className="step-num">04</span>
-                <h3>İzleyin ve optimize edin</h3>
-                <p>Dashboard&apos;dan tüm kanalları takip edin. Performans ve memnuniyet tek yerde.</p>
+                <h3>{t('landing.workflowSection.step4Title')}</h3>
+                <p>{t('landing.workflowSection.step4Desc')}</p>
               </div>
             </div>
           </div>
@@ -556,12 +568,12 @@ export function LandingPage() {
           <div className="shell">
             <div className="feature-row">
               <div className="reveal-left reveal-late">
-                <span className="kicker">Entegrasyonlar</span>
-                <h2 className="section-title">Mevcut sisteminizle anında çalışın</h2>
-                <p className="section-sub">Shopify, ikas, Google Calendar, Gmail ve daha fazlası. CRM verinize erişerek sipariş, kargo, randevu sorgularını otomatik yanıtlayın.</p>
+                <span className="kicker">{t('landing.integrationsFeature.kicker')}</span>
+                <h2 className="section-title">{t('landing.integrationsFeature.title')}</h2>
+                <p className="section-sub">{t('landing.integrationsFeature.desc')}</p>
               </div>
               <div className="feature-visual reveal-right reveal-late">
-                <div className="feature-visual-title">Desteklenen entegrasyonlar</div>
+                <div className="feature-visual-title">{t('landing.integrationsFeature.visualTitle')}</div>
                 <div className="integration-logos">
                   <div className="integration-logo"><span>{'\u{1F6CD}\u{FE0F}'}</span> Shopify</div>
                   <div className="integration-logo"><span>{'\u{1F4E6}'}</span> ikas</div>
@@ -574,28 +586,28 @@ export function LandingPage() {
             </div>
             <div className="feature-row reverse">
               <div className="reveal-right reveal-late">
-                <span className="kicker">Güvenlik</span>
-                <h2 className="section-title">Müşteri verisi koruma altında</h2>
-                <p className="section-sub">Kimlik doğrulama, veri maskeleme, guardrail sistemi ve KVKK uyumlu altyapı ile verileriniz her zaman güvende.</p>
+                <span className="kicker">{t('landing.securityFeature.kicker')}</span>
+                <h2 className="section-title">{t('landing.securityFeature.title')}</h2>
+                <p className="section-sub">{t('landing.securityFeature.desc')}</p>
               </div>
               <div className="feature-visual reveal-left reveal-late">
-                <div className="feature-visual-title">Güvenlik katmanları</div>
+                <div className="feature-visual-title">{t('landing.securityFeature.visualTitle')}</div>
                 <div className="shield-grid">
                   <div className="shield-item">
-                    <strong>{'\u{1F510}'} Kimlik Doğrulama</strong>
-                    <span>Telefon &amp; isim bazlı iki adımlı doğrulama</span>
+                    <strong>{'\u{1F510}'} {t('landing.securityFeature.auth')}</strong>
+                    <span>{t('landing.securityFeature.authDesc')}</span>
                   </div>
                   <div className="shield-item">
-                    <strong>{'\u{1F6E1}\u{FE0F}'} Guardrail</strong>
-                    <span>8+ politika katmanlı AI güvenlik bariyeri</span>
+                    <strong>{'\u{1F6E1}\u{FE0F}'} {t('landing.securityFeature.guardrail')}</strong>
+                    <span>{t('landing.securityFeature.guardrailDesc')}</span>
                   </div>
                   <div className="shield-item">
-                    <strong>{'\u{1F512}'} Veri Maskeleme</strong>
-                    <span>Telefon ve hassas veri otomatik maskelenir</span>
+                    <strong>{'\u{1F512}'} {t('landing.securityFeature.masking')}</strong>
+                    <span>{t('landing.securityFeature.maskingDesc')}</span>
                   </div>
                   <div className="shield-item">
-                    <strong>{'\u{1F4CB}'} KVKK Uyumu</strong>
-                    <span>Türkiye mevzuatına uygun veri işleme</span>
+                    <strong>{'\u{1F4CB}'} {t('landing.securityFeature.kvkk')}</strong>
+                    <span>{t('landing.securityFeature.kvkkDesc')}</span>
                   </div>
                 </div>
               </div>
@@ -607,12 +619,12 @@ export function LandingPage() {
         <section className="cta" id="cta">
           <div className="shell">
             <div className="cta-panel reveal-scale">
-              <span className="kicker">Hemen başlayın</span>
-              <h2 className="section-title">Müşteri hizmetlerinizi AI ile dönüştürün</h2>
-              <p className="section-sub">15 dakika ücretsiz arama ile deneyin. Kredi kartı gerekmez, kurulum dakikalar içerisinde.</p>
+              <span className="kicker">{t('landing.ctaSection.kicker')}</span>
+              <h2 className="section-title">{t('landing.ctaSection.title')}</h2>
+              <p className="section-sub">{t('landing.ctaSection.subtitle')}</p>
               <div className="cta-actions">
-                <a href="#" className="lp-btn">Ücretsiz Hesap Oluştur</a>
-                <a href="#" className="lp-btn-ghost">Demo Talep Et</a>
+                <a href="#" className="lp-btn">{t('landing.ctaSection.btn1')}</a>
+                <a href="#" className="lp-btn-ghost">{t('landing.ctaSection.btn2')}</a>
               </div>
             </div>
           </div>
