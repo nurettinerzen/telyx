@@ -9,6 +9,10 @@ jest.unstable_mockModule('../../src/services/semantic-guard-classifier.js', () =
   classifySemanticCallbackIntent: jest.fn()
 }));
 
+jest.unstable_mockModule('../../src/services/session-lock.js', () => ({
+  getLockMessage: jest.fn(() => 'locked')
+}));
+
 let detectPromptInjection;
 let detectUserRisks;
 
@@ -175,6 +179,33 @@ describe('user risk detector hardening', () => {
     };
 
     const result = await detectUserRisks('9111', 'TR', state);
+    expect(result.shouldLock).toBe(false);
+    expect(result.softRefusal).toBeFalsy();
+    expect(state.spamCounter).toBeUndefined();
+  });
+
+  it('does not treat legacy requested phone_last4 replies as spam', async () => {
+    classifySemanticRiskMock.mockResolvedValue({
+      category: 'SPAM',
+      action: 'WARN',
+      lockReason: 'SPAM',
+      severity: 'MEDIUM',
+      confidence: 0.88,
+      rationale: 'short numeric message',
+      source: 'semantic'
+    });
+
+    const state = {
+      verification: {
+        status: 'requested',
+        askFor: ['phone_last4'],
+        anchor: {
+          phone: '+905551112233'
+        }
+      }
+    };
+
+    const result = await detectUserRisks('5685', 'TR', state);
     expect(result.shouldLock).toBe(false);
     expect(result.softRefusal).toBeFalsy();
     expect(state.spamCounter).toBeUndefined();

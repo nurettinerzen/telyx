@@ -56,26 +56,57 @@ function findPatternMatch(pattern, targets = []) {
   return null;
 }
 
+function normalizeVerificationField(field) {
+  const value = Array.isArray(field) ? field[0] : field;
+  return value ? String(value).trim().toLowerCase() : null;
+}
+
+function normalizeVerificationStatus(status) {
+  const value = Array.isArray(status) ? status[0] : status;
+  return value ? String(value).trim().toLowerCase() : null;
+}
+
 function isPhoneLast4VerificationReply(message, state = {}) {
   const normalized = String(message || '').trim();
   if (!/^\d{4}$/.test(normalized)) return false;
 
-  const pendingField =
+  const pendingField = normalizeVerificationField(
     state?.verification?.pendingField ||
+    state?.verification?.askFor ||
     state?.verificationContext?.pendingField ||
+    state?.verificationContext?.askFor ||
     state?.pendingVerificationField ||
     state?.expectedSlot ||
-    null;
+    null
+  );
 
   if (pendingField === 'phone_last4') return true;
 
-  const verificationPending =
-    state?.verification?.status === 'pending' ||
-    state?.verificationContext?.status === 'pending';
+  const verificationStatus = normalizeVerificationStatus(
+    state?.verification?.status ||
+    state?.verification?.state ||
+    state?.verificationContext?.status ||
+    state?.verificationState ||
+    null
+  );
+
+  const verificationPending = new Set([
+    'pending',
+    'requested',
+    'failed',
+    'retry',
+    'retrying',
+    'awaiting_input'
+  ]).has(verificationStatus);
 
   const hasPhoneAnchor =
     Boolean(state?.verification?.anchor?.phone) ||
+    Boolean(state?.verification?.anchor?.customerPhone) ||
+    Boolean(state?.verificationContext?.anchor?.phone) ||
+    Boolean(state?.verificationContext?.anchor?.customerPhone) ||
     state?.verificationContext?.anchorType === 'PHONE' ||
+    Boolean(state?.verificationAnchor?.phone) ||
+    Boolean(state?.verificationAnchor?.customerPhone) ||
     Boolean(state?.anchor?.phone) ||
     Boolean(state?.anchor?.customerPhone);
 

@@ -4,6 +4,7 @@
  */
 
 import express from 'express';
+import crypto from 'crypto';
 import { PrismaClient } from '@prisma/client';
 import { authenticateToken } from '../middleware/auth.js';
 import { requireProOrAbove } from '../middleware/planGating.js';
@@ -20,6 +21,192 @@ import { queueUnifiedResponseTrace } from '../services/trace/responseTraceLogger
 
 const router = express.Router();
 const prisma = new PrismaClient();
+const EMAIL_OUTBOUND_TTL_MS = 5 * 60 * 1000;
+
+function buildEmailSendLockKey({ draftId = null, threadId = null, content = '', replyToId = null }) {
+  if (draftId) {
+    return `draft:${draftId}`;
+  }
+
+  const contentHash = crypto
+    .createHash('sha256')
+    .update(String(content || ''))
+    .digest('hex')
+    .slice(0, 24);
+
+  return `quick:${replyToId || threadId || 'thread'}:${contentHash}`;
+}
+
+function buildSyntheticSentMessageId(lockKey) {
+  const hash = crypto
+    .createHash('sha256')
+    .update(String(lockKey || 'email'))
+    .digest('hex')
+    .slice(0, 24);
+
+  return `local-${hash}`;
+}
+
+function getEmailSendLeaseWhere({ businessId, recipientId, lockKey }) {
+  return {
+    businessId_channel_recipientId_inboundMessageId: {
+      businessId,
+      channel: 'EMAIL',
+      recipientId,
+      inboundMessageId: lockKey
+    }
+  };
+}
+
+async function acquireEmailSendLease({ businessId, recipientId, lockKey }) {
+  const where = getEmailSendLeaseWhere({ businessId, recipientId, lockKey });
+  const expiresAt = new Date(Date.now() + EMAIL_OUTBOUND_TTL_MS);
+
+  const existing = await prisma.outboundMessage.findUnique({ where });
+  if (existing) {
+    if (existing.sent) {
+      return { status: 'duplicate', lease: existing };
+    }
+
+    const existingExpiry = existing.expiresAt ? new Date(existing.expiresAt).getTime() : 0;
+    if (existingExpiry > Date.now()) {
+      return { status: 'in_progress', lease: existing };
+    }
+
+    const recycled = await prisma.outboundMessage.update({
+      where: { id: existing.id },
+      data: {
+        sent: false,
+        externalId: null,
+        expiresAt
+      }
+    });
+
+    return { status: 'acquired', lease: recycled };
+  }
+
+  try {
+    const lease = await prisma.outboundMessage.create({
+      data: {
+        businessId,
+        channel: 'EMAIL',
+        recipientId,
+        inboundMessageId: lockKey,
+        sent: false,
+        externalId: null,
+        expiresAt
+      }
+    });
+
+    return { status: 'acquired', lease };
+  } catch (error) {
+    const recovered = await prisma.outboundMessage.findUnique({ where });
+    if (recovered?.sent) return { status: 'duplicate', lease: recovered };
+    if (recovered) return { status: 'in_progress', lease: recovered };
+    throw error;
+  }
+}
+
+async function markEmailSendLeaseSent(leaseId, externalId = null) {
+  if (!leaseId) return;
+
+  await prisma.outboundMessage.update({
+    where: { id: leaseId },
+    data: {
+      sent: true,
+      externalId: externalId || null,
+      expiresAt: new Date(Date.now() + EMAIL_OUTBOUND_TTL_MS)
+    }
+  });
+}
+
+async function releaseEmailSendLease(leaseId) {
+  if (!leaseId) return;
+
+  await prisma.outboundMessage.delete({
+    where: { id: leaseId }
+  }).catch(() => undefined);
+}
+
+async function persistOutboundEmail({
+  businessId,
+  thread,
+  draft = null,
+  plainContent,
+  htmlContent,
+  integrationEmail,
+  businessName,
+  subject,
+  messageId,
+  classification = null
+}) {
+  const sentAt = new Date();
+
+  await prisma.emailMessage.upsert({
+    where: {
+      threadId_messageId: {
+        threadId: thread.id,
+        messageId
+      }
+    },
+    update: {
+      direction: 'OUTBOUND',
+      fromEmail: integrationEmail,
+      fromName: businessName || null,
+      toEmail: thread.customerEmail,
+      subject,
+      bodyText: plainContent,
+      bodyHtml: htmlContent,
+      status: 'SENT',
+      sentAt,
+      isDraft: false
+    },
+    create: {
+      threadId: thread.id,
+      messageId,
+      direction: 'OUTBOUND',
+      fromEmail: integrationEmail,
+      fromName: businessName || null,
+      toEmail: thread.customerEmail,
+      subject,
+      bodyText: plainContent,
+      bodyHtml: htmlContent,
+      status: 'SENT',
+      sentAt
+    }
+  });
+
+  const writes = [
+    prisma.emailThread.update({
+      where: { id: thread.id },
+      data: { status: 'REPLIED' }
+    })
+  ];
+
+  if (draft?.id) {
+    writes.push(
+      prisma.emailDraft.update({
+        where: { id: draft.id },
+        data: {
+          status: 'SENT',
+          sentAt,
+          sentMessageId: messageId
+        }
+      })
+    );
+  }
+
+  await Promise.all(writes);
+
+  onEmailSent({
+    messageId,
+    threadId: thread.id,
+    businessId,
+    classification
+  }).catch(err => {
+    console.error('RAG indexing failed (non-blocking):', err);
+  });
+}
 
 function deriveAdminDraftVerificationState(tools = []) {
   const normalizedOutcomes = (Array.isArray(tools) ? tools : [])
@@ -668,72 +855,106 @@ router.post('/drafts/:draftId/send', authenticateToken, async (req, res) => {
       thread,
       parentMessage: draft.message || null
     });
+    const sendLockKey = buildEmailSendLockKey({ draftId: draft.id });
+    const leaseResult = await acquireEmailSendLease({
+      businessId: req.businessId,
+      recipientId: thread.customerEmail,
+      lockKey: sendLockKey
+    });
+    const fallbackMessageId = buildSyntheticSentMessageId(sendLockKey);
+
+    if (leaseResult.status === 'in_progress') {
+      return res.status(409).json({
+        error: 'Email send is already in progress',
+        code: 'EMAIL_SEND_IN_PROGRESS'
+      });
+    }
+
+    if (leaseResult.status === 'duplicate') {
+      const duplicateMessageId = leaseResult.lease?.externalId || draft.sentMessageId || fallbackMessageId;
+
+      try {
+        await persistOutboundEmail({
+          businessId: req.businessId,
+          thread,
+          draft,
+          plainContent,
+          htmlContent,
+          integrationEmail: integration.email,
+          businessName: business?.name || null,
+          subject: replySubject,
+          messageId: duplicateMessageId,
+          classification: draft.classification || draft.metadata?.classification || null
+        });
+
+        return res.json({
+          success: true,
+          duplicate: true,
+          message: 'Email already sent',
+          messageId: duplicateMessageId
+        });
+      } catch (persistError) {
+        console.error('Draft duplicate sync error:', persistError);
+        return res.json({
+          success: true,
+          duplicate: true,
+          stateSyncPending: true,
+          message: 'Email was already sent; local sync is pending',
+          messageId: duplicateMessageId
+        });
+      }
+    }
 
     // Send the email (with HTML content)
-    const result = await emailAggregator.sendMessage(
-      req.businessId,
-      thread.customerEmail,
-      replySubject,
-      htmlContent,
-      options
-    );
+    let result;
+    try {
+      result = await emailAggregator.sendMessage(
+        req.businessId,
+        thread.customerEmail,
+        replySubject,
+        htmlContent,
+        options
+      );
+    } catch (sendError) {
+      await releaseEmailSendLease(leaseResult.lease?.id);
+      throw sendError;
+    }
 
-    // Save the sent message to database
-    await prisma.emailMessage.upsert({
-      where: {
-        threadId_messageId: {
-          threadId: thread.id,
-          messageId: result.messageId || `sent-${Date.now()}-${Math.random().toString(36).substring(7)}`
-        }
-      },
-      update: {
-        status: 'SENT',
-        sentAt: new Date()
-      },
-      create: {
-        threadId: thread.id,
-        messageId: result.messageId || `sent-${Date.now()}-${Math.random().toString(36).substring(7)}`,
-        direction: 'OUTBOUND',
-        fromEmail: integration.email,
-        fromName: business?.name || null,
-        toEmail: thread.customerEmail,
+    const finalMessageId = result.messageId || fallbackMessageId;
+
+    try {
+      await markEmailSendLeaseSent(leaseResult.lease?.id, finalMessageId);
+    } catch (leaseError) {
+      console.error('Draft send lease mark error:', leaseError);
+    }
+
+    try {
+      await persistOutboundEmail({
+        businessId: req.businessId,
+        thread,
+        draft,
+        plainContent,
+        htmlContent,
+        integrationEmail: integration.email,
+        businessName: business?.name || null,
         subject: replySubject,
-        bodyText: plainContent,
-        bodyHtml: htmlContent,
-        status: 'SENT',
-        sentAt: new Date()
-      }
-    });
-
-    // Update draft status to SENT
-    await prisma.emailDraft.update({
-      where: { id: draft.id },
-      data: {
-        status: 'SENT',
-        sentAt: new Date()
-      }
-    });
-
-    // Update thread status to REPLIED
-    await prisma.emailThread.update({
-      where: { id: thread.id },
-      data: { status: 'REPLIED' }
-    });
-
-    // Index sent email for RAG (async, non-blocking)
-    onEmailSent({
-      messageId: result.messageId,
-      threadId: thread.id,
-      businessId: req.businessId,
-      classification: draft.classification // If stored
-    }).catch(err => {
-      console.error('RAG indexing failed (non-blocking):', err);
-    });
+        messageId: finalMessageId,
+        classification: draft.classification || draft.metadata?.classification || null
+      });
+    } catch (persistError) {
+      console.error('Send draft persistence error:', persistError);
+      return res.json({
+        success: true,
+        stateSyncPending: true,
+        message: 'Email sent; local sync is pending',
+        messageId: finalMessageId
+      });
+    }
 
     res.json({
       success: true,
       message: 'Email sent successfully',
-      messageId: result.messageId
+      messageId: finalMessageId
     });
   } catch (error) {
     console.error('Send draft error:', error);
@@ -763,43 +984,102 @@ router.post('/threads/:threadId/quick-reply', authenticateToken, async (req, res
       businessId: req.businessId,
       thread
     });
-
-    const result = await emailAggregator.sendMessage(
-      req.businessId,
-      thread.customerEmail,
-      replySubject,
-      htmlContent,
-      replyOptions
-    );
-
-    await prisma.emailMessage.create({
-      data: {
-        threadId: thread.id,
-        messageId: result.messageId || `sent-${Date.now()}-${Math.random().toString(36).substring(7)}`,
-        direction: 'OUTBOUND',
-        fromEmail: integration.email,
-        fromName: business?.name || null,
-        toEmail: thread.customerEmail,
-        subject: replySubject,
-        bodyText: content,
-        bodyHtml: htmlContent,
-        status: 'SENT',
-        sentAt: new Date()
-      }
-    });
-
-    await prisma.emailThread.update({
-      where: { id: thread.id },
-      data: { status: 'REPLIED' }
-    });
-
-    onEmailSent({
-      messageId: result.messageId,
+    const sendLockKey = buildEmailSendLockKey({
       threadId: thread.id,
-      businessId: req.businessId
-    }).catch(err => console.error('RAG indexing failed (non-blocking):', err));
+      content,
+      replyToId: replyOptions.replyToId || null
+    });
+    const leaseResult = await acquireEmailSendLease({
+      businessId: req.businessId,
+      recipientId: thread.customerEmail,
+      lockKey: sendLockKey
+    });
+    const fallbackMessageId = buildSyntheticSentMessageId(sendLockKey);
 
-    res.json({ success: true, messageId: result.messageId });
+    if (leaseResult.status === 'in_progress') {
+      return res.status(409).json({
+        error: 'Email send is already in progress',
+        code: 'EMAIL_SEND_IN_PROGRESS'
+      });
+    }
+
+    if (leaseResult.status === 'duplicate') {
+      const duplicateMessageId = leaseResult.lease?.externalId || fallbackMessageId;
+
+      try {
+        await persistOutboundEmail({
+          businessId: req.businessId,
+          thread,
+          plainContent: content,
+          htmlContent,
+          integrationEmail: integration.email,
+          businessName: business?.name || null,
+          subject: replySubject,
+          messageId: duplicateMessageId
+        });
+
+        return res.json({
+          success: true,
+          duplicate: true,
+          message: 'Email already sent',
+          messageId: duplicateMessageId
+        });
+      } catch (persistError) {
+        console.error('Quick reply duplicate sync error:', persistError);
+        return res.json({
+          success: true,
+          duplicate: true,
+          stateSyncPending: true,
+          message: 'Email was already sent; local sync is pending',
+          messageId: duplicateMessageId
+        });
+      }
+    }
+
+    let result;
+    try {
+      result = await emailAggregator.sendMessage(
+        req.businessId,
+        thread.customerEmail,
+        replySubject,
+        htmlContent,
+        replyOptions
+      );
+    } catch (sendError) {
+      await releaseEmailSendLease(leaseResult.lease?.id);
+      throw sendError;
+    }
+
+    const finalMessageId = result.messageId || fallbackMessageId;
+
+    try {
+      await markEmailSendLeaseSent(leaseResult.lease?.id, finalMessageId);
+    } catch (leaseError) {
+      console.error('Quick reply lease mark error:', leaseError);
+    }
+
+    try {
+      await persistOutboundEmail({
+        businessId: req.businessId,
+        thread,
+        plainContent: content,
+        htmlContent,
+        integrationEmail: integration.email,
+        businessName: business?.name || null,
+        subject: replySubject,
+        messageId: finalMessageId
+      });
+    } catch (persistError) {
+      console.error('Quick reply persistence error:', persistError);
+      return res.json({
+        success: true,
+        stateSyncPending: true,
+        message: 'Email sent; local sync is pending',
+        messageId: finalMessageId
+      });
+    }
+
+    res.json({ success: true, messageId: finalMessageId });
   } catch (error) {
     console.error('Quick reply error:', error);
     res.status(500).json({ error: 'Failed to send email' });

@@ -313,12 +313,22 @@ export default function EmailDashboardPage() {
     }
     setSending(true);
     try {
-      await apiClient.post(`/api/email/drafts/${active.id}/send`);
-      toast.success(locale === 'tr' ? 'E-posta gönderildi' : 'Email sent');
+      const { data } = await apiClient.post(`/api/email/drafts/${active.id}/send`);
+      if (data?.stateSyncPending) {
+        toast.info(locale === 'tr' ? 'E-posta gönderildi, görünüm biraz gecikmeli güncellenebilir' : 'Email sent; the UI may take a moment to catch up');
+      } else if (data?.duplicate) {
+        toast.info(locale === 'tr' ? 'Bu e-posta zaten gönderilmişti' : 'This email was already sent');
+      } else {
+        toast.success(locale === 'tr' ? 'E-posta gönderildi' : 'Email sent');
+      }
       queryClient.invalidateQueries({ queryKey: ['email'] });
       setIsEditing(false);
-    } catch {
-      toast.error(locale === 'tr' ? 'Gönderim başarısız' : 'Failed to send');
+    } catch (error) {
+      if (error.response?.status === 409) {
+        toast.info(locale === 'tr' ? 'Gönderim zaten devam ediyor' : 'Send already in progress');
+      } else {
+        toast.error(locale === 'tr' ? 'Gönderim başarısız' : 'Failed to send');
+      }
     } finally {
       setSending(false);
     }
@@ -328,14 +338,24 @@ export default function EmailDashboardPage() {
     if (!selectedThread || !editedContent.trim()) return;
     setSending(true);
     try {
-      await apiClient.post(`/api/email/threads/${selectedThread.id}/quick-reply`, { content: editedContent });
-      toast.success(locale === 'tr' ? 'E-posta gönderildi' : 'Email sent');
+      const { data } = await apiClient.post(`/api/email/threads/${selectedThread.id}/quick-reply`, { content: editedContent });
+      if (data?.stateSyncPending) {
+        toast.info(locale === 'tr' ? 'E-posta gönderildi, görünüm biraz gecikmeli güncellenebilir' : 'Email sent; the UI may take a moment to catch up');
+      } else if (data?.duplicate) {
+        toast.info(locale === 'tr' ? 'Bu e-posta zaten gönderilmişti' : 'This email was already sent');
+      } else {
+        toast.success(locale === 'tr' ? 'E-posta gönderildi' : 'Email sent');
+      }
       queryClient.invalidateQueries({ queryKey: ['email'] });
       setQuickReplyMode(false);
       setEditedContent('');
       setIsEditing(false);
-    } catch {
-      toast.error(locale === 'tr' ? 'Gönderim başarısız' : 'Failed to send');
+    } catch (error) {
+      if (error.response?.status === 409) {
+        toast.info(locale === 'tr' ? 'Gönderim zaten devam ediyor' : 'Send already in progress');
+      } else {
+        toast.error(locale === 'tr' ? 'Gönderim başarısız' : 'Failed to send');
+      }
     } finally {
       setSending(false);
     }
