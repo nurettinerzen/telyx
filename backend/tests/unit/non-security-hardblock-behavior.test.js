@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { applyGuardrails } from '../../src/core/orchestrator/steps/07_guardrails.js';
 
-describe('Non-security guardrail violations should not hard block', () => {
+describe('Non-security guardrail clarification contracts', () => {
   const baseParams = {
     hadToolSuccess: false,
     toolsCalled: [],
@@ -15,24 +15,23 @@ describe('Non-security guardrail violations should not hard block', () => {
     verificationState: 'none',
     verifiedIdentity: null,
     intent: null,
-    collectedData: {},
-    channelMode: 'FULL',
-    helpLinks: {}
+    collectedData: {}
   };
 
-  it('confabulation violation should become clarification/sanitize, not block', async () => {
+  it('missing stock lookup should become deterministic need-more-info', async () => {
     const result = await applyGuardrails({
       ...baseParams,
       userMessage: 'Stok var mı?',
       responseText: 'Bu ürün stokta var.'
     });
 
-    expect(result.action).toBe('SANITIZE');
-    expect(result.blocked).not.toBe(true);
+    expect(result.action).toBe('NEED_MIN_INFO_FOR_TOOL');
+    expect(result.blocked).toBe(true);
+    expect(result.blockReason).toBe('TOOL_REQUIRED_NOT_CALLED');
     expect(result.finalResponse).toContain('?');
   });
 
-  it('field grounding violation should become clarification/sanitize, not block', async () => {
+  it('unverified protected order output should require verification clarification', async () => {
     const result = await applyGuardrails({
       ...baseParams,
       hadToolSuccess: true,
@@ -51,8 +50,9 @@ describe('Non-security guardrail violations should not hard block', () => {
       responseText: 'Siparişiniz teslim edildi.'
     });
 
-    expect(result.action).toBe('SANITIZE');
-    expect(result.blocked).not.toBe(true);
+    expect(result.action).toBe('NEED_MIN_INFO_FOR_TOOL');
+    expect(result.blocked).toBe(true);
+    expect(result.blockReason).toBe('VERIFICATION_REQUIRED');
     expect(result.finalResponse).toContain('?');
   });
 });

@@ -17,8 +17,6 @@ const containsChildSafetyViolationMock = jest.fn();
 const detectPromptInjectionMock = jest.fn();
 const detectUserRisksMock = jest.fn();
 const checkSessionThrottleMock = jest.fn();
-const getChannelModeMock = jest.fn();
-const getHelpLinksMock = jest.fn();
 const ensurePolicyGuidanceMock = jest.fn();
 const isFeatureEnabledMock = jest.fn();
 
@@ -93,11 +91,6 @@ jest.unstable_mockModule('../../src/services/sessionThrottle.js', () => ({
   checkSessionThrottle: checkSessionThrottleMock
 }));
 
-jest.unstable_mockModule('../../src/config/channelMode.js', () => ({
-  getChannelMode: getChannelModeMock,
-  getHelpLinks: getHelpLinksMock
-}));
-
 jest.unstable_mockModule('../../src/services/tool-fail-handler.js', () => ({
   ensurePolicyGuidance: ensurePolicyGuidanceMock
 }));
@@ -123,8 +116,6 @@ beforeEach(() => {
   detectPromptInjectionMock.mockReturnValue({ detected: false });
   detectUserRisksMock.mockResolvedValue({ shouldLock: false, reason: null, warnings: [], stateUpdated: false });
   checkSessionThrottleMock.mockReturnValue({ allowed: true });
-  getChannelModeMock.mockReturnValue('FULL');
-  getHelpLinksMock.mockReturnValue({});
   ensurePolicyGuidanceMock.mockImplementation((response) => ({
     response,
     guidanceAdded: false,

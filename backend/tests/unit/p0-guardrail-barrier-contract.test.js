@@ -26,9 +26,7 @@ describe('P0 Guardrail Barrier Contract', () => {
     verificationState: 'none',
     verifiedIdentity: null,
     intent: null,
-    collectedData: {},
-    channelMode: 'FULL',
-    helpLinks: {}
+    collectedData: {}
   };
 
   it('1) Telyx product explanation with "telefon kanalı" stays PASS (no verification steering)', async () => {

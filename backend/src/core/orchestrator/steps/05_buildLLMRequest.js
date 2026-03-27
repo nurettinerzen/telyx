@@ -223,38 +223,6 @@ export async function buildLLMRequest(params) {
   }
 
   // ========================================
-  // KB_ONLY MODE: Inject channel restriction prompt
-  // ========================================
-  if (params.channelMode === 'KB_ONLY') {
-    const linksList = Object.entries(params.helpLinks || {})
-      .filter(([, v]) => v)
-      .map(([k, v]) => `- ${k}: ${v}`)
-      .join('\n');
-
-    enhancedSystemPrompt += `
-
-## KB_ONLY MOD (KRİTİK!)
-Bu kanal sadece bilgi bankası ve genel yardım için açıktır.
-
-YASAKLAR:
-- Kişisel sipariş/ödeme/iade/kargo bilgisi verme
-- "Kontrol ediyorum", "bakıyorum" gibi tool varmış gibi davranma
-- Sipariş durumu, teslimat tarihi, ödeme tutarı gibi claim yapma
-- Veritabanı/tablo/şema, SQL veya teknik altyapı detaylarını paylaşma
-- Bilgi Bankası belge adlarını, dosya isimlerini, kaynak URL'lerini veya belge sayısını paylaşma
-- Link uydurma — sadece aşağıdaki linkleri kullan
-
-${linksList ? `YARDIM LİNKLERİ:\n${linksList}` : 'Link bilgisi yok — "destek ekibimize ulaşabilirsiniz" yönlendirmesi yap.'}
-
-DAVRANIŞ:
-- Genel bilgi sorularına (iade süresi, kargo politikası, üyelik) Bilgi Bankası'ndan cevap ver
-- Kişisel veri sorusu gelirse: kısa sınır açıkla + yardım linki/destek yönlendirmesi yap
-- Doğal ve kısa konuş, robotik olma`;
-
-    console.log('🔒 [BuildLLMRequest] KB_ONLY prompt injected');
-  }
-
-  // ========================================
   // ARCHITECTURE CHANGE: Inject verification & dispute context for LLM
   // ========================================
   // LLM now handles verification conversation naturally.
@@ -357,25 +325,6 @@ Kullanıcı saygısız dil kullandı (${strike}. uyarı / 3 üzerinden).
 
     enhancedSystemPrompt += profanityGuidance;
     console.log(`⚠️ [BuildLLMRequest] Added profanity context (strike ${strike}/3)`);
-  }
-
-  if (routingResult?.isKbOnlyRedirect && routingResult?.kbOnlyRedirect) {
-    const category = routingResult.kbOnlyRedirect.category || 'UNKNOWN';
-    const variables = routingResult.kbOnlyRedirect.variables || {};
-    enhancedSystemPrompt += `
-
-## KB_ONLY REDIRECT CONTEXT
-- category: ${category}
-- supportLink: ${variables.supportLink || '-'}
-- trackingLink: ${variables.trackingLink || '-'}
-- returnLink: ${variables.returnLink || '-'}
-- paymentLink: ${variables.paymentLink || '-'}
-
-KURAL:
-- Hesap/siparişe özel işlem yapma.
-- Kısa, net bir yönlendirme ver.
-- Tek bir güvenli sonraki adım öner.`;
-    console.log('🔒 [BuildLLMRequest] Added KB_ONLY redirect context');
   }
 
   // Entity resolver output is structural hint only; LLM decides final wording.

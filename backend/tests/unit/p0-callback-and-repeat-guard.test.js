@@ -29,7 +29,6 @@ describe('P0 Callback deterministic flow', () => {
       business: { id: 1, language: 'TR' },
       sessionId: 'test-a1',
       channel: 'CHAT',
-      channelMode: 'FULL',
       hasKBMatch: false
     });
 
@@ -82,7 +81,6 @@ describe('P0 Callback deterministic flow', () => {
       business: { id: 1, language: 'TR' },
       sessionId: 'test-a2-phone',
       channel: 'CHAT',
-      channelMode: 'FULL',
       hasKBMatch: false
     });
     expect(phonePrompt.directResponse).toBe(false);
@@ -103,7 +101,6 @@ describe('P0 Callback deterministic flow', () => {
       business: { id: 1, language: 'TR' },
       sessionId: 'test-a2-name',
       channel: 'CHAT',
-      channelMode: 'FULL',
       hasKBMatch: false
     });
     expect(namePrompt.directResponse).toBe(false);
@@ -153,9 +150,7 @@ describe('P0 Callback deterministic flow', () => {
       intent: 'callback_request',
       collectedData: {},
       callbackPending: true,
-      activeFlow: 'CALLBACK_REQUEST',
-      channelMode: 'FULL',
-      helpLinks: {}
+      activeFlow: 'CALLBACK_REQUEST'
     });
 
     expect(result.action).toBe('PASS');

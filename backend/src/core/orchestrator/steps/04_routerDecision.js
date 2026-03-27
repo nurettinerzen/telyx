@@ -17,7 +17,6 @@
 
 import { routeMessage } from '../../../services/message-router.js';
 import { buildChatterDirective } from '../../../services/chatter-response.js';
-import { classifyRedirectCategory, buildKbOnlyRedirectVariables } from '../../../config/channelMode.js';
 
 function isRouterPassthroughEnabled() {
   return String(process.env.ROUTER_PASSTHROUGH || '').toLowerCase() === 'true';
@@ -143,44 +142,6 @@ function upsertCallbackContext({ state, userMessage, allowLooseName = false }) {
 export async function makeRoutingDecision(params) {
   const { classification, state, userMessage, conversationHistory, language, business, sessionId = '' } = params;
   const routerPassthroughEnabled = isRouterPassthroughEnabled();
-
-  // ========================================
-  // KB_ONLY MODE: Intercept account-specific queries BEFORE routing
-  // Flow:
-  //   1. KB hit → LLM answers from KB (tools already stripped in Step 2)
-  //   2. No KB hit → LLM redirect classifier (strict JSON)
-  //   3. Classifier confidence >= 0.7 + category != GENERAL → LLM redirect guidance
-  //   4. Else → safe fallback via LLM (tools stripped, KB_ONLY prompt active)
-  // ========================================
-  if (params.channelMode === 'KB_ONLY' && !params.hasKBMatch) {
-    // In KB_ONLY mode, meaning belongs to the classifier rather than regex hints.
-    const classifierResult = await classifyRedirectCategory(userMessage);
-
-    if (classifierResult && classifierResult.confidence >= 0.7 && classifierResult.category !== 'GENERAL') {
-      const category = classifierResult.category;
-      const variables = buildKbOnlyRedirectVariables(category, params.helpLinks || {}, language);
-
-      console.log(`🔒 [RouterDecision] KB_ONLY redirect — category=${category}, confidence=${classifierResult.confidence.toFixed(2)}`);
-
-      return {
-        directResponse: false,
-        routing: { routing: { action: 'KB_ONLY_REDIRECT', reason: `KB_ONLY classifier: category=${category}, confidence=${classifierResult.confidence}` } },
-        isKbOnlyRedirect: true,
-        kbOnlyRedirect: {
-          category,
-          variables
-        },
-        metadata: {
-          mode: 'kb_only_redirect',
-          category,
-          classifierConfidence: classifierResult.confidence
-        }
-      };
-    }
-
-    // Classifier said GENERAL or low confidence → fall through to LLM (tools stripped, KB_ONLY prompt)
-    console.log(`🔒 [RouterDecision] KB_ONLY classifier said ${classifierResult?.category || 'null'} (${(classifierResult?.confidence || 0).toFixed(2)}) — falling through to LLM`);
-  }
 
   // Get last assistant message
   const lastAssistantMessage = conversationHistory

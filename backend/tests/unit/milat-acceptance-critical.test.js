@@ -9,9 +9,8 @@ const persistAndEmitMetricsMock = jest.fn();
 const buildBusinessIdentityMock = jest.fn();
 const containsChildSafetyViolationMock = jest.fn();
 const detectPromptInjectionMock = jest.fn();
+const detectUserRisksMock = jest.fn();
 const checkSessionThrottleMock = jest.fn();
-const getChannelModeMock = jest.fn();
-const getHelpLinksMock = jest.fn();
 const ensurePolicyGuidanceMock = jest.fn();
 const validateResponseAfterToolFailMock = jest.fn();
 const isFeatureEnabledMock = jest.fn();
@@ -59,7 +58,9 @@ jest.unstable_mockModule('../../src/utils/content-safety.js', () => ({
 }));
 
 jest.unstable_mockModule('../../src/services/user-risk-detector.js', () => ({
-  detectPromptInjection: detectPromptInjectionMock
+  detectPromptInjection: detectPromptInjectionMock,
+  detectUserRisks: detectUserRisksMock,
+  getPIIWarningMessages: jest.fn(() => [])
 }));
 
 jest.unstable_mockModule('../../src/services/session-lock.js', () => ({
@@ -76,11 +77,6 @@ jest.unstable_mockModule('../../src/messages/messageCatalog.js', () => ({
 
 jest.unstable_mockModule('../../src/services/sessionThrottle.js', () => ({
   checkSessionThrottle: checkSessionThrottleMock
-}));
-
-jest.unstable_mockModule('../../src/config/channelMode.js', () => ({
-  getChannelMode: getChannelModeMock,
-  getHelpLinks: getHelpLinksMock
 }));
 
 jest.unstable_mockModule('../../src/services/tool-fail-handler.js', () => ({
@@ -109,9 +105,8 @@ beforeEach(() => {
 
   containsChildSafetyViolationMock.mockReturnValue(false);
   detectPromptInjectionMock.mockReturnValue({ detected: false });
+  detectUserRisksMock.mockResolvedValue({ shouldLock: false, reason: null, warnings: [], stateUpdated: false });
   checkSessionThrottleMock.mockReturnValue({ allowed: true });
-  getChannelModeMock.mockReturnValue('FULL');
-  getHelpLinksMock.mockReturnValue({});
   ensurePolicyGuidanceMock.mockImplementation((response) => ({
     response,
     guidanceAdded: false,

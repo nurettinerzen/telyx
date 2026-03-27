@@ -388,46 +388,6 @@ export async function applyGuardrails(params) {
     metrics.piiWarnings = piiScan.findings.filter(f => f.severity === 'HIGH').map(f => f.type);
   }
 
-  // ============================================
-  // POLICY 1.5: KB_ONLY URL ALLOWLIST
-  // In KB_ONLY mode, only helpLinks domains and exact URLs are allowed.
-  // ============================================
-  const { channelMode, helpLinks } = params;
-  if (channelMode === 'KB_ONLY') {
-    const urlRegex = /https?:\/\/[^\s)>"']+/gi;
-    const foundUrls = (responseText || '').match(urlRegex) || [];
-
-    if (foundUrls.length > 0) {
-      // Build allowlist: exact URL match + domain match
-      const allowedExact = new Set(Object.values(helpLinks || {}).filter(Boolean));
-      const allowedDomains = new Set();
-      for (const url of allowedExact) {
-        try { allowedDomains.add(new URL(url).hostname); } catch { /* skip invalid */ }
-      }
-
-      const isAllowed = (url) => {
-        if (allowedExact.has(url)) return true;
-        try {
-          const hostname = new URL(url).hostname;
-          return allowedDomains.has(hostname);
-        } catch { return false; }
-      };
-
-      const disallowed = foundUrls.filter(u => !isAllowed(u));
-      if (disallowed.length > 0) {
-        console.warn(`🚨 [Guardrail] KB_ONLY URL violation: ${disallowed.join(', ')}`);
-        const sanitizedResponse = String(responseText || '').replace(urlRegex, (url) => (isAllowed(url) ? url : '')).replace(/\s{2,}/g, ' ').trim();
-        return {
-          finalResponse: sanitizedResponse || getBarrierMessage(language),
-          action: GuardrailAction.SANITIZE,
-          blocked: false,
-          blockReason: 'KB_ONLY_URL_ALLOWLIST',
-          guardrailsApplied: ['KB_ONLY_URL_ALLOWLIST']
-        };
-      }
-    }
-  }
-
   // POLICY 1.5: Security Gateway Leak Filter (barrier-only)
   const leakFilterResult = applyLeakFilter(responseText, verificationState, language, collectedData, {
     callbackPending,

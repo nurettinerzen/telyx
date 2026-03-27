@@ -48,7 +48,6 @@ import { OutcomeEventType } from '../security/outcomePolicy.js';
 import { ToolOutcome, normalizeOutcome } from '../tools/toolResult.js';
 import { getMessageVariant } from '../messages/messageCatalog.js';
 import { checkSessionThrottle } from '../services/sessionThrottle.js';
-import { getChannelMode, getHelpLinks } from '../config/channelMode.js';
 import { ensurePolicyGuidance } from '../services/tool-fail-handler.js';
 import { buildBusinessIdentity } from '../services/businessIdentity.js';
 import { getEntityHint, getEntityMatchType, resolveMentionedEntity } from '../services/entityTopicResolver.js';
@@ -479,11 +478,6 @@ FIELD_GROUNDING CORRECTION RULES:
 
 TOOL_PAYLOAD_JSON:
 ${toolPayloadJson}`;
-
-    } else if (guidanceType === 'KB_ONLY_URL_VIOLATION') {
-      guidance = language === 'TR'
-        ? `Yanıtında izinsiz URL tespit edildi. Yanıtı tekrar yaz, hiçbir URL ekleme. Link istenmişse "destek ekibimize ulaşabilirsiniz" yönlendirmesi yap.`
-        : `Unauthorized URLs detected in your response. Rewrite without any URLs. If a link is needed, direct the user to contact support.`;
 
     } else if (guidanceType === 'FIREWALL_RECOVERY') {
       // P1b-FIX: Firewall false-positive recovery.
@@ -998,16 +992,6 @@ export async function handleIncomingMessage({
     }
 
     // ========================================
-    // CHANNEL MODE: Resolve KB_ONLY vs FULL
-    // ========================================
-    const channelMode = getChannelMode(business, channel);
-    const helpLinks = channelMode === 'KB_ONLY' ? getHelpLinks(business) : {};
-    if (channelMode === 'KB_ONLY') {
-      console.log(`🔒 [Orchestrator] KB_ONLY mode active for channel=${channel}`);
-      metrics.channelMode = 'KB_ONLY';
-    }
-
-    // ========================================
     // STEP 1: Load Context
     // ========================================
     console.log('\n[STEP 1] Loading context...');
@@ -1140,7 +1124,6 @@ export async function handleIncomingMessage({
       prisma,
       sessionId: resolvedSessionId,
       userMessage, // V1 MVP: For intelligent KB retrieval
-      channelMode,
       businessIdentity,
       entityResolution
     });
@@ -1251,8 +1234,6 @@ export async function handleIncomingMessage({
       language,
       business,
       sessionId: resolvedSessionId,
-      channelMode,
-      helpLinks,
       channel,
       hasKBMatch
     });
@@ -1489,9 +1470,7 @@ export async function handleIncomingMessage({
       metrics,
       assistant, // CHATTER minimal prompt için
       business,  // CHATTER minimal prompt için
-      entityResolution,
-      channelMode,
-      helpLinks
+      entityResolution
     });
 
     console.log(`🔧 Gated tools: ${gatedTools.length}`);
@@ -1527,8 +1506,7 @@ export async function handleIncomingMessage({
       sessionId: resolvedSessionId,
       messageId,
       metrics,
-      effectsEnabled, // DRY-RUN flag
-      channelMode
+      effectsEnabled // DRY-RUN flag
     });
 
     let {
@@ -1820,8 +1798,6 @@ export async function handleIncomingMessage({
       verifiedIdentity, // Identity mismatch kontrolü için
       intent: turnIntent, // Tool enforcement için — normalized from suggestedFlow chain
       collectedData, // Leak filter için - zaten bilinen veriler
-      channelMode,
-      helpLinks,
       lastNotFound: state.lastNotFound || null, // P0-FIX: NOT_FOUND context for leak filter bypass
       callbackPending: state.callbackFlow?.pending === true,
       activeFlow: state.activeFlow || null,

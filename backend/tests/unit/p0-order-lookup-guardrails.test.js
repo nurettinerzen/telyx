@@ -16,9 +16,7 @@ describe('P0 order lookup guardrail contracts', () => {
     verificationState: 'none',
     verifiedIdentity: null,
     intent: null,
-    collectedData: {},
-    channelMode: 'FULL',
-    helpLinks: {}
+    collectedData: {}
   };
 
   it('enforces single-field clarification when order intent is detected but no tool was called', async () => {
@@ -35,7 +33,7 @@ describe('P0 order lookup guardrail contracts', () => {
     expect(result.finalResponse.toLowerCase()).not.toContain('isim');
   });
 
-  it('returns context-aware clarification for NOT_FOUND with ambiguous 10-11 digit input', async () => {
+  it('keeps ambiguous NOT_FOUND responses in LLM-first passthrough mode', async () => {
     const result = await applyGuardrails({
       ...baseParams,
       hadToolSuccess: true,
@@ -52,9 +50,9 @@ describe('P0 order lookup guardrail contracts', () => {
       responseText: 'Bu bilgilerle eşleşen kayıt bulunamadı.'
     });
 
-    expect(result.action).toBe('NEED_MIN_INFO_FOR_TOOL');
-    expect(result.blockReason).toBe('TOOL_NOT_FOUND');
-    expect(result.finalResponse).toContain('telefon numarası mı yoksa sipariş numarası mı');
+    expect(result.action).toBe('PASS');
+    expect(result.blockReason).toBeUndefined();
+    expect(result.finalResponse).toBe('Bu bilgilerle eşleşen kayıt bulunamadı.');
   });
 
   it('asks debt identity fields when debt intent is detected but tool was not called', async () => {
@@ -73,7 +71,7 @@ describe('P0 order lookup guardrail contracts', () => {
     expect(result.finalResponse.toLowerCase()).not.toContain('sipariş');
   });
 
-  it('asks debt identity fields when customer_data_lookup returns NOT_FOUND on debt message', async () => {
+  it('keeps debt NOT_FOUND responses in LLM-first passthrough mode', async () => {
     const result = await applyGuardrails({
       ...baseParams,
       hadToolSuccess: true,
@@ -90,14 +88,12 @@ describe('P0 order lookup guardrail contracts', () => {
       responseText: 'Bu bilgilerle eşleşen kayıt bulunamadı.'
     });
 
-    expect(result.action).toBe('NEED_MIN_INFO_FOR_TOOL');
-    expect(result.blockReason).toBe('TOOL_NOT_FOUND');
-    expect(result.finalResponse).toContain('VKN');
-    expect(result.finalResponse).toContain('TC');
-    expect(result.finalResponse.toLowerCase()).toContain('telefon');
+    expect(result.action).toBe('PASS');
+    expect(result.blockReason).toBeUndefined();
+    expect(result.finalResponse).toBe('Bu bilgilerle eşleşen kayıt bulunamadı.');
   });
 
-  it('asks debt identity fields when user sends only TC number but intent is debt_inquiry', async () => {
+  it('keeps debt NOT_FOUND passthrough even when the user message is a TC number', async () => {
     const result = await applyGuardrails({
       ...baseParams,
       intent: 'debt_inquiry',
@@ -115,12 +111,8 @@ describe('P0 order lookup guardrail contracts', () => {
       responseText: 'Bu bilgilerle eşleşen kayıt bulunamadı.'
     });
 
-    expect(result.action).toBe('NEED_MIN_INFO_FOR_TOOL');
-    expect(result.blockReason).toBe('TOOL_NOT_FOUND');
-    expect(result.finalResponse).toContain('VKN');
-    expect(result.finalResponse).toContain('TC');
-    expect(result.finalResponse.toLowerCase()).toContain('telefon');
-    // Should NOT show order/phone ambiguity question
-    expect(result.finalResponse.toLowerCase()).not.toContain('sipariş');
+    expect(result.action).toBe('PASS');
+    expect(result.blockReason).toBeUndefined();
+    expect(result.finalResponse).toBe('Bu bilgilerle eşleşen kayıt bulunamadı.');
   });
 });

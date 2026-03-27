@@ -4,7 +4,6 @@ import {
   GuardrailAction
 } from '../../src/guardrails/securityGateway.js';
 import { applyGuardrails } from '../../src/core/orchestrator/steps/07_guardrails.js';
-import { getChannelMode } from '../../src/config/channelMode.js';
 import {
   createAnchor,
   checkVerification,
@@ -39,8 +38,6 @@ function buildGuardrailParams({
     verifiedIdentity,
     intent: 'order_status',
     collectedData: {},
-    channelMode: 'FULL',
-    helpLinks: {},
     callbackPending: false,
     activeFlow: 'ORDER_STATUS'
   };
@@ -259,21 +256,8 @@ addScenario('VS-checkVerification asks phone_last4 when no input', () => {
 });
 
 // ============================================================================
-// D) Channel mode + trace normalization scenarios (10)
+// D) Trace normalization scenarios (6)
 // ============================================================================
-const modeChannels = ['CHAT', 'WHATSAPP', 'EMAIL', 'PHONE'];
-modeChannels.forEach((channel, index) => {
-  addScenario(`CM-missing-config-${index + 1} defaults to FULL (${channel})`, () => {
-    assert.equal(getChannelMode({ channelConfig: null }, channel), 'FULL');
-  });
-});
-
-modeChannels.forEach((channel, index) => {
-  addScenario(`CM-explicit-full-${index + 1} respects FULL (${channel})`, () => {
-    assert.equal(getChannelMode({ channelConfig: { [channel.toLowerCase()]: 'FULL' } }, channel), 'FULL');
-  });
-});
-
 [
   ['pending', 'requested'],
   ['verified', 'passed'],

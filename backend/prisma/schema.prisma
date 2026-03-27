@@ -134,8 +134,8 @@ model Business {
   emailRagMaxSnippets      Int                     @default(2)
   emailRagMinConfidence    Float                   @default(0.7) // Min classification confidence for RAG (0.0-1.0)
   crmVersion               Int                     @default(0) // Cache invalidation for CRM data changes (P0.3b)
-  // KB_ONLY Channel Mode config
-  channelConfig            Json?                   // {"chat":"KB_ONLY","whatsapp":"KB_ONLY","email":"FULL","phone":"FULL"}
+  // Legacy per-channel behavior config. Runtime no longer uses channel-specific assistant modes.
+  channelConfig            Json?
   helpLinks                Json?                   // {"order_status_url":"...","returns_url":"...","account_url":"...","contact_url":"...","support_email":"..."}
   aiTrainings              AiTraining[]
   appointments             Appointment[]

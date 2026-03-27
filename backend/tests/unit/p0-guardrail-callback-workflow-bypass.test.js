@@ -17,9 +17,7 @@ describe('P0 guardrails callback workflow bypass', () => {
     intent: 'callback_request',
     collectedData: {},
     callbackPending: true,
-    activeFlow: 'CALLBACK_REQUEST',
-    channelMode: 'FULL',
-    helpLinks: {}
+    activeFlow: 'CALLBACK_REQUEST'
   };
 
   it('does not block callback data-collection prompt when no tool has been called yet', async () => {

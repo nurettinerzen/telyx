@@ -1,7 +1,7 @@
 import { applyGuardrails } from '../../src/core/orchestrator/steps/07_guardrails.js';
 
 describe('INTERNAL_PROTOCOL_LEAK correction flow', () => {
-  it('returns deterministic sanitize action without hard block', async () => {
+  it('returns deterministic correction block for internal protocol leaks', async () => {
     const result = await applyGuardrails({
       responseText: 'Ben bir yapay zeka asistanıyım, bu bilgiye erişemiyorum.',
       hadToolSuccess: false,
@@ -16,17 +16,14 @@ describe('INTERNAL_PROTOCOL_LEAK correction flow', () => {
       verificationState: 'none',
       verifiedIdentity: null,
       intent: null,
-      collectedData: {},
-      channelMode: 'NORMAL',
-      helpLinks: {}
+      collectedData: {}
     });
 
-    expect(result.action).toBe('SANITIZE');
-    expect(result.blocked).not.toBe(true);
-    expect(result.blockReason).toBeUndefined();
+    expect(result.action).toBe('BLOCK');
+    expect(result.blocked).toBe(true);
+    expect(result.blockReason).toBe('INTERNAL_PROTOCOL_LEAK');
+    expect(result.needsCorrection).toBe(true);
     expect(typeof result.finalResponse).toBe('string');
     expect(result.finalResponse.length).toBeGreaterThan(0);
-    expect(result.finalResponse.toLowerCase()).not.toContain('yapay zeka');
-    expect(result.finalResponse.toLowerCase()).not.toContain('erişim');
   });
 });

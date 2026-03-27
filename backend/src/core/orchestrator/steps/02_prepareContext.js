@@ -22,7 +22,6 @@ export async function prepareContext(params) {
     prisma,
     sessionId,
     userMessage,
-    channelMode,
     businessIdentity,
     entityResolution
   } = params;
@@ -41,7 +40,6 @@ export async function prepareContext(params) {
   const knowledgeContext = kbResult.context || '';
   const kbConfidence = kbResult.kbConfidence || 'LOW';
 
-  // KB match flag: In KB_ONLY mode, router uses this to decide redirect vs LLM answer.
   // LOW confidence means entity is likely not represented in KB.
   const hasKBMatch = kbConfidence !== 'LOW' && !!(knowledgeContext && knowledgeContext.trim().length > 50);
 
@@ -81,13 +79,7 @@ Rules:
   const conversationHistory = chatLog?.messages || [];
 
   // Get tools filtered by business type and integrations
-  let toolsAll = getActiveTools(business);
-
-  // KB_ONLY: Strip all tools — LLM should only use KB
-  if (channelMode === 'KB_ONLY') {
-    toolsAll = [];
-    console.log('🔒 [PrepareContext] KB_ONLY mode — all tools stripped');
-  }
+  const toolsAll = getActiveTools(business);
 
   return {
     systemPrompt: fullSystemPrompt,

@@ -506,64 +506,6 @@ const MESSAGE_CATALOG = {
   EMAIL_NOT_FOUND_GENERIC: {
     TR: ['Kayıtlarımızda bu bilgiye ulaşamadım. Lütfen {fields} bilgisini kontrol edip tekrar paylaşır mısınız?'],
     EN: ['I could not find this information in our records. Could you please verify your {fields}?']
-  },
-
-  // ─── KB_ONLY Channel Mode Redirect Templates ───
-  // Used when channel is in KB_ONLY mode and user asks account-specific questions.
-  // Variables: {link} = help URL or fallback guidance, {contact} = support email or empty
-  KB_ONLY_ORDER_REDIRECT: {
-    TR: [
-      'Bu kanaldan kişisel sipariş bilgilerine erişemiyorum.{link}{contact}',
-      'Sipariş detaylarınızı bu kanaldan görüntüleyemiyorum.{link}{contact}',
-      'Kişisel sipariş bilgilerine buradan ulaşamıyorum.{link}{contact}'
-    ],
-    EN: [
-      "I can't access personal order information through this channel.{link}{contact}",
-      "I'm unable to view your order details here.{link}{contact}"
-    ]
-  },
-  KB_ONLY_PAYMENT_REDIRECT: {
-    TR: [
-      'Ödeme ve fatura bilgilerinize bu kanaldan erişemiyorum.{link}{contact}',
-      'Kişisel ödeme detaylarınızı buradan görüntüleyemiyorum.{link}{contact}',
-      'Ödeme bilgilerinize bu kanal üzerinden ulaşamıyorum.{link}{contact}'
-    ],
-    EN: [
-      "I can't access your payment or billing information through this channel.{link}{contact}",
-      "I'm unable to view your payment details here.{link}{contact}"
-    ]
-  },
-  KB_ONLY_RETURN_REDIRECT: {
-    TR: [
-      'Kişisel iade ve iptal işlemlerinize bu kanaldan erişemiyorum.{link}{contact}',
-      'İade ve iptal detaylarınızı buradan görüntüleyemiyorum.{link}{contact}',
-      'Kişisel iade bilgilerinize bu kanal üzerinden ulaşamıyorum.{link}{contact}'
-    ],
-    EN: [
-      "I can't access your return or cancellation details through this channel.{link}{contact}",
-      "I'm unable to process returns or cancellations here.{link}{contact}"
-    ]
-  },
-  KB_ONLY_ACCOUNT_REDIRECT: {
-    TR: [
-      'Hesap bilgilerinize bu kanaldan erişemiyorum.{link}{contact}',
-      'Kişisel hesap işlemlerinizi buradan gerçekleştiremiyorum.{link}{contact}',
-      'Hesap detaylarınıza bu kanal üzerinden ulaşamıyorum.{link}{contact}'
-    ],
-    EN: [
-      "I can't access your account information through this channel.{link}{contact}",
-      "I'm unable to manage account details here.{link}{contact}"
-    ]
-  },
-  KB_ONLY_GENERAL_REDIRECT: {
-    TR: [
-      'Bu bilgiye bu kanaldan erişemiyorum.{link}{contact}',
-      'Kişisel bilgilerinize buradan ulaşamıyorum.{link}{contact}'
-    ],
-    EN: [
-      "I can't access this information through this channel.{link}{contact}",
-      "I'm unable to retrieve personal information here.{link}{contact}"
-    ]
   }
 };
 

@@ -330,33 +330,6 @@ export async function executeToolLoop(params) {
   } = params;
   let llmCalled = false;
 
-  // ========================================
-  // KB_ONLY: Hard tool kill-switch — zero tool execution risk
-  // LLM responds with text only, no tool calls possible
-  // ========================================
-  if (params.channelMode === 'KB_ONLY') {
-    console.log('🔒 [ToolLoop] KB_ONLY mode — tool loop bypassed, text-only LLM call');
-    const result = await sendMessageWithRetry(chat, userMessage, { label: 'kb_only.initial' });
-    llmCalled = true;
-    const responseText = result.response?.text() || '';
-    return {
-      reply: responseText,
-      inputTokens: result.response?.usageMetadata?.promptTokenCount || 0,
-      outputTokens: result.response?.usageMetadata?.candidatesTokenCount || 0,
-      hadToolSuccess: false,
-      hadToolFailure: false,
-      failedTool: null,
-      toolsCalled: [],
-      toolResults: [],
-      iterations: 0,
-      chat,
-      _responseOrigin: RESPONSE_ORIGIN.LLM,
-      _originId: 'toolLoop.kbOnly.llm',
-      _llmCalled: llmCalled,
-      _llmStatus: 'success'
-    };
-  }
-
   // Check lock state once more before tool execution (defensive).
   const lockStatus = await isSessionLocked(sessionId);
   if (lockStatus.locked && lockStatus.reason === 'ENUMERATION') {

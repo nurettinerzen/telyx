@@ -48,10 +48,8 @@ function makeBaseParams(overrides = {}) {
     language: 'TR',
     business: { id: 1, name: 'Smoke Biz', helpLinks: {}, integrations: [] },
     sessionId: 'smoke-session',
-    channelMode: 'FULL',
     channel: 'CHAT',
     hasKBMatch: true,
-    helpLinks: {},
     ...overrides
   };
 }
@@ -81,8 +79,6 @@ function makeGuardrailParams({
     verifiedIdentity,
     intent: 'order_status',
     collectedData: {},
-    channelMode: 'FULL',
-    helpLinks: {},
     callbackPending: false,
     activeFlow: 'ORDER_STATUS'
   };
