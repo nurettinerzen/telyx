@@ -546,12 +546,44 @@
   },
   "solutions": {
     "hero": {
-      "title": "Sektörel Çözümler",
-      "subtitle": "Sektörünüze özel tasarlanmış AI çözümleri"
+      "title": "Sektörünüze Özel AI Çözümleri",
+      "subtitle": "Her sektörün kendine özgü ihtiyaçları var. Telyx, sektörünüze özel eğitilmiş AI asistanlarla müşteri deneyiminizi dönüştürür.",
+      "badge": "Sektörel Çözümler",
+      "explore": "Çözümleri Keşfet"
     },
     "learnMore": "Detaylı Bilgi",
     "startFree": "Ücretsiz Başla",
     "contactSales": "Satış ile Görüşün",
+    "whyTelyx": {
+      "title": "Neden Telyx?",
+      "subtitle": "Her sektörde fark yaratan özellikler",
+      "benefit1": {
+        "title": "5 Dakikada Kurulum",
+        "desc": "Kod yazmadan, sektörünüze özel hazır şablonlarla hemen başlayın."
+      },
+      "benefit2": {
+        "title": "Çok Kanallı İletişim",
+        "desc": "WhatsApp, web chat, e-posta ve sesli arama — tek panelden yönetin."
+      },
+      "benefit3": {
+        "title": "Akıllı Entegrasyonlar",
+        "desc": "ikas, Shopify, Google Calendar ve daha fazlasıyla sorunsuz entegrasyon."
+      },
+      "benefit4": {
+        "title": "KVKK Uyumlu",
+        "desc": "Verileriniz Türkiye'de, KVKK ve GDPR standartlarına tam uyumlu."
+      }
+    },
+    "stats": {
+      "conversations": "Aylık Konuşma",
+      "resolution": "Otomatik Çözüm",
+      "response": "Ort. Yanıt Süresi",
+      "satisfaction": "Müşteri Memnuniyeti",
+      "conversationsValue": "500K+",
+      "resolutionValue": "%85",
+      "responseValue": "<3sn",
+      "satisfactionValue": "%96"
+    },
     "ecommerce": {
       "title": "E-ticaret için AI",
       "desc": "Sipariş takibi, stok bilgisi ve iade işlemleri için 7/24 otomatik destek",
@@ -560,7 +592,14 @@
       "feature3": "İade/değişim süreci",
       "hero": {
         "title": "E-ticaret için AI Asistan",
-        "subtitle": "Müşterilerinize 7/24 sipariş takibi, stok bilgisi ve iade desteği sunun"
+        "subtitle": "Müşterilerinize 7/24 sipariş takibi, stok bilgisi ve iade desteği sunun. Destek maliyetlerinizi %60'a kadar düşürün.",
+        "badge": "E-ticaret Çözümü"
+      },
+      "stats": {
+        "stat1": { "value": "%60", "label": "Maliyet Tasarrufu" },
+        "stat2": { "value": "7/24", "label": "Kesintisiz Destek" },
+        "stat3": { "value": "<3sn", "label": "Yanıt Süresi" },
+        "stat4": { "value": "%85", "label": "Otomatik Çözüm" }
       },
       "useCases": {
         "title": "Kullanım Senaryoları"
@@ -581,13 +620,27 @@
         "title": "Ürün Bilgisi",
         "desc": "Stok durumu ve ürün detayları hakkında bilgi"
       },
+      "howItWorks": {
+        "title": "Nasıl Çalışır?",
+        "subtitle": "3 adımda e-ticaret müşteri desteğinizi otomatikleştirin",
+        "step1": { "title": "Müşteri Sorusu", "desc": "Müşteri sipariş, kargo veya iade hakkında soru sorar — WhatsApp, web chat veya e-posta fark etmez." },
+        "step2": { "title": "AI Analiz & Aksiyon", "desc": "Telyx soruyu anlar, e-ticaret platformunuzdan gerçek veriyi çeker ve doğru yanıtı oluşturur." },
+        "step3": { "title": "Anında Çözüm", "desc": "Müşteri saniyeler içinde doğru yanıtı alır. Gerekirse canlı destek ekibinize sorunsuz aktarım yapılır." }
+      },
       "integrations": {
         "title": "E-ticaret Entegrasyonları",
         "subtitle": "Popüler e-ticaret platformları ile sorunsuz entegrasyon"
       },
+      "highlights": {
+        "title": "E-ticaret İçin Öne Çıkanlar",
+        "subtitle": "Rakiplerinizden bir adım önde olmanızı sağlayan özellikler",
+        "item1": { "title": "Akıllı Ürün Önerisi", "desc": "Müşteri geçmişine ve tercihlerine göre kişiselleştirilmiş ürün tavsiyeleri." },
+        "item2": { "title": "Otomatik Stok Uyarısı", "desc": "Ürün stoğa geldiğinde ilgili müşterilere otomatik bildirim gönderimi." },
+        "item3": { "title": "Çoklu Dil Desteği", "desc": "Uluslararası müşterilerinize kendi dillerinde destek sunun." }
+      },
       "cta": {
         "title": "E-ticaret Müşterilerinize 7/24 Destek Sunun",
-        "subtitle": "ikas, Shopify ve diğer platformlarla entegre AI asistan"
+        "subtitle": "ikas, Shopify ve diğer platformlarla entegre AI asistan ile müşteri memnuniyetinizi artırın."
       },
       "exampleFlow": {
         "step1": "Sipariş durumu sorusu -> ERP/Shopify/ikas üzerinden sorgula -> güncel durumu yanıtla.",
@@ -603,7 +656,14 @@
       "feature3": "Çalışma saatleri bildirimi",
       "hero": {
         "title": "Restoranlar için AI Asistan",
-        "subtitle": "Rezervasyonlarınızı otomatikleştirin, müşterilerinizi memnun edin"
+        "subtitle": "Rezervasyonlarınızı otomatikleştirin, menü sorularını anında yanıtlayın. Telefon trafiğinizi %70'e kadar azaltın.",
+        "badge": "Restoran Çözümü"
+      },
+      "stats": {
+        "stat1": { "value": "%70", "label": "Daha Az Telefon" },
+        "stat2": { "value": "7/24", "label": "Rezervasyon" },
+        "stat3": { "value": "%40", "label": "Daha Fazla Doluluk" },
+        "stat4": { "value": "<5sn", "label": "Yanıt Süresi" }
       },
       "useCases": {
         "title": "Kullanım Senaryoları"
@@ -624,9 +684,23 @@
         "title": "Geri Bildirim",
         "desc": "Müşteri yorumları ve şikayetleri toplama"
       },
+      "howItWorks": {
+        "title": "Nasıl Çalışır?",
+        "subtitle": "3 adımda restoran iletişiminizi otomatikleştirin",
+        "step1": { "title": "Müşteri Talebi", "desc": "Müşteri rezervasyon yapmak, menüyü öğrenmek veya çalışma saatlerini sormak ister." },
+        "step2": { "title": "Akıllı Yönlendirme", "desc": "Telyx takvim entegrasyonuyla uygunluğu kontrol eder, menü bilgisini sunar ve doğru cevabı hazırlar." },
+        "step3": { "title": "Hızlı Sonuç", "desc": "Rezervasyon onaylanır, menü bilgisi paylaşılır veya özel istekler kayıt altına alınır." }
+      },
+      "highlights": {
+        "title": "Restoran İçin Öne Çıkanlar",
+        "subtitle": "Misafirlerinize unutulmaz bir deneyim sunmanızı sağlayan özellikler",
+        "item1": { "title": "Google Calendar Entegrasyonu", "desc": "Takvim entegrasyonu ile masa doluluk durumunu gerçek zamanlı kontrol edin." },
+        "item2": { "title": "Alerjen Bilgilendirme", "desc": "Menüdeki alerjen bilgilerini müşteriye otomatik olarak sunun." },
+        "item3": { "title": "No-Show Koruması", "desc": "Otomatik hatırlatma mesajlarıyla no-show oranınızı düşürün." }
+      },
       "cta": {
         "title": "Restoran Rezervasyonlarınızı Otomatikleştirin",
-        "subtitle": "Google Calendar entegrasyonu ile sorunsuz rezervasyon yönetimi"
+        "subtitle": "Google Calendar entegrasyonu ile sorunsuz rezervasyon yönetimi. Personel yükünüzü hafifletin."
       },
       "exampleFlow": {
         "step1": "Rezervasyon talebi -> takvim uygunluğunu kontrol et -> uygun saatleri sun.",
@@ -642,7 +716,14 @@
       "feature3": "Hatırlatma mesajları",
       "hero": {
         "title": "Kuaför ve Salonlar için AI Asistan",
-        "subtitle": "Randevularınızı otomatikleştirin, müşterilerinize daha iyi hizmet verin"
+        "subtitle": "Randevularınızı otomatikleştirin, no-show oranınızı düşürün. Personeliniz hizmet vermeye odaklansın.",
+        "badge": "Salon & Güzellik Çözümü"
+      },
+      "stats": {
+        "stat1": { "value": "%50", "label": "Daha Az No-Show" },
+        "stat2": { "value": "7/24", "label": "Randevu Alma" },
+        "stat3": { "value": "%35", "label": "Daha Fazla Randevu" },
+        "stat4": { "value": "<3sn", "label": "Yanıt Süresi" }
       },
       "useCases": {
         "title": "Kullanım Senaryoları"
@@ -663,9 +744,23 @@
         "title": "Hizmet Bilgisi",
         "desc": "Hizmetler, süreler ve fiyatlar hakkında bilgi"
       },
+      "howItWorks": {
+        "title": "Nasıl Çalışır?",
+        "subtitle": "3 adımda salon randevularınızı otomatikleştirin",
+        "step1": { "title": "Randevu Talebi", "desc": "Müşteri WhatsApp, web chat veya telefondan randevu almak ister." },
+        "step2": { "title": "Akıllı Eşleştirme", "desc": "Telyx uygun personeli, hizmet süresini ve müsait saatleri otomatik eşleştirir." },
+        "step3": { "title": "Onay & Hatırlatma", "desc": "Randevu onayı gönderilir, yaklaşan randevular için otomatik hatırlatma yapılır." }
+      },
+      "highlights": {
+        "title": "Salon İçin Öne Çıkanlar",
+        "subtitle": "Müşterilerinize profesyonel bir deneyim sunmanızı sağlayan özellikler",
+        "item1": { "title": "Personel Bazlı Takvim", "desc": "Her personelin ayrı müsaitlik takvimi ile çakışma olmadan randevu planlayın." },
+        "item2": { "title": "Otomatik Hatırlatma", "desc": "Randevudan 24 saat ve 1 saat önce otomatik WhatsApp hatırlatması gönderin." },
+        "item3": { "title": "Hizmet Kataloğu", "desc": "Tüm hizmetlerinizi, sürelerini ve fiyatlarını müşterilere anında sunun." }
+      },
       "cta": {
         "title": "Salon Randevularınızı Kolaylaştırın",
-        "subtitle": "Takvim entegrasyonu ile otomatik randevu yönetimi"
+        "subtitle": "Takvim entegrasyonu ile otomatik randevu yönetimi. No-show oranınızı yarıya indirin."
       },
       "exampleFlow": {
         "step1": "Randevu talebi -> personel + süre eşleştirmesi yap -> en uygun saati öner.",
@@ -681,7 +776,14 @@
       "feature3": "Temsilciye aktarım",
       "hero": {
         "title": "Müşteri Desteği için AI Asistan",
-        "subtitle": "Müşteri sorularını 7/24 otomatik yanıtlayın"
+        "subtitle": "Müşteri sorularını 7/24 otomatik yanıtlayın, destek ekibinizin yükünü %80'e kadar azaltın.",
+        "badge": "Müşteri Destek Çözümü"
+      },
+      "stats": {
+        "stat1": { "value": "%80", "label": "Otomatik Çözüm" },
+        "stat2": { "value": "7/24", "label": "Kesintisiz Destek" },
+        "stat3": { "value": "%96", "label": "Memnuniyet" },
+        "stat4": { "value": "<3sn", "label": "İlk Yanıt" }
       },
       "useCases": {
         "title": "Kullanım Senaryoları"
@@ -702,15 +804,37 @@
         "title": "Performans Takibi",
         "desc": "Çözülen sorunlar ve müşteri memnuniyeti"
       },
+      "howItWorks": {
+        "title": "Nasıl Çalışır?",
+        "subtitle": "3 adımda müşteri desteğinizi dönüştürün",
+        "step1": { "title": "Sorun Tespiti", "desc": "Müşteri herhangi bir kanaldan destek talebi gönderir. AI niyeti ve önceliği otomatik belirler." },
+        "step2": { "title": "Akıllı Yanıt", "desc": "Bilgi tabanınızdan dayanaklı yanıt üretilir. Karmaşık sorular için ticket otomatik oluşturulur." },
+        "step3": { "title": "Çözüm veya Aktarım", "desc": "Basit sorular anında çözülür, kompleks konular özetle birlikte canlı temsilciye aktarılır." }
+      },
+      "highlights": {
+        "title": "Destek İçin Öne Çıkanlar",
+        "subtitle": "Müşteri memnuniyetini artıran gelişmiş özellikler",
+        "item1": { "title": "Bilgi Tabanı Entegrasyonu", "desc": "Mevcut dökümanlarınızı yükleyin, AI'ın dayanaklı yanıt üretmesini sağlayın." },
+        "item2": { "title": "Akıllı Eskalasyon", "desc": "AI çözemediği soruları bağlam özetiyle birlikte doğru temsilciye aktarır." },
+        "item3": { "title": "Performans Paneli", "desc": "Çözüm oranları, müşteri memnuniyeti ve temsilci performansını tek panelden izleyin." }
+      },
       "cta": {
         "title": "Müşteri Desteğinizi Güçlendirin",
-        "subtitle": "AI ile müşteri memnuniyetini artırın"
+        "subtitle": "AI ile müşteri memnuniyetini artırın, destek maliyetlerinizi düşürün."
       },
       "exampleFlow": {
         "step1": "Gelen sorun -> niyet ve öncelik tespiti yap.",
         "step2": "Bilgi tabanı araması -> dayanaklı yanıtla çözüm sun.",
         "step3": "Çözülemezse -> ticket oluştur ve konuşma özetiyle temsilciye devret."
       }
+    },
+    "channels": {
+      "title": "Tüm Kanallardan Erişim",
+      "subtitle": "Müşterileriniz tercih ettikleri kanaldan size ulaşsın",
+      "whatsapp": "WhatsApp Business",
+      "webchat": "Web Chat Widget",
+      "email": "E-posta",
+      "voice": "Sesli Arama"
     },
     "cta": {
       "title": "Sektörünüzü Göremediniz mi?",

@@ -12,17 +12,23 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { getChatWidgetFeedbackCopy } from '@/lib/chatWidgetFeedbackCopy';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const FEEDBACK_MIN_ASSISTANT_TURNS = 2;
-const NEGATIVE_FEEDBACK_REASONS = [
-  { code: 'WRONG_ANSWER', label: 'Yanlis cevap verdi' },
-  { code: 'NOT_HELPFUL', label: 'Yeterince yardimci olmadi' },
-  { code: 'TOO_BLOCKY', label: 'Gereksiz blokladi' },
-  { code: 'TOOL_SHOULD_HAVE_BEEN_USED', label: 'Tool cagirmasi gerekiyordu' },
-  { code: 'TOO_GENERIC', label: 'Cok genel kaldi' },
-  { code: 'OTHER', label: 'Diger' }
-];
+const LIGHTWEIGHT_CHATTER_PATTERN = /^(selam|merhaba|nasılsın|iyi misin|teşekkürler|teşekkür ederim|sağ ol|sağ olun|günaydın|iyi akşamlar|görüşürüz|bye|hi|hello|hey|how are you|thanks|thank you|good morning|good evening)[!.?, ]*$/i;
+
+function isMeaningfulUserMessage(message = '') {
+  const normalized = String(message || '').trim();
+  if (!normalized) return false;
+  if (LIGHTWEIGHT_CHATTER_PATTERN.test(normalized)) return false;
+
+  const hasDigits = /\d/.test(normalized);
+  const hasQuestion = /[?？]/.test(normalized);
+  const wordCount = normalized.split(/\s+/).filter(Boolean).length;
+
+  return hasDigits || hasQuestion || wordCount >= 2 || normalized.length >= 12;
+}
 
 export default function ChatWidget({
   embedKey,           // NEW: Business-specific embed key (preferred)
@@ -47,7 +53,8 @@ export default function ChatWidget({
   const [feedbackComment, setFeedbackComment] = useState('');
   const [feedbackSending, setFeedbackSending] = useState(false);
   const [feedbackSubmittedByTrace, setFeedbackSubmittedByTrace] = useState({});
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
+  const feedbackCopy = getChatWidgetFeedbackCopy(locale);
 
   // Check widget status on mount
   // In preview mode (dashboard), skip the public status check — always show widget
@@ -310,7 +317,8 @@ useEffect(() => {
   };
 
   const tracedAssistantMessages = messages.filter((msg) => msg.role === 'assistant' && msg.traceId);
-  const feedbackEligible = tracedAssistantMessages.length >= FEEDBACK_MIN_ASSISTANT_TURNS;
+  const meaningfulUserMessages = messages.filter((msg) => msg.role === 'user' && isMeaningfulUserMessage(msg.content));
+  const feedbackEligible = tracedAssistantMessages.length >= FEEDBACK_MIN_ASSISTANT_TURNS && meaningfulUserMessages.length >= 1;
   const latestAssistantMessage = [...messages]
     .reverse()
     .find((msg) => msg.role === 'assistant' && msg.traceId);
@@ -376,7 +384,7 @@ useEffect(() => {
       {isOpen && (
         <div
           className="mb-4 w-80 bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-neutral-700 overflow-hidden flex flex-col"
-          style={{ height: '480px' }}
+          style={{ height: '620px' }}
         >
           {/* Header */}
           <div 
@@ -447,16 +455,11 @@ useEffect(() => {
           {/* Input Area */}
           <div className="p-3 border-t border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shrink-0">
             {feedbackEligible && activeFeedbackTraceId && !feedbackAlreadySubmitted && (
-              <div className="mb-3 rounded-2xl border border-gray-200 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-950 p-3">
+              <div className="mb-3 rounded-2xl border border-gray-200 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-950 px-3 py-2">
                 <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-medium text-gray-800 dark:text-gray-100">
-                      Bu sohbet yardimci oluyor mu?
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      2 assistant cevabindan sonra degerlendirme acilir. Puan son assistant cevabina yazilir.
-                    </p>
-                  </div>
+                  <p className="text-sm font-medium text-gray-800 dark:text-gray-100">
+                    {feedbackCopy.triggerLabel}
+                  </p>
                   <div className="flex items-center gap-2">
                     <Button
                       type="button"
@@ -465,6 +468,7 @@ useEffect(() => {
                       className="rounded-full"
                       onClick={() => submitFeedback('positive', { reason: 'HELPFUL' })}
                       disabled={feedbackSending}
+                      aria-label={feedbackCopy.positiveAriaLabel}
                     >
                       <ThumbsUp className="h-4 w-4" />
                     </Button>
@@ -475,6 +479,7 @@ useEffect(() => {
                       className="rounded-full"
                       onClick={() => setFeedbackChoice(feedbackChoice === 'negative' ? null : 'negative')}
                       disabled={feedbackSending}
+                      aria-label={feedbackCopy.negativeAriaLabel}
                     >
                       <ThumbsDown className="h-4 w-4" />
                     </Button>
@@ -482,9 +487,9 @@ useEffect(() => {
                 </div>
 
                 {feedbackChoice === 'negative' && (
-                  <div className="mt-3 space-y-2">
+                  <div className="mt-3 max-h-56 space-y-2 overflow-y-auto overscroll-contain pr-1">
                     <div className="flex flex-wrap gap-2">
-                      {NEGATIVE_FEEDBACK_REASONS.map((reason) => (
+                      {feedbackCopy.reasons.map((reason) => (
                         <Button
                           key={reason.code}
                           type="button"
@@ -500,7 +505,7 @@ useEffect(() => {
                     <Textarea
                       value={feedbackComment}
                       onChange={(e) => setFeedbackComment(e.target.value)}
-                      placeholder="Istersen kisa bir not ekle..."
+                      placeholder={feedbackCopy.commentPlaceholder}
                       className="min-h-[80px] text-sm"
                       disabled={feedbackSending}
                     />
@@ -511,7 +516,7 @@ useEffect(() => {
                         onClick={() => submitFeedback('negative', { reason: feedbackReason, comment: feedbackComment })}
                         disabled={feedbackSending || (!feedbackReason && !feedbackComment.trim())}
                       >
-                        {feedbackSending ? 'Gonderiliyor...' : 'Geri Bildirim Gonder'}
+                        {feedbackSending ? feedbackCopy.typingLabel : feedbackCopy.submitLabel}
                       </Button>
                     </div>
                   </div>
@@ -521,7 +526,7 @@ useEffect(() => {
 
             {feedbackAlreadySubmitted && activeFeedbackTraceId && (
               <div className="mb-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-300">
-                Geri bildirimin icin tesekkurler.
+                {feedbackCopy.thankYouLabel}
               </div>
             )}
 

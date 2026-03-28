@@ -27,11 +27,13 @@ import ChatWidget from '@/components/ChatWidget';
 import { useChatWidgetSettings, useChatStats, useUpdateChatWidget } from '@/hooks/useChatWidget';
 import { useAssistants } from '@/hooks/useAssistants';
 import { useSubscription } from '@/hooks/useSubscription';
+import { getChatWidgetFeedbackCopy } from '@/lib/chatWidgetFeedbackCopy';
 
 
 export default function ChatWidgetPage() {
   const { t, locale } = useLanguage();
   const pageHelp = getPageHelp('chatWidget', locale);
+  const feedbackCopy = getChatWidgetFeedbackCopy(locale);
 
   // React Query hooks
   const { data: widgetSettings, isLoading: widgetLoading } = useChatWidgetSettings();
@@ -172,6 +174,7 @@ export default function ChatWidgetPage() {
   const actualPlaceholder = placeholderText || t('dashboard.chatWidgetPage.defaultPlaceholder');
   // Free users can't disable branding
   const actualShowBranding = isPro ? showBranding : true;
+  const feedbackI18n = JSON.stringify(feedbackCopy);
 
   return `<!-- Telyx.ai Chat Widget -->
 <script>
@@ -184,7 +187,8 @@ export default function ChatWidgetPage() {
     buttonText: '${actualButtonText}',
     welcomeMessage: '${actualWelcomeMessage}',
     placeholderText: '${actualPlaceholder}',
-    showBranding: ${actualShowBranding}
+    showBranding: ${actualShowBranding},
+    i18n: ${feedbackI18n}
   };
 
   // Styles
@@ -203,7 +207,7 @@ export default function ChatWidgetPage() {
     #telyx-widget-btn svg { width: 28px; height: 28px; fill: white; }
     #telyx-chat-window {
       position: fixed; \${CONFIG.position}
-      width: 380px; height: 520px;
+      width: 380px; height: 620px;
       background: white; border-radius: 16px;
       box-shadow: 0 10px 40px rgba(0,0,0,0.2);
       z-index: 99999; display: none; flex-direction: column;
@@ -240,25 +244,12 @@ export default function ChatWidgetPage() {
     #telyx-feedback {
       display: none;
       flex-direction: column;
-      align-items: stretch;
       gap: 8px;
       padding: 10px 12px;
       border-top: 1px solid #e2e8f0;
       background: #f8fafc;
       font-size: 12px;
       color: #334155;
-    }
-    #telyx-feedback-copy {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-    #telyx-feedback-title {
-      font-weight: 600;
-    }
-    #telyx-feedback-hint {
-      color: #64748b;
-      font-size: 11px;
     }
     #telyx-feedback-actions {
       display: flex;
@@ -268,6 +259,10 @@ export default function ChatWidgetPage() {
       display: none;
       flex-wrap: wrap;
       gap: 6px;
+      max-height: 220px;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding-right: 4px;
     }
     .telyx-feedback-btn {
       border: 1px solid #cbd5e1;
@@ -329,47 +324,34 @@ export default function ChatWidgetPage() {
   inputArea.id = 'telyx-chat-input-area';
   var feedbackBar = document.createElement('div');
   feedbackBar.id = 'telyx-feedback';
-  var feedbackCopy = document.createElement('div');
-  feedbackCopy.id = 'telyx-feedback-copy';
   var feedbackTitle = document.createElement('span');
-  feedbackTitle.id = 'telyx-feedback-title';
-  feedbackTitle.textContent = 'Bu sohbet yardimci oluyor mu?';
-  var feedbackHint = document.createElement('span');
-  feedbackHint.id = 'telyx-feedback-hint';
-  feedbackHint.textContent = '2 assistant cevabindan sonra degerlendirme acilir.';
-  feedbackCopy.appendChild(feedbackTitle);
-  feedbackCopy.appendChild(feedbackHint);
+  feedbackTitle.textContent = CONFIG.i18n.triggerLabel;
   var feedbackActions = document.createElement('div');
   feedbackActions.id = 'telyx-feedback-actions';
   var feedbackYes = document.createElement('button');
   feedbackYes.className = 'telyx-feedback-btn';
   feedbackYes.textContent = '👍';
+  feedbackYes.setAttribute('aria-label', CONFIG.i18n.positiveAriaLabel);
   var feedbackNo = document.createElement('button');
   feedbackNo.className = 'telyx-feedback-btn';
   feedbackNo.textContent = '👎';
+  feedbackNo.setAttribute('aria-label', CONFIG.i18n.negativeAriaLabel);
   var feedbackReasons = document.createElement('div');
   feedbackReasons.id = 'telyx-feedback-reasons';
-  var negativeReasons = [
-    { code: 'WRONG_ANSWER', label: 'Yanlis cevap' },
-    { code: 'NOT_HELPFUL', label: 'Yetersizdi' },
-    { code: 'TOO_BLOCKY', label: 'Gereksiz blok' },
-    { code: 'TOOL_SHOULD_HAVE_BEEN_USED', label: 'Tool cagirmadi' },
-    { code: 'TOO_GENERIC', label: 'Cok genel' },
-    { code: 'OTHER', label: 'Diger' }
-  ];
+  var negativeReasons = CONFIG.i18n.reasons || [];
   negativeReasons.forEach(function(item) {
     var reasonBtn = document.createElement('button');
     reasonBtn.className = 'telyx-feedback-btn';
     reasonBtn.textContent = item.label;
     reasonBtn.onclick = function() {
-      var note = window.prompt('Istersen kisa bir not birak:', '');
+      var note = window.prompt(CONFIG.i18n.commentPlaceholder, '');
       submitFeedback('negative', item.code, note || null);
     };
     feedbackReasons.appendChild(reasonBtn);
   });
   feedbackActions.appendChild(feedbackYes);
   feedbackActions.appendChild(feedbackNo);
-  feedbackBar.appendChild(feedbackCopy);
+  feedbackBar.appendChild(feedbackTitle);
   feedbackBar.appendChild(feedbackActions);
   feedbackBar.appendChild(feedbackReasons);
   var input = document.createElement('input');
@@ -423,6 +405,7 @@ export default function ChatWidgetPage() {
   var sessionStorageKey = 'telyxChatSessionId_' + CONFIG.embedKey;
   var sessionTsKey = 'telyxChatSessionTs_' + CONFIG.embedKey;
   var SESSION_TTL_MS = 30 * 60 * 1000; // 30 minutes
+  var LIGHTWEIGHT_CHATTER_PATTERN = /^(selam|merhaba|nasılsın|iyi misin|teşekkürler|teşekkür ederim|sağ ol|sağ olun|günaydın|iyi akşamlar|görüşürüz|bye|hi|hello|hey|how are you|thanks|thank you|good morning|good evening)[!.?, ]*$/i;
   var sessionId = (function() {
     try {
       var stored = localStorage.getItem(sessionStorageKey);
@@ -463,14 +446,25 @@ export default function ChatWidgetPage() {
     return div;
   }
 
+  function isMeaningfulUserMessage(message) {
+    var normalized = String(message || '').trim();
+    if (!normalized) return false;
+    if (LIGHTWEIGHT_CHATTER_PATTERN.test(normalized)) return false;
+
+    var hasDigits = /\\d/.test(normalized);
+    var hasQuestion = /[?？]/.test(normalized);
+    var words = normalized.split(/\\s+/).filter(Boolean).length;
+
+    return hasDigits || hasQuestion || words >= 2 || normalized.length >= 12;
+  }
+
   function hideFeedback() {
     feedbackBar.style.display = 'none';
     feedbackReasons.style.display = 'none';
   }
 
   function resetFeedbackComposer() {
-    feedbackTitle.textContent = 'Bu sohbet yardimci oluyor mu?';
-    feedbackHint.textContent = '2 assistant cevabindan sonra degerlendirme acilir.';
+    feedbackTitle.textContent = CONFIG.i18n.triggerLabel;
     feedbackActions.style.display = 'flex';
     feedbackReasons.style.display = 'none';
   }
@@ -481,7 +475,11 @@ export default function ChatWidgetPage() {
     if (latestTraceId) {
       assistantTraceCount += 1;
     }
-    if (!latestTraceId || feedbackSubmitted[latestTraceId] || assistantTraceCount < 2) {
+    var hasMeaningfulUserTurn = conversationHistory.some(function(item) {
+      return item.role === 'user' && isMeaningfulUserMessage(item.content);
+    });
+
+    if (!latestTraceId || feedbackSubmitted[latestTraceId] || assistantTraceCount < 2 || !hasMeaningfulUserTurn) {
       hideFeedback();
       return;
     }
@@ -507,8 +505,7 @@ export default function ChatWidgetPage() {
         })
       });
       feedbackSubmitted[latestTraceId] = true;
-      feedbackTitle.textContent = 'Tesekkurler, geri bildirimin kaydedildi.';
-      feedbackHint.textContent = '';
+      feedbackTitle.textContent = CONFIG.i18n.thankYouLabel;
       feedbackActions.style.display = 'none';
       feedbackReasons.style.display = 'none';
       setTimeout(function() {
@@ -542,7 +539,7 @@ export default function ChatWidgetPage() {
     addMessage('user', text);
     conversationHistory.push({ role: 'user', content: text });
 
-    var typingDiv = addMessage('bot', 'Typing...', true);
+    var typingDiv = addMessage('bot', CONFIG.i18n.typingLabel, true);
 
     try {
       var res = await fetch(CONFIG.apiUrl + '/api/chat/widget', {
@@ -563,12 +560,12 @@ export default function ChatWidgetPage() {
         conversationHistory.push({ role: 'assistant', content: data.reply });
         showFeedback(data.traceId, data.reply);
       } else {
-        addMessage('bot', 'Sorry, something went wrong.');
+        addMessage('bot', CONFIG.i18n.genericError);
         hideFeedback();
       }
     } catch (err) {
       typingDiv.remove();
-      addMessage('bot', 'Connection error. Please try again.');
+      addMessage('bot', CONFIG.i18n.connectionError);
       hideFeedback();
     }
     sendBtn.disabled = false;

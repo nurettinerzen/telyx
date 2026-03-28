@@ -44,7 +44,6 @@ export const PROMPT_DISCLOSURE_KEYWORDS_TR = Object.freeze([
   'kritik kural',
   'yasak konular',
   'persona kilidi',
-  'bilgi kaynağı',
   'konuşma tarzı',
   'tool kullanımı'
 ]);

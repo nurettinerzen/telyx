@@ -546,12 +546,44 @@
   },
   "solutions": {
     "hero": {
-      "title": "Industry Solutions",
-      "subtitle": "AI solutions designed specifically for your industry"
+      "title": "AI Solutions for Your Industry",
+      "subtitle": "Every industry has unique needs. Telyx transforms your customer experience with AI assistants trained specifically for your sector.",
+      "badge": "Industry Solutions",
+      "explore": "Explore Solutions"
     },
     "learnMore": "Learn More",
     "startFree": "Get Started Free",
     "contactSales": "Talk to Sales",
+    "whyTelyx": {
+      "title": "Why Telyx?",
+      "subtitle": "Features that make a difference in every industry",
+      "benefit1": {
+        "title": "Setup in 5 Minutes",
+        "desc": "Get started instantly with pre-built templates for your industry — no coding required."
+      },
+      "benefit2": {
+        "title": "Omnichannel Communication",
+        "desc": "WhatsApp, web chat, email and voice calls — manage everything from one dashboard."
+      },
+      "benefit3": {
+        "title": "Smart Integrations",
+        "desc": "Seamless integration with ikas, Shopify, Google Calendar and more."
+      },
+      "benefit4": {
+        "title": "GDPR Compliant",
+        "desc": "Your data stays secure, fully compliant with GDPR and local data protection standards."
+      }
+    },
+    "stats": {
+      "conversations": "Monthly Conversations",
+      "resolution": "Auto Resolution",
+      "response": "Avg. Response Time",
+      "satisfaction": "Customer Satisfaction",
+      "conversationsValue": "500K+",
+      "resolutionValue": "85%",
+      "responseValue": "<3s",
+      "satisfactionValue": "96%"
+    },
     "ecommerce": {
       "title": "AI for E-commerce",
       "desc": "24/7 automated support for order tracking, stock info and returns",
@@ -560,7 +592,14 @@
       "feature3": "Return/exchange process",
       "hero": {
         "title": "AI Assistant for E-commerce",
-        "subtitle": "Provide your customers 24/7 order tracking, stock info and return support"
+        "subtitle": "Provide your customers 24/7 order tracking, stock info and return support. Cut your support costs by up to 60%.",
+        "badge": "E-commerce Solution"
+      },
+      "stats": {
+        "stat1": { "value": "60%", "label": "Cost Savings" },
+        "stat2": { "value": "24/7", "label": "Always-On Support" },
+        "stat3": { "value": "<3s", "label": "Response Time" },
+        "stat4": { "value": "85%", "label": "Auto Resolution" }
       },
       "useCases": {
         "title": "Use Cases"
@@ -581,13 +620,27 @@
         "title": "Product Information",
         "desc": "Stock status and product details"
       },
+      "howItWorks": {
+        "title": "How It Works",
+        "subtitle": "Automate your e-commerce customer support in 3 steps",
+        "step1": { "title": "Customer Query", "desc": "A customer asks about an order, shipping or return — whether via WhatsApp, web chat or email." },
+        "step2": { "title": "AI Analysis & Action", "desc": "Telyx understands the query, fetches real data from your e-commerce platform, and generates the right response." },
+        "step3": { "title": "Instant Resolution", "desc": "The customer gets an accurate answer in seconds. When needed, a seamless handoff to your live support team." }
+      },
       "integrations": {
         "title": "E-commerce Integrations",
         "subtitle": "Seamless integration with popular e-commerce platforms"
       },
+      "highlights": {
+        "title": "E-commerce Highlights",
+        "subtitle": "Features that keep you one step ahead of the competition",
+        "item1": { "title": "Smart Product Recommendations", "desc": "Personalized product suggestions based on customer history and preferences." },
+        "item2": { "title": "Auto Stock Alerts", "desc": "Automatically notify interested customers when products are back in stock." },
+        "item3": { "title": "Multi-Language Support", "desc": "Serve your international customers in their own language." }
+      },
       "cta": {
         "title": "Provide 24/7 Support to Your E-commerce Customers",
-        "subtitle": "AI assistant integrated with ikas, Shopify and other platforms"
+        "subtitle": "Increase customer satisfaction with an AI assistant integrated with ikas, Shopify and other platforms."
       },
       "exampleFlow": {
         "step1": "Order status request -> fetch from ERP/Shopify/ikas -> respond with up-to-date status.",
@@ -603,7 +656,14 @@
       "feature3": "Business hours notification",
       "hero": {
         "title": "AI Assistant for Restaurants",
-        "subtitle": "Automate your reservations, delight your customers"
+        "subtitle": "Automate your reservations, answer menu questions instantly. Reduce your phone traffic by up to 70%.",
+        "badge": "Restaurant Solution"
+      },
+      "stats": {
+        "stat1": { "value": "70%", "label": "Less Phone Traffic" },
+        "stat2": { "value": "24/7", "label": "Reservations" },
+        "stat3": { "value": "40%", "label": "Higher Occupancy" },
+        "stat4": { "value": "<5s", "label": "Response Time" }
       },
       "useCases": {
         "title": "Use Cases"
@@ -624,9 +684,23 @@
         "title": "Feedback",
         "desc": "Collect customer reviews and complaints"
       },
+      "howItWorks": {
+        "title": "How It Works",
+        "subtitle": "Automate your restaurant communication in 3 steps",
+        "step1": { "title": "Customer Request", "desc": "A customer wants to make a reservation, check the menu, or ask about business hours." },
+        "step2": { "title": "Smart Routing", "desc": "Telyx checks availability via calendar integration, presents menu info, and prepares the right response." },
+        "step3": { "title": "Quick Result", "desc": "Reservation confirmed, menu info shared, or special requests recorded." }
+      },
+      "highlights": {
+        "title": "Restaurant Highlights",
+        "subtitle": "Features that help you deliver an unforgettable guest experience",
+        "item1": { "title": "Google Calendar Integration", "desc": "Check table availability in real-time with calendar integration." },
+        "item2": { "title": "Allergen Information", "desc": "Automatically share allergen details from your menu with customers." },
+        "item3": { "title": "No-Show Protection", "desc": "Reduce your no-show rate with automatic reminder messages." }
+      },
       "cta": {
         "title": "Automate Your Restaurant Reservations",
-        "subtitle": "Seamless reservation management with Google Calendar integration"
+        "subtitle": "Seamless reservation management with Google Calendar integration. Lighten your staff workload."
       },
       "exampleFlow": {
         "step1": "Reservation request -> check availability from calendar -> offer slots instantly.",
@@ -642,7 +716,14 @@
       "feature3": "Reminder messages",
       "hero": {
         "title": "AI Assistant for Salons",
-        "subtitle": "Automate your appointments, serve your customers better"
+        "subtitle": "Automate your appointments, reduce no-shows. Let your staff focus on delivering great service.",
+        "badge": "Salon & Beauty Solution"
+      },
+      "stats": {
+        "stat1": { "value": "50%", "label": "Fewer No-Shows" },
+        "stat2": { "value": "24/7", "label": "Booking" },
+        "stat3": { "value": "35%", "label": "More Appointments" },
+        "stat4": { "value": "<3s", "label": "Response Time" }
       },
       "useCases": {
         "title": "Use Cases"
@@ -663,9 +744,23 @@
         "title": "Service Information",
         "desc": "Information about services, durations and prices"
       },
+      "howItWorks": {
+        "title": "How It Works",
+        "subtitle": "Automate your salon appointments in 3 steps",
+        "step1": { "title": "Appointment Request", "desc": "A customer wants to book an appointment via WhatsApp, web chat or phone." },
+        "step2": { "title": "Smart Matching", "desc": "Telyx automatically matches the right staff, service duration and available time slots." },
+        "step3": { "title": "Confirm & Remind", "desc": "Appointment confirmation is sent, and automatic reminders are triggered before the appointment." }
+      },
+      "highlights": {
+        "title": "Salon Highlights",
+        "subtitle": "Features that help you deliver a professional customer experience",
+        "item1": { "title": "Staff-Based Calendar", "desc": "Schedule appointments with individual staff availability — no double-bookings." },
+        "item2": { "title": "Auto Reminders", "desc": "Send automatic WhatsApp reminders 24 hours and 1 hour before appointments." },
+        "item3": { "title": "Service Catalog", "desc": "Instantly share all your services, durations and prices with customers." }
+      },
       "cta": {
         "title": "Simplify Your Salon Appointments",
-        "subtitle": "Automatic appointment management with calendar integration"
+        "subtitle": "Automatic appointment management with calendar integration. Cut your no-show rate in half."
       },
       "exampleFlow": {
         "step1": "Appointment request -> match staff + service duration -> suggest best slot.",
@@ -681,7 +776,14 @@
       "feature3": "Agent transfer",
       "hero": {
         "title": "AI Assistant for Customer Support",
-        "subtitle": "Automatically answer customer questions 24/7"
+        "subtitle": "Automatically answer customer questions 24/7, reduce your support team's workload by up to 80%.",
+        "badge": "Customer Support Solution"
+      },
+      "stats": {
+        "stat1": { "value": "80%", "label": "Auto Resolution" },
+        "stat2": { "value": "24/7", "label": "Always-On Support" },
+        "stat3": { "value": "96%", "label": "Satisfaction" },
+        "stat4": { "value": "<3s", "label": "First Response" }
       },
       "useCases": {
         "title": "Use Cases"
@@ -702,15 +804,37 @@
         "title": "Performance Tracking",
         "desc": "Resolved issues and customer satisfaction"
       },
+      "howItWorks": {
+        "title": "How It Works",
+        "subtitle": "Transform your customer support in 3 steps",
+        "step1": { "title": "Issue Detection", "desc": "A customer sends a support request via any channel. AI automatically identifies the intent and priority." },
+        "step2": { "title": "Smart Response", "desc": "A grounded response is generated from your knowledge base. Tickets are auto-created for complex issues." },
+        "step3": { "title": "Resolution or Handoff", "desc": "Simple questions are resolved instantly. Complex issues are handed off to live agents with a summary." }
+      },
+      "highlights": {
+        "title": "Support Highlights",
+        "subtitle": "Advanced features that boost customer satisfaction",
+        "item1": { "title": "Knowledge Base Integration", "desc": "Upload your existing documents and let AI generate grounded answers." },
+        "item2": { "title": "Smart Escalation", "desc": "AI hands off unresolved issues to the right agent with full context summary." },
+        "item3": { "title": "Performance Dashboard", "desc": "Monitor resolution rates, customer satisfaction and agent performance from one dashboard." }
+      },
       "cta": {
         "title": "Strengthen Your Customer Support",
-        "subtitle": "Increase customer satisfaction with AI"
+        "subtitle": "Increase customer satisfaction with AI, reduce your support costs."
       },
       "exampleFlow": {
         "step1": "Incoming issue -> detect intent and priority from message.",
         "step2": "Knowledge lookup -> provide grounded answer with references.",
         "step3": "If unresolved -> create ticket and handoff with conversation summary."
       }
+    },
+    "channels": {
+      "title": "Available on All Channels",
+      "subtitle": "Let your customers reach you on their preferred channel",
+      "whatsapp": "WhatsApp Business",
+      "webchat": "Web Chat Widget",
+      "email": "Email",
+      "voice": "Voice Calls"
     },
     "cta": {
       "title": "Don't See Your Industry?",
