@@ -65,35 +65,16 @@ function buildAssistantIncidentWhere({ businessId, since, category, severity, re
   };
 }
 
-function buildOpsIncidentWhere({ businessId, since, category, severity, excludedTraceIds = [] } = {}) {
+function buildOpsIncidentWhere({ businessId, since, category, severity } = {}) {
   return {
     createdAt: { gte: since },
     ...(businessId && { businessId }),
     channel: { not: 'ADMIN_DRAFT' },
-    ...(excludedTraceIds.length > 0 ? { traceId: { notIn: excludedTraceIds } } : {}),
     category: {
       in: category ? [String(category)] : [...OPS_INCIDENT_CATEGORIES]
     },
     ...(severity && { severity: String(severity).toUpperCase() })
   };
-}
-
-async function listAssistantTraceIds({ businessId, since }) {
-  const rows = await prisma.operationalIncident.findMany({
-    where: {
-      createdAt: { gte: since },
-      ...(businessId && { businessId }),
-      channel: { not: 'ADMIN_DRAFT' },
-      traceId: { not: null },
-      category: { in: [...ASSISTANT_INCIDENT_CATEGORIES] }
-    },
-    distinct: ['traceId'],
-    select: { traceId: true }
-  });
-
-  return rows
-    .map((row) => row.traceId)
-    .filter(Boolean);
 }
 
 function toPercent(part, total) {
@@ -458,14 +439,13 @@ router.get('/ops/summary', async (req, res) => {
     const { businessId } = req;
     const { range = '24h' } = req.query;
     const since = parseRangeToSince(range);
-    const assistantTraceIds = await listAssistantTraceIds({ businessId, since });
 
     const traceWhere = {
       createdAt: { gte: since },
       ...(businessId && { businessId }),
       channel: { not: 'ADMIN_DRAFT' }
     };
-    const incidentWhere = buildOpsIncidentWhere({ businessId, since, excludedTraceIds: assistantTraceIds });
+    const incidentWhere = buildOpsIncidentWhere({ businessId, since });
 
     const [
       totalTurns,
@@ -564,8 +544,7 @@ router.get('/ops/events', async (req, res) => {
       offset = 0
     } = req.query;
     const since = parseRangeToSince(range);
-    const assistantTraceIds = await listAssistantTraceIds({ businessId, since });
-    const where = buildOpsIncidentWhere({ businessId, since, category, severity, excludedTraceIds: assistantTraceIds });
+    const where = buildOpsIncidentWhere({ businessId, since, category, severity });
 
     const [events, total] = await Promise.all([
       prisma.operationalIncident.findMany({

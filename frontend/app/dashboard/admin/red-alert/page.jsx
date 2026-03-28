@@ -311,6 +311,19 @@ export default function RedAlertPage() {
       })
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [assistantEvents, copy]);
+  const assistantTraceIdSet = useMemo(() => (
+    new Set(
+      groupedAssistantEvents
+        .map((group) => group.traceId)
+        .filter(Boolean)
+    )
+  ), [groupedAssistantEvents]);
+  const visibleOpsEvents = useMemo(() => (
+    opsEvents.filter((event) => {
+      if (!event.traceId) return true;
+      return !assistantTraceIdSet.has(event.traceId);
+    })
+  ), [assistantTraceIdSet, opsEvents]);
 
   // Check admin access
   useEffect(() => {
@@ -1781,14 +1794,14 @@ export default function RedAlertPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {opsEvents.length === 0 ? (
+                {visibleOpsEvents.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                         {copy.ops.eventsEmpty}
                     </TableCell>
                   </TableRow>
                 ) : (
-                  opsEvents.map((event) => (
+                  visibleOpsEvents.map((event) => (
                     <TableRow key={event.id}>
                       <TableCell className="whitespace-nowrap text-xs">
                         <div>{formatDateTime(event.createdAt)}</div>
