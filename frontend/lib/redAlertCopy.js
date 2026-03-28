@@ -22,6 +22,8 @@ const tr = {
     },
     assistant: {
       title: 'Asistan Kalitesi',
+      none: 'Açık kalite olayı yok',
+      unresolved: '{count} açık olay',
       enabled: 'Davranış ve geri bildirim sinyalleri',
       disabled: 'Panel kapalıysa sebebini burada gör'
     },
@@ -391,6 +393,8 @@ const en = {
     },
     assistant: {
       title: 'Assistant Quality',
+      none: 'No open quality issues',
+      unresolved: '{count} open issues',
       enabled: 'Behavior and feedback signals',
       disabled: 'See why the panel is disabled'
     },

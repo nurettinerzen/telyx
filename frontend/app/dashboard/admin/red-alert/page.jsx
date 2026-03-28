@@ -119,7 +119,7 @@ export default function RedAlertPage() {
   const [assistantFilters, setAssistantFilters] = useState({
     category: '',
     severity: '',
-    resolved: '',
+    resolved: 'false',
   });
   const [assistantPagination, setAssistantPagination] = useState({
     page: 1,
@@ -754,7 +754,7 @@ export default function RedAlertPage() {
   const totalErrors = unresolvedCount;
   const totalEvents = summary?.summary?.total || 0;
   const opsIncidentCount = opsSummary?.totals?.incidents || 0;
-  const assistantIncidentCount = assistantSummary?.totals?.incidents || 0;
+  const assistantIncidentCount = assistantSummary?.totals?.unresolved || 0;
   const traceIncidents = assistantTraceDetail?.incidents || [];
   let assistantSignalItems = [];
   if (selectedAssistantGroup?.incidents?.length) {
@@ -891,7 +891,11 @@ export default function RedAlertPage() {
           value={assistantIncidentCount}
           subtitle={
             opsPanelEnabled
-              ? copy.nav.assistant.enabled
+              ? (
+                assistantIncidentCount > 0
+                  ? interpolate(copy.nav.assistant.unresolved, { count: assistantIncidentCount })
+                  : copy.nav.assistant.none
+              )
               : copy.nav.assistant.disabled
           }
           activeBorderColor="border-fuchsia-500 dark:border-fuchsia-400"
