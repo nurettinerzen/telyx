@@ -734,29 +734,26 @@ export default function RedAlertPage() {
   const opsIncidentCount = opsSummary?.totals?.incidents || 0;
   const assistantIncidentCount = assistantSummary?.totals?.incidents || 0;
   const traceIncidents = assistantTraceDetail?.incidents || [];
-  const assistantSignalItems = useMemo(() => {
-    if (selectedAssistantGroup?.incidents?.length) {
-      return selectedAssistantGroup.incidents;
-    }
-
+  let assistantSignalItems = [];
+  if (selectedAssistantGroup?.incidents?.length) {
+    assistantSignalItems = selectedAssistantGroup.incidents;
+  } else {
     const sourceItems = traceIncidents;
     const clarificationLike = isClarificationLikeTrace(assistantTraceDetail?.trace);
 
     if (traceContext === 'assistant') {
-      return sourceItems.filter((incident) => ASSISTANT_PANEL_CATEGORY_KEYS.includes(incident.category));
+      assistantSignalItems = sourceItems.filter((incident) => ASSISTANT_PANEL_CATEGORY_KEYS.includes(incident.category));
+    } else {
+      const opsItems = sourceItems.filter((incident) => OPS_PANEL_CATEGORY_KEYS.includes(incident.category));
+      assistantSignalItems = clarificationLike
+        ? opsItems.filter((incident) => (
+          incident.category !== 'HALLUCINATION_RISK'
+          && incident.category !== 'VERIFICATION_INCONSISTENT'
+          && incident.category !== 'ASSISTANT_NEEDS_CLARIFICATION'
+        ))
+        : opsItems;
     }
-
-    const opsItems = sourceItems.filter((incident) => OPS_PANEL_CATEGORY_KEYS.includes(incident.category));
-    if (!clarificationLike) {
-      return opsItems;
-    }
-
-    return opsItems.filter((incident) => (
-      incident.category !== 'HALLUCINATION_RISK'
-      && incident.category !== 'VERIFICATION_INCONSISTENT'
-      && incident.category !== 'ASSISTANT_NEEDS_CLARIFICATION'
-    ));
-  }, [assistantTraceDetail?.trace, selectedAssistantGroup, traceContext, traceIncidents]);
+  }
   const traceModalTitle = traceContext === 'repeat'
     ? copy.ops.repeatTitle
     : traceContext === 'ops'
