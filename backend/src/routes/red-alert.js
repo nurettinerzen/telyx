@@ -8,7 +8,15 @@
 import express from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticateToken } from '../middleware/auth.js';
-import { isRedAlertOpsPanelEnabled } from '../config/feature-flags.js';
+import {
+  isOperationalIncidentsEnabled,
+  isRedAlertOpsPanelEnabled,
+  isUnifiedResponseTraceEnabled
+} from '../config/feature-flags.js';
+import {
+  ASSISTANT_INCIDENT_CATEGORIES,
+  OP_INCIDENT_CATEGORY
+} from '../services/operationalIncidentLogger.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -31,8 +39,46 @@ function isOpsPanelAllowed(req) {
   return isRedAlertOpsPanelEnabled({ businessId: req.businessId });
 }
 
+function buildAssistantIncidentWhere({ businessId, since, category, severity, resolved } = {}) {
+  return {
+    createdAt: { gte: since },
+    ...(businessId && { businessId }),
+    category: {
+      in: category ? [String(category)] : [...ASSISTANT_INCIDENT_CATEGORIES]
+    },
+    ...(severity && { severity: String(severity).toUpperCase() }),
+    ...(resolved === 'true' || resolved === 'false'
+      ? { resolved: resolved === 'true' }
+      : {})
+  };
+}
+
+function toPercent(part, total) {
+  if (!total || total <= 0) return 0;
+  return Number(((part / total) * 100).toFixed(2));
+}
+
 // Require authentication for all routes
 router.use(authenticateToken);
+
+/**
+ * GET /api/red-alert/capabilities
+ * Frontend capability bootstrap for assistant quality / ops panels.
+ */
+router.get('/capabilities', async (req, res) => {
+  try {
+    const { businessId } = req;
+
+    res.json({
+      redAlertOpsPanelEnabled: isRedAlertOpsPanelEnabled({ businessId }),
+      unifiedResponseTraceEnabled: isUnifiedResponseTraceEnabled({ businessId }),
+      operationalIncidentsEnabled: isOperationalIncidentsEnabled({ businessId })
+    });
+  } catch (error) {
+    console.error('Red Alert capabilities error:', error);
+    res.status(500).json({ error: 'Failed to fetch Red Alert capabilities' });
+  }
+});
 
 /**
  * GET /api/red-alert/summary
@@ -575,6 +621,295 @@ router.get('/ops/repeat-responses', async (req, res) => {
   } catch (error) {
     console.error('Red Alert repeat response error:', error);
     res.status(500).json({ error: 'Failed to fetch repeat responses' });
+  }
+});
+
+/**
+ * GET /api/red-alert/assistant/summary?range=24h
+ */
+router.get('/assistant/summary', async (req, res) => {
+  try {
+    if (!isOpsPanelAllowed(req)) {
+      return res.status(404).json({ error: 'Operational panel disabled' });
+    }
+
+    const { businessId } = req;
+    const { range = '24h' } = req.query;
+    const since = parseRangeToSince(range);
+
+    const traceWhere = {
+      createdAt: { gte: since },
+      ...(businessId && { businessId })
+    };
+    const incidentWhere = buildAssistantIncidentWhere({ businessId, since });
+
+    const [totalTurns, incidentsByCategory, incidentsBySeverity, unresolvedCount] = await Promise.all([
+      prisma.responseTrace.count({ where: traceWhere }),
+      prisma.operationalIncident.groupBy({
+        by: ['category'],
+        where: incidentWhere,
+        _count: true
+      }),
+      prisma.operationalIncident.groupBy({
+        by: ['severity'],
+        where: incidentWhere,
+        _count: true
+      }),
+      prisma.operationalIncident.count({
+        where: {
+          ...incidentWhere,
+          resolved: false
+        }
+      })
+    ]);
+
+    const categoryCounts = incidentsByCategory.reduce((acc, item) => {
+      acc[item.category] = item._count;
+      return acc;
+    }, {});
+
+    const positiveFeedback = categoryCounts[OP_INCIDENT_CATEGORY.ASSISTANT_POSITIVE_FEEDBACK] || 0;
+    const negativeFeedback = categoryCounts[OP_INCIDENT_CATEGORY.ASSISTANT_NEGATIVE_FEEDBACK] || 0;
+    const feedbackTotal = positiveFeedback + negativeFeedback;
+    const blocked = categoryCounts[OP_INCIDENT_CATEGORY.ASSISTANT_BLOCKED] || 0;
+    const sanitized = categoryCounts[OP_INCIDENT_CATEGORY.ASSISTANT_SANITIZED] || 0;
+    const clarification = categoryCounts[OP_INCIDENT_CATEGORY.ASSISTANT_NEEDS_CLARIFICATION] || 0;
+    const fallback = categoryCounts[OP_INCIDENT_CATEGORY.TEMPLATE_FALLBACK_USED] || 0;
+    const intervention = categoryCounts[OP_INCIDENT_CATEGORY.ASSISTANT_INTERVENTION] || 0;
+    const toolSkipped = categoryCounts[OP_INCIDENT_CATEGORY.TOOL_NOT_CALLED_WHEN_EXPECTED] || 0;
+
+    res.json({
+      range: String(range),
+      since,
+      totals: {
+        turns: totalTurns,
+        incidents: incidentsByCategory.reduce((acc, item) => acc + item._count, 0),
+        unresolved: unresolvedCount,
+        feedbackTotal
+      },
+      cards: {
+        blockedRate: toPercent(blocked, totalTurns),
+        sanitizeRate: toPercent(sanitized, totalTurns),
+        fallbackRate: toPercent(fallback, totalTurns),
+        clarificationRate: toPercent(clarification, totalTurns),
+        interventionRate: toPercent(intervention, totalTurns),
+        negativeFeedbackRate: toPercent(negativeFeedback, Math.max(feedbackTotal, 1))
+      },
+      counts: {
+        blocked,
+        sanitized,
+        fallback,
+        clarification,
+        intervention,
+        toolSkipped,
+        positiveFeedback,
+        negativeFeedback,
+        llmBypassed: categoryCounts[OP_INCIDENT_CATEGORY.LLM_BYPASSED] || 0,
+        hallucinationRisk: categoryCounts[OP_INCIDENT_CATEGORY.HALLUCINATION_RISK] || 0,
+        verificationDrift: categoryCounts[OP_INCIDENT_CATEGORY.VERIFICATION_INCONSISTENT] || 0,
+        responseStuck: categoryCounts[OP_INCIDENT_CATEGORY.RESPONSE_STUCK] || 0
+      },
+      byCategory: categoryCounts,
+      bySeverity: incidentsBySeverity.reduce((acc, item) => {
+        acc[item.severity] = item._count;
+        return acc;
+      }, {})
+    });
+  } catch (error) {
+    console.error('Red Alert assistant summary error:', error);
+    res.status(500).json({ error: 'Failed to fetch assistant summary' });
+  }
+});
+
+/**
+ * GET /api/red-alert/assistant/events?range=24h
+ */
+router.get('/assistant/events', async (req, res) => {
+  try {
+    if (!isOpsPanelAllowed(req)) {
+      return res.status(404).json({ error: 'Operational panel disabled' });
+    }
+
+    const { businessId } = req;
+    const {
+      range = '24h',
+      category,
+      severity,
+      resolved = '',
+      limit = 50,
+      offset = 0
+    } = req.query;
+    const since = parseRangeToSince(range);
+    const where = buildAssistantIncidentWhere({ businessId, since, category, severity, resolved });
+
+    const [events, total] = await Promise.all([
+      prisma.operationalIncident.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take: parseInt(limit, 10),
+        skip: parseInt(offset, 10),
+        select: {
+          id: true,
+          createdAt: true,
+          severity: true,
+          category: true,
+          channel: true,
+          traceId: true,
+          requestId: true,
+          businessId: true,
+          userId: true,
+          sessionId: true,
+          messageId: true,
+          summary: true,
+          details: true,
+          resolved: true,
+          resolvedAt: true,
+          resolvedBy: true
+        }
+      }),
+      prisma.operationalIncident.count({ where })
+    ]);
+
+    res.json({
+      events,
+      pagination: {
+        total,
+        limit: parseInt(limit, 10),
+        offset: parseInt(offset, 10),
+        hasMore: total > parseInt(offset, 10) + parseInt(limit, 10)
+      }
+    });
+  } catch (error) {
+    console.error('Red Alert assistant events error:', error);
+    res.status(500).json({ error: 'Failed to fetch assistant events' });
+  }
+});
+
+/**
+ * GET /api/red-alert/assistant/trace/:traceId
+ */
+router.get('/assistant/trace/:traceId', async (req, res) => {
+  try {
+    if (!isOpsPanelAllowed(req)) {
+      return res.status(404).json({ error: 'Operational panel disabled' });
+    }
+
+    const { businessId } = req;
+    const { traceId } = req.params;
+
+    const trace = await prisma.responseTrace.findFirst({
+      where: {
+        traceId,
+        ...(businessId && { businessId })
+      },
+      select: {
+        id: true,
+        traceId: true,
+        createdAt: true,
+        requestId: true,
+        channel: true,
+        businessId: true,
+        userId: true,
+        sessionId: true,
+        messageId: true,
+        payload: true,
+        latencyMs: true,
+        responsePreview: true,
+        responseSource: true,
+        llmUsed: true,
+        toolsCalledCount: true,
+        toolSuccess: true
+      }
+    });
+
+    if (!trace) {
+      return res.status(404).json({ error: 'Trace not found' });
+    }
+
+    const [incidents, chatLog] = await Promise.all([
+      prisma.operationalIncident.findMany({
+        where: {
+          traceId,
+          ...(businessId && { businessId })
+        },
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          createdAt: true,
+          severity: true,
+          category: true,
+          summary: true,
+          details: true,
+          resolved: true,
+          resolvedAt: true,
+          resolvedBy: true
+        }
+      }),
+      trace.sessionId
+        ? prisma.chatLog.findFirst({
+          where: {
+            sessionId: trace.sessionId,
+            ...(businessId && { businessId })
+          },
+          select: {
+            id: true,
+            sessionId: true,
+            channel: true,
+            status: true,
+            createdAt: true,
+            updatedAt: true,
+            messages: true,
+            messageCount: true
+          }
+        })
+        : Promise.resolve(null)
+    ]);
+
+    res.json({
+      trace,
+      incidents,
+      chatLog
+    });
+  } catch (error) {
+    console.error('Red Alert assistant trace detail error:', error);
+    res.status(500).json({ error: 'Failed to fetch assistant trace detail' });
+  }
+});
+
+/**
+ * PATCH /api/red-alert/assistant/events/:id/resolve
+ */
+router.patch('/assistant/events/:id/resolve', async (req, res) => {
+  try {
+    if (!isOpsPanelAllowed(req)) {
+      return res.status(404).json({ error: 'Operational panel disabled' });
+    }
+
+    const { businessId } = req;
+    const { id } = req.params;
+    const { resolved = true } = req.body || {};
+
+    const updated = await prisma.operationalIncident.updateMany({
+      where: {
+        id,
+        ...(businessId && { businessId }),
+        category: { in: [...ASSISTANT_INCIDENT_CATEGORIES] }
+      },
+      data: {
+        resolved: resolved === true,
+        resolvedAt: resolved === true ? new Date() : null,
+        resolvedBy: resolved === true ? `user:${req.user?.id || 'unknown'}` : null
+      }
+    });
+
+    if (updated.count === 0) {
+      return res.status(404).json({ error: 'Assistant event not found' });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Red Alert assistant resolve error:', error);
+    res.status(500).json({ error: 'Failed to update assistant event' });
   }
 });
 

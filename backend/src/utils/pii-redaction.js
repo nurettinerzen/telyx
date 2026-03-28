@@ -7,7 +7,82 @@
  * P0 Security Fix: Audit Report Issue #2 - PII Leakage
  */
 
-import { isValidTckn, isValidVkn } from './pii-validators/tr.js';
+import { isLikelyTrPhone, isValidTckn, isValidVkn } from './pii-validators/tr.js';
+
+const EMAIL_PATTERN = /\b[a-zA-Z0-9._%+-]{3,}@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b/g;
+const PHONE_PATTERNS = Object.freeze([
+  /\+90[\s.-]?5\d{2}[\s.-]?\d{3}[\s.-]?\d{2}[\s.-]?\d{2}\b/g,
+  /\b0?5\d{2}[\s.-]?\d{3}[\s.-]?\d{2}[\s.-]?\d{2}\b/g,
+  /\b5\d{2}[\s.-]?\d{3}[\s.-]?\d{2}[\s.-]?\d{2}\b/g
+]);
+const TCKN_CANDIDATE_PATTERN = /\b(?:\d[\s-]?){10}\d\b/g;
+const VKN_CANDIDATE_PATTERN = /\b(?:\d[\s-]?){9}\d\b/g;
+const DEFAULT_PII_TYPES = Object.freeze(['EMAIL', 'PHONE', 'TCKN', 'VKN']);
+
+function normalizeEmailAddress(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function buildAllowedEmailSet(options = {}) {
+  const input = Array.isArray(options.allowedEmails)
+    ? options.allowedEmails
+    : typeof options.allowedEmails === 'string'
+      ? [options.allowedEmails]
+      : [];
+
+  return new Set(
+    input
+      .map(normalizeEmailAddress)
+      .filter(Boolean)
+  );
+}
+
+function buildEnabledTypeSet(options = {}) {
+  const input = Array.isArray(options.enabledTypes) && options.enabledTypes.length > 0
+    ? options.enabledTypes
+    : DEFAULT_PII_TYPES;
+
+  return new Set(
+    input
+      .map(type => String(type || '').trim().toUpperCase())
+      .filter(Boolean)
+  );
+}
+
+function summarizeSensitiveValue(value) {
+  const str = String(value || '');
+  if (!str) return '';
+  if (str.length <= 6) return '*'.repeat(Math.max(str.length, 4));
+  return `${str.slice(0, 2)}***${str.slice(-2)}`;
+}
+
+function maskAllDigitsPreservingFormat(value) {
+  return String(value || '').replace(/\d/g, '*');
+}
+
+function applyTextRedaction(currentText, regex, type, resolveReplacement, redactions) {
+  regex.lastIndex = 0;
+
+  return currentText.replace(regex, (...args) => {
+    const match = args[0];
+    const offset = args[args.length - 2];
+    const replacement = resolveReplacement(match);
+
+    if (typeof replacement !== 'string' || replacement === match) {
+      return match;
+    }
+
+    redactions.push({
+      type,
+      start: Number(offset) || 0,
+      end: (Number(offset) || 0) + match.length,
+      matchPreview: summarizeSensitiveValue(match),
+      replacementPreview: summarizeSensitiveValue(replacement)
+    });
+
+    return replacement;
+  });
+}
 
 /**
  * Mask phone number
@@ -158,6 +233,88 @@ export function redactPII(data) {
 }
 
 /**
+ * Span-level sanitizer for recoverable PII.
+ * Keeps the rest of the LLM response intact instead of forcing a full fallback.
+ *
+ * @param {string} text
+ * @param {Object} options
+ * @returns {{ sanitized: string, modified: boolean, redactions: Array }}
+ */
+export function sanitizeDetectedPII(text, options = {}) {
+  if (!text) {
+    return {
+      sanitized: text,
+      modified: false,
+      redactions: []
+    };
+  }
+
+  const enabledTypes = buildEnabledTypeSet(options);
+  const allowedEmails = buildAllowedEmailSet(options);
+  const redactions = [];
+  let sanitized = String(text);
+
+  if (enabledTypes.has('EMAIL')) {
+    sanitized = applyTextRedaction(
+      sanitized,
+      EMAIL_PATTERN,
+      'EMAIL',
+      (match) => {
+        if (allowedEmails.has(normalizeEmailAddress(match))) {
+          return match;
+        }
+        return maskEmail(match);
+      },
+      redactions
+    );
+  }
+
+  if (enabledTypes.has('PHONE')) {
+    for (const pattern of PHONE_PATTERNS) {
+      sanitized = applyTextRedaction(
+        sanitized,
+        pattern,
+        'PHONE',
+        (match) => (isLikelyTrPhone(match) ? maskPhone(match) : match),
+        redactions
+      );
+    }
+  }
+
+  if (enabledTypes.has('TCKN')) {
+    sanitized = applyTextRedaction(
+      sanitized,
+      TCKN_CANDIDATE_PATTERN,
+      'TCKN',
+      (match) => {
+        const digits = match.replace(/\D/g, '');
+        return isValidTckn(digits) ? maskAllDigitsPreservingFormat(match) : match;
+      },
+      redactions
+    );
+  }
+
+  if (enabledTypes.has('VKN')) {
+    sanitized = applyTextRedaction(
+      sanitized,
+      VKN_CANDIDATE_PATTERN,
+      'VKN',
+      (match) => {
+        const digits = match.replace(/\D/g, '');
+        return isValidVkn(digits) ? maskAllDigitsPreservingFormat(match) : match;
+      },
+      redactions
+    );
+  }
+
+  return {
+    sanitized,
+    modified: redactions.length > 0,
+    redactions
+  };
+}
+
+/**
  * Check if a string contains unredacted PII
  * P0-B CRITICAL: This is the last line of defense for PII leakage
  *
@@ -167,60 +324,16 @@ export function redactPII(data) {
  * @param {string} text - Text to check
  * @returns {boolean} True if potential PII found
  */
-export function containsUnredactedPII(text) {
+export function containsUnredactedPII(text, options = {}) {
   if (!text) return false;
 
-  const str = String(text);
-
-  // 1. Turkish phone number patterns (specific prefix-based, low false-positive)
-  const turkishPhonePatterns = [
-    /\b0?5[0-9]{2}[0-9]{3}[0-9]{4}\b/,           // 05xx or 5xx format
-    /\+90\s?5[0-9]{2}\s?[0-9]{3}\s?[0-9]{4}/,    // +90 format with spaces
-    /0[0-9]{3}[0-9]{3}[0-9]{4}/                   // Other Turkish landline
-  ];
-
-  for (const pattern of turkishPhonePatterns) {
-    if (pattern.test(str)) {
-      console.warn('🚨 [PII-Redaction] Unmasked phone number detected!');
-      return true;
-    }
+  const result = sanitizeDetectedPII(text, options);
+  if (result.modified) {
+    const detectedTypes = [...new Set(result.redactions.map(item => item.type))];
+    console.warn('🚨 [PII-Redaction] Recoverable unmasked PII detected', detectedTypes);
   }
 
-  // 2. Email patterns
-  if (/[a-zA-Z0-9._%+-]{3,}@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(str)) {
-    console.warn('🚨 [PII-Redaction] Email address detected');
-    return true;
-  }
-
-  // 3. Digit sequences — checksum-validated detection (NOT blind catch-all)
-  // Extract 10+ consecutive digit sequences from space-stripped text,
-  // then validate each as TCKN (11-digit checksum) or VKN (10-digit checksum).
-  // Invalid checksums = not PII (order numbers, tracking numbers, etc.)
-  const strNoSpace = str.replace(/\s/g, '');
-  const digitSequences = strNoSpace.match(/\d{10,}/g);
-
-  if (digitSequences) {
-    for (const seq of digitSequences) {
-      // Check TCKN: 11-digit windows within any 10+ digit sequence
-      if (seq.length >= 11) {
-        for (let i = 0; i <= seq.length - 11; i++) {
-          if (isValidTckn(seq.substring(i, i + 11))) {
-            console.warn('🚨 [PII-Redaction] Valid TC Kimlik detected (checksum passed)');
-            return true;
-          }
-        }
-      }
-      // Check VKN: ONLY on exactly 10-digit sequences.
-      // Don't check 10-digit substrings within 11+ digit numbers — an 11-digit
-      // TCKN/random number's substring can coincidentally pass VKN checksum.
-      if (seq.length === 10 && isValidVkn(seq)) {
-        console.warn('🚨 [PII-Redaction] Valid VKN detected (checksum passed)');
-        return true;
-      }
-    }
-  }
-
-  return false;
+  return result.modified;
 }
 
 export default {
@@ -230,5 +343,6 @@ export default {
   maskVKN,
   maskAddress,
   redactPII,
-  containsUnredactedPII
+  containsUnredactedPII,
+  sanitizeDetectedPII
 };

@@ -553,6 +553,9 @@ async function processWhatsAppMessage(business, from, messageBody, messageId, tr
         llmBypassReason: result?.metrics?.llm_bypass_reason || null,
         guardrailAction: result?.metadata?.guardrailAction || 'PASS',
         guardrailReason: result?.metadata?.guardrailReason || null,
+        responseGrounding: result?.metadata?.responseGrounding || null,
+        messageType: result?.metadata?.messageType || null,
+        guardrailsApplied: result?.metadata?.guardrailsApplied || [],
         policyAppend: result?.metrics?.policyAppend || null,
         latencyMs: result?.metrics?.turnStartTime ? Date.now() - result.metrics.turnStartTime : null
       },

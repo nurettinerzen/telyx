@@ -11,7 +11,7 @@
  * Audit Report Issues #1, #2, #3
  */
 
-import { containsUnredactedPII } from './pii-redaction.js';
+import { sanitizeDetectedPII } from './pii-redaction.js';
 import { getMessageVariant } from '../messages/messageCatalog.js';
 import {
   PROMPT_DISCLOSURE_KEYWORDS_EN,
@@ -182,6 +182,8 @@ function containsInternalMetadata(text) {
  */
 export function sanitizeResponse(text, language = 'TR', options = {}) {
   const violations = [];
+  let sanitizedText = text;
+  let redactions = [];
 
   // Check for violations
   if (containsJSONDump(text)) {
@@ -200,8 +202,15 @@ export function sanitizeResponse(text, language = 'TR', options = {}) {
     violations.push('INTERNAL_METADATA');
   }
 
-  if (containsUnredactedPII(text)) {
-    violations.push('UNREDACTED_PII');
+  const piiSanitization = sanitizeDetectedPII(text, {
+    allowedEmails: options.allowedEmails || []
+  });
+  if (piiSanitization.modified) {
+    sanitizedText = piiSanitization.sanitized;
+    redactions = piiSanitization.redactions;
+    console.warn('🔒 [Firewall] Recoverable PII masked without killing the full response', {
+      redactionTypes: [...new Set(redactions.map(item => item.type))]
+    });
   }
 
   // If violations found, return safe fallback
@@ -231,8 +240,10 @@ export function sanitizeResponse(text, language = 'TR', options = {}) {
   // No violations - response is safe
   return {
     safe: true,
-    sanitized: text,
-    violations: []
+    sanitized: sanitizedText,
+    violations: [],
+    modified: sanitizedText !== text,
+    redactions
   };
 }
 

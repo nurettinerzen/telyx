@@ -6,7 +6,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { isValidTckn, isValidVkn, isLikelyTrPhone } from '../../src/utils/pii-validators/tr.js';
-import { containsUnredactedPII } from '../../src/utils/pii-redaction.js';
+import { containsUnredactedPII, sanitizeDetectedPII } from '../../src/utils/pii-redaction.js';
 
 // ============================================================================
 // Known valid TCKN for testing (publicly available test numbers)
@@ -178,6 +178,13 @@ describe('containsUnredactedPII — acceptance tests', () => {
     expect(containsUnredactedPII('Email: test@example.com')).toBe(true);
   });
 
+  it('should allow explicit public/business emails via allowlist', () => {
+    const response = 'Bize destek için support@example.com adresinden ulaşabilirsiniz.';
+    expect(containsUnredactedPII(response, {
+      allowedEmails: ['support@example.com']
+    })).toBe(false);
+  });
+
   it('should NOT flag order numbers (10 digits, not valid VKN/TC)', () => {
     // A 10-digit order number that doesn't pass VKN checksum
     const response = 'Sipariş no: 9876543210';
@@ -204,5 +211,17 @@ describe('containsUnredactedPII — acceptance tests', () => {
     expect(containsUnredactedPII(null)).toBe(false);
     expect(containsUnredactedPII('')).toBe(false);
     expect(containsUnredactedPII(undefined)).toBe(false);
+  });
+});
+
+describe('sanitizeDetectedPII', () => {
+  it('masks recoverable PII instead of forcing full fallback behavior', () => {
+    const result = sanitizeDetectedPII('Telefon: 05551234567, email: user@example.com');
+
+    expect(result.modified).toBe(true);
+    expect(result.sanitized).toContain('055');
+    expect(result.sanitized).toContain('4567');
+    expect(result.sanitized).toContain('u***@example.com');
+    expect(result.redactions.map(item => item.type)).toEqual(expect.arrayContaining(['PHONE', 'EMAIL']));
   });
 });

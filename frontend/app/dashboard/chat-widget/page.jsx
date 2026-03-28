@@ -237,6 +237,50 @@ export default function ChatWidgetPage() {
       padding: 12px; border-top: 1px solid #e2e8f0;
       display: flex; gap: 8px;
     }
+    #telyx-feedback {
+      display: none;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 8px;
+      padding: 10px 12px;
+      border-top: 1px solid #e2e8f0;
+      background: #f8fafc;
+      font-size: 12px;
+      color: #334155;
+    }
+    #telyx-feedback-copy {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    #telyx-feedback-title {
+      font-weight: 600;
+    }
+    #telyx-feedback-hint {
+      color: #64748b;
+      font-size: 11px;
+    }
+    #telyx-feedback-actions {
+      display: flex;
+      gap: 6px;
+    }
+    #telyx-feedback-reasons {
+      display: none;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .telyx-feedback-btn {
+      border: 1px solid #cbd5e1;
+      border-radius: 999px;
+      background: white;
+      cursor: pointer;
+      padding: 4px 10px;
+      font-size: 12px;
+    }
+    .telyx-feedback-btn:hover {
+      border-color: \${CONFIG.primaryColor};
+      color: \${CONFIG.primaryColor};
+    }
     #telyx-chat-input {
       flex: 1; padding: 10px 14px; border: 1px solid #e2e8f0;
       border-radius: 24px; outline: none; font-size: 14px;
@@ -283,6 +327,51 @@ export default function ChatWidgetPage() {
 
   var inputArea = document.createElement('div');
   inputArea.id = 'telyx-chat-input-area';
+  var feedbackBar = document.createElement('div');
+  feedbackBar.id = 'telyx-feedback';
+  var feedbackCopy = document.createElement('div');
+  feedbackCopy.id = 'telyx-feedback-copy';
+  var feedbackTitle = document.createElement('span');
+  feedbackTitle.id = 'telyx-feedback-title';
+  feedbackTitle.textContent = 'Bu sohbet yardimci oluyor mu?';
+  var feedbackHint = document.createElement('span');
+  feedbackHint.id = 'telyx-feedback-hint';
+  feedbackHint.textContent = '2 assistant cevabindan sonra degerlendirme acilir.';
+  feedbackCopy.appendChild(feedbackTitle);
+  feedbackCopy.appendChild(feedbackHint);
+  var feedbackActions = document.createElement('div');
+  feedbackActions.id = 'telyx-feedback-actions';
+  var feedbackYes = document.createElement('button');
+  feedbackYes.className = 'telyx-feedback-btn';
+  feedbackYes.textContent = '👍';
+  var feedbackNo = document.createElement('button');
+  feedbackNo.className = 'telyx-feedback-btn';
+  feedbackNo.textContent = '👎';
+  var feedbackReasons = document.createElement('div');
+  feedbackReasons.id = 'telyx-feedback-reasons';
+  var negativeReasons = [
+    { code: 'WRONG_ANSWER', label: 'Yanlis cevap' },
+    { code: 'NOT_HELPFUL', label: 'Yetersizdi' },
+    { code: 'TOO_BLOCKY', label: 'Gereksiz blok' },
+    { code: 'TOOL_SHOULD_HAVE_BEEN_USED', label: 'Tool cagirmadi' },
+    { code: 'TOO_GENERIC', label: 'Cok genel' },
+    { code: 'OTHER', label: 'Diger' }
+  ];
+  negativeReasons.forEach(function(item) {
+    var reasonBtn = document.createElement('button');
+    reasonBtn.className = 'telyx-feedback-btn';
+    reasonBtn.textContent = item.label;
+    reasonBtn.onclick = function() {
+      var note = window.prompt('Istersen kisa bir not birak:', '');
+      submitFeedback('negative', item.code, note || null);
+    };
+    feedbackReasons.appendChild(reasonBtn);
+  });
+  feedbackActions.appendChild(feedbackYes);
+  feedbackActions.appendChild(feedbackNo);
+  feedbackBar.appendChild(feedbackCopy);
+  feedbackBar.appendChild(feedbackActions);
+  feedbackBar.appendChild(feedbackReasons);
   var input = document.createElement('input');
   input.id = 'telyx-chat-input';
   input.type = 'text';
@@ -295,6 +384,7 @@ export default function ChatWidgetPage() {
 
   chatWindow.appendChild(chatHeader);
   chatWindow.appendChild(messagesDiv);
+  chatWindow.appendChild(feedbackBar);
   chatWindow.appendChild(inputArea);
 
   if (CONFIG.showBranding) {
@@ -325,6 +415,10 @@ export default function ChatWidgetPage() {
   sendBtn = document.getElementById('telyx-send-btn');
 
   var conversationHistory = [];
+  var latestTraceId = null;
+  var latestAssistantPreview = '';
+  var assistantTraceCount = 0;
+  var feedbackSubmitted = {};
   var isOpen = false;
   var sessionStorageKey = 'telyxChatSessionId_' + CONFIG.embedKey;
   var sessionTsKey = 'telyxChatSessionTs_' + CONFIG.embedKey;
@@ -369,6 +463,71 @@ export default function ChatWidgetPage() {
     return div;
   }
 
+  function hideFeedback() {
+    feedbackBar.style.display = 'none';
+    feedbackReasons.style.display = 'none';
+  }
+
+  function resetFeedbackComposer() {
+    feedbackTitle.textContent = 'Bu sohbet yardimci oluyor mu?';
+    feedbackHint.textContent = '2 assistant cevabindan sonra degerlendirme acilir.';
+    feedbackActions.style.display = 'flex';
+    feedbackReasons.style.display = 'none';
+  }
+
+  function showFeedback(traceId, reply) {
+    latestTraceId = traceId || null;
+    latestAssistantPreview = reply || '';
+    if (latestTraceId) {
+      assistantTraceCount += 1;
+    }
+    if (!latestTraceId || feedbackSubmitted[latestTraceId] || assistantTraceCount < 2) {
+      hideFeedback();
+      return;
+    }
+    resetFeedbackComposer();
+    feedbackBar.style.display = 'flex';
+  }
+
+  async function submitFeedback(sentiment, reason, comment) {
+    if (!latestTraceId || feedbackSubmitted[latestTraceId]) return;
+
+    try {
+      await fetch(CONFIG.apiUrl + '/api/chat/widget/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          traceId: latestTraceId,
+          sessionId: sessionId,
+          sentiment: sentiment,
+          reason: reason || null,
+          comment: comment || null,
+          source: 'embedded_widget',
+          assistantReplyPreview: latestAssistantPreview || null
+        })
+      });
+      feedbackSubmitted[latestTraceId] = true;
+      feedbackTitle.textContent = 'Tesekkurler, geri bildirimin kaydedildi.';
+      feedbackHint.textContent = '';
+      feedbackActions.style.display = 'none';
+      feedbackReasons.style.display = 'none';
+      setTimeout(function() {
+        resetFeedbackComposer();
+        hideFeedback();
+      }, 2000);
+    } catch (err) {
+      console.error('Failed to submit feedback', err);
+    }
+  }
+
+  feedbackYes.onclick = function() {
+    submitFeedback('positive', 'HELPFUL', null);
+  };
+
+  feedbackNo.onclick = function() {
+    feedbackReasons.style.display = feedbackReasons.style.display === 'flex' ? 'none' : 'flex';
+  };
+
   // Send message
   async function sendMessage() {
     var text = input.value.trim();
@@ -379,6 +538,7 @@ export default function ChatWidgetPage() {
 
     input.value = '';
     sendBtn.disabled = true;
+    hideFeedback();
     addMessage('user', text);
     conversationHistory.push({ role: 'user', content: text });
 
@@ -401,12 +561,15 @@ export default function ChatWidgetPage() {
       if (data.reply) {
         addMessage('bot', data.reply);
         conversationHistory.push({ role: 'assistant', content: data.reply });
+        showFeedback(data.traceId, data.reply);
       } else {
         addMessage('bot', 'Sorry, something went wrong.');
+        hideFeedback();
       }
     } catch (err) {
       typingDiv.remove();
       addMessage('bot', 'Connection error. Please try again.');
+      hideFeedback();
     }
     sendBtn.disabled = false;
     input.focus();

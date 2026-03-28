@@ -7,7 +7,13 @@ export const OP_INCIDENT_CATEGORY = Object.freeze({
   TOOL_NOT_CALLED_WHEN_EXPECTED: 'TOOL_NOT_CALLED_WHEN_EXPECTED',
   VERIFICATION_INCONSISTENT: 'VERIFICATION_INCONSISTENT',
   HALLUCINATION_RISK: 'HALLUCINATION_RISK',
-  RESPONSE_STUCK: 'RESPONSE_STUCK'
+  RESPONSE_STUCK: 'RESPONSE_STUCK',
+  ASSISTANT_BLOCKED: 'ASSISTANT_BLOCKED',
+  ASSISTANT_SANITIZED: 'ASSISTANT_SANITIZED',
+  ASSISTANT_NEEDS_CLARIFICATION: 'ASSISTANT_NEEDS_CLARIFICATION',
+  ASSISTANT_INTERVENTION: 'ASSISTANT_INTERVENTION',
+  ASSISTANT_NEGATIVE_FEEDBACK: 'ASSISTANT_NEGATIVE_FEEDBACK',
+  ASSISTANT_POSITIVE_FEEDBACK: 'ASSISTANT_POSITIVE_FEEDBACK'
 });
 
 export const OP_INCIDENT_SEVERITY = Object.freeze({
@@ -20,6 +26,20 @@ export const OP_INCIDENT_SEVERITY = Object.freeze({
 const DEDUP_WINDOW_MS = 5 * 60 * 1000;
 const CONFIDENT_CLAIM_PATTERN = /(sipariş|kargoda|takip|teslim|order|delivered|tracking|refund|return)/i;
 const UNCERTAIN_PATTERN = /(bilmiyorum|emin değilim|bilemem|i cannot|can't|unable to verify|not sure)/i;
+export const ASSISTANT_INCIDENT_CATEGORIES = Object.freeze([
+  OP_INCIDENT_CATEGORY.ASSISTANT_BLOCKED,
+  OP_INCIDENT_CATEGORY.ASSISTANT_SANITIZED,
+  OP_INCIDENT_CATEGORY.ASSISTANT_NEEDS_CLARIFICATION,
+  OP_INCIDENT_CATEGORY.ASSISTANT_INTERVENTION,
+  OP_INCIDENT_CATEGORY.ASSISTANT_NEGATIVE_FEEDBACK,
+  OP_INCIDENT_CATEGORY.ASSISTANT_POSITIVE_FEEDBACK,
+  OP_INCIDENT_CATEGORY.LLM_BYPASSED,
+  OP_INCIDENT_CATEGORY.TEMPLATE_FALLBACK_USED,
+  OP_INCIDENT_CATEGORY.TOOL_NOT_CALLED_WHEN_EXPECTED,
+  OP_INCIDENT_CATEGORY.VERIFICATION_INCONSISTENT,
+  OP_INCIDENT_CATEGORY.HALLUCINATION_RISK,
+  OP_INCIDENT_CATEGORY.RESPONSE_STUCK
+]);
 
 function safeObject(value) {
   return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
@@ -82,6 +102,12 @@ export function evaluateIncidents(tracePayload) {
   const tools = Array.isArray(payload.tools_called) ? payload.tools_called : [];
   const toolSelected = payload?.plan?.tool_selected || null;
   const responsePreview = String(details.response_preview || '');
+  const guard = safeObject(payload.guardrail);
+  const guardAction = String(guard.action || 'PASS').toUpperCase();
+  const guardReason = guard.reason || null;
+  const responseSource = String(payload.response_source || '');
+  const responseGrounding = String(details.response_grounding || '').toUpperCase();
+  const postprocessors = Array.isArray(payload.postprocessors_applied) ? payload.postprocessors_applied : [];
 
   if (payload.llm_used === false && details.llm_bypass_reason) {
     pushIncident(incidents, payload, {
@@ -91,6 +117,62 @@ export function evaluateIncidents(tracePayload) {
       details: {
         llm_bypass_reason: details.llm_bypass_reason,
         response_source: payload.response_source
+      }
+    });
+  }
+
+  if (guardAction === 'BLOCK') {
+    pushIncident(incidents, payload, {
+      category: OP_INCIDENT_CATEGORY.ASSISTANT_BLOCKED,
+      severity: OP_INCIDENT_SEVERITY.HIGH,
+      summary: 'Assistant response was blocked before reaching the user as-is',
+      details: {
+        guardrail_reason: guardReason,
+        response_source: responseSource
+      }
+    });
+  }
+
+  if (guardAction === 'SANITIZE') {
+    pushIncident(incidents, payload, {
+      category: OP_INCIDENT_CATEGORY.ASSISTANT_SANITIZED,
+      severity: OP_INCIDENT_SEVERITY.MEDIUM,
+      summary: 'Assistant response required sanitization or masking',
+      details: {
+        guardrail_reason: guardReason,
+        response_source: responseSource
+      }
+    });
+  }
+
+  if (guardAction === 'NEED_MIN_INFO_FOR_TOOL' || responseGrounding === 'CLARIFICATION') {
+    pushIncident(incidents, payload, {
+      category: OP_INCIDENT_CATEGORY.ASSISTANT_NEEDS_CLARIFICATION,
+      severity: OP_INCIDENT_SEVERITY.MEDIUM,
+      summary: 'Assistant could not complete the turn and asked for clarification/minimum info',
+      details: {
+        guardrail_reason: guardReason,
+        response_grounding: responseGrounding || null
+      }
+    });
+  }
+
+  if (
+    postprocessors.length > 0
+    || responseSource === 'template'
+    || responseSource === 'fallback'
+    || String(details.origin_id || '').includes('guardrail')
+  ) {
+    pushIncident(incidents, payload, {
+      category: OP_INCIDENT_CATEGORY.ASSISTANT_INTERVENTION,
+      severity: OP_INCIDENT_SEVERITY.MEDIUM,
+      summary: 'Assistant reply was altered by guardrails or postprocessors',
+      details: {
+        postprocessors,
+        response_source: responseSource,
+        origin_id: details.origin_id || null,
+        guardrail_action: guardAction,
+        guardrail_reason: guardReason
       }
     });
   }
@@ -233,9 +315,92 @@ export async function emitOperationalIncidents(tracePayload) {
   return { inserted, deduped, incidents };
 }
 
+export async function logAssistantFeedback({
+  businessId,
+  traceId = null,
+  requestId = null,
+  sessionId = null,
+  messageId = null,
+  userId = null,
+  channel = 'CHAT',
+  sentiment = 'negative',
+  reason = null,
+  comment = null,
+  assistantReplyPreview = null,
+  source = 'widget_feedback'
+} = {}) {
+  const numericBusinessId = Number(businessId);
+  if (!Number.isFinite(numericBusinessId)) {
+    throw new Error('BUSINESS_ID_REQUIRED');
+  }
+
+  const normalizedSentiment = String(sentiment || 'negative').toLowerCase() === 'positive'
+    ? 'positive'
+    : 'negative';
+  const category = normalizedSentiment === 'positive'
+    ? OP_INCIDENT_CATEGORY.ASSISTANT_POSITIVE_FEEDBACK
+    : OP_INCIDENT_CATEGORY.ASSISTANT_NEGATIVE_FEEDBACK;
+  const severity = normalizedSentiment === 'positive'
+    ? OP_INCIDENT_SEVERITY.LOW
+    : OP_INCIDENT_SEVERITY.HIGH;
+  const normalizedComment = String(comment || '').trim() || null;
+  const normalizedReason = String(reason || '').trim() || null;
+  const normalizedPreview = String(assistantReplyPreview || '').trim() || null;
+  const fingerprint = hashFingerprint([
+    numericBusinessId,
+    traceId || 'na',
+    sessionId || 'na',
+    category,
+    normalizedReason || 'na',
+    normalizedComment || 'na'
+  ].join('|'));
+
+  const existing = await prisma.operationalIncident.findFirst({
+    where: {
+      businessId: numericBusinessId,
+      category,
+      fingerprint
+    },
+    select: { id: true }
+  });
+
+  if (existing) {
+    return { created: false, id: existing.id, deduped: true };
+  }
+
+  const created = await prisma.operationalIncident.create({
+    data: {
+      severity,
+      category,
+      channel: String(channel || 'CHAT').toUpperCase(),
+      traceId: traceId || `feedback_${Date.now()}`,
+      requestId: requestId ? String(requestId) : null,
+      businessId: numericBusinessId,
+      userId: userId != null ? String(userId) : null,
+      sessionId: sessionId ? String(sessionId) : null,
+      messageId: messageId ? String(messageId) : null,
+      summary: normalizedSentiment === 'positive'
+        ? 'End user marked the assistant response as helpful'
+        : 'End user marked the assistant response as not helpful',
+      details: {
+        source,
+        sentiment: normalizedSentiment,
+        reason: normalizedReason,
+        comment: normalizedComment,
+        assistantReplyPreview: normalizedPreview
+      },
+      fingerprint
+    }
+  });
+
+  return { created: true, id: created.id, deduped: false };
+}
+
 export default {
   evaluateIncidents,
   emitOperationalIncidents,
+  logAssistantFeedback,
   OP_INCIDENT_CATEGORY,
-  OP_INCIDENT_SEVERITY
+  OP_INCIDENT_SEVERITY,
+  ASSISTANT_INCIDENT_CATEGORIES
 };

@@ -166,18 +166,21 @@ export const FEATURE_FLAGS = {
   TEXT_STRICT_GROUNDING: process.env.TEXT_STRICT_GROUNDING !== 'false', // Default: ON
 
   // ─── Unified Response Trace + Operational Incidents ───
-  // Default OFF (Phase 1 rollout flag)
-  UNIFIED_RESPONSE_TRACE: process.env.FEATURE_UNIFIED_RESPONSE_TRACE === 'true',
+  // Default ON in development to make local QA/ops work without extra env setup.
+  // Production/staging still require explicit flag enablement.
+  UNIFIED_RESPONSE_TRACE: process.env.FEATURE_UNIFIED_RESPONSE_TRACE === 'true' || ENVIRONMENT === 'development',
   UNIFIED_RESPONSE_TRACE_CANARY_BUSINESS_IDS: (process.env.FEATURE_UNIFIED_RESPONSE_TRACE_CANARY_BUSINESS_IDS || '')
     .split(',').map(k => k.trim()).filter(Boolean),
 
-  // Default OFF (Phase 1 rollout flag)
-  OPERATIONAL_INCIDENTS: process.env.FEATURE_OPERATIONAL_INCIDENTS === 'true',
+  // Default ON in development to make local QA/ops work without extra env setup.
+  // Production/staging still require explicit flag enablement.
+  OPERATIONAL_INCIDENTS: process.env.FEATURE_OPERATIONAL_INCIDENTS === 'true' || ENVIRONMENT === 'development',
   OPERATIONAL_INCIDENTS_CANARY_BUSINESS_IDS: (process.env.FEATURE_OPERATIONAL_INCIDENTS_CANARY_BUSINESS_IDS || '')
     .split(',').map(k => k.trim()).filter(Boolean),
 
-  // UI/API gate for Red Alert operational panel (default OFF)
-  REDALERT_OPS_PANEL: process.env.FEATURE_REDALERT_OPS_PANEL === 'true',
+  // UI/API gate for Red Alert operational panel.
+  // Local development defaults to ON so the panel can be iterated quickly.
+  REDALERT_OPS_PANEL: process.env.FEATURE_REDALERT_OPS_PANEL === 'true' || ENVIRONMENT === 'development',
   REDALERT_OPS_PANEL_CANARY_BUSINESS_IDS: (process.env.FEATURE_REDALERT_OPS_PANEL_CANARY_BUSINESS_IDS || '')
     .split(',').map(k => k.trim()).filter(Boolean),
 

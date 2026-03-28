@@ -7,12 +7,22 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Loader2, RotateCcw } from 'lucide-react';
+import { MessageCircle, X, Send, Loader2, RotateCcw, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const FEEDBACK_MIN_ASSISTANT_TURNS = 2;
+const NEGATIVE_FEEDBACK_REASONS = [
+  { code: 'WRONG_ANSWER', label: 'Yanlis cevap verdi' },
+  { code: 'NOT_HELPFUL', label: 'Yeterince yardimci olmadi' },
+  { code: 'TOO_BLOCKY', label: 'Gereksiz blokladi' },
+  { code: 'TOOL_SHOULD_HAVE_BEEN_USED', label: 'Tool cagirmasi gerekiyordu' },
+  { code: 'TOO_GENERIC', label: 'Cok genel kaldi' },
+  { code: 'OTHER', label: 'Diger' }
+];
 
 export default function ChatWidget({
   embedKey,           // NEW: Business-specific embed key (preferred)
@@ -31,6 +41,12 @@ export default function ChatWidget({
   const [sessionId, setSessionId] = useState(null);
   const [isWidgetEnabled, setIsWidgetEnabled] = useState(null); // null = loading, true/false = result
   const [allowReset, setAllowReset] = useState(false);
+  const [latestAssistantTraceId, setLatestAssistantTraceId] = useState(null);
+  const [feedbackChoice, setFeedbackChoice] = useState(null);
+  const [feedbackReason, setFeedbackReason] = useState(null);
+  const [feedbackComment, setFeedbackComment] = useState('');
+  const [feedbackSending, setFeedbackSending] = useState(false);
+  const [feedbackSubmittedByTrace, setFeedbackSubmittedByTrace] = useState({});
   const { t } = useLanguage();
 
   // Check widget status on mount
@@ -108,6 +124,12 @@ export default function ChatWidget({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  useEffect(() => {
+    setFeedbackChoice(null);
+    setFeedbackReason(null);
+    setFeedbackComment('');
+  }, [latestAssistantTraceId]);
+
   // Add welcome message when chat opens
   useEffect(() => {
     if (isOpen && messages.length === 0) {
@@ -117,7 +139,7 @@ export default function ChatWidget({
         timestamp: new Date()
       }]);
     }
-  }, [isOpen, t]);
+  }, [isOpen, messages.length, t]);
 
 useEffect(() => {
   if (!isLoading && isOpen) {
@@ -212,9 +234,15 @@ useEffect(() => {
       const data = await response.json();
 
       if (data.reply) {
-        const botMessage = { role: 'assistant', content: data.reply, timestamp: new Date() };
+        const botMessage = {
+          role: 'assistant',
+          content: data.reply,
+          timestamp: new Date(),
+          traceId: data.traceId || null
+        };
         setMessages(prev => [...prev, botMessage]);
         setConversationHistory(prev => [...prev, { role: 'assistant', content: data.reply }]);
+        setLatestAssistantTraceId(data.traceId || null);
       } else {
         console.warn('No reply in response:', data);
         setMessages(prev => [...prev, {
@@ -274,6 +302,60 @@ useEffect(() => {
     setMessages([]);
     setConversationHistory([]);
     setInputValue('');
+    setLatestAssistantTraceId(null);
+    setFeedbackChoice(null);
+    setFeedbackReason(null);
+    setFeedbackComment('');
+    setFeedbackSubmittedByTrace({});
+  };
+
+  const tracedAssistantMessages = messages.filter((msg) => msg.role === 'assistant' && msg.traceId);
+  const feedbackEligible = tracedAssistantMessages.length >= FEEDBACK_MIN_ASSISTANT_TURNS;
+  const latestAssistantMessage = [...messages]
+    .reverse()
+    .find((msg) => msg.role === 'assistant' && msg.traceId);
+  const activeFeedbackTraceId = feedbackEligible
+    ? (latestAssistantMessage?.traceId || latestAssistantTraceId || null)
+    : null;
+  const feedbackAlreadySubmitted = activeFeedbackTraceId
+    ? feedbackSubmittedByTrace[activeFeedbackTraceId] === true
+    : false;
+
+  const submitFeedback = async (sentiment, { reason = null, comment = '' } = {}) => {
+    if (!activeFeedbackTraceId || feedbackSending) return;
+
+    setFeedbackSending(true);
+    try {
+      const response = await fetch(`${API_URL}/api/chat/widget/feedback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          traceId: activeFeedbackTraceId,
+          sessionId,
+          sentiment,
+          reason,
+          comment: comment || null,
+          source: preview ? 'dashboard_preview_widget' : 'embedded_widget',
+          assistantReplyPreview: latestAssistantMessage?.content || null
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      setFeedbackSubmittedByTrace(prev => ({
+        ...prev,
+        [activeFeedbackTraceId]: true
+      }));
+      setFeedbackChoice(null);
+      setFeedbackReason(null);
+      setFeedbackComment('');
+    } catch (error) {
+      console.error('Failed to submit widget feedback:', error);
+    } finally {
+      setFeedbackSending(false);
+    }
   };
 
   const positionClasses = {
@@ -364,6 +446,85 @@ useEffect(() => {
 
           {/* Input Area */}
           <div className="p-3 border-t border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shrink-0">
+            {feedbackEligible && activeFeedbackTraceId && !feedbackAlreadySubmitted && (
+              <div className="mb-3 rounded-2xl border border-gray-200 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-950 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium text-gray-800 dark:text-gray-100">
+                      Bu sohbet yardimci oluyor mu?
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      2 assistant cevabindan sonra degerlendirme acilir. Puan son assistant cevabina yazilir.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="outline"
+                      className="rounded-full"
+                      onClick={() => submitFeedback('positive', { reason: 'HELPFUL' })}
+                      disabled={feedbackSending}
+                    >
+                      <ThumbsUp className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant={feedbackChoice === 'negative' ? 'default' : 'outline'}
+                      className="rounded-full"
+                      onClick={() => setFeedbackChoice(feedbackChoice === 'negative' ? null : 'negative')}
+                      disabled={feedbackSending}
+                    >
+                      <ThumbsDown className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                {feedbackChoice === 'negative' && (
+                  <div className="mt-3 space-y-2">
+                    <div className="flex flex-wrap gap-2">
+                      {NEGATIVE_FEEDBACK_REASONS.map((reason) => (
+                        <Button
+                          key={reason.code}
+                          type="button"
+                          size="sm"
+                          variant={feedbackReason === reason.code ? 'default' : 'outline'}
+                          onClick={() => setFeedbackReason(reason.code)}
+                          disabled={feedbackSending}
+                        >
+                          {reason.label}
+                        </Button>
+                      ))}
+                    </div>
+                    <Textarea
+                      value={feedbackComment}
+                      onChange={(e) => setFeedbackComment(e.target.value)}
+                      placeholder="Istersen kisa bir not ekle..."
+                      className="min-h-[80px] text-sm"
+                      disabled={feedbackSending}
+                    />
+                    <div className="flex justify-end">
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => submitFeedback('negative', { reason: feedbackReason, comment: feedbackComment })}
+                        disabled={feedbackSending || (!feedbackReason && !feedbackComment.trim())}
+                      >
+                        {feedbackSending ? 'Gonderiliyor...' : 'Geri Bildirim Gonder'}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {feedbackAlreadySubmitted && activeFeedbackTraceId && (
+              <div className="mb-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-300">
+                Geri bildirimin icin tesekkurler.
+              </div>
+            )}
+
             <div className="flex gap-2">
               <Input
                 ref={inputRef}

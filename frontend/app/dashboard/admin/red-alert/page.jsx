@@ -6,19 +6,16 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   Shield, AlertTriangle, AlertCircle, Activity,
   Clock, Server, Eye, ChevronLeft, ChevronRight,
-  Bug, Wrench, MessageSquare, Globe, CheckCircle, XCircle, ChevronDown, ChevronUp
+  Bug, Wrench, MessageSquare, Globe, CheckCircle, XCircle, ChevronDown, ChevronUp, Sparkles
 } from 'lucide-react';
 import { apiClient } from '@/lib/api';
 import { toast } from 'sonner';
 import { LineChart } from '@/components/charts/LineChart';
 import { BarChart } from '@/components/charts/BarChart';
-
-const OPS_PANEL_ENABLED =
-  process.env.NEXT_PUBLIC_FEATURE_REDALERT_OPS_PANEL === 'true' ||
-  process.env.FEATURE_REDALERT_OPS_PANEL === 'true';
 
 const SEVERITY_COLORS = {
   low: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
@@ -67,6 +64,21 @@ const OPS_CATEGORY_LABELS = {
   LLM_BYPASSED: 'LLM Bypassed',
   TEMPLATE_FALLBACK_USED: 'Template/Fallback',
   TOOL_NOT_CALLED_WHEN_EXPECTED: 'Tool Not Called',
+  VERIFICATION_INCONSISTENT: 'Verification Drift',
+  HALLUCINATION_RISK: 'Hallucination Risk',
+  RESPONSE_STUCK: 'Response Stuck',
+};
+
+const ASSISTANT_CATEGORY_LABELS = {
+  ASSISTANT_BLOCKED: 'Blocked',
+  ASSISTANT_SANITIZED: 'Sanitized',
+  ASSISTANT_NEEDS_CLARIFICATION: 'Needs Clarification',
+  ASSISTANT_INTERVENTION: 'Intervention',
+  ASSISTANT_NEGATIVE_FEEDBACK: 'Negative Feedback',
+  ASSISTANT_POSITIVE_FEEDBACK: 'Positive Feedback',
+  LLM_BYPASSED: 'LLM Bypassed',
+  TEMPLATE_FALLBACK_USED: 'Fallback Used',
+  TOOL_NOT_CALLED_WHEN_EXPECTED: 'Tool Skipped',
   VERIFICATION_INCONSISTENT: 'Verification Drift',
   HALLUCINATION_RISK: 'Hallucination Risk',
   RESPONSE_STUCK: 'Response Stuck',
@@ -130,6 +142,29 @@ export default function RedAlertPage() {
     total: 0,
     hasMore: false,
   });
+  const [assistantSummary, setAssistantSummary] = useState(null);
+  const [assistantEvents, setAssistantEvents] = useState([]);
+  const [assistantFilters, setAssistantFilters] = useState({
+    category: '',
+    severity: '',
+    resolved: '',
+  });
+  const [assistantPagination, setAssistantPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    hasMore: false,
+  });
+  const [assistantTraceDetail, setAssistantTraceDetail] = useState(null);
+  const [assistantTraceOpen, setAssistantTraceOpen] = useState(false);
+  const [assistantTraceLoading, setAssistantTraceLoading] = useState(false);
+  const [opsCapabilities, setOpsCapabilities] = useState({
+    loaded: false,
+    redAlertOpsPanelEnabled: false,
+    unifiedResponseTraceEnabled: false,
+    operationalIncidentsEnabled: false
+  });
+  const opsPanelEnabled = opsCapabilities.redAlertOpsPanelEnabled === true;
 
   // Check admin access
   useEffect(() => {
@@ -138,7 +173,8 @@ export default function RedAlertPage() {
         const response = await apiClient.get('/api/auth/me');
         if (response.data?.isAdmin === true) {
           setIsAdmin(true);
-          loadDashboardData();
+          const capabilities = await loadRedAlertCapabilities();
+          await loadDashboardData(capabilities);
         } else {
           setIsAdmin(false);
           setLoading(false);
@@ -152,8 +188,32 @@ export default function RedAlertPage() {
     checkAdminAccess();
   }, []);
 
+  const loadRedAlertCapabilities = async () => {
+    try {
+      const response = await apiClient.get('/api/red-alert/capabilities');
+      const nextCapabilities = {
+        loaded: true,
+        redAlertOpsPanelEnabled: response.data?.redAlertOpsPanelEnabled === true,
+        unifiedResponseTraceEnabled: response.data?.unifiedResponseTraceEnabled === true,
+        operationalIncidentsEnabled: response.data?.operationalIncidentsEnabled === true
+      };
+      setOpsCapabilities(nextCapabilities);
+      return nextCapabilities;
+    } catch (error) {
+      console.error('Failed to load Red Alert capabilities:', error);
+      const fallbackCapabilities = {
+        loaded: true,
+        redAlertOpsPanelEnabled: false,
+        unifiedResponseTraceEnabled: false,
+        operationalIncidentsEnabled: false
+      };
+      setOpsCapabilities(fallbackCapabilities);
+      return fallbackCapabilities;
+    }
+  };
+
   // Load all dashboard data
-  const loadDashboardData = async () => {
+  const loadDashboardData = async (capabilityOverride = opsCapabilities) => {
     setLoading(true);
     try {
       const baseLoads = [
@@ -166,8 +226,14 @@ export default function RedAlertPage() {
         loadErrorLogs(),
       ];
 
-      if (OPS_PANEL_ENABLED) {
-        baseLoads.push(loadOpsSummary(), loadOpsEvents(), loadRepeatResponses());
+      if (capabilityOverride?.redAlertOpsPanelEnabled === true) {
+        baseLoads.push(
+          loadOpsSummary(),
+          loadOpsEvents(),
+          loadRepeatResponses(),
+          loadAssistantSummary(),
+          loadAssistantEvents()
+        );
       }
 
       await Promise.all(baseLoads);
@@ -244,7 +310,7 @@ export default function RedAlertPage() {
   };
 
   const loadOpsSummary = async () => {
-    if (!OPS_PANEL_ENABLED) return;
+    if (!opsPanelEnabled) return;
     try {
       const response = await apiClient.get('/api/red-alert/ops/summary', {
         params: { range: `${filters.hours}h` },
@@ -256,7 +322,7 @@ export default function RedAlertPage() {
   };
 
   const loadOpsEvents = async () => {
-    if (!OPS_PANEL_ENABLED) return;
+    if (!opsPanelEnabled) return;
     try {
       const response = await apiClient.get('/api/red-alert/ops/events', {
         params: {
@@ -279,7 +345,7 @@ export default function RedAlertPage() {
   };
 
   const loadRepeatResponses = async () => {
-    if (!OPS_PANEL_ENABLED) return;
+    if (!opsPanelEnabled) return;
     try {
       const response = await apiClient.get('/api/red-alert/ops/repeat-responses', {
         params: { range: `${filters.hours}h` },
@@ -287,6 +353,69 @@ export default function RedAlertPage() {
       setRepeatResponses(response.data.repeats || []);
     } catch (error) {
       console.error('Failed to load repeat responses:', error);
+    }
+  };
+
+  const loadAssistantSummary = async () => {
+    if (!opsPanelEnabled) return;
+    try {
+      const response = await apiClient.get('/api/red-alert/assistant/summary', {
+        params: { range: `${filters.hours}h` },
+      });
+      setAssistantSummary(response.data);
+    } catch (error) {
+      console.error('Failed to load assistant summary:', error);
+    }
+  };
+
+  const loadAssistantEvents = async () => {
+    if (!opsPanelEnabled) return;
+    try {
+      const response = await apiClient.get('/api/red-alert/assistant/events', {
+        params: {
+          range: `${filters.hours}h`,
+          category: assistantFilters.category || undefined,
+          severity: assistantFilters.severity || undefined,
+          resolved: assistantFilters.resolved !== '' ? assistantFilters.resolved : undefined,
+          limit: assistantPagination.limit,
+          offset: (assistantPagination.page - 1) * assistantPagination.limit,
+        },
+      });
+      setAssistantEvents(response.data.events || []);
+      setAssistantPagination(prev => ({
+        ...prev,
+        total: response.data.pagination?.total || 0,
+        hasMore: response.data.pagination?.hasMore || false,
+      }));
+    } catch (error) {
+      console.error('Failed to load assistant events:', error);
+    }
+  };
+
+  const loadAssistantTraceDetail = async (traceId) => {
+    if (!traceId) return;
+    setAssistantTraceLoading(true);
+    try {
+      const response = await apiClient.get(`/api/red-alert/assistant/trace/${traceId}`);
+      setAssistantTraceDetail(response.data);
+      setAssistantTraceOpen(true);
+    } catch (error) {
+      console.error('Failed to load assistant trace detail:', error);
+      toast.error('Trace detayi yuklenemedi');
+    } finally {
+      setAssistantTraceLoading(false);
+    }
+  };
+
+  const handleResolveAssistantEvent = async (eventId, resolved) => {
+    try {
+      await apiClient.patch(`/api/red-alert/assistant/events/${eventId}/resolve`, { resolved });
+      toast.success(resolved ? 'Assistant event cozuldu olarak isaretlendi' : 'Assistant event tekrar acildi');
+      loadAssistantEvents();
+      loadAssistantSummary();
+    } catch (error) {
+      console.error('Failed to resolve assistant event:', error);
+      toast.error('Assistant event guncellenemedi');
     }
   };
 
@@ -362,16 +491,16 @@ export default function RedAlertPage() {
 
   // Reload data when filters change
   useEffect(() => {
-    if (isAdmin) {
+    if (isAdmin && opsCapabilities.loaded) {
       loadDashboardData();
     }
-  }, [filters.hours, filters.severity, filters.type]);
+  }, [filters.hours, filters.severity, filters.type, isAdmin, opsCapabilities.loaded]);
 
   useEffect(() => {
-    if (!OPS_PANEL_ENABLED && activePanel === 'ops') {
+    if (!opsPanelEnabled && activePanel === 'ops') {
       setActivePanel('errors');
     }
-  }, [activePanel]);
+  }, [activePanel, opsPanelEnabled]);
 
   // Reload events when pagination changes
   useEffect(() => {
@@ -388,10 +517,16 @@ export default function RedAlertPage() {
   }, [errorFilters.category, errorFilters.severity, errorFilters.resolved, errorPagination.page]);
 
   useEffect(() => {
-    if (isAdmin && OPS_PANEL_ENABLED) {
+    if (isAdmin && opsPanelEnabled) {
       loadOpsEvents();
     }
-  }, [opsFilters.category, opsFilters.severity, opsPagination.page]);
+  }, [opsFilters.category, opsFilters.severity, opsPagination.page, isAdmin, opsPanelEnabled]);
+
+  useEffect(() => {
+    if (isAdmin && opsPanelEnabled) {
+      loadAssistantEvents();
+    }
+  }, [assistantFilters.category, assistantFilters.severity, assistantFilters.resolved, assistantPagination.page, isAdmin, opsPanelEnabled]);
 
   if (!isAdmin && !loading) {
     return (
@@ -451,6 +586,7 @@ export default function RedAlertPage() {
   const totalEvents = summary?.summary?.total || 0;
   const threatCount = (topThreats.topIPs?.length || 0) + (topThreats.topEndpoints?.length || 0);
   const opsIncidentCount = opsSummary?.totals?.incidents || 0;
+  const assistantIncidentCount = assistantSummary?.totals?.incidents || 0;
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -485,14 +621,21 @@ export default function RedAlertPage() {
               <SelectItem value="168">Son 7 Gün</SelectItem>
             </SelectContent>
           </Select>
-          <Button onClick={loadDashboardData} variant="outline" size="sm">
+          <Button
+            onClick={async () => {
+              const capabilities = await loadRedAlertCapabilities();
+              loadDashboardData(capabilities);
+            }}
+            variant="outline"
+            size="sm"
+          >
             <Activity className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
       {/* Navigation Cards — 4 cards */}
-      <div className={`grid grid-cols-2 ${OPS_PANEL_ENABLED ? 'md:grid-cols-5' : 'md:grid-cols-4'} gap-4 mb-6`}>
+      <div className={`grid grid-cols-2 ${opsPanelEnabled ? 'md:grid-cols-6' : 'md:grid-cols-5'} gap-4 mb-6`}>
         <NavCard
           id="errors"
           icon={Bug}
@@ -543,7 +686,21 @@ export default function RedAlertPage() {
           activeBorderColor="border-red-500 dark:border-red-400"
           borderColor="border-red-300"
         />
-        {OPS_PANEL_ENABLED && (
+        <NavCard
+          id="assistant"
+          icon={Sparkles}
+          iconColor="text-fuchsia-600"
+          title="Assistant Quality"
+          value={assistantIncidentCount}
+          subtitle={
+            opsPanelEnabled
+              ? 'Davranis ve feedback sinyalleri'
+              : 'Panel kapaliysa buradan nedenini gor'
+          }
+          activeBorderColor="border-fuchsia-500 dark:border-fuchsia-400"
+          borderColor="border-fuchsia-300"
+        />
+        {opsPanelEnabled && (
           <NavCard
             id="ops"
             icon={Activity}
@@ -952,8 +1109,295 @@ export default function RedAlertPage() {
         </Card>
       )}
 
+      {activePanel === 'assistant' && !opsPanelEnabled && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Assistant Quality</CardTitle>
+            <CardDescription>
+              Bu alan commit/push eksik oldugu icin degil, backend capability kapali oldugu icin gorunmeyebilir.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <p className="text-muted-foreground">
+              Panelin veri uretebilmesi icin backend tarafinda unified trace, operational incidents ve Red Alert ops panel capability acik olmali.
+            </p>
+            <div className="rounded-xl border bg-muted/30 p-4 space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <span>Unified Response Trace</span>
+                <Badge variant={opsCapabilities.unifiedResponseTraceEnabled ? 'default' : 'outline'}>
+                  {opsCapabilities.unifiedResponseTraceEnabled ? 'Acik' : 'Kapali'}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span>Operational Incidents</span>
+                <Badge variant={opsCapabilities.operationalIncidentsEnabled ? 'default' : 'outline'}>
+                  {opsCapabilities.operationalIncidentsEnabled ? 'Acik' : 'Kapali'}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span>Assistant/Ops Panel</span>
+                <Badge variant={opsCapabilities.redAlertOpsPanelEnabled ? 'default' : 'outline'}>
+                  {opsCapabilities.redAlertOpsPanelEnabled ? 'Acik' : 'Kapali'}
+                </Badge>
+              </div>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Prod/pilot ortaminda gerekli backend envler: <code>FEATURE_UNIFIED_RESPONSE_TRACE=true</code>, <code>FEATURE_OPERATIONAL_INCIDENTS=true</code>, <code>FEATURE_REDALERT_OPS_PANEL=true</code>.
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* ═══════════ Panel: Operasyonel Olaylar ═══════════ */}
-      {OPS_PANEL_ENABLED && activePanel === 'ops' && (
+      {opsPanelEnabled && activePanel === 'assistant' && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Blocked Rate</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-600">
+                  {assistantSummary?.cards?.blockedRate ?? 0}%
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {assistantSummary?.counts?.blocked ?? 0} blocked turn
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Sanitize Rate</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-amber-600">
+                  {assistantSummary?.cards?.sanitizeRate ?? 0}%
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {assistantSummary?.counts?.sanitized ?? 0} sanitized turn
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Fallback Rate</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-yellow-600">
+                  {assistantSummary?.cards?.fallbackRate ?? 0}%
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {assistantSummary?.counts?.fallback ?? 0} fallback turn
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Clarification Rate</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600">
+                  {assistantSummary?.cards?.clarificationRate ?? 0}%
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {assistantSummary?.counts?.clarification ?? 0} clarification turn
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Negative Feedback</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-fuchsia-600">
+                  {assistantSummary?.counts?.negativeFeedback ?? 0}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {assistantSummary?.cards?.negativeFeedbackRate ?? 0}% of feedback
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Assistant Quality Events</CardTitle>
+              <CardDescription>
+                Block, sanitize, fallback, tool skip, intervention ve kullanici feedback sinyalleri
+              </CardDescription>
+              <div className="flex gap-4 mt-4 flex-wrap">
+                <Select
+                  value={assistantFilters.category || 'all'}
+                  onValueChange={(value) => {
+                    setAssistantFilters(prev => ({ ...prev, category: value === 'all' ? '' : value }));
+                    setAssistantPagination(prev => ({ ...prev, page: 1 }));
+                  }}
+                >
+                  <SelectTrigger className="w-56">
+                    <SelectValue placeholder="Tum Kategoriler" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tum Kategoriler</SelectItem>
+                    {Object.entries(ASSISTANT_CATEGORY_LABELS).map(([key, label]) => (
+                      <SelectItem key={key} value={key}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select
+                  value={assistantFilters.severity || 'all'}
+                  onValueChange={(value) => {
+                    setAssistantFilters(prev => ({ ...prev, severity: value === 'all' ? '' : value }));
+                    setAssistantPagination(prev => ({ ...prev, page: 1 }));
+                  }}
+                >
+                  <SelectTrigger className="w-44">
+                    <SelectValue placeholder="Tum Onem Dereceleri" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tum Onem Dereceleri</SelectItem>
+                    <SelectItem value="LOW">LOW</SelectItem>
+                    <SelectItem value="MEDIUM">MEDIUM</SelectItem>
+                    <SelectItem value="HIGH">HIGH</SelectItem>
+                    <SelectItem value="CRITICAL">CRITICAL</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select
+                  value={assistantFilters.resolved !== '' ? assistantFilters.resolved : 'all'}
+                  onValueChange={(value) => {
+                    setAssistantFilters(prev => ({ ...prev, resolved: value === 'all' ? '' : value }));
+                    setAssistantPagination(prev => ({ ...prev, page: 1 }));
+                  }}
+                >
+                  <SelectTrigger className="w-44">
+                    <SelectValue placeholder="Tum Durumlar" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tum Durumlar</SelectItem>
+                    <SelectItem value="false">Acilanlar</SelectItem>
+                    <SelectItem value="true">Cozulenler</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Zaman</TableHead>
+                    <TableHead>Kategori</TableHead>
+                    <TableHead>Onem</TableHead>
+                    <TableHead>Ozet</TableHead>
+                    <TableHead>Kanal</TableHead>
+                    <TableHead>Session</TableHead>
+                    <TableHead>Durum</TableHead>
+                    <TableHead>Islem</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {assistantEvents.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                        Assistant event bulunamadi
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    assistantEvents.map((event) => (
+                      <TableRow key={event.id}>
+                        <TableCell className="whitespace-nowrap text-xs">
+                          {new Date(event.createdAt).toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {ASSISTANT_CATEGORY_LABELS[event.category] || event.category}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={SEVERITY_COLORS[(event.severity || '').toLowerCase()] || 'bg-muted text-foreground'}>
+                            {event.severity}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="max-w-md truncate" title={event.summary}>
+                          {event.summary}
+                        </TableCell>
+                        <TableCell>{event.channel}</TableCell>
+                        <TableCell className="font-mono text-xs">
+                          {event.sessionId ? `${event.sessionId.slice(0, 14)}...` : '-'}
+                        </TableCell>
+                        <TableCell>
+                          {event.resolved ? (
+                            <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                              Cozuldu
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                              Acik
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => loadAssistantTraceDetail(event.traceId)}
+                              disabled={!event.traceId || assistantTraceLoading}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleResolveAssistantEvent(event.id, !event.resolved)}
+                            >
+                              {event.resolved ? (
+                                <XCircle className="h-4 w-4 text-red-500" />
+                              ) : (
+                                <CheckCircle className="h-4 w-4 text-green-500" />
+                              )}
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+
+              {assistantPagination.total > assistantPagination.limit && (
+                <div className="flex items-center justify-between mt-4">
+                  <div className="text-sm text-muted-foreground">
+                    {((assistantPagination.page - 1) * assistantPagination.limit) + 1} -{' '}
+                    {Math.min(assistantPagination.page * assistantPagination.limit, assistantPagination.total)} / toplam{' '}
+                    {assistantPagination.total} event
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setAssistantPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+                      disabled={assistantPagination.page === 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Onceki
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setAssistantPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+                      disabled={!assistantPagination.hasMore}
+                    >
+                      Sonraki
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {opsPanelEnabled && activePanel === 'ops' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card>
@@ -1259,6 +1703,197 @@ export default function RedAlertPage() {
           </Card>
         </div>
       )}
+
+      <Dialog open={assistantTraceOpen} onOpenChange={setAssistantTraceOpen}>
+        <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Assistant Trace Detail</DialogTitle>
+          </DialogHeader>
+
+          {assistantTraceDetail?.trace ? (
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div>
+                  <div className="text-muted-foreground text-xs">Trace</div>
+                  <div className="font-mono text-xs break-all">{assistantTraceDetail.trace.traceId}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground text-xs">Channel</div>
+                  <div>{assistantTraceDetail.trace.channel}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground text-xs">Response Source</div>
+                  <div>{assistantTraceDetail.trace.responseSource || '-'}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground text-xs">Latency</div>
+                  <div>{assistantTraceDetail.trace.latencyMs || 0} ms</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground text-xs">LLM Used</div>
+                  <div>{assistantTraceDetail.trace.llmUsed ? 'Yes' : 'No'}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground text-xs">Tools Called</div>
+                  <div>{assistantTraceDetail.trace.toolsCalledCount || 0}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground text-xs">Tool Success</div>
+                  <div>{assistantTraceDetail.trace.toolSuccess ? 'Yes' : 'No'}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground text-xs">Session</div>
+                  <div className="font-mono text-xs break-all">{assistantTraceDetail.trace.sessionId || '-'}</div>
+                </div>
+              </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Trace Payload</CardTitle>
+                  <CardDescription>
+                    Guardrail, source, grounding ve postprocessor detaylari
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="text-sm">
+                    <div className="text-muted-foreground text-xs mb-1">Response Preview</div>
+                    <div className="rounded-md border bg-muted/30 p-3 whitespace-pre-wrap">
+                      {assistantTraceDetail.trace.responsePreview || assistantTraceDetail.trace.payload?.details?.response_preview || '-'}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <div className="text-muted-foreground text-xs">Guardrail</div>
+                      <div>{assistantTraceDetail.trace.payload?.guardrail?.action || '-'}</div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {assistantTraceDetail.trace.payload?.guardrail?.reason || '-'}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground text-xs">Grounding</div>
+                      <div>{assistantTraceDetail.trace.payload?.details?.response_grounding || '-'}</div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground text-xs">Message Type</div>
+                      <div>{assistantTraceDetail.trace.payload?.details?.message_type || '-'}</div>
+                    </div>
+                  </div>
+
+                  <div className="text-sm">
+                    <div className="text-muted-foreground text-xs mb-1">Postprocessors</div>
+                    <div className="flex flex-wrap gap-2">
+                      {(assistantTraceDetail.trace.payload?.postprocessors_applied || []).length === 0 ? (
+                        <Badge variant="outline">None</Badge>
+                      ) : (
+                        (assistantTraceDetail.trace.payload?.postprocessors_applied || []).map((item) => (
+                          <Badge key={item} variant="outline">{item}</Badge>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="text-sm">
+                    <div className="text-muted-foreground text-xs mb-1">Tools</div>
+                    <pre className="text-xs bg-muted p-3 rounded-md overflow-x-auto">
+                      {JSON.stringify(assistantTraceDetail.trace.payload?.tools_called || [], null, 2)}
+                    </pre>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Linked Incidents</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {(assistantTraceDetail.incidents || []).map((incident) => (
+                      <div key={incident.id} className="rounded-md border p-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <div className="font-medium text-sm">
+                              {ASSISTANT_CATEGORY_LABELS[incident.category] || incident.category}
+                            </div>
+                            <div className="text-xs text-muted-foreground">{incident.summary}</div>
+                            {(incident.details?.reason || incident.details?.comment || incident.details?.guardrail_reason) && (
+                              <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                                {incident.details?.reason && (
+                                  <div>Reason: <code>{incident.details.reason}</code></div>
+                                )}
+                                {incident.details?.guardrail_reason && (
+                                  <div>Guardrail: <code>{incident.details.guardrail_reason}</code></div>
+                                )}
+                                {incident.details?.comment && (
+                                  <div className="whitespace-pre-wrap">Comment: {incident.details.comment}</div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          <Badge className={SEVERITY_COLORS[(incident.severity || '').toLowerCase()] || 'bg-muted text-foreground'}>
+                            {incident.severity}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                    {(assistantTraceDetail.incidents || []).length === 0 && (
+                      <div className="text-sm text-muted-foreground">Linked incident yok.</div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <CardTitle className="text-base">Conversation Snapshot</CardTitle>
+                      <CardDescription>
+                        Mevcut chat log kaydi uzerinden konusma icerigi
+                      </CardDescription>
+                    </div>
+                    {assistantTraceDetail.chatLog?.id && (
+                      <a
+                        href={`/dashboard/chat-history?chatId=${assistantTraceDetail.chatLog.id}`}
+                        className="text-sm text-blue-600 hover:underline"
+                      >
+                        Chat historyde ac
+                      </a>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {assistantTraceDetail.chatLog?.messages?.length ? (
+                    <div className="space-y-3 max-h-[360px] overflow-y-auto">
+                      {assistantTraceDetail.chatLog.messages.map((message, index) => (
+                        <div
+                          key={`${message.role || 'msg'}-${index}`}
+                          className={`rounded-xl px-4 py-3 text-sm ${
+                            message.role === 'user'
+                              ? 'ml-10 bg-blue-50 border border-blue-100'
+                              : 'mr-10 bg-muted border'
+                          }`}
+                        >
+                          <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">
+                            {message.role || 'unknown'}
+                          </div>
+                          <div className="whitespace-pre-wrap">{message.content || '-'}</div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground">Bu trace icin bagli bir chat log bulunamadi.</div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          ) : (
+            <div className="text-sm text-muted-foreground">
+              {assistantTraceLoading ? 'Trace yukleniyor...' : 'Trace detayi bulunamadi.'}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

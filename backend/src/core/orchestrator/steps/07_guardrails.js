@@ -13,7 +13,7 @@
  */
 
 import { applyActionClaimPolicy } from '../../../policies/actionClaimPolicy.js';
-import { scanForPII } from '../../email/policies/piiPreventionPolicy.js';
+import { preventPIILeak } from '../../email/policies/piiPreventionPolicy.js';
 import { lockSession, getLockMessage } from '../../../services/session-lock.js';
 import { sanitizeResponse, logFirewallViolation } from '../../../utils/response-firewall.js';
 import { ensurePolicyGuidance } from '../../../services/tool-fail-handler.js';
@@ -263,7 +263,8 @@ export async function applyGuardrails(params) {
     intent = null, // Tespit edilen intent (requiresToolCall kontrolü için)
     collectedData = {}, // Zaten bilinen veriler (orderNumber, phone, name) - Leak filter için
     callbackPending = false,
-    activeFlow = null
+    activeFlow = null,
+    publicContactEmails = []
   } = params;
 
   // Mutable response text (sanitize policies)
@@ -279,72 +280,62 @@ export async function applyGuardrails(params) {
   const firewallResult = sanitizeResponse(responseText, language, {
     sessionId,
     channel,
-    intent
+    intent,
+    allowedEmails: publicContactEmails
   });
 
+  if (firewallResult.safe && firewallResult.modified && firewallResult.sanitized) {
+    responseText = firewallResult.sanitized;
+    metrics.firewallPiiSanitized = true;
+    metrics.firewallRedactions = firewallResult.redactions || [];
+    console.warn('🛡️ [Firewall] Recoverable PII masked and response preserved');
+  }
+
   if (!firewallResult.safe) {
-    const violations = Array.isArray(firewallResult.violations) ? firewallResult.violations : [];
-    const onlyUnredactedPii = violations.length === 1 && violations[0] === 'UNREDACTED_PII';
-    let recoveredByLeakSanitizer = false;
+    console.error('🚨 [FIREWALL] Response blocked!', firewallResult.violations);
 
-    if (onlyUnredactedPii) {
-      const leakSanitizeResult = applyLeakFilter(responseText, verificationState, language, collectedData, {
-        callbackPending,
-        activeFlow,
-        intent,
-        toolsCalled,
-      });
+    // Log violation for monitoring
+    await logFirewallViolation({
+      violations: firewallResult.violations,
+      original: firewallResult.original,
+      sessionId,
+      timestamp: new Date().toISOString()
+    }, null, chat?.businessId);
 
-      if (leakSanitizeResult.safe && leakSanitizeResult.action === GuardrailAction.SANITIZE && leakSanitizeResult.sanitized) {
-        responseText = leakSanitizeResult.sanitized;
-        recoveredByLeakSanitizer = true;
-        metrics.firewallPiiSanitized = true;
-        console.warn('🛡️ [Firewall] UNREDACTED_PII recovered via leak sanitizer (masked output)');
-      }
-    }
+    // SOFT REFUSAL: Don't lock session for first/occasional firewall violations
+    // Track violation count in metrics - orchestrator can decide to lock on repeated abuse
+    // This allows user to continue conversation without hard termination
+    console.log('🛡️ [Firewall] Soft refusal - response sanitized, session remains open');
 
-    if (!recoveredByLeakSanitizer) {
-      console.error('🚨 [FIREWALL] Response blocked!', firewallResult.violations);
-
-      // Log violation for monitoring
-      await logFirewallViolation({
-        violations: firewallResult.violations,
-        original: firewallResult.original,
-        sessionId,
-        timestamp: new Date().toISOString()
-      }, null, chat?.businessId);
-
-      // SOFT REFUSAL: Don't lock session for first/occasional firewall violations
-      // Track violation count in metrics - orchestrator can decide to lock on repeated abuse
-      // This allows user to continue conversation without hard termination
-      console.log('🛡️ [Firewall] Soft refusal - response sanitized, session remains open');
-
-      // Return sanitized fallback response WITHOUT locking
-      return {
-        finalResponse: firewallResult.sanitized,
-        action: GuardrailAction.SANITIZE,
-        guardrailsApplied: ['RESPONSE_FIREWALL'],
-        blocked: true,
-        blockReason: 'FIREWALL_BLOCK', // P2-FIX: explicit blockReason for telemetry
-        softRefusal: true, // Flag for soft refusal (no session lock)
-        violations: firewallResult.violations,
-        messageKey: firewallResult.messageKey,
-        variantIndex: firewallResult.variantIndex
-      };
-    }
+    // Return sanitized fallback response WITHOUT locking
+    return {
+      finalResponse: firewallResult.sanitized,
+      action: GuardrailAction.SANITIZE,
+      guardrailsApplied: ['RESPONSE_FIREWALL'],
+      blocked: true,
+      blockReason: 'FIREWALL_BLOCK', // P2-FIX: explicit blockReason for telemetry
+      softRefusal: true, // Flag for soft refusal (no session lock)
+      violations: firewallResult.violations,
+      messageKey: firewallResult.messageKey,
+      variantIndex: firewallResult.variantIndex
+    };
   }
 
   console.log('✅ [Firewall] Response passed security checks');
 
   // POLICY 1: PII Leak Prevention (CRITICAL)
-  const piiScan = scanForPII(responseText);
-  if (piiScan.hasCritical) {
-    console.error('🚨 [Guardrails] CRITICAL PII DETECTED in assistant output!', piiScan.findings);
+  const piiResult = preventPIILeak(responseText, {
+    strict: true,
+    language
+  });
+
+  if (piiResult.blocked) {
+    console.error('🚨 [Guardrails] BLOCKING PII DETECTED in assistant output!', piiResult.findings);
 
     // P0: Log PII leak attempt to SecurityEvent
     try {
       const { logPIILeakBlock } = await import('../../../middleware/securityEventLogger.js');
-      const piiTypes = piiScan.findings.map(f => f.type);
+      const piiTypes = piiResult.findings.map(f => f.type);
 
       const mockReq = {
         ip: 'system',
@@ -378,15 +369,26 @@ export async function applyGuardrails(params) {
       blocked: true,
       blockReason: 'PII_RISK',
       lockReason: 'PII_RISK',
-      piiFindings: piiScan.findings.map(f => ({ type: f.type, severity: f.severity }))
+      piiFindings: piiResult.findings.map(f => ({ type: f.type, severity: f.severity }))
     };
   }
 
-  // Log PII warnings (non-critical)
-  if (piiScan.hasHigh) {
-    console.warn('⚠️ [Guardrails] HIGH-severity PII detected (not blocked):', piiScan.findings);
-    metrics.piiWarnings = piiScan.findings.filter(f => f.severity === 'HIGH').map(f => f.type);
+  if (piiResult.modified && piiResult.content && piiResult.content !== responseText) {
+    responseText = piiResult.content;
+    metrics.piiSanitized = piiResult.modifications || [];
+    console.warn('🔒 [Guardrails] Recoverable PII masked and response kept intact');
   }
+
+  // Log PII warnings (non-blocking sanitize path)
+  if (Array.isArray(piiResult.findings) && piiResult.findings.some(f => f.action !== 'BLOCK')) {
+    console.warn('⚠️ [Guardrails] Recoverable PII detected (masked, not blocked):', piiResult.findings);
+    metrics.piiWarnings = piiResult.findings
+      .filter(f => f.action !== 'BLOCK')
+      .map(f => f.type);
+  }
+
+  const piiHasWarnableFinding = Array.isArray(piiResult.findings)
+    && piiResult.findings.some(f => f.severity === 'HIGH' && f.action !== 'BLOCK');
 
   // POLICY 1.5: Security Gateway Leak Filter (barrier-only)
   const leakFilterResult = applyLeakFilter(responseText, verificationState, language, collectedData, {
@@ -643,7 +645,7 @@ export async function applyGuardrails(params) {
 
     const appliedPolicies = [
       'RESPONSE_FIREWALL',
-      piiScan.hasHigh ? 'PII_PREVENTION (WARN)' : 'PII_PREVENTION',
+      piiHasWarnableFinding ? 'PII_PREVENTION (WARN)' : 'PII_PREVENTION',
       'SECURITY_GATEWAY'
     ];
 
@@ -863,7 +865,7 @@ export async function applyGuardrails(params) {
     'ACTION_CLAIM',
     'POLICY_GUIDANCE'
   ];
-  if (piiScan.hasHigh) {
+  if (piiHasWarnableFinding) {
     appliedPolicies[1] = 'PII_PREVENTION (WARN)';
   }
   if (guidanceResult.guidanceAdded) {

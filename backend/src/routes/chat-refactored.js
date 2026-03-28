@@ -68,6 +68,7 @@ import {
 } from '../services/assistantChannels.js';
 import { extractSessionToken, verifySessionToken } from '../security/sessionToken.js';
 import { queueUnifiedResponseTrace } from '../services/trace/responseTraceLogger.js';
+import { logAssistantFeedback } from '../services/operationalIncidentLogger.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -105,6 +106,39 @@ const PLACEHOLDER_DROP_KEYS = new Set([
   'phone',
   'email'
 ]);
+const PUBLIC_EMAIL_PATTERN = /\b[a-zA-Z0-9._%+-]{3,}@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b/g;
+
+function collectPublicContactEmails(business = {}) {
+  const emails = new Set();
+
+  const addEmailsFromValue = (value) => {
+    if (typeof value !== 'string') return;
+    const matches = value.match(PUBLIC_EMAIL_PATTERN) || [];
+    for (const match of matches) {
+      emails.add(match.trim().toLowerCase());
+    }
+  };
+
+  const visit = (value) => {
+    if (!value) return;
+    if (typeof value === 'string') {
+      addEmailsFromValue(value);
+      return;
+    }
+    if (Array.isArray(value)) {
+      for (const item of value) visit(item);
+      return;
+    }
+    if (typeof value === 'object') {
+      for (const nested of Object.values(value)) visit(nested);
+    }
+  };
+
+  addEmailsFromValue(business?.emailIntegration?.email);
+  visit(business?.helpLinks);
+
+  return [...emails];
+}
 
 function sanitizeChatReplyPlaceholders(reply, language = 'TR') {
   if (typeof reply !== 'string' || reply.length === 0) {
@@ -1259,7 +1293,9 @@ router.post('/widget', async (req, res) => {
       postprocessorsApplied.push('sanitize_placeholders');
     }
 
-    const firewallResult = sanitizeResponse(finalReply, language);
+    const firewallResult = sanitizeResponse(finalReply, language, {
+      allowedEmails: collectPublicContactEmails(business)
+    });
 
     if (!firewallResult.safe) {
       // Always log for monitoring
@@ -1318,6 +1354,9 @@ router.post('/widget', async (req, res) => {
         llmBypassReason: result?.metrics?.llm_bypass_reason || null,
         guardrailAction: result?.metadata?.guardrailAction || 'PASS',
         guardrailReason: result?.metadata?.guardrailReason || null,
+        responseGrounding: result?.metadata?.responseGrounding || null,
+        messageType: result?.metadata?.messageType || null,
+        guardrailsApplied: result?.metadata?.guardrailsApplied || [],
         policyAppend: result?.metrics?.policyAppend || null,
         latencyMs: result?.metrics?.turnStartTime ? Date.now() - result.metrics.turnStartTime : null
       },
@@ -1361,6 +1400,7 @@ router.post('/widget', async (req, res) => {
       success: true,
       reply: finalReply,
       outcome: result.outcome || ToolOutcome.OK,
+      traceId: result.traceId || null,
       conversationId: sessionId, // P0: conversationId is required for audit/correlation
       messageId: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`, // P0: messageId for audit trail
       // Contract: echo the caller-provided sessionId when available.
@@ -1409,6 +1449,90 @@ router.post('/widget', async (req, res) => {
       retryAfterMs: null, // No retry for internal errors
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
+  }
+});
+
+/**
+ * POST /api/chat/widget/feedback - Capture end-user feedback about the assistant reply
+ */
+router.post('/widget/feedback', async (req, res) => {
+  try {
+    const {
+      traceId = null,
+      sessionId = null,
+      sentiment,
+      reason = null,
+      comment = null,
+      assistantReplyPreview = null,
+      source = 'widget_inline'
+    } = req.body || {};
+
+    const normalizedSentiment = String(sentiment || '').toLowerCase();
+    if (!['positive', 'negative'].includes(normalizedSentiment)) {
+      return res.status(400).json({ error: 'sentiment must be positive or negative' });
+    }
+
+    let trace = null;
+    if (traceId) {
+      trace = await prisma.responseTrace.findFirst({
+        where: { traceId: String(traceId) },
+        select: {
+          traceId: true,
+          requestId: true,
+          businessId: true,
+          userId: true,
+          sessionId: true,
+          messageId: true,
+          channel: true,
+          responsePreview: true
+        }
+      });
+    }
+
+    if (!trace && sessionId) {
+      trace = await prisma.responseTrace.findFirst({
+        where: { sessionId: String(sessionId) },
+        orderBy: { createdAt: 'desc' },
+        select: {
+          traceId: true,
+          requestId: true,
+          businessId: true,
+          userId: true,
+          sessionId: true,
+          messageId: true,
+          channel: true,
+          responsePreview: true
+        }
+      });
+    }
+
+    if (!trace?.businessId) {
+      return res.status(404).json({ error: 'trace/session not found' });
+    }
+
+    const feedbackResult = await logAssistantFeedback({
+      businessId: trace.businessId,
+      traceId: trace.traceId,
+      requestId: trace.requestId || null,
+      sessionId: trace.sessionId || sessionId || null,
+      messageId: trace.messageId || null,
+      userId: trace.userId || null,
+      channel: trace.channel || 'CHAT',
+      sentiment: normalizedSentiment,
+      reason,
+      comment,
+      assistantReplyPreview: assistantReplyPreview || trace.responsePreview || null,
+      source
+    });
+
+    return res.json({
+      success: true,
+      feedbackId: feedbackResult.id,
+      deduped: feedbackResult.deduped === true
+    });
+  } catch (error) {
+    console.error('Widget feedback error:', error);
+    return res.status(500).json({ error: 'Failed to save feedback' });
   }
 });
 

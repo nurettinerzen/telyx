@@ -12,6 +12,9 @@
  * - Internal system IDs
  */
 
+import { sanitizeDetectedPII } from '../../../utils/pii-redaction.js';
+import { validatePII } from './piiValidation.js';
+
 /**
  * PII detection patterns
  */
@@ -20,9 +23,19 @@ export const PIIPatterns = {
   TC_KIMLIK: {
     pattern: /\b[1-9]\d{10}\b/g,
     name: 'TC Kimlik No',
-    severity: 'CRITICAL',
-    action: 'BLOCK',
-    replacement: '[TC Kimlik No gizlendi]'
+    severity: 'HIGH',
+    action: 'SANITIZE',
+    replacement: '[TC Kimlik No gizlendi]',
+    detector: 'STRUCTURED'
+  },
+
+  VKN: {
+    pattern: /\b\d{10}\b/g,
+    name: 'Vergi Kimlik No',
+    severity: 'HIGH',
+    action: 'SANITIZE',
+    replacement: '[VKN gizlendi]',
+    detector: 'STRUCTURED'
   },
 
   // Credit card numbers (16 digits, possibly with spaces/dashes)
@@ -54,7 +67,7 @@ export const PIIPatterns = {
 
   // Passwords
   PASSWORD: {
-    pattern: /\b(?:password|şifre|parola)\s*:?\s*["']?([^\s"']+)["']?/gi,
+    pattern: /(?:password|[şŞ]ifre|sifre|parola)\s*:?\s*["']?([^\s"']+)["']?/giu,
     name: 'Password',
     severity: 'CRITICAL',
     action: 'BLOCK',
@@ -96,7 +109,8 @@ export const PIIPatterns = {
     severity: 'MEDIUM',
     action: 'LIMIT', // Allow first occurrence, mask rest
     replacement: '[Telefon]',
-    maxOccurrences: 1
+    maxOccurrences: 1,
+    detector: 'DISABLED'
   },
 
   // P0-B CRITICAL: Any full phone number (10-11 digits starting with 0 or 5)
@@ -104,43 +118,108 @@ export const PIIPatterns = {
   FULL_PHONE: {
     pattern: /\b0?5[0-9]{2}[0-9]{3}[0-9]{4}\b/g,
     name: 'Telefon Numarası',
-    severity: 'CRITICAL',
-    action: 'BLOCK',
-    replacement: '[Telefon gizlendi - son 4 hane: ****]'
+    severity: 'HIGH',
+    action: 'SANITIZE',
+    replacement: '[Telefon gizlendi - son 4 hane: ****]',
+    detector: 'STRUCTURED'
   }
 };
+
+const STRUCTURED_FINDING_MAP = Object.freeze({
+  TCKN: {
+    type: 'TC_KIMLIK',
+    name: PIIPatterns.TC_KIMLIK.name,
+    severity: PIIPatterns.TC_KIMLIK.severity,
+    action: PIIPatterns.TC_KIMLIK.action
+  },
+  VKN: {
+    type: 'VKN',
+    name: PIIPatterns.VKN.name,
+    severity: PIIPatterns.VKN.severity,
+    action: PIIPatterns.VKN.action
+  },
+  PHONE: {
+    type: 'FULL_PHONE',
+    name: PIIPatterns.FULL_PHONE.name,
+    severity: PIIPatterns.FULL_PHONE.severity,
+    action: PIIPatterns.FULL_PHONE.action
+  }
+});
+
+function buildStructuredFindings(content, options = {}) {
+  const structured = sanitizeDetectedPII(content, {
+    enabledTypes: ['PHONE', 'TCKN', 'VKN'],
+    allowedEmails: options.allowedEmails || []
+  });
+
+  if (!structured.modified) {
+    return {
+      modified: false,
+      sanitizedContent: content,
+      findings: []
+    };
+  }
+
+  const grouped = new Map();
+
+  for (const redaction of structured.redactions) {
+    const mapped = STRUCTURED_FINDING_MAP[redaction.type];
+    if (!mapped) continue;
+
+    const current = grouped.get(mapped.type) || {
+      ...mapped,
+      count: 0,
+      matches: []
+    };
+
+    current.count += 1;
+    if (current.matches.length < 3) {
+      current.matches.push(redaction.matchPreview);
+    }
+
+    grouped.set(mapped.type, current);
+  }
+
+  return {
+    modified: structured.modified,
+    sanitizedContent: structured.sanitized,
+    findings: [...grouped.values()]
+  };
+}
 
 /**
  * Scan content for PII and return findings
  *
  * @param {string} content - Draft content to scan
- * @returns {Object} { findings: Array, hasCritical: boolean, hasHigh: boolean }
+ * @returns {Object} { findings: Array, hasCritical: boolean, hasHigh: boolean, hasBlocking: boolean, sanitizedContent: string }
  */
-export function scanForPII(content) {
+export function scanForPII(content, options = {}) {
   if (!content) {
-    return { findings: [], hasCritical: false, hasHigh: false };
-  }
-
-  // Import validation (dynamic to avoid circular deps)
-  let validatePII;
-  try {
-    const validation = require('./piiValidation.js');
-    validatePII = validation.validatePII;
-  } catch (err) {
-    console.warn('[PII] Validation module not found, using regex-only detection');
-    validatePII = null;
+    return {
+      findings: [],
+      hasCritical: false,
+      hasHigh: false,
+      hasBlocking: false,
+      sanitizedContent: content
+    };
   }
 
   const findings = [];
+  const structured = buildStructuredFindings(content, options);
+  findings.push(...structured.findings);
 
   for (const [piiType, config] of Object.entries(PIIPatterns)) {
+    if (config.detector === 'STRUCTURED' || config.detector === 'DISABLED') {
+      continue;
+    }
+
     const matches = content.match(config.pattern);
 
     if (matches && matches.length > 0) {
       // Filter out false positives using validation
       let validatedMatches = matches;
 
-      if (validatePII && (piiType === 'TC_KIMLIK' || piiType === 'CREDIT_CARD')) {
+      if (piiType === 'CREDIT_CARD') {
         validatedMatches = matches.filter(match =>
           validatePII(content, match, piiType)
         );
@@ -181,8 +260,10 @@ export function scanForPII(content) {
 
   return {
     findings,
-    hasCritical: findings.some(f => f.severity === 'CRITICAL'),
-    hasHigh: findings.some(f => f.severity === 'HIGH')
+    hasCritical: findings.some(f => f.action === 'BLOCK'),
+    hasHigh: findings.some(f => f.severity === 'HIGH'),
+    hasBlocking: findings.some(f => f.action === 'BLOCK'),
+    sanitizedContent: structured.sanitizedContent
   };
 }
 
@@ -205,10 +286,18 @@ export function preventPIILeak(content, options = {}) {
     };
   }
 
-  const scan = scanForPII(content);
-  let modifiedContent = content;
+  const scan = scanForPII(content, options);
+  let modifiedContent = scan.sanitizedContent || content;
   let blocked = false;
   const modifications = [];
+
+  for (const finding of scan.findings.filter(item => item.action === 'SANITIZE')) {
+    modifications.push({
+      type: finding.type,
+      action: 'SANITIZED',
+      count: finding.count
+    });
+  }
 
   for (const finding of scan.findings) {
     const config = PIIPatterns[finding.type];
@@ -254,6 +343,9 @@ export function preventPIILeak(content, options = {}) {
         // Just log warning, don't modify
         console.warn(`⚠️ [PII] WARNING: ${finding.name} detected (${finding.count} occurrences)`);
         break;
+
+      case 'SANITIZE':
+        break;
     }
   }
 
@@ -286,7 +378,7 @@ export function preventPIILeak(content, options = {}) {
  */
 export function isContentSafe(content) {
   const scan = scanForPII(content);
-  return !scan.hasCritical;
+  return !scan.hasBlocking && !scan.hasHigh;
 }
 
 /**
@@ -296,8 +388,8 @@ export function getPIISummary(content) {
   const scan = scanForPII(content);
 
   return {
-    safe: !scan.hasCritical && !scan.hasHigh,
-    criticalCount: scan.findings.filter(f => f.severity === 'CRITICAL').length,
+    safe: !scan.hasBlocking && !scan.hasHigh,
+    criticalCount: scan.findings.filter(f => f.action === 'BLOCK').length,
     highCount: scan.findings.filter(f => f.severity === 'HIGH').length,
     types: scan.findings.map(f => f.type)
   };

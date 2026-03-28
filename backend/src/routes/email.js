@@ -269,6 +269,11 @@ function queueAdminDraftTrace({
         llmBypassReason: isSuccess ? null : 'EMAIL_TURN_FAILED',
         guardrailAction: isSuccess ? 'PASS' : 'BLOCK',
         guardrailReason: isSuccess ? null : (result?.errorCode || 'EMAIL_TURN_ERROR'),
+        responseGrounding: result?.responseGrounding || null,
+        messageType: result?.assistantMessageMeta?.messageType || null,
+        guardrailsApplied: result?.assistantMessageMeta?.guardrailAction
+          ? [result.assistantMessageMeta.guardrailAction]
+          : [],
         latencyMs: Number(result?.metrics?.totalDuration || 0)
       },
       llmMeta: {
@@ -996,7 +1001,19 @@ router.post('/threads/:threadId/quick-reply', authenticateToken, async (req, res
     });
     const fallbackMessageId = buildSyntheticSentMessageId(sendLockKey);
 
+    console.log('📧 [Email Quick Reply] Request received', {
+      businessId: req.businessId,
+      threadId: thread.id,
+      replyToId: replyOptions.replyToId || null,
+      lockKey: sendLockKey
+    });
+
     if (leaseResult.status === 'in_progress') {
+      console.warn('📧 [Email Quick Reply] Duplicate in-progress send blocked', {
+        businessId: req.businessId,
+        threadId: thread.id,
+        lockKey: sendLockKey
+      });
       return res.status(409).json({
         error: 'Email send is already in progress',
         code: 'EMAIL_SEND_IN_PROGRESS'
@@ -1005,6 +1022,12 @@ router.post('/threads/:threadId/quick-reply', authenticateToken, async (req, res
 
     if (leaseResult.status === 'duplicate') {
       const duplicateMessageId = leaseResult.lease?.externalId || fallbackMessageId;
+      console.warn('📧 [Email Quick Reply] Duplicate send replayed as success', {
+        businessId: req.businessId,
+        threadId: thread.id,
+        messageId: duplicateMessageId,
+        lockKey: sendLockKey
+      });
 
       try {
         await persistOutboundEmail({
@@ -1045,6 +1068,11 @@ router.post('/threads/:threadId/quick-reply', authenticateToken, async (req, res
         htmlContent,
         replyOptions
       );
+      console.log('📧 [Email Quick Reply] Provider send succeeded', {
+        businessId: req.businessId,
+        threadId: thread.id,
+        providerMessageId: result?.messageId || null
+      });
     } catch (sendError) {
       await releaseEmailSendLease(leaseResult.lease?.id);
       throw sendError;
@@ -1070,7 +1098,12 @@ router.post('/threads/:threadId/quick-reply', authenticateToken, async (req, res
         messageId: finalMessageId
       });
     } catch (persistError) {
-      console.error('Quick reply persistence error:', persistError);
+      console.error('📧 [Email Quick Reply] Provider sent but local persistence failed:', {
+        businessId: req.businessId,
+        threadId: thread.id,
+        messageId: finalMessageId,
+        error: persistError?.message || String(persistError)
+      });
       return res.json({
         success: true,
         stateSyncPending: true,
@@ -1081,7 +1114,11 @@ router.post('/threads/:threadId/quick-reply', authenticateToken, async (req, res
 
     res.json({ success: true, messageId: finalMessageId });
   } catch (error) {
-    console.error('Quick reply error:', error);
+    console.error('📧 [Email Quick Reply] Request failed before success response:', {
+      threadId: req.params.threadId,
+      businessId: req.businessId,
+      error: error?.message || String(error)
+    });
     res.status(500).json({ error: 'Failed to send email' });
   }
 });

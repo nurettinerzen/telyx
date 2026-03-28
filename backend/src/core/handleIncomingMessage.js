@@ -139,6 +139,40 @@ function appendPolicyBlock(metrics = {}, blockId = null) {
   metrics.policy_blocks = list;
 }
 
+const PUBLIC_EMAIL_PATTERN = /\b[a-zA-Z0-9._%+-]{3,}@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b/g;
+
+function collectPublicContactEmails(business = {}) {
+  const emails = new Set();
+
+  const addEmailsFromValue = (value) => {
+    if (typeof value !== 'string') return;
+    const matches = value.match(PUBLIC_EMAIL_PATTERN) || [];
+    for (const match of matches) {
+      emails.add(match.trim().toLowerCase());
+    }
+  };
+
+  const visit = (value) => {
+    if (!value) return;
+    if (typeof value === 'string') {
+      addEmailsFromValue(value);
+      return;
+    }
+    if (Array.isArray(value)) {
+      for (const item of value) visit(item);
+      return;
+    }
+    if (typeof value === 'object') {
+      for (const nested of Object.values(value)) visit(nested);
+    }
+  };
+
+  addEmailsFromValue(business?.emailIntegration?.email);
+  visit(business?.helpLinks);
+
+  return [...emails];
+}
+
 function isRouterPassthroughEnabled() {
   return String(process.env.ROUTER_PASSTHROUGH || '').toLowerCase() === 'true';
 }
@@ -200,7 +234,8 @@ function finalizeResponseText({
   language = 'TR',
   channel = 'CHAT',
   sessionId = '',
-  intent = null
+  intent = null,
+  publicContactEmails = []
 } = {}) {
   const fallback = getInternalProtocolSafeFallback(language);
   const text = typeof reply === 'string' ? reply.trim() : '';
@@ -216,7 +251,8 @@ function finalizeResponseText({
   const firewall = sanitizeResponse(text, language, {
     sessionId,
     channel,
-    intent
+    intent,
+    allowedEmails: publicContactEmails
   });
 
   if (!firewall.safe) {
@@ -677,6 +713,7 @@ export async function handleIncomingMessage({
   let traceToolResults = [];
   let traceGuardrailResult = null;
   let preLlmWarnings = [];
+  const publicContactEmails = collectPublicContactEmails(business);
 
   // DRY-RUN MODE: Disable all side-effects (for shadow mode)
   const effectsEnabled = !metadata._shadowMode && !metadata._dryRun;
@@ -710,7 +747,8 @@ export async function handleIncomingMessage({
     language,
     channel,
     sessionId: metrics.sessionId || sessionId || '',
-    intent: intentHint
+    intent: intentHint,
+    publicContactEmails
   });
 
   const finish = (result) => {
@@ -1801,7 +1839,8 @@ export async function handleIncomingMessage({
       lastNotFound: state.lastNotFound || null, // P0-FIX: NOT_FOUND context for leak filter bypass
       callbackPending: state.callbackFlow?.pending === true,
       activeFlow: state.activeFlow || null,
-      hasKBMatch // Anti-confabulation: businessDescriptionClaims KB-backed check
+      hasKBMatch, // Anti-confabulation: businessDescriptionClaims KB-backed check
+      publicContactEmails
     });
     traceGuardrailResult = guardrailResult;
 
@@ -2242,6 +2281,12 @@ export async function handleIncomingMessage({
           traceGuardrailResult?.blockReason
           || finalTurnResult?.metadata?.guardrailReason
           || null,
+        responseGrounding:
+          finalTurnResult?.metadata?.responseGrounding
+          || finalTurnResult?.state?.responseGrounding
+          || null,
+        messageType: finalTurnResult?.metadata?.messageType || null,
+        guardrailsApplied: finalTurnResult?.metadata?.guardrailsApplied || [],
         policyAppend: metrics.policyAppend
           || (metrics.policyAppendMonitor
             ? {

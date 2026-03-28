@@ -280,6 +280,9 @@ export function buildTrace({
       llm_bypass_retry_after_ms: Number.isFinite(llm.llm_bypass_retry_after_ms)
         ? toInt(llm.llm_bypass_retry_after_ms)
         : null,
+      response_grounding: ctx.responseGrounding || null,
+      message_type: ctx.messageType || null,
+      guardrails_applied: Array.isArray(ctx.guardrailsApplied) ? ctx.guardrailsApplied : [],
       response_hash: responseHash,
       tool_outcome_hash: toolOutcomeHash,
       response_preview: trimPreview(finalText, 320),

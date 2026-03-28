@@ -102,7 +102,7 @@ const SAFE_CONTEXTS = {
 
   CREDIT_CARD: [
     'sipariş', 'siparis', 'order', 'tracking', 'takip', 'kargo',
-    'ref', 'referans', 'kod', 'code', 'numara', 'fatura'
+    'ref', 'referans', 'fatura'
   ],
 
   IBAN: [
