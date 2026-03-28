@@ -18,6 +18,7 @@ import {
   OPS_INCIDENT_CATEGORIES,
   OP_INCIDENT_CATEGORY
 } from '../services/operationalIncidentLogger.js';
+import { logError, ERROR_CATEGORY, SEVERITY } from '../services/errorLogger.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -31,6 +32,31 @@ const SECURITY_THREAT_TYPES = [
   'webhook_invalid_signature',
   'pii_leak_block'
 ];
+
+async function handleRedAlertRouteError(req, res, {
+  error,
+  source,
+  message,
+  status = 500,
+  publicError = 'Failed to process Red Alert request'
+}) {
+  console.error(message, error);
+
+  await logError({
+    category: ERROR_CATEGORY.API_ERROR,
+    severity: SEVERITY.MEDIUM,
+    message: `${message} ${error?.message || ''}`.trim(),
+    error,
+    source,
+    businessId: req.businessId || null,
+    userId: req.user?.id || req.userId || null,
+    requestId: req.requestId || null,
+    endpoint: req.originalUrl || req.path,
+    method: req.method,
+  });
+
+  return res.status(status).json({ error: publicError });
+}
 
 function parseRangeToSince(range = '24h') {
   const value = String(range || '24h').trim().toLowerCase();
@@ -99,8 +125,12 @@ router.get('/capabilities', async (req, res) => {
       operationalIncidentsEnabled: isOperationalIncidentsEnabled({ businessId })
     });
   } catch (error) {
-    console.error('Red Alert capabilities error:', error);
-    res.status(500).json({ error: 'Failed to fetch Red Alert capabilities' });
+    return handleRedAlertRouteError(req, res, {
+      error,
+      source: 'red_alert_capabilities',
+      message: 'Red Alert capabilities error:',
+      publicError: 'Failed to fetch Red Alert capabilities'
+    });
   }
 });
 
@@ -171,8 +201,12 @@ router.get('/summary', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Red Alert summary error:', error);
-    res.status(500).json({ error: 'Failed to fetch security summary' });
+    return handleRedAlertRouteError(req, res, {
+      error,
+      source: 'red_alert_security_summary',
+      message: 'Red Alert summary error:',
+      publicError: 'Failed to fetch security summary'
+    });
   }
 });
 
@@ -236,8 +270,12 @@ router.get('/events', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Red Alert events error:', error);
-    res.status(500).json({ error: 'Failed to fetch security events' });
+    return handleRedAlertRouteError(req, res, {
+      error,
+      source: 'red_alert_security_events',
+      message: 'Red Alert events error:',
+      publicError: 'Failed to fetch security events'
+    });
   }
 });
 
@@ -288,8 +326,12 @@ router.get('/timeline', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Red Alert timeline error:', error);
-    res.status(500).json({ error: 'Failed to fetch timeline' });
+    return handleRedAlertRouteError(req, res, {
+      error,
+      source: 'red_alert_timeline',
+      message: 'Red Alert timeline error:',
+      publicError: 'Failed to fetch timeline'
+    });
   }
 });
 
@@ -349,8 +391,12 @@ router.get('/top-threats', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Red Alert top threats error:', error);
-    res.status(500).json({ error: 'Failed to fetch top threats' });
+    return handleRedAlertRouteError(req, res, {
+      error,
+      source: 'red_alert_top_threats',
+      message: 'Red Alert top threats error:',
+      publicError: 'Failed to fetch top threats'
+    });
   }
 });
 
@@ -418,8 +464,12 @@ router.get('/health', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Red Alert health error:', error);
-    res.status(500).json({ error: 'Failed to calculate health score' });
+    return handleRedAlertRouteError(req, res, {
+      error,
+      source: 'red_alert_health',
+      message: 'Red Alert health error:',
+      publicError: 'Failed to calculate health score'
+    });
   }
 });
 
@@ -521,8 +571,12 @@ router.get('/ops/summary', async (req, res) => {
       }, {})
     });
   } catch (error) {
-    console.error('Red Alert ops summary error:', error);
-    res.status(500).json({ error: 'Failed to fetch ops summary' });
+    return handleRedAlertRouteError(req, res, {
+      error,
+      source: 'red_alert_ops_summary',
+      message: 'Red Alert ops summary error:',
+      publicError: 'Failed to fetch ops summary'
+    });
   }
 });
 
@@ -582,8 +636,12 @@ router.get('/ops/events', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Red Alert ops events error:', error);
-    res.status(500).json({ error: 'Failed to fetch ops events' });
+    return handleRedAlertRouteError(req, res, {
+      error,
+      source: 'red_alert_ops_events',
+      message: 'Red Alert ops events error:',
+      publicError: 'Failed to fetch ops events'
+    });
   }
 });
 
@@ -651,8 +709,12 @@ router.get('/ops/repeat-responses', async (req, res) => {
       repeats
     });
   } catch (error) {
-    console.error('Red Alert repeat response error:', error);
-    res.status(500).json({ error: 'Failed to fetch repeat responses' });
+    return handleRedAlertRouteError(req, res, {
+      error,
+      source: 'red_alert_repeat_responses',
+      message: 'Red Alert repeat response error:',
+      publicError: 'Failed to fetch repeat responses'
+    });
   }
 });
 
@@ -740,8 +802,12 @@ router.get('/assistant/summary', async (req, res) => {
       }, {})
     });
   } catch (error) {
-    console.error('Red Alert assistant summary error:', error);
-    res.status(500).json({ error: 'Failed to fetch assistant summary' });
+    return handleRedAlertRouteError(req, res, {
+      error,
+      source: 'red_alert_assistant_summary',
+      message: 'Red Alert assistant summary error:',
+      publicError: 'Failed to fetch assistant summary'
+    });
   }
 });
 
@@ -804,8 +870,12 @@ router.get('/assistant/events', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Red Alert assistant events error:', error);
-    res.status(500).json({ error: 'Failed to fetch assistant events' });
+    return handleRedAlertRouteError(req, res, {
+      error,
+      source: 'red_alert_assistant_events',
+      message: 'Red Alert assistant events error:',
+      publicError: 'Failed to fetch assistant events'
+    });
   }
 });
 
@@ -842,8 +912,12 @@ router.patch('/ops/events/:id/resolve', async (req, res) => {
 
     res.json({ success: true });
   } catch (error) {
-    console.error('Red Alert ops resolve error:', error);
-    res.status(500).json({ error: 'Failed to update ops event' });
+    return handleRedAlertRouteError(req, res, {
+      error,
+      source: 'red_alert_ops_resolve',
+      message: 'Red Alert ops resolve error:',
+      publicError: 'Failed to update ops event'
+    });
   }
 });
 
@@ -933,8 +1007,12 @@ router.get('/assistant/trace/:traceId', async (req, res) => {
       chatLog
     });
   } catch (error) {
-    console.error('Red Alert assistant trace detail error:', error);
-    res.status(500).json({ error: 'Failed to fetch assistant trace detail' });
+    return handleRedAlertRouteError(req, res, {
+      error,
+      source: 'red_alert_assistant_trace',
+      message: 'Red Alert assistant trace detail error:',
+      publicError: 'Failed to fetch assistant trace detail'
+    });
   }
 });
 
@@ -970,8 +1048,12 @@ router.patch('/assistant/events/:id/resolve', async (req, res) => {
 
     res.json({ success: true });
   } catch (error) {
-    console.error('Red Alert assistant resolve error:', error);
-    res.status(500).json({ error: 'Failed to update assistant event' });
+    return handleRedAlertRouteError(req, res, {
+      error,
+      source: 'red_alert_assistant_resolve',
+      message: 'Red Alert assistant resolve error:',
+      publicError: 'Failed to update assistant event'
+    });
   }
 });
 
@@ -1032,8 +1114,12 @@ router.get('/errors/summary', async (req, res) => {
       }, {}),
     });
   } catch (error) {
-    console.error('Red Alert errors summary error:', error);
-    res.status(500).json({ error: 'Failed to fetch error summary' });
+    return handleRedAlertRouteError(req, res, {
+      error,
+      source: 'red_alert_errors_summary',
+      message: 'Red Alert errors summary error:',
+      publicError: 'Failed to fetch error summary'
+    });
   }
 });
 
@@ -1111,8 +1197,12 @@ router.get('/errors', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Red Alert errors list error:', error);
-    res.status(500).json({ error: 'Failed to fetch error logs' });
+    return handleRedAlertRouteError(req, res, {
+      error,
+      source: 'red_alert_errors_list',
+      message: 'Red Alert errors list error:',
+      publicError: 'Failed to fetch error logs'
+    });
   }
 });
 
@@ -1139,8 +1229,12 @@ router.patch('/errors/:id/resolve', async (req, res) => {
       error: updated,
     });
   } catch (error) {
-    console.error('Red Alert resolve error:', error);
-    res.status(500).json({ error: 'Failed to update error status' });
+    return handleRedAlertRouteError(req, res, {
+      error,
+      source: 'red_alert_errors_resolve',
+      message: 'Red Alert resolve error:',
+      publicError: 'Failed to update error status'
+    });
   }
 });
 

@@ -753,7 +753,7 @@ export default function RedAlertPage() {
   const unresolvedCount = errorSummary?.summary?.unresolved || 0;
   const totalErrors = unresolvedCount;
   const totalEvents = summary?.summary?.total || 0;
-  const opsIncidentCount = opsSummary?.totals?.incidents || 0;
+  const opsIncidentCount = (opsSummary?.totals?.incidents || 0) + repeatResponses.length;
   const assistantIncidentCount = assistantSummary?.totals?.unresolved || 0;
   const traceIncidents = assistantTraceDetail?.incidents || [];
   let assistantSignalItems = [];

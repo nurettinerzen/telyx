@@ -29,7 +29,7 @@ const tr = {
     },
     ops: {
       title: 'Operasyon Olayları',
-      subtitle: 'İz kayıtları ve operasyon sinyalleri'
+      subtitle: 'Araç ve akış sapmaları, tekrar sinyalleri'
     }
   },
   common: {
@@ -255,7 +255,7 @@ const tr = {
   },
   ops: {
     title: 'Operasyon Olayları',
-    description: 'Arka plandaki kalite ve akış sinyalleri. Bunlar her zaman kullanıcıya yansıyan hata değildir.',
+    description: 'Kullanıcıya doğrudan yansımayan araç ve akış sorunları. Tekrarlayan yanıtlar aşağıda ayrı tabloda gösterilir.',
     repeatTitle: 'Tekrarlayan Yanıtlar',
     repeatDescription: 'Yalnızca aynı oturum içinde birden fazla kez tekrar eden yanıtlar.',
     repeatEmpty: 'Tekrarlayan yanıt bulunamadı',
@@ -400,7 +400,7 @@ const en = {
     },
     ops: {
       title: 'Operational Events',
-      subtitle: 'Trace and operational signals'
+      subtitle: 'Tool and flow anomalies, plus repeat signals'
     }
   },
   common: {
@@ -626,7 +626,7 @@ const en = {
   },
   ops: {
     title: 'Operational Events',
-    description: 'Internal quality and flow signals. They do not always mean a user-facing failure.',
+    description: 'Tool and flow anomalies that do not always become user-facing failures. Repeated replies are shown in a separate table below.',
     repeatTitle: 'Repeated Responses',
     repeatDescription: 'Only replies repeated multiple times within the same session.',
     repeatEmpty: 'No repeated responses found',
