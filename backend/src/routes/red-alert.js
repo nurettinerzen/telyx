@@ -21,6 +21,16 @@ import {
 
 const router = express.Router();
 const prisma = new PrismaClient();
+const SECURITY_THREAT_TYPES = [
+  'auth_failure',
+  'cross_tenant_attempt',
+  'firewall_block',
+  'content_safety_block',
+  'ssrf_block',
+  'rate_limit_hit',
+  'webhook_invalid_signature',
+  'pii_leak_block'
+];
 
 function parseRangeToSince(range = '24h') {
   const value = String(range || '24h').trim().toLowerCase();
@@ -129,6 +139,7 @@ router.get('/summary', async (req, res) => {
       where: {
         createdAt: { gte: since },
         ...(businessId && { businessId }),
+        type: { in: SECURITY_THREAT_TYPES },
       },
       _count: true,
     });
@@ -139,6 +150,7 @@ router.get('/summary', async (req, res) => {
       where: {
         createdAt: { gte: since },
         ...(businessId && { businessId }),
+        type: { in: SECURITY_THREAT_TYPES },
       },
       _count: true,
     });
@@ -147,6 +159,7 @@ router.get('/summary', async (req, res) => {
       where: {
         createdAt: { gte: since },
         ...(businessId && { businessId }),
+        type: { in: SECURITY_THREAT_TYPES },
       },
     });
 
@@ -156,6 +169,7 @@ router.get('/summary', async (req, res) => {
         severity: 'critical',
         createdAt: { gte: since },
         ...(businessId && { businessId }),
+        type: { in: SECURITY_THREAT_TYPES },
       },
     });
 
@@ -201,6 +215,7 @@ router.get('/events', async (req, res) => {
     const where = {
       createdAt: { gte: since },
       ...(businessId && { businessId }),
+      type: { in: SECURITY_THREAT_TYPES },
       ...(type && { type }),
       ...(severity && { severity }),
     };
@@ -260,6 +275,7 @@ router.get('/timeline', async (req, res) => {
       where: {
         createdAt: { gte: since },
         ...(businessId && { businessId }),
+        type: { in: SECURITY_THREAT_TYPES },
       },
       select: {
         type: true,
@@ -311,6 +327,7 @@ router.get('/top-threats', async (req, res) => {
       where: {
         createdAt: { gte: since },
         ...(businessId && { businessId }),
+        type: { in: SECURITY_THREAT_TYPES },
       },
       select: {
         ipAddress: true,
@@ -370,6 +387,7 @@ router.get('/health', async (req, res) => {
         severity: 'critical',
         createdAt: { gte: last24h },
         ...(businessId && { businessId }),
+        type: { in: SECURITY_THREAT_TYPES },
       },
     });
 
@@ -378,6 +396,7 @@ router.get('/health', async (req, res) => {
         severity: 'high',
         createdAt: { gte: last24h },
         ...(businessId && { businessId }),
+        type: { in: SECURITY_THREAT_TYPES },
       },
     });
 
@@ -385,6 +404,7 @@ router.get('/health', async (req, res) => {
       where: {
         createdAt: { gte: last24h },
         ...(businessId && { businessId }),
+        type: { in: SECURITY_THREAT_TYPES },
       },
     });
 

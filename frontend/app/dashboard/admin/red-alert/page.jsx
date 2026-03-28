@@ -141,6 +141,7 @@ export default function RedAlertPage() {
   const opsPanelEnabled = opsCapabilities.redAlertOpsPanelEnabled === true;
   const eventTypeLabels = copy.eventTypes.labels;
   const eventTypeDescriptions = copy.eventTypes.descriptions;
+  const securityEventFilterKeys = Object.keys(eventTypeLabels).filter((key) => key !== 'sensitive_data_access');
   const errorCategoryLabels = copy.errorCategories;
   const opsCategoryLabels = copy.opsCategories;
   const assistantCategoryLabels = copy.assistantCategories;
@@ -1207,8 +1208,8 @@ export default function RedAlertPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">{copy.filters.allEventTypes}</SelectItem>
-                  {Object.entries(eventTypeLabels).map(([key, label]) => (
-                    <SelectItem key={key} value={key}>{label}</SelectItem>
+                  {securityEventFilterKeys.map((key) => (
+                    <SelectItem key={key} value={key}>{eventTypeLabels[key]}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

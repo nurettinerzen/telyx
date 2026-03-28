@@ -80,7 +80,8 @@ const tr = {
       ssrf_block: 'SSRF Engeli',
       rate_limit_hit: 'Rate Limit Engeli',
       webhook_invalid_signature: 'Geçersiz Webhook İmzası',
-      pii_leak_block: 'PII Sızıntısı Engeli'
+      pii_leak_block: 'PII Sızıntısı Engeli',
+      sensitive_data_access: 'Hassas Veri Erişim Kaydı'
     },
     descriptions: {
       auth_failure: 'Yetkisiz ya da geçersiz kimlik doğrulama denemesi algılandı.',
@@ -90,7 +91,8 @@ const tr = {
       ssrf_block: 'Sunucu taraflı istek yönlendirme benzeri riskli bir URL isteği engellendi.',
       rate_limit_hit: 'Kısa sürede çok fazla istek geldiği için koruma devreye girdi.',
       webhook_invalid_signature: 'Webhook çağrısı doğrulanamadığı için reddedildi.',
-      pii_leak_block: 'Dışarı çıkmaması gereken hassas veri yakalanıp engellendi.'
+      pii_leak_block: 'Dışarı çıkmaması gereken hassas veri yakalanıp engellendi.',
+      sensitive_data_access: 'Bu bir saldırı değil, hassas veri ekranlarına yapılan erişim için tutulan audit kaydıdır.'
     }
   },
   errorCategories: {
@@ -158,10 +160,10 @@ const tr = {
   },
   securityEvents: {
     title: 'Güvenlik Olayları',
-    description: 'Sistem düzeyinde engellenen veya riskli bulunan istekler. Satıra tıklayarak neden tetiklendiğini görebilirsin.',
+    description: 'Gerçekten engellenen veya riskli bulunan güvenlik istekleri. Normal audit erişimleri bu listede gösterilmez.',
     empty: 'Güvenlik olayı bulunamadı',
     explanationTitle: 'Bu olay ne demek?',
-    explanationFallback: 'Bu güvenlik sinyali için açıklama bulunmuyor.',
+    explanationFallback: 'Bu olay için kısa açıklama henüz eklenmemiş.',
     technicalDetail: 'Teknik Detay',
     userAgent: 'Kullanıcı Aracısı',
     pagination: '{start} - {end} / toplam {total} olay',
@@ -447,7 +449,8 @@ const en = {
       ssrf_block: 'SSRF Block',
       rate_limit_hit: 'Rate Limit Block',
       webhook_invalid_signature: 'Invalid Webhook Signature',
-      pii_leak_block: 'PII Leak Block'
+      pii_leak_block: 'PII Leak Block',
+      sensitive_data_access: 'Sensitive Data Access Audit'
     },
     descriptions: {
       auth_failure: 'An unauthorized or invalid authentication attempt was detected.',
@@ -457,7 +460,8 @@ const en = {
       ssrf_block: 'A suspicious server-side request pattern was blocked.',
       rate_limit_hit: 'Protection was triggered due to too many requests in a short time.',
       webhook_invalid_signature: 'The webhook call was rejected because verification failed.',
-      pii_leak_block: 'Sensitive data was detected and blocked before exposure.'
+      pii_leak_block: 'Sensitive data was detected and blocked before exposure.',
+      sensitive_data_access: 'This is not an attack. It is an audit record for access to sensitive data screens.'
     }
   },
   errorCategories: {
@@ -525,10 +529,10 @@ const en = {
   },
   securityEvents: {
     title: 'Security Events',
-    description: 'System-level requests that were blocked or flagged as risky. Click a row to inspect why it triggered.',
+    description: 'Requests that were actually blocked or flagged as risky. Normal audit access logs are excluded here.',
     empty: 'No security events found',
     explanationTitle: 'What does this mean?',
-    explanationFallback: 'No explanation is available for this event.',
+    explanationFallback: 'A short explanation has not been added for this event yet.',
     technicalDetail: 'Technical Detail',
     userAgent: 'User Agent',
     pagination: '{start} - {end} / {total} total events',
