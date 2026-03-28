@@ -121,4 +121,21 @@ describe('assistant quality incident evaluation', () => {
     expect(categories).toContain(OP_INCIDENT_CATEGORY.TOOL_NOT_CALLED_WHEN_EXPECTED);
     expect(categories).toContain(OP_INCIDENT_CATEGORY.HALLUCINATION_RISK);
   });
+
+  it('does not emit verification drift for clarification-style verification prompts', () => {
+    const incidents = evaluateIncidents(buildTracePayload({
+      verification_state: 'requested',
+      guardrail: {
+        action: 'PASS',
+        reason: null
+      },
+      details: {
+        response_preview: 'Siparişinize ulaştım. Güvenliğiniz için telefon numaranızın son dört hanesini teyit etmenizi rica ederim.',
+        response_grounding: 'CLARIFICATION',
+        origin_id: 'toolLoop.unknown'
+      }
+    }));
+
+    expect(incidents.map(item => item.category)).not.toContain(OP_INCIDENT_CATEGORY.VERIFICATION_INCONSISTENT);
+  });
 });

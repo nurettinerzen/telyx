@@ -8,14 +8,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
-  Shield, AlertTriangle, AlertCircle, Activity,
-  Clock, Server, Eye, ChevronLeft, ChevronRight,
+  Shield, AlertCircle, Activity,
+  Server, Eye, ChevronLeft, ChevronRight,
   Bug, Wrench, MessageSquare, Globe, CheckCircle, XCircle, ChevronDown, ChevronUp, Sparkles
 } from 'lucide-react';
 import { apiClient } from '@/lib/api';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { getRedAlertCopy } from '@/lib/redAlertCopy';
 import { toast } from 'sonner';
-import { LineChart } from '@/components/charts/LineChart';
-import { BarChart } from '@/components/charts/BarChart';
 
 const SEVERITY_COLORS = {
   low: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
@@ -24,31 +24,11 @@ const SEVERITY_COLORS = {
   critical: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
 };
 
-const HEALTH_STATUS_COLORS = {
-  healthy: 'text-green-600 dark:text-green-400',
-  caution: 'text-yellow-600 dark:text-yellow-400',
-  warning: 'text-orange-600 dark:text-orange-400',
-  critical: 'text-red-600 dark:text-red-400',
-};
-
-const EVENT_TYPE_LABELS = {
-  auth_failure: 'Auth Failure',
-  cross_tenant_attempt: 'Cross-Tenant Attempt',
-  firewall_block: 'Firewall Block',
-  content_safety_block: 'Content Safety Block',
-  ssrf_block: 'SSRF Block',
-  rate_limit_hit: 'Rate Limit Hit',
-  webhook_invalid_signature: 'Webhook Invalid Signature',
-  pii_leak_block: 'PII Leak Block',
-};
-
-const ERROR_CATEGORY_LABELS = {
-  tool_failure: 'Tool Failure',
-  chat_error: 'Chat Error',
-  assistant_error: 'Assistant Error',
-  api_error: 'External API Error',
-  system_error: 'System Error',
-  webhook_error: 'Webhook Error',
+const HEALTH_BADGE_COLORS = {
+  healthy: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+  caution: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  warning: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+  critical: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
 };
 
 const ERROR_CATEGORY_ICONS = {
@@ -60,38 +40,15 @@ const ERROR_CATEGORY_ICONS = {
   webhook_error: Activity,
 };
 
-const OPS_CATEGORY_LABELS = {
-  LLM_BYPASSED: 'LLM Bypassed',
-  TEMPLATE_FALLBACK_USED: 'Template/Fallback',
-  TOOL_NOT_CALLED_WHEN_EXPECTED: 'Tool Not Called',
-  VERIFICATION_INCONSISTENT: 'Verification Drift',
-  HALLUCINATION_RISK: 'Hallucination Risk',
-  RESPONSE_STUCK: 'Response Stuck',
-};
-
-const ASSISTANT_CATEGORY_LABELS = {
-  ASSISTANT_BLOCKED: 'Blocked',
-  ASSISTANT_SANITIZED: 'Sanitized',
-  ASSISTANT_NEEDS_CLARIFICATION: 'Needs Clarification',
-  ASSISTANT_INTERVENTION: 'Intervention',
-  ASSISTANT_NEGATIVE_FEEDBACK: 'Negative Feedback',
-  ASSISTANT_POSITIVE_FEEDBACK: 'Positive Feedback',
-  LLM_BYPASSED: 'LLM Bypassed',
-  TEMPLATE_FALLBACK_USED: 'Fallback Used',
-  TOOL_NOT_CALLED_WHEN_EXPECTED: 'Tool Skipped',
-  VERIFICATION_INCONSISTENT: 'Verification Drift',
-  HALLUCINATION_RISK: 'Hallucination Risk',
-  RESPONSE_STUCK: 'Response Stuck',
-};
-
 
 export default function RedAlertPage() {
+  const { locale } = useLanguage();
+  const copy = getRedAlertCopy(locale);
+  const uiLocale = locale === 'tr' ? 'tr-TR' : 'en-US';
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [summary, setSummary] = useState(null);
   const [events, setEvents] = useState([]);
-  const [timeline, setTimeline] = useState([]);
-  const [topThreats, setTopThreats] = useState({ topIPs: [], topEndpoints: [] });
   const [health, setHealth] = useState(null);
   const [activePanel, setActivePanel] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -120,7 +77,7 @@ export default function RedAlertPage() {
   const [errorFilters, setErrorFilters] = useState({
     category: '',
     severity: '',
-    resolved: '',
+    resolved: 'false',
   });
   const [errorPagination, setErrorPagination] = useState({
     page: 1,
@@ -129,6 +86,7 @@ export default function RedAlertPage() {
     hasMore: false,
   });
   const [expandedErrors, setExpandedErrors] = useState(new Set());
+  const [expandedSecurityEvents, setExpandedSecurityEvents] = useState(new Set());
   const [opsSummary, setOpsSummary] = useState(null);
   const [opsEvents, setOpsEvents] = useState([]);
   const [repeatResponses, setRepeatResponses] = useState([]);
@@ -165,6 +123,50 @@ export default function RedAlertPage() {
     operationalIncidentsEnabled: false
   });
   const opsPanelEnabled = opsCapabilities.redAlertOpsPanelEnabled === true;
+  const eventTypeLabels = copy.eventTypes.labels;
+  const eventTypeDescriptions = copy.eventTypes.descriptions;
+  const errorCategoryLabels = copy.errorCategories;
+  const opsCategoryLabels = copy.opsCategories;
+  const assistantCategoryLabels = copy.assistantCategories;
+
+  const interpolate = (template, params = {}) => {
+    if (!template) return '';
+    return String(template).replace(/\{(\w+)\}/g, (_, key) => (
+      params[key] !== undefined ? String(params[key]) : `{${key}}`
+    ));
+  };
+
+  const formatDateTime = (value) => {
+    if (!value) return '-';
+    return new Date(value).toLocaleString(uiLocale);
+  };
+
+  const formatSeverityLabel = (severity) => {
+    const key = String(severity || '').toLowerCase();
+    return copy.severities[key] || severity || copy.common.unknown;
+  };
+
+  const formatGuardrailAction = (action) => {
+    const normalized = String(action || '').toUpperCase();
+    const translated = copy.traceModal.guardrailActions[normalized];
+    if (!normalized) return '-';
+    return translated ? `${translated} (${normalized})` : normalized;
+  };
+
+  const formatChannel = (channel) => {
+    const normalized = String(channel || '').toLowerCase();
+    return copy.common.channels[normalized] || channel || copy.common.unknown;
+  };
+
+  const formatResponseSource = (source) => {
+    const normalized = String(source || '').toLowerCase();
+    return copy.traceModal.responseSources[normalized] || source || '-';
+  };
+
+  const formatConversationRole = (role) => {
+    const normalized = String(role || '').toLowerCase();
+    return copy.traceModal.roles[normalized] || role || copy.common.unknown;
+  };
 
   // Check admin access
   useEffect(() => {
@@ -219,8 +221,6 @@ export default function RedAlertPage() {
       const baseLoads = [
         loadSummary(),
         loadEvents(),
-        loadTimeline(),
-        loadTopThreats(),
         loadHealth(),
         loadErrorSummary(),
         loadErrorLogs(),
@@ -239,7 +239,7 @@ export default function RedAlertPage() {
       await Promise.all(baseLoads);
     } catch (error) {
       console.error('Failed to load dashboard:', error);
-      toast.error('Güvenlik paneli yüklenemedi');
+      toast.error(copy.common.refreshFailed);
     } finally {
       setLoading(false);
     }
@@ -275,28 +275,6 @@ export default function RedAlertPage() {
       }));
     } catch (error) {
       console.error('Failed to load events:', error);
-    }
-  };
-
-  const loadTimeline = async () => {
-    try {
-      const response = await apiClient.get('/api/red-alert/timeline', {
-        params: { hours: filters.hours },
-      });
-      setTimeline(response.data.timeline);
-    } catch (error) {
-      console.error('Failed to load timeline:', error);
-    }
-  };
-
-  const loadTopThreats = async () => {
-    try {
-      const response = await apiClient.get('/api/red-alert/top-threats', {
-        params: { hours: filters.hours },
-      });
-      setTopThreats(response.data);
-    } catch (error) {
-      console.error('Failed to load top threats:', error);
     }
   };
 
@@ -401,7 +379,7 @@ export default function RedAlertPage() {
       setAssistantTraceOpen(true);
     } catch (error) {
       console.error('Failed to load assistant trace detail:', error);
-      toast.error('Trace detayi yuklenemedi');
+      toast.error(copy.assistant.notifications.traceFailed);
     } finally {
       setAssistantTraceLoading(false);
     }
@@ -410,12 +388,12 @@ export default function RedAlertPage() {
   const handleResolveAssistantEvent = async (eventId, resolved) => {
     try {
       await apiClient.patch(`/api/red-alert/assistant/events/${eventId}/resolve`, { resolved });
-      toast.success(resolved ? 'Assistant event cozuldu olarak isaretlendi' : 'Assistant event tekrar acildi');
+      toast.success(resolved ? copy.assistant.notifications.resolved : copy.assistant.notifications.reopened);
       loadAssistantEvents();
       loadAssistantSummary();
     } catch (error) {
       console.error('Failed to resolve assistant event:', error);
-      toast.error('Assistant event guncellenemedi');
+      toast.error(copy.assistant.notifications.updateFailed);
     }
   };
 
@@ -457,13 +435,13 @@ export default function RedAlertPage() {
   const handleResolveError = async (errorId, resolved) => {
     try {
       await apiClient.patch(`/api/red-alert/errors/${errorId}/resolve`, { resolved });
-      toast.success(resolved ? 'Hata çözüldü olarak işaretlendi' : 'Hata tekrar açıldı');
+      toast.success(resolved ? copy.errors.notifications.resolved : copy.errors.notifications.reopened);
       loadErrorLogs();
       loadErrorSummary();
       loadHealth();
     } catch (error) {
       console.error('Failed to resolve error:', error);
-      toast.error('Hata durumu güncellenemedi');
+      toast.error(copy.errors.notifications.updateFailed);
     }
   };
 
@@ -472,6 +450,15 @@ export default function RedAlertPage() {
       const next = new Set(prev);
       if (next.has(errorId)) next.delete(errorId);
       else next.add(errorId);
+      return next;
+    });
+  };
+
+  const toggleSecurityEventExpand = (eventId) => {
+    setExpandedSecurityEvents(prev => {
+      const next = new Set(prev);
+      if (next.has(eventId)) next.delete(eventId);
+      else next.add(eventId);
       return next;
     });
   };
@@ -497,6 +484,11 @@ export default function RedAlertPage() {
   }, [filters.hours, filters.severity, filters.type, isAdmin, opsCapabilities.loaded]);
 
   useEffect(() => {
+    if (['timeline', 'threats'].includes(activePanel)) {
+      setActivePanel('events');
+      return;
+    }
+
     if (!opsPanelEnabled && activePanel === 'ops') {
       setActivePanel('errors');
     }
@@ -535,10 +527,10 @@ export default function RedAlertPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Shield className="h-5 w-5" />
-              Erişim Engellendi
+              {copy.common.accessDenied}
             </CardTitle>
             <CardDescription>
-              Red Alert paneline erişim yetkiniz yok.
+              {copy.common.accessDeniedDesc}
             </CardDescription>
           </CardHeader>
         </Card>
@@ -551,7 +543,7 @@ export default function RedAlertPage() {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <Activity className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Güvenlik paneli yükleniyor...</p>
+          <p className="text-muted-foreground">{copy.common.loading}</p>
         </div>
       </div>
     );
@@ -582,9 +574,8 @@ export default function RedAlertPage() {
   };
 
   const unresolvedCount = errorSummary?.summary?.unresolved || 0;
-  const totalErrors = errorSummary?.summary?.total || 0;
+  const totalErrors = unresolvedCount;
   const totalEvents = summary?.summary?.total || 0;
-  const threatCount = (topThreats.topIPs?.length || 0) + (topThreats.topEndpoints?.length || 0);
   const opsIncidentCount = opsSummary?.totals?.incidents || 0;
   const assistantIncidentCount = assistantSummary?.totals?.incidents || 0;
 
@@ -595,15 +586,15 @@ export default function RedAlertPage() {
         <div>
           <h1 className="text-2xl font-semibold flex items-center gap-2">
             <Shield className="h-6 w-6 text-red-600" />
-            Red Alert
+            {copy.header.title}
             {health && (
-              <Badge className={SEVERITY_COLORS[health.status] + ' ml-2 text-xs'}>
+              <Badge className={`${HEALTH_BADGE_COLORS[health.status] || 'bg-muted text-foreground'} ml-2 text-xs`}>
                 {health.healthScore}/100
               </Badge>
             )}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Güvenlik olayları ve uygulama hatalarını gerçek zamanlı izleme
+            {copy.header.subtitle}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -615,10 +606,10 @@ export default function RedAlertPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="1">Son 1 Saat</SelectItem>
-              <SelectItem value="6">Son 6 Saat</SelectItem>
-              <SelectItem value="24">Son 24 Saat</SelectItem>
-              <SelectItem value="168">Son 7 Gün</SelectItem>
+              <SelectItem value="1">{copy.timeRanges.oneHour}</SelectItem>
+              <SelectItem value="6">{copy.timeRanges.sixHours}</SelectItem>
+              <SelectItem value="24">{copy.timeRanges.twentyFourHours}</SelectItem>
+              <SelectItem value="168">{copy.timeRanges.sevenDays}</SelectItem>
             </SelectContent>
           </Select>
           <Button
@@ -635,19 +626,19 @@ export default function RedAlertPage() {
       </div>
 
       {/* Navigation Cards — 4 cards */}
-      <div className={`grid grid-cols-2 ${opsPanelEnabled ? 'md:grid-cols-6' : 'md:grid-cols-5'} gap-4 mb-6`}>
+      <div className={`grid grid-cols-1 ${opsPanelEnabled ? 'md:grid-cols-4' : 'md:grid-cols-3'} gap-4 mb-6`}>
         <NavCard
           id="errors"
           icon={Bug}
           iconColor="text-orange-600"
-          title="Uygulama Hataları"
+          title={copy.nav.errors.title}
           value={
             <span className="text-orange-600 dark:text-orange-400">{totalErrors}</span>
           }
           subtitle={
             unresolvedCount > 0
-              ? <span className="text-red-500 font-medium">{unresolvedCount} çözülmemiş</span>
-              : 'Tümü çözüldü'
+              ? <span className="text-red-500 font-medium">{interpolate(copy.nav.errors.unresolved, { count: unresolvedCount })}</span>
+              : copy.nav.errors.none
           }
           activeBorderColor="border-orange-500 dark:border-orange-400"
           borderColor="border-orange-300"
@@ -656,46 +647,26 @@ export default function RedAlertPage() {
           id="events"
           icon={Eye}
           iconColor="text-blue-600"
-          title="Güvenlik Olayları"
+          title={copy.nav.events.title}
           value={totalEvents}
           subtitle={
             summary?.summary?.critical > 0
-              ? <span className="text-red-500 font-medium">{summary.summary.critical} kritik</span>
-              : 'Kritik olay yok'
+              ? <span className="text-red-500 font-medium">{interpolate(copy.nav.events.critical, { count: summary.summary.critical })}</span>
+              : copy.nav.events.none
           }
           activeBorderColor="border-blue-500 dark:border-blue-400"
           borderColor="border-blue-300"
         />
         <NavCard
-          id="timeline"
-          icon={Clock}
-          iconColor="text-purple-600"
-          title="Zaman Çizelgesi"
-          value={timeline.length}
-          subtitle="Saatlik dağılım"
-          activeBorderColor="border-purple-500 dark:border-purple-400"
-          borderColor="border-purple-300"
-        />
-        <NavCard
-          id="threats"
-          icon={AlertTriangle}
-          iconColor="text-red-600"
-          title="Tehdit Kaynakları"
-          value={threatCount}
-          subtitle="IP + Endpoint"
-          activeBorderColor="border-red-500 dark:border-red-400"
-          borderColor="border-red-300"
-        />
-        <NavCard
           id="assistant"
           icon={Sparkles}
           iconColor="text-fuchsia-600"
-          title="Assistant Quality"
+          title={copy.nav.assistant.title}
           value={assistantIncidentCount}
           subtitle={
             opsPanelEnabled
-              ? 'Davranis ve feedback sinyalleri'
-              : 'Panel kapaliysa buradan nedenini gor'
+              ? copy.nav.assistant.enabled
+              : copy.nav.assistant.disabled
           }
           activeBorderColor="border-fuchsia-500 dark:border-fuchsia-400"
           borderColor="border-fuchsia-300"
@@ -705,9 +676,9 @@ export default function RedAlertPage() {
             id="ops"
             icon={Activity}
             iconColor="text-emerald-600"
-            title="Ops Olayları"
+            title={copy.nav.ops.title}
             value={opsIncidentCount}
-            subtitle="Trace/incident görünümü"
+            subtitle={copy.nav.ops.subtitle}
             activeBorderColor="border-emerald-500 dark:border-emerald-400"
             borderColor="border-emerald-300"
           />
@@ -722,10 +693,10 @@ export default function RedAlertPage() {
               <div>
                 <CardTitle className="flex items-center gap-2">
                   <Bug className="h-5 w-5" />
-                  Uygulama Hataları
+                  {copy.errors.title}
                 </CardTitle>
                 <CardDescription className="mt-1">
-                  Araç hataları, API hataları, sistem hataları ve diğerleri
+                  {copy.errors.description}
                 </CardDescription>
               </div>
             </div>
@@ -738,11 +709,11 @@ export default function RedAlertPage() {
                 }}
               >
                 <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Tüm Kategoriler" />
+                  <SelectValue placeholder={copy.filters.allCategories} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Tüm Kategoriler</SelectItem>
-                  {Object.entries(ERROR_CATEGORY_LABELS).map(([key, label]) => (
+                  <SelectItem value="all">{copy.filters.allCategories}</SelectItem>
+                  {Object.entries(errorCategoryLabels).map(([key, label]) => (
                     <SelectItem key={key} value={key}>{label}</SelectItem>
                   ))}
                 </SelectContent>
@@ -756,13 +727,13 @@ export default function RedAlertPage() {
                 }}
               >
                 <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Tüm Önem Dereceleri" />
+                  <SelectValue placeholder={copy.filters.allSeverities} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Tüm Önem Dereceleri</SelectItem>
-                  <SelectItem value="medium">Orta</SelectItem>
-                  <SelectItem value="high">Yüksek</SelectItem>
-                  <SelectItem value="critical">Kritik</SelectItem>
+                  <SelectItem value="all">{copy.filters.allSeverities}</SelectItem>
+                  <SelectItem value="medium">{copy.severities.medium}</SelectItem>
+                  <SelectItem value="high">{copy.severities.high}</SelectItem>
+                  <SelectItem value="critical">{copy.severities.critical}</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -774,12 +745,12 @@ export default function RedAlertPage() {
                 }}
               >
                 <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Tüm Durumlar" />
+                  <SelectValue placeholder={copy.filters.allStatuses} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Tüm Durumlar</SelectItem>
-                  <SelectItem value="false">Çözülmemiş</SelectItem>
-                  <SelectItem value="true">Çözülmüş</SelectItem>
+                  <SelectItem value="all">{copy.filters.allStatuses}</SelectItem>
+                  <SelectItem value="false">{copy.filters.unresolvedOnly}</SelectItem>
+                  <SelectItem value="true">{copy.filters.resolvedOnly}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -789,21 +760,21 @@ export default function RedAlertPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-8"></TableHead>
-                  <TableHead>Son Görülme</TableHead>
-                  <TableHead>Kategori</TableHead>
-                  <TableHead>Önem</TableHead>
-                  <TableHead>Kaynak</TableHead>
-                  <TableHead>Mesaj</TableHead>
-                  <TableHead className="text-center">Tekrar</TableHead>
-                  <TableHead>Durum</TableHead>
-                  <TableHead>İşlem</TableHead>
+                  <TableHead>{copy.errors.table.lastSeen}</TableHead>
+                  <TableHead>{copy.errors.table.category}</TableHead>
+                  <TableHead>{copy.errors.table.severity}</TableHead>
+                  <TableHead>{copy.errors.table.source}</TableHead>
+                  <TableHead>{copy.errors.table.message}</TableHead>
+                  <TableHead className="text-center">{copy.errors.table.repeat}</TableHead>
+                  <TableHead>{copy.errors.table.status}</TableHead>
+                  <TableHead>{copy.errors.table.action}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {errorLogs.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
-                      Hata bulunamadı
+                      {copy.errors.empty}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -823,17 +794,17 @@ export default function RedAlertPage() {
                             }
                           </TableCell>
                           <TableCell className="whitespace-nowrap text-xs">
-                            {new Date(err.lastSeenAt).toLocaleString()}
+                            {formatDateTime(err.lastSeenAt)}
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1.5">
                               <CategoryIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                              <span className="text-xs">{ERROR_CATEGORY_LABELS[err.category] || err.category}</span>
+                              <span className="text-xs">{errorCategoryLabels[err.category] || err.category}</span>
                             </div>
                           </TableCell>
                           <TableCell>
                             <Badge className={SEVERITY_COLORS[err.severity]}>
-                              {err.severity.toUpperCase()}
+                              {formatSeverityLabel(err.severity)}
                             </Badge>
                           </TableCell>
                           <TableCell>
@@ -850,11 +821,11 @@ export default function RedAlertPage() {
                           <TableCell>
                             {err.resolved ? (
                               <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                                Çözüldü
+                                {copy.common.resolved}
                               </Badge>
                             ) : (
                               <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
-                                Açık
+                                {copy.common.open}
                               </Badge>
                             )}
                           </TableCell>
@@ -866,6 +837,7 @@ export default function RedAlertPage() {
                                 e.stopPropagation();
                                 handleResolveError(err.id, !err.resolved);
                               }}
+                              title={err.resolved ? copy.errors.actions.reopen : copy.errors.actions.resolve}
                             >
                               {err.resolved ? (
                                 <XCircle className="h-4 w-4 text-red-500" />
@@ -881,55 +853,55 @@ export default function RedAlertPage() {
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs mb-3">
                                 {err.toolName && (
                                   <div>
-                                    <span className="text-muted-foreground">Tool:</span>{' '}
+                                    <span className="text-muted-foreground">{copy.errors.detail.tool}:</span>{' '}
                                     <code>{err.toolName}</code>
                                   </div>
                                 )}
                                 {err.externalService && (
                                   <div>
-                                    <span className="text-muted-foreground">Servis:</span>{' '}
+                                    <span className="text-muted-foreground">{copy.errors.detail.service}:</span>{' '}
                                     <code>{err.externalService}</code>
                                     {err.externalStatus && <span className="ml-1">({err.externalStatus})</span>}
                                   </div>
                                 )}
                                 {err.endpoint && (
                                   <div>
-                                    <span className="text-muted-foreground">Endpoint:</span>{' '}
+                                    <span className="text-muted-foreground">{copy.errors.detail.endpoint}:</span>{' '}
                                     <code>{err.method} {err.endpoint}</code>
                                   </div>
                                 )}
                                 {err.errorCode && (
                                   <div>
-                                    <span className="text-muted-foreground">Kod:</span>{' '}
+                                    <span className="text-muted-foreground">{copy.errors.detail.code}:</span>{' '}
                                     <code>{err.errorCode}</code>
                                   </div>
                                 )}
                                 {err.businessId && (
                                   <div>
-                                    <span className="text-muted-foreground">Business:</span>{' '}
+                                    <span className="text-muted-foreground">{copy.errors.detail.business}:</span>{' '}
                                     {err.businessId}
                                   </div>
                                 )}
                                 {err.requestId && (
                                   <div>
-                                    <span className="text-muted-foreground">Request:</span>{' '}
+                                    <span className="text-muted-foreground">{copy.errors.detail.request}:</span>{' '}
                                     <code className="text-xs">{err.requestId}</code>
                                   </div>
                                 )}
                                 <div>
-                                  <span className="text-muted-foreground">İlk Görülme:</span>{' '}
-                                  {new Date(err.firstSeenAt).toLocaleString()}
+                                  <span className="text-muted-foreground">{copy.errors.detail.firstSeen}:</span>{' '}
+                                  {formatDateTime(err.firstSeenAt)}
                                 </div>
                                 {err.responseTimeMs && (
                                   <div>
-                                    <span className="text-muted-foreground">Yanıt Süresi:</span>{' '}
+                                    <span className="text-muted-foreground">{copy.errors.detail.responseTime}:</span>{' '}
                                     {err.responseTimeMs}ms
                                   </div>
                                 )}
                               </div>
                               {err.stackTrace && (
                                 <div>
-                                  <div className="text-xs text-muted-foreground mb-1">Stack Trace:</div>
+                                  <div className="text-xs text-muted-foreground mb-1">{copy.errors.detail.stackTrace}:</div>
                                   <pre className="text-xs bg-muted p-3 rounded-md overflow-x-auto max-h-48 overflow-y-auto whitespace-pre-wrap">
                                     {err.stackTrace}
                                   </pre>
@@ -937,7 +909,10 @@ export default function RedAlertPage() {
                               )}
                               {err.resolvedBy && (
                                 <div className="text-xs mt-2 text-muted-foreground">
-                                  {err.resolvedBy} tarafından {new Date(err.resolvedAt).toLocaleString()} tarihinde çözüldü
+                                  {interpolate(copy.errors.detail.resolvedBy, {
+                                    user: err.resolvedBy,
+                                    date: formatDateTime(err.resolvedAt)
+                                  })}
                                 </div>
                               )}
                             </TableCell>
@@ -954,9 +929,11 @@ export default function RedAlertPage() {
             {errorPagination.total > errorPagination.limit && (
               <div className="flex items-center justify-between mt-4">
                 <div className="text-sm text-muted-foreground">
-                  {((errorPagination.page - 1) * errorPagination.limit) + 1} -{' '}
-                  {Math.min(errorPagination.page * errorPagination.limit, errorPagination.total)} / toplam{' '}
-                  {errorPagination.total} hata
+                  {interpolate(copy.errors.pagination, {
+                    start: ((errorPagination.page - 1) * errorPagination.limit) + 1,
+                    end: Math.min(errorPagination.page * errorPagination.limit, errorPagination.total),
+                    total: errorPagination.total
+                  })}
                 </div>
                 <div className="flex gap-2">
                   <Button
@@ -966,7 +943,7 @@ export default function RedAlertPage() {
                     disabled={errorPagination.page === 1}
                   >
                     <ChevronLeft className="h-4 w-4" />
-                    Önceki
+                    {copy.common.previous}
                   </Button>
                   <Button
                     variant="outline"
@@ -974,7 +951,7 @@ export default function RedAlertPage() {
                     onClick={() => setErrorPagination(prev => ({ ...prev, page: prev.page + 1 }))}
                     disabled={!errorPagination.hasMore}
                   >
-                    Sonraki
+                    {copy.common.next}
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>
@@ -988,9 +965,9 @@ export default function RedAlertPage() {
       {activePanel === 'events' && (
         <Card>
           <CardHeader>
-            <CardTitle>Güvenlik Olayları</CardTitle>
+            <CardTitle>{copy.securityEvents.title}</CardTitle>
             <CardDescription>
-              Filtreleme seçenekleri ile güvenlik olayları
+              {copy.securityEvents.description}
             </CardDescription>
             <div className="flex gap-4 mt-4">
               <Select
@@ -998,14 +975,14 @@ export default function RedAlertPage() {
                 onValueChange={(value) => setFilters(prev => ({ ...prev, severity: value === 'all' ? '' : value }))}
               >
                 <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Tüm Önem Dereceleri" />
+                  <SelectValue placeholder={copy.filters.allSeverities} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Tüm Önem Dereceleri</SelectItem>
-                  <SelectItem value="low">Düşük</SelectItem>
-                  <SelectItem value="medium">Orta</SelectItem>
-                  <SelectItem value="high">Yüksek</SelectItem>
-                  <SelectItem value="critical">Kritik</SelectItem>
+                  <SelectItem value="all">{copy.filters.allSeverities}</SelectItem>
+                  <SelectItem value="low">{copy.severities.low}</SelectItem>
+                  <SelectItem value="medium">{copy.severities.medium}</SelectItem>
+                  <SelectItem value="high">{copy.severities.high}</SelectItem>
+                  <SelectItem value="critical">{copy.severities.critical}</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -1014,11 +991,11 @@ export default function RedAlertPage() {
                 onValueChange={(value) => setFilters(prev => ({ ...prev, type: value === 'all' ? '' : value }))}
               >
                 <SelectTrigger className="w-64">
-                  <SelectValue placeholder="Tüm Olay Türleri" />
+                  <SelectValue placeholder={copy.filters.allEventTypes} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Tüm Olay Türleri</SelectItem>
-                  {Object.entries(EVENT_TYPE_LABELS).map(([key, label]) => (
+                  <SelectItem value="all">{copy.filters.allEventTypes}</SelectItem>
+                  {Object.entries(eventTypeLabels).map(([key, label]) => (
                     <SelectItem key={key} value={key}>{label}</SelectItem>
                   ))}
                 </SelectContent>
@@ -1029,48 +1006,100 @@ export default function RedAlertPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Zaman</TableHead>
-                  <TableHead>Tür</TableHead>
-                  <TableHead>Önem</TableHead>
-                  <TableHead>Endpoint</TableHead>
-                  <TableHead>Metod</TableHead>
-                  <TableHead>Durum</TableHead>
-                  <TableHead>IP Adresi</TableHead>
+                  <TableHead className="w-8"></TableHead>
+                  <TableHead>{copy.securityEvents.table.time}</TableHead>
+                  <TableHead>{copy.securityEvents.table.type}</TableHead>
+                  <TableHead>{copy.securityEvents.table.severity}</TableHead>
+                  <TableHead>{copy.securityEvents.table.source}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {events.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground">
-                      Güvenlik olayı bulunamadı
+                    <TableCell colSpan={5} className="text-center text-muted-foreground">
+                      {copy.securityEvents.empty}
                     </TableCell>
                   </TableRow>
                 ) : (
-                  events.map((event) => (
-                    <TableRow key={event.id}>
-                      <TableCell className="whitespace-nowrap">
-                        {new Date(event.createdAt).toLocaleString()}
-                      </TableCell>
-                      <TableCell>
-                        <code className="text-xs">{EVENT_TYPE_LABELS[event.type] || event.type}</code>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={SEVERITY_COLORS[event.severity]}>
-                          {event.severity.toUpperCase()}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <code className="text-xs">{event.endpoint || '-'}</code>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{event.method || '-'}</Badge>
-                      </TableCell>
-                      <TableCell>{event.statusCode || '-'}</TableCell>
-                      <TableCell>
-                        <code className="text-xs">{event.ipAddress || '-'}</code>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  events.map((event) => {
+                    const isExpanded = expandedSecurityEvents.has(event.id);
+                    return (
+                      <React.Fragment key={event.id}>
+                        <TableRow
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => toggleSecurityEventExpand(event.id)}
+                        >
+                          <TableCell>
+                            {isExpanded
+                              ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                              : <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                            }
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap text-xs">
+                            {formatDateTime(event.createdAt)}
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            {eventTypeLabels[event.type] || event.type}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={SEVERITY_COLORS[event.severity]}>
+                              {formatSeverityLabel(event.severity)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            <div className="font-mono">{event.method || '-'} {event.endpoint || '-'}</div>
+                            <div className="text-muted-foreground">{event.ipAddress || '-'}</div>
+                          </TableCell>
+                        </TableRow>
+                        {isExpanded && (
+                          <TableRow>
+                            <TableCell colSpan={5} className="bg-muted/30 p-4">
+                              <div className="space-y-3 text-xs">
+                                <div className="rounded-lg border bg-background/60 p-3">
+                                  <div className="font-medium mb-1">{copy.securityEvents.explanationTitle}</div>
+                                  <div className="text-muted-foreground">
+                                    {eventTypeDescriptions[event.type] || copy.securityEvents.explanationFallback}
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                  <div>
+                                    <span className="text-muted-foreground">{copy.securityEvents.table.endpoint}:</span>{' '}
+                                    <code>{event.endpoint || '-'}</code>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground">{copy.securityEvents.table.method}:</span>{' '}
+                                    <code>{event.method || '-'}</code>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground">{copy.securityEvents.table.httpStatus}:</span>{' '}
+                                    <code>{event.statusCode || '-'}</code>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground">{copy.securityEvents.table.ip}:</span>{' '}
+                                    <code>{event.ipAddress || '-'}</code>
+                                  </div>
+                                </div>
+                                {event.userAgent && (
+                                  <div>
+                                    <div className="text-muted-foreground mb-1">{copy.securityEvents.userAgent}</div>
+                                    <pre className="whitespace-pre-wrap rounded-md bg-muted p-3 overflow-x-auto">{event.userAgent}</pre>
+                                  </div>
+                                )}
+                                {event.details && (
+                                  <div>
+                                    <div className="text-muted-foreground mb-1">{copy.securityEvents.technicalDetail}</div>
+                                    <pre className="whitespace-pre-wrap rounded-md bg-muted p-3 overflow-x-auto">
+                                      {JSON.stringify(event.details, null, 2)}
+                                    </pre>
+                                  </div>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </React.Fragment>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
@@ -1079,9 +1108,11 @@ export default function RedAlertPage() {
             {pagination.total > pagination.limit && (
               <div className="flex items-center justify-between mt-4">
                 <div className="text-sm text-muted-foreground">
-                  {((pagination.page - 1) * pagination.limit) + 1} -{' '}
-                  {Math.min(pagination.page * pagination.limit, pagination.total)} / toplam{' '}
-                  {pagination.total} olay
+                  {interpolate(copy.securityEvents.pagination, {
+                    start: ((pagination.page - 1) * pagination.limit) + 1,
+                    end: Math.min(pagination.page * pagination.limit, pagination.total),
+                    total: pagination.total
+                  })}
                 </div>
                 <div className="flex gap-2">
                   <Button
@@ -1091,7 +1122,7 @@ export default function RedAlertPage() {
                     disabled={pagination.page === 1}
                   >
                     <ChevronLeft className="h-4 w-4" />
-                    Önceki
+                    {copy.common.previous}
                   </Button>
                   <Button
                     variant="outline"
@@ -1099,7 +1130,7 @@ export default function RedAlertPage() {
                     onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
                     disabled={!pagination.hasMore}
                   >
-                    Sonraki
+                    {copy.common.next}
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>
@@ -1112,37 +1143,38 @@ export default function RedAlertPage() {
       {activePanel === 'assistant' && !opsPanelEnabled && (
         <Card>
           <CardHeader>
-            <CardTitle>Assistant Quality</CardTitle>
+            <CardTitle>{copy.assistantUnavailable.title}</CardTitle>
             <CardDescription>
-              Bu alan commit/push eksik oldugu icin degil, backend capability kapali oldugu icin gorunmeyebilir.
+              {copy.assistantUnavailable.description}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
             <p className="text-muted-foreground">
-              Panelin veri uretebilmesi icin backend tarafinda unified trace, operational incidents ve Red Alert ops panel capability acik olmali.
+              {copy.assistantUnavailable.body}
             </p>
             <div className="rounded-xl border bg-muted/30 p-4 space-y-2">
               <div className="flex items-center justify-between gap-3">
-                <span>Unified Response Trace</span>
+                <span>{copy.assistantUnavailable.trace}</span>
                 <Badge variant={opsCapabilities.unifiedResponseTraceEnabled ? 'default' : 'outline'}>
-                  {opsCapabilities.unifiedResponseTraceEnabled ? 'Acik' : 'Kapali'}
+                  {opsCapabilities.unifiedResponseTraceEnabled ? copy.common.enabled : copy.common.disabled}
                 </Badge>
               </div>
               <div className="flex items-center justify-between gap-3">
-                <span>Operational Incidents</span>
+                <span>{copy.assistantUnavailable.incidents}</span>
                 <Badge variant={opsCapabilities.operationalIncidentsEnabled ? 'default' : 'outline'}>
-                  {opsCapabilities.operationalIncidentsEnabled ? 'Acik' : 'Kapali'}
+                  {opsCapabilities.operationalIncidentsEnabled ? copy.common.enabled : copy.common.disabled}
                 </Badge>
               </div>
               <div className="flex items-center justify-between gap-3">
-                <span>Assistant/Ops Panel</span>
+                <span>{copy.assistantUnavailable.panel}</span>
                 <Badge variant={opsCapabilities.redAlertOpsPanelEnabled ? 'default' : 'outline'}>
-                  {opsCapabilities.redAlertOpsPanelEnabled ? 'Acik' : 'Kapali'}
+                  {opsCapabilities.redAlertOpsPanelEnabled ? copy.common.enabled : copy.common.disabled}
                 </Badge>
               </div>
             </div>
             <div className="text-xs text-muted-foreground">
-              Prod/pilot ortaminda gerekli backend envler: <code>FEATURE_UNIFIED_RESPONSE_TRACE=true</code>, <code>FEATURE_OPERATIONAL_INCIDENTS=true</code>, <code>FEATURE_REDALERT_OPS_PANEL=true</code>.
+              {copy.assistantUnavailable.envHint}:{' '}
+              <code>FEATURE_UNIFIED_RESPONSE_TRACE=true</code>, <code>FEATURE_OPERATIONAL_INCIDENTS=true</code>, <code>FEATURE_REDALERT_OPS_PANEL=true</code>.
             </div>
           </CardContent>
         </Card>
@@ -1151,79 +1183,49 @@ export default function RedAlertPage() {
       {/* ═══════════ Panel: Operasyonel Olaylar ═══════════ */}
       {opsPanelEnabled && activePanel === 'assistant' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Blocked Rate</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-red-600">
-                  {assistantSummary?.cards?.blockedRate ?? 0}%
+          <Card>
+            <CardHeader>
+              <CardTitle>{copy.assistant.highlightTitle}</CardTitle>
+              <CardDescription>
+                {copy.assistant.highlightDescription}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div className="rounded-xl border p-4">
+                  <div className="text-xs text-muted-foreground">{copy.assistant.metrics.blocked}</div>
+                  <div className="mt-1 text-2xl font-bold text-red-600">{assistantSummary?.cards?.blockedRate ?? 0}%</div>
+                  <div className="text-xs text-muted-foreground">{assistantSummary?.counts?.blocked ?? 0} {copy.assistant.metrics.turn}</div>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {assistantSummary?.counts?.blocked ?? 0} blocked turn
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Sanitize Rate</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-amber-600">
-                  {assistantSummary?.cards?.sanitizeRate ?? 0}%
+                <div className="rounded-xl border p-4">
+                  <div className="text-xs text-muted-foreground">{copy.assistant.metrics.sanitize}</div>
+                  <div className="mt-1 text-2xl font-bold text-amber-600">{assistantSummary?.cards?.sanitizeRate ?? 0}%</div>
+                  <div className="text-xs text-muted-foreground">{assistantSummary?.counts?.sanitized ?? 0} {copy.assistant.metrics.turn}</div>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {assistantSummary?.counts?.sanitized ?? 0} sanitized turn
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Fallback Rate</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-yellow-600">
-                  {assistantSummary?.cards?.fallbackRate ?? 0}%
+                <div className="rounded-xl border p-4">
+                  <div className="text-xs text-muted-foreground">{copy.assistant.metrics.fallback}</div>
+                  <div className="mt-1 text-2xl font-bold text-yellow-600">{assistantSummary?.cards?.fallbackRate ?? 0}%</div>
+                  <div className="text-xs text-muted-foreground">{assistantSummary?.counts?.fallback ?? 0} {copy.assistant.metrics.turn}</div>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {assistantSummary?.counts?.fallback ?? 0} fallback turn
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Clarification Rate</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-blue-600">
-                  {assistantSummary?.cards?.clarificationRate ?? 0}%
+                <div className="rounded-xl border p-4">
+                  <div className="text-xs text-muted-foreground">{copy.assistant.metrics.clarification}</div>
+                  <div className="mt-1 text-2xl font-bold text-blue-600">{assistantSummary?.cards?.clarificationRate ?? 0}%</div>
+                  <div className="text-xs text-muted-foreground">{assistantSummary?.counts?.clarification ?? 0} {copy.assistant.metrics.turn}</div>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {assistantSummary?.counts?.clarification ?? 0} clarification turn
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Negative Feedback</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-fuchsia-600">
-                  {assistantSummary?.counts?.negativeFeedback ?? 0}
+                <div className="rounded-xl border p-4">
+                  <div className="text-xs text-muted-foreground">{copy.assistant.metrics.negativeFeedback}</div>
+                  <div className="mt-1 text-2xl font-bold text-fuchsia-600">{assistantSummary?.counts?.negativeFeedback ?? 0}</div>
+                  <div className="text-xs text-muted-foreground">{assistantSummary?.cards?.negativeFeedbackRate ?? 0}% {copy.assistant.metrics.feedback}</div>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {assistantSummary?.cards?.negativeFeedbackRate ?? 0}% of feedback
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>Assistant Quality Events</CardTitle>
+              <CardTitle>{copy.assistant.title}</CardTitle>
               <CardDescription>
-                Block, sanitize, fallback, tool skip, intervention ve kullanici feedback sinyalleri
+                {copy.assistant.description}
               </CardDescription>
               <div className="flex gap-4 mt-4 flex-wrap">
                 <Select
@@ -1234,11 +1236,11 @@ export default function RedAlertPage() {
                   }}
                 >
                   <SelectTrigger className="w-56">
-                    <SelectValue placeholder="Tum Kategoriler" />
+                    <SelectValue placeholder={copy.filters.allCategories} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Tum Kategoriler</SelectItem>
-                    {Object.entries(ASSISTANT_CATEGORY_LABELS).map(([key, label]) => (
+                    <SelectItem value="all">{copy.filters.allCategories}</SelectItem>
+                    {Object.entries(assistantCategoryLabels).map(([key, label]) => (
                       <SelectItem key={key} value={key}>{label}</SelectItem>
                     ))}
                   </SelectContent>
@@ -1252,14 +1254,14 @@ export default function RedAlertPage() {
                   }}
                 >
                   <SelectTrigger className="w-44">
-                    <SelectValue placeholder="Tum Onem Dereceleri" />
+                    <SelectValue placeholder={copy.filters.allSeverities} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Tum Onem Dereceleri</SelectItem>
-                    <SelectItem value="LOW">LOW</SelectItem>
-                    <SelectItem value="MEDIUM">MEDIUM</SelectItem>
-                    <SelectItem value="HIGH">HIGH</SelectItem>
-                    <SelectItem value="CRITICAL">CRITICAL</SelectItem>
+                    <SelectItem value="all">{copy.filters.allSeverities}</SelectItem>
+                    <SelectItem value="LOW">{copy.severities.low}</SelectItem>
+                    <SelectItem value="MEDIUM">{copy.severities.medium}</SelectItem>
+                    <SelectItem value="HIGH">{copy.severities.high}</SelectItem>
+                    <SelectItem value="CRITICAL">{copy.severities.critical}</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -1271,12 +1273,12 @@ export default function RedAlertPage() {
                   }}
                 >
                   <SelectTrigger className="w-44">
-                    <SelectValue placeholder="Tum Durumlar" />
+                    <SelectValue placeholder={copy.filters.allStatuses} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Tum Durumlar</SelectItem>
-                    <SelectItem value="false">Acilanlar</SelectItem>
-                    <SelectItem value="true">Cozulenler</SelectItem>
+                    <SelectItem value="all">{copy.filters.allStatuses}</SelectItem>
+                    <SelectItem value="false">{copy.filters.unresolvedOnly}</SelectItem>
+                    <SelectItem value="true">{copy.filters.resolvedOnly}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1284,63 +1286,62 @@ export default function RedAlertPage() {
             <CardContent>
               <Table>
                 <TableHeader>
+                <TableRow>
+                  <TableHead>{copy.assistant.table.time}</TableHead>
+                  <TableHead>{copy.assistant.table.event}</TableHead>
+                  <TableHead>{copy.assistant.table.severity}</TableHead>
+                  <TableHead>{copy.assistant.table.status}</TableHead>
+                  <TableHead>{copy.assistant.table.action}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {assistantEvents.length === 0 ? (
                   <TableRow>
-                    <TableHead>Zaman</TableHead>
-                    <TableHead>Kategori</TableHead>
-                    <TableHead>Onem</TableHead>
-                    <TableHead>Ozet</TableHead>
-                    <TableHead>Kanal</TableHead>
-                    <TableHead>Session</TableHead>
-                    <TableHead>Durum</TableHead>
-                    <TableHead>Islem</TableHead>
+                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                        {copy.assistant.empty}
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {assistantEvents.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
-                        Assistant event bulunamadi
+                ) : (
+                  assistantEvents.map((event) => (
+                    <TableRow key={event.id}>
+                      <TableCell className="whitespace-nowrap text-xs">
+                          {formatDateTime(event.createdAt)}
                       </TableCell>
-                    </TableRow>
-                  ) : (
-                    assistantEvents.map((event) => (
-                      <TableRow key={event.id}>
-                        <TableCell className="whitespace-nowrap text-xs">
-                          {new Date(event.createdAt).toLocaleString()}
+                      <TableCell className="max-w-xl">
+                        <div className="text-xs font-medium">
+                            {assistantCategoryLabels[event.category] || event.category}
+                        </div>
+                          <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                          {event.summary}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground mt-1">
+                            {formatChannel(event.channel)}{event.sessionId ? ` • ${event.sessionId.slice(0, 14)}...` : ''}
+                          </div>
                         </TableCell>
-                        <TableCell className="text-xs">
-                          {ASSISTANT_CATEGORY_LABELS[event.category] || event.category}
-                        </TableCell>
-                        <TableCell>
+                        <TableCell className="w-28">
                           <Badge className={SEVERITY_COLORS[(event.severity || '').toLowerCase()] || 'bg-muted text-foreground'}>
-                            {event.severity}
+                            {formatSeverityLabel(event.severity)}
                           </Badge>
                         </TableCell>
-                        <TableCell className="max-w-md truncate" title={event.summary}>
-                          {event.summary}
-                        </TableCell>
-                        <TableCell>{event.channel}</TableCell>
-                        <TableCell className="font-mono text-xs">
-                          {event.sessionId ? `${event.sessionId.slice(0, 14)}...` : '-'}
-                        </TableCell>
-                        <TableCell>
+                        <TableCell className="w-28">
                           {event.resolved ? (
                             <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                              Cozuldu
+                              {copy.common.resolved}
                             </Badge>
                           ) : (
                             <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
-                              Acik
+                              {copy.common.open}
                             </Badge>
                           )}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="w-28">
                           <div className="flex items-center gap-2">
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => loadAssistantTraceDetail(event.traceId)}
                               disabled={!event.traceId || assistantTraceLoading}
+                              title={copy.assistant.actions.viewTrace}
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
@@ -1348,6 +1349,7 @@ export default function RedAlertPage() {
                               variant="ghost"
                               size="sm"
                               onClick={() => handleResolveAssistantEvent(event.id, !event.resolved)}
+                              title={event.resolved ? copy.assistant.actions.reopen : copy.assistant.actions.resolve}
                             >
                               {event.resolved ? (
                                 <XCircle className="h-4 w-4 text-red-500" />
@@ -1366,9 +1368,11 @@ export default function RedAlertPage() {
               {assistantPagination.total > assistantPagination.limit && (
                 <div className="flex items-center justify-between mt-4">
                   <div className="text-sm text-muted-foreground">
-                    {((assistantPagination.page - 1) * assistantPagination.limit) + 1} -{' '}
-                    {Math.min(assistantPagination.page * assistantPagination.limit, assistantPagination.total)} / toplam{' '}
-                    {assistantPagination.total} event
+                    {interpolate(copy.assistant.pagination, {
+                      start: ((assistantPagination.page - 1) * assistantPagination.limit) + 1,
+                      end: Math.min(assistantPagination.page * assistantPagination.limit, assistantPagination.total),
+                      total: assistantPagination.total
+                    })}
                   </div>
                   <div className="flex gap-2">
                     <Button
@@ -1378,7 +1382,7 @@ export default function RedAlertPage() {
                       disabled={assistantPagination.page === 1}
                     >
                       <ChevronLeft className="h-4 w-4" />
-                      Onceki
+                      {copy.common.previous}
                     </Button>
                     <Button
                       variant="outline"
@@ -1386,7 +1390,7 @@ export default function RedAlertPage() {
                       onClick={() => setAssistantPagination(prev => ({ ...prev, page: prev.page + 1 }))}
                       disabled={!assistantPagination.hasMore}
                     >
-                      Sonraki
+                      {copy.common.next}
                       <ChevronRight className="h-4 w-4" />
                     </Button>
                   </div>
@@ -1402,69 +1406,69 @@ export default function RedAlertPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Bypass Oranı</CardTitle>
+                <CardTitle className="text-sm font-medium">{copy.ops.metrics.bypassRate}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-orange-600">
                   {opsSummary?.cards?.bypassRate ?? 0}%
                 </div>
-                <p className="text-xs text-muted-foreground">LLM bypass / toplam turn</p>
+                <p className="text-xs text-muted-foreground">{copy.ops.metrics.bypassHint}</p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Fallback Oranı</CardTitle>
+                <CardTitle className="text-sm font-medium">{copy.ops.metrics.fallbackRate}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-yellow-600">
                   {opsSummary?.cards?.fallbackRate ?? 0}%
                 </div>
-                <p className="text-xs text-muted-foreground">template + fallback kaynakları</p>
+                <p className="text-xs text-muted-foreground">{copy.ops.metrics.fallbackHint}</p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Tool Success</CardTitle>
+                <CardTitle className="text-sm font-medium">{copy.ops.metrics.toolSuccess}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-emerald-600">
                   {opsSummary?.cards?.toolSuccessRate ?? 0}%
                 </div>
-                <p className="text-xs text-muted-foreground">tool çağrılan turnlerde başarı</p>
+                <p className="text-xs text-muted-foreground">{copy.ops.metrics.toolSuccessHint}</p>
               </CardContent>
             </Card>
           </div>
 
           <Card>
             <CardHeader>
-              <CardTitle>Repeat Responses</CardTitle>
+              <CardTitle>{copy.ops.repeatTitle}</CardTitle>
               <CardDescription>
-                Aynı/benzer hash ile tekrar eden yanıtlar
+                {copy.ops.repeatDescription}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Hash</TableHead>
-                    <TableHead>Kanal</TableHead>
-                    <TableHead>Count</TableHead>
-                    <TableHead>Örnek Metin</TableHead>
-                    <TableHead>Trace</TableHead>
+                    <TableHead>{copy.ops.table.hash}</TableHead>
+                    <TableHead>{copy.ops.table.channel}</TableHead>
+                    <TableHead>{copy.ops.table.count}</TableHead>
+                    <TableHead>{copy.ops.table.sample}</TableHead>
+                    <TableHead>{copy.ops.table.trace}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {repeatResponses.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                        Tekrarlayan yanıt bulunamadı
+                        {copy.ops.repeatEmpty}
                       </TableCell>
                     </TableRow>
                   ) : (
                     repeatResponses.map((item) => (
                       <TableRow key={`${item.responseHash}-${item.channel}`}>
                         <TableCell className="font-mono text-xs">{item.responseHash?.slice(0, 12)}...</TableCell>
-                        <TableCell>{item.channel}</TableCell>
+                        <TableCell>{formatChannel(item.channel)}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className="font-mono">{item.count}</Badge>
                         </TableCell>
@@ -1486,8 +1490,8 @@ export default function RedAlertPage() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Ops Events</CardTitle>
-                  <CardDescription>Category/severity bazında operational incident akışı</CardDescription>
+                  <CardTitle>{copy.ops.title}</CardTitle>
+                  <CardDescription>{copy.ops.description}</CardDescription>
                 </div>
               </div>
               <div className="flex gap-4 mt-4">
@@ -1499,11 +1503,11 @@ export default function RedAlertPage() {
                   }}
                 >
                   <SelectTrigger className="w-56">
-                    <SelectValue placeholder="Tüm Kategoriler" />
+                    <SelectValue placeholder={copy.filters.allCategories} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Tüm Kategoriler</SelectItem>
-                    {Object.entries(OPS_CATEGORY_LABELS).map(([key, label]) => (
+                    <SelectItem value="all">{copy.filters.allCategories}</SelectItem>
+                    {Object.entries(opsCategoryLabels).map(([key, label]) => (
                       <SelectItem key={key} value={key}>{label}</SelectItem>
                     ))}
                   </SelectContent>
@@ -1517,14 +1521,14 @@ export default function RedAlertPage() {
                   }}
                 >
                   <SelectTrigger className="w-44">
-                    <SelectValue placeholder="Tüm Önem Dereceleri" />
+                    <SelectValue placeholder={copy.filters.allSeverities} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Tüm Önem Dereceleri</SelectItem>
-                    <SelectItem value="LOW">LOW</SelectItem>
-                    <SelectItem value="MEDIUM">MEDIUM</SelectItem>
-                    <SelectItem value="HIGH">HIGH</SelectItem>
-                    <SelectItem value="CRITICAL">CRITICAL</SelectItem>
+                    <SelectItem value="all">{copy.filters.allSeverities}</SelectItem>
+                    <SelectItem value="LOW">{copy.severities.low}</SelectItem>
+                    <SelectItem value="MEDIUM">{copy.severities.medium}</SelectItem>
+                    <SelectItem value="HIGH">{copy.severities.high}</SelectItem>
+                    <SelectItem value="CRITICAL">{copy.severities.critical}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1532,40 +1536,40 @@ export default function RedAlertPage() {
             <CardContent>
               <Table>
                 <TableHeader>
+                <TableRow>
+                  <TableHead>{copy.ops.table.time}</TableHead>
+                  <TableHead>{copy.ops.table.category}</TableHead>
+                  <TableHead>{copy.ops.table.severity}</TableHead>
+                  <TableHead>{copy.ops.table.summary}</TableHead>
+                  <TableHead>{copy.ops.table.channel}</TableHead>
+                  <TableHead>{copy.ops.table.trace}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {opsEvents.length === 0 ? (
                   <TableRow>
-                    <TableHead>Zaman</TableHead>
-                    <TableHead>Kategori</TableHead>
-                    <TableHead>Önem</TableHead>
-                    <TableHead>Özet</TableHead>
-                    <TableHead>Kanal</TableHead>
-                    <TableHead>Trace</TableHead>
+                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                        {copy.ops.eventsEmpty}
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {opsEvents.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                        Operational event bulunamadı
+                ) : (
+                  opsEvents.map((event) => (
+                    <TableRow key={event.id}>
+                      <TableCell className="whitespace-nowrap text-xs">
+                          {formatDateTime(event.createdAt)}
                       </TableCell>
-                    </TableRow>
-                  ) : (
-                    opsEvents.map((event) => (
-                      <TableRow key={event.id}>
-                        <TableCell className="whitespace-nowrap text-xs">
-                          {new Date(event.createdAt).toLocaleString()}
-                        </TableCell>
-                        <TableCell className="text-xs">
-                          {OPS_CATEGORY_LABELS[event.category] || event.category}
-                        </TableCell>
-                        <TableCell>
+                      <TableCell className="text-xs">
+                          {opsCategoryLabels[event.category] || event.category}
+                      </TableCell>
+                      <TableCell>
                           <Badge className={SEVERITY_COLORS[(event.severity || '').toLowerCase()] || 'bg-muted text-foreground'}>
-                            {event.severity}
+                            {formatSeverityLabel(event.severity)}
                           </Badge>
-                        </TableCell>
+                      </TableCell>
                         <TableCell className="max-w-md truncate" title={event.summary}>
                           {event.summary}
                         </TableCell>
-                        <TableCell>{event.channel}</TableCell>
+                        <TableCell>{formatChannel(event.channel)}</TableCell>
                         <TableCell className="font-mono text-xs">
                           <a
                             href={`/dashboard/admin/red-alert?traceId=${event.traceId}`}
@@ -1583,9 +1587,11 @@ export default function RedAlertPage() {
               {opsPagination.total > opsPagination.limit && (
                 <div className="flex items-center justify-between mt-4">
                   <div className="text-sm text-muted-foreground">
-                    {((opsPagination.page - 1) * opsPagination.limit) + 1} -{' '}
-                    {Math.min(opsPagination.page * opsPagination.limit, opsPagination.total)} / toplam{' '}
-                    {opsPagination.total} olay
+                    {interpolate(copy.ops.pagination, {
+                      start: ((opsPagination.page - 1) * opsPagination.limit) + 1,
+                      end: Math.min(opsPagination.page * opsPagination.limit, opsPagination.total),
+                      total: opsPagination.total
+                    })}
                   </div>
                   <div className="flex gap-2">
                     <Button
@@ -1595,7 +1601,7 @@ export default function RedAlertPage() {
                       disabled={opsPagination.page === 1}
                     >
                       <ChevronLeft className="h-4 w-4" />
-                      Önceki
+                      {copy.common.previous}
                     </Button>
                     <Button
                       variant="outline"
@@ -1603,7 +1609,7 @@ export default function RedAlertPage() {
                       onClick={() => setOpsPagination(prev => ({ ...prev, page: prev.page + 1 }))}
                       disabled={!opsPagination.hasMore}
                     >
-                      Sonraki
+                      {copy.common.next}
                       <ChevronRight className="h-4 w-4" />
                     </Button>
                   </div>
@@ -1614,149 +1620,63 @@ export default function RedAlertPage() {
         </div>
       )}
 
-      {/* ═══════════ Panel: Zaman Çizelgesi ═══════════ */}
-      {activePanel === 'timeline' && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Olay Zaman Çizelgesi</CardTitle>
-            <CardDescription>
-              Saatlik olay dağılımı
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {timeline.length === 0 ? (
-              <div className="text-center text-muted-foreground py-12">
-                Zaman çizelgesi verisi yok
-              </div>
-            ) : (
-              <LineChart
-                data={timeline.map(t => ({
-                  time: new Date(t.timestamp).toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  }),
-                  events: t.count,
-                }))}
-                dataKey="events"
-                xAxisKey="time"
-                color="#ef4444"
-                height={400}
-              />
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ═══════════ Panel: Tehdit Kaynakları ═══════════ */}
-      {activePanel === 'threats' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>En Cok Tehdit IP&apos;leri</CardTitle>
-              <CardDescription>
-                En fazla güvenlik olayı üreten IP adresleri
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {topThreats.topIPs.length === 0 ? (
-                <div className="text-center text-muted-foreground py-8">
-                  Tehdit verisi yok
-                </div>
-              ) : (
-                <BarChart
-                  data={topThreats.topIPs.map(t => ({
-                    ip: t.ip,
-                    count: t.count,
-                  }))}
-                  dataKey="count"
-                  xAxisKey="ip"
-                  horizontal={true}
-                />
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>En Cok Hedeflenen Endpoint&apos;ler</CardTitle>
-              <CardDescription>
-                En fazla saldiriya ugrayan API endpoint&apos;leri
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {topThreats.topEndpoints.length === 0 ? (
-                <div className="text-center text-muted-foreground py-8">
-                  Tehdit verisi yok
-                </div>
-              ) : (
-                <BarChart
-                  data={topThreats.topEndpoints.map(t => ({
-                    endpoint: t.endpoint.replace('/api/', ''),
-                    count: t.count,
-                  }))}
-                  dataKey="count"
-                  xAxisKey="endpoint"
-                  horizontal={true}
-                />
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
       <Dialog open={assistantTraceOpen} onOpenChange={setAssistantTraceOpen}>
         <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Assistant Trace Detail</DialogTitle>
+            <DialogTitle>{copy.traceModal.title}</DialogTitle>
           </DialogHeader>
 
           {assistantTraceDetail?.trace ? (
             <div className="space-y-6">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
-                  <div className="text-muted-foreground text-xs">Trace</div>
+                  <div className="text-muted-foreground text-xs">{copy.traceModal.trace}</div>
                   <div className="font-mono text-xs break-all">{assistantTraceDetail.trace.traceId}</div>
                 </div>
                 <div>
-                  <div className="text-muted-foreground text-xs">Channel</div>
-                  <div>{assistantTraceDetail.trace.channel}</div>
+                  <div className="text-muted-foreground text-xs">{copy.traceModal.channel}</div>
+                  <div>{formatChannel(assistantTraceDetail.trace.channel)}</div>
                 </div>
                 <div>
-                  <div className="text-muted-foreground text-xs">Response Source</div>
-                  <div>{assistantTraceDetail.trace.responseSource || '-'}</div>
+                  <div className="text-muted-foreground text-xs">{copy.traceModal.responseSource}</div>
+                  <div>{formatResponseSource(assistantTraceDetail.trace.responseSource)}</div>
                 </div>
                 <div>
-                  <div className="text-muted-foreground text-xs">Latency</div>
+                  <div className="text-muted-foreground text-xs">{copy.traceModal.latency}</div>
                   <div>{assistantTraceDetail.trace.latencyMs || 0} ms</div>
                 </div>
                 <div>
-                  <div className="text-muted-foreground text-xs">LLM Used</div>
-                  <div>{assistantTraceDetail.trace.llmUsed ? 'Yes' : 'No'}</div>
+                  <div className="text-muted-foreground text-xs">{copy.traceModal.llmUsed}</div>
+                  <div>{assistantTraceDetail.trace.llmUsed ? copy.common.yes : copy.common.no}</div>
                 </div>
                 <div>
-                  <div className="text-muted-foreground text-xs">Tools Called</div>
+                  <div className="text-muted-foreground text-xs">{copy.traceModal.toolsCalled}</div>
                   <div>{assistantTraceDetail.trace.toolsCalledCount || 0}</div>
                 </div>
                 <div>
-                  <div className="text-muted-foreground text-xs">Tool Success</div>
-                  <div>{assistantTraceDetail.trace.toolSuccess ? 'Yes' : 'No'}</div>
+                  <div className="text-muted-foreground text-xs">{copy.traceModal.toolSuccess}</div>
+                  <div>{assistantTraceDetail.trace.toolSuccess ? copy.common.yes : copy.common.no}</div>
                 </div>
                 <div>
-                  <div className="text-muted-foreground text-xs">Session</div>
+                  <div className="text-muted-foreground text-xs">{copy.traceModal.session}</div>
                   <div className="font-mono text-xs break-all">{assistantTraceDetail.trace.sessionId || '-'}</div>
                 </div>
               </div>
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Trace Payload</CardTitle>
+                  <CardTitle className="text-base">{copy.traceModal.payloadTitle}</CardTitle>
                   <CardDescription>
-                    Guardrail, source, grounding ve postprocessor detaylari
+                    {copy.traceModal.payloadDescription}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  <div className="rounded-xl border bg-muted/20 p-3 text-xs text-muted-foreground">
+                    {copy.traceModal.guardrailNote}
+                  </div>
+
                   <div className="text-sm">
-                    <div className="text-muted-foreground text-xs mb-1">Response Preview</div>
+                    <div className="text-muted-foreground text-xs mb-1">{copy.traceModal.responsePreview}</div>
                     <div className="rounded-md border bg-muted/30 p-3 whitespace-pre-wrap">
                       {assistantTraceDetail.trace.responsePreview || assistantTraceDetail.trace.payload?.details?.response_preview || '-'}
                     </div>
@@ -1764,27 +1684,27 @@ export default function RedAlertPage() {
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                     <div>
-                      <div className="text-muted-foreground text-xs">Guardrail</div>
-                      <div>{assistantTraceDetail.trace.payload?.guardrail?.action || '-'}</div>
+                      <div className="text-muted-foreground text-xs">{copy.traceModal.guardrail}</div>
+                      <div>{formatGuardrailAction(assistantTraceDetail.trace.payload?.guardrail?.action)}</div>
                       <div className="text-xs text-muted-foreground mt-1">
                         {assistantTraceDetail.trace.payload?.guardrail?.reason || '-'}
                       </div>
                     </div>
                     <div>
-                      <div className="text-muted-foreground text-xs">Grounding</div>
+                      <div className="text-muted-foreground text-xs">{copy.traceModal.grounding}</div>
                       <div>{assistantTraceDetail.trace.payload?.details?.response_grounding || '-'}</div>
                     </div>
                     <div>
-                      <div className="text-muted-foreground text-xs">Message Type</div>
+                      <div className="text-muted-foreground text-xs">{copy.traceModal.messageType}</div>
                       <div>{assistantTraceDetail.trace.payload?.details?.message_type || '-'}</div>
                     </div>
                   </div>
 
                   <div className="text-sm">
-                    <div className="text-muted-foreground text-xs mb-1">Postprocessors</div>
+                    <div className="text-muted-foreground text-xs mb-1">{copy.traceModal.postprocessors}</div>
                     <div className="flex flex-wrap gap-2">
                       {(assistantTraceDetail.trace.payload?.postprocessors_applied || []).length === 0 ? (
-                        <Badge variant="outline">None</Badge>
+                        <Badge variant="outline">{copy.common.none}</Badge>
                       ) : (
                         (assistantTraceDetail.trace.payload?.postprocessors_applied || []).map((item) => (
                           <Badge key={item} variant="outline">{item}</Badge>
@@ -1794,7 +1714,7 @@ export default function RedAlertPage() {
                   </div>
 
                   <div className="text-sm">
-                    <div className="text-muted-foreground text-xs mb-1">Tools</div>
+                    <div className="text-muted-foreground text-xs mb-1">{copy.traceModal.tools}</div>
                     <pre className="text-xs bg-muted p-3 rounded-md overflow-x-auto">
                       {JSON.stringify(assistantTraceDetail.trace.payload?.tools_called || [], null, 2)}
                     </pre>
@@ -1804,7 +1724,7 @@ export default function RedAlertPage() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Linked Incidents</CardTitle>
+                  <CardTitle className="text-base">{copy.traceModal.linkedIncidents}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
@@ -1813,31 +1733,31 @@ export default function RedAlertPage() {
                         <div className="flex items-center justify-between gap-3">
                           <div>
                             <div className="font-medium text-sm">
-                              {ASSISTANT_CATEGORY_LABELS[incident.category] || incident.category}
+                              {assistantCategoryLabels[incident.category] || incident.category}
                             </div>
                             <div className="text-xs text-muted-foreground">{incident.summary}</div>
                             {(incident.details?.reason || incident.details?.comment || incident.details?.guardrail_reason) && (
                               <div className="mt-2 space-y-1 text-xs text-muted-foreground">
                                 {incident.details?.reason && (
-                                  <div>Reason: <code>{incident.details.reason}</code></div>
+                                  <div>{copy.traceModal.reason}: <code>{incident.details.reason}</code></div>
                                 )}
                                 {incident.details?.guardrail_reason && (
-                                  <div>Guardrail: <code>{incident.details.guardrail_reason}</code></div>
+                                  <div>{copy.traceModal.guardrailReason}: <code>{incident.details.guardrail_reason}</code></div>
                                 )}
                                 {incident.details?.comment && (
-                                  <div className="whitespace-pre-wrap">Comment: {incident.details.comment}</div>
+                                  <div className="whitespace-pre-wrap">{copy.traceModal.comment}: {incident.details.comment}</div>
                                 )}
                               </div>
                             )}
                           </div>
                           <Badge className={SEVERITY_COLORS[(incident.severity || '').toLowerCase()] || 'bg-muted text-foreground'}>
-                            {incident.severity}
+                            {formatSeverityLabel(incident.severity)}
                           </Badge>
                         </div>
                       </div>
                     ))}
                     {(assistantTraceDetail.incidents || []).length === 0 && (
-                      <div className="text-sm text-muted-foreground">Linked incident yok.</div>
+                      <div className="text-sm text-muted-foreground">{copy.traceModal.noLinkedIncidents}</div>
                     )}
                   </div>
                 </CardContent>
@@ -1847,9 +1767,9 @@ export default function RedAlertPage() {
                 <CardHeader>
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <CardTitle className="text-base">Conversation Snapshot</CardTitle>
+                      <CardTitle className="text-base">{copy.traceModal.conversationSnapshot}</CardTitle>
                       <CardDescription>
-                        Mevcut chat log kaydi uzerinden konusma icerigi
+                        {copy.traceModal.conversationDescription}
                       </CardDescription>
                     </div>
                     {assistantTraceDetail.chatLog?.id && (
@@ -1857,7 +1777,7 @@ export default function RedAlertPage() {
                         href={`/dashboard/chat-history?chatId=${assistantTraceDetail.chatLog.id}`}
                         className="text-sm text-blue-600 hover:underline"
                       >
-                        Chat historyde ac
+                        {copy.traceModal.openChatHistory}
                       </a>
                     )}
                   </div>
@@ -1870,26 +1790,26 @@ export default function RedAlertPage() {
                           key={`${message.role || 'msg'}-${index}`}
                           className={`rounded-xl px-4 py-3 text-sm ${
                             message.role === 'user'
-                              ? 'ml-10 bg-blue-50 border border-blue-100'
-                              : 'mr-10 bg-muted border'
+                              ? 'ml-10 border border-blue-200 bg-blue-50 text-blue-950 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-50'
+                              : 'mr-10 border bg-muted text-foreground'
                           }`}
                         >
                           <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">
-                            {message.role || 'unknown'}
+                            {formatConversationRole(message.role)}
                           </div>
                           <div className="whitespace-pre-wrap">{message.content || '-'}</div>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="text-sm text-muted-foreground">Bu trace icin bagli bir chat log bulunamadi.</div>
+                    <div className="text-sm text-muted-foreground">{copy.traceModal.noChatLog}</div>
                   )}
                 </CardContent>
               </Card>
             </div>
           ) : (
             <div className="text-sm text-muted-foreground">
-              {assistantTraceLoading ? 'Trace yukleniyor...' : 'Trace detayi bulunamadi.'}
+              {assistantTraceLoading ? copy.traceModal.loading : copy.traceModal.notFound}
             </div>
           )}
         </DialogContent>

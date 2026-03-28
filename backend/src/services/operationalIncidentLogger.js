@@ -24,7 +24,8 @@ export const OP_INCIDENT_SEVERITY = Object.freeze({
 });
 
 const DEDUP_WINDOW_MS = 5 * 60 * 1000;
-const CONFIDENT_CLAIM_PATTERN = /(sipariş|kargoda|takip|teslim|order|delivered|tracking|refund|return)/i;
+const CONFIDENT_CLAIM_PATTERN = /((sipariş|siparis)(iniz|inizin)?\s+(durumu|kargoda|hazırlandı|hazirlandi|oluşturuldu|olusturuldu|iptal edildi|teslim edildi)|kargo(nuz)?\s+yolda|takip numarası|takip numarasi|teslim edildi|delivered|tracking number|refund issued|return approved|order status|your order is)/i;
+const VERIFICATION_REQUEST_PATTERN = /(teyit|doğrula|dogrula|doğrul[a-zıi]*|dogrul[a-zıi]*|verify|confirm|son dört han|son dort han|last four digits|güvenliğiniz için|guvenliginiz icin|paylaşır mısınız|paylasir misiniz|paylaşabilir misiniz|paylasabilir misiniz|rica ederim)/i;
 const UNCERTAIN_PATTERN = /(bilmiyorum|emin değilim|bilemem|i cannot|can't|unable to verify|not sure)/i;
 export const ASSISTANT_INCIDENT_CATEGORIES = Object.freeze([
   OP_INCIDENT_CATEGORY.ASSISTANT_BLOCKED,
@@ -204,7 +205,17 @@ export function evaluateIncidents(tracePayload) {
   const verificationState = String(payload.verification_state || 'none');
   const hasConfidentClaim = CONFIDENT_CLAIM_PATTERN.test(responsePreview);
   const hasUncertainClaim = UNCERTAIN_PATTERN.test(responsePreview);
-  if ((verificationState === 'requested' || verificationState === 'failed') && hasConfidentClaim && !hasUncertainClaim) {
+  const isClarificationLike = (
+    responseGrounding === 'CLARIFICATION'
+    || guardAction === 'NEED_MIN_INFO_FOR_TOOL'
+    || VERIFICATION_REQUEST_PATTERN.test(responsePreview)
+  );
+  if (
+    (verificationState === 'requested' || verificationState === 'failed')
+    && hasConfidentClaim
+    && !hasUncertainClaim
+    && !isClarificationLike
+  ) {
     pushIncident(incidents, payload, {
       category: OP_INCIDENT_CATEGORY.VERIFICATION_INCONSISTENT,
       severity: OP_INCIDENT_SEVERITY.HIGH,
