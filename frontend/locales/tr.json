@@ -3256,52 +3256,78 @@
   },
   "about": {
     "hero": {
-      "title": "Telyx.ai Hakkında",
-      "subtitle": "Yapay zeka ile müşteri hizmetlerini dönüştürüyoruz"
+      "badge": "Hakkımızda",
+      "title": "Yapay Zekayı İşletmelerin Hizmetine Sunuyoruz",
+      "subtitle": "Los Angeles merkezli, Türk kuruculara sahip Telyx; 2010'dan bu yana süregelen iş deneyimini yapay zeka ile birleştirerek işletmelerin müşteri iletişimini dönüştürüyor."
+    },
+    "stats": {
+      "founded": "Kuruluş Yılı",
+      "experience": "Yıl İş Deneyimi",
+      "channels": "İletişim Kanalı",
+      "languages": "Desteklenen Dil"
     },
     "story": {
       "title": "Hikayemiz",
-      "content": "Telyx.ai, küçük ve orta ölçekli işletmelerin müşteri hizmetlerini yapay zeka ile dönüştürmek amacıyla kuruldu. Türkiye'deki KOBİ'lerin büyük şirketlerle aynı kalitede müşteri deneyimi sunabilmesi gerektiğine inanıyoruz."
+      "originTitle": "Nereden Geldik",
+      "originContent": "2010'dan bu yana farklı sektörlerde yazılım, e-ticaret ve dijital pazarlama alanlarında deneyim edindik. Müşteri hizmetlerinin her işletme için en büyük darboğaz olduğunu bizzat yaşadık — tekrarlayan sorular, 7/24 destek baskısı, artan maliyetler. 2023'te bu deneyimi yapay zeka ile birleştirerek Telyx'i kurduk.",
+      "laTitle": "Neden Los Angeles",
+      "laContent": "Telyx, yapay zeka ve teknoloji ekosisteminin kalbinde, Los Angeles'ta kuruldu. Türk kuruculara sahip olan şirketimiz, global teknolojiyi Türkiye ve dünya pazarına taşıyor. İlk adımımızı Türkiye'de atarak buradaki dinamik KOBİ ekosisteminde kendimizi kanıtladıktan sonra global pazarlara açılmayı hedefliyoruz."
     },
-    "mission": {
-      "title": "Misyonumuz",
-      "content": "Her işletmenin 7/24 profesyonel müşteri hizmeti sunabilmesini sağlamak."
-    },
-    "whyTurkey": {
-      "title": "Neden Türkiye?",
-      "content": "Türkiye'nin dinamik KOBİ ekosistemi, yenilikçi çözümlere açık yapısı ve dijital dönüşüme olan ihtiyacı ile başlamak için ideal bir pazar. Türkiye'de kanıtladıktan sonra global pazarlara açılmayı hedefliyoruz."
+    "values": {
+      "title": "Değerlerimiz",
+      "subtitle": "Teknolojiyi insan odaklı bir yaklaşımla geliştiriyoruz.",
+      "mission": {
+        "title": "Misyonumuz",
+        "desc": "Her işletmenin büyüklüğünden bağımsız olarak 7/24 profesyonel, tutarlı ve kişiselleştirilmiş müşteri hizmeti sunabilmesini sağlamak."
+      },
+      "vision": {
+        "title": "Vizyonumuz",
+        "desc": "Müşteri iletişiminin yapay zeka ile tamamen dönüştüğü, her işletmenin kurumsal kalitede hizmet verebildiği bir dünya inşa etmek."
+      },
+      "culture": {
+        "title": "Kültürümüz",
+        "desc": "Küçük ama tutkulu bir ekibiz. Her satır kodu, her entegrasyonu ve her iyileştirmeyi müşterilerimizin ihtiyaçlarından yola çıkarak geliştiriyoruz."
+      }
     },
     "team": {
       "title": "Ekibimiz",
-      "content": "Küçük ama tutkulu bir ekip olarak, her gün işletmelerin müşteri deneyimini iyileştirmek için çalışıyoruz.",
-      "roles": {
-        "founder": {
-          "title": "Kurucu",
-          "desc": "Ürün vizyonu ve iş ortaklıklarını yönetir."
-        },
-        "product": {
-          "title": "Ürün ve AI",
-          "desc": "Asistan akışları, kalite kontrolleri ve analitiği geliştirir."
-        },
-        "customerOps": {
-          "title": "Müşteri Operasyonları",
-          "desc": "Kurulum, onboarding ve kanal operasyonlarını yönetir."
-        }
+      "subtitle": "Farklı uzmanlıkları bir araya getiren, tutkulu ve sonuç odaklı bir ekip.",
+      "nurettin": {
+        "title": "Kurucu & CEO",
+        "desc": "Ürün vizyonu, iş stratejisi ve ortaklıkları yönetir. Telyx'in kuruluşundan bugünkü haline gelişine kadar her aşamayı şekillendirdi."
+      },
+      "mirac": {
+        "title": "CTO",
+        "desc": "Tüm teknik altyapıyı ve mühendislik süreçlerini yönetir. Backend mimarisi, AI pipeline ve sistem güvenliği Miraç'ın sorumluluğundadır."
+      },
+      "davut": {
+        "title": "Türkiye Operasyonları Danışmanı",
+        "desc": "Akademik deneyimi ve geniş iş ağıyla Türkiye pazarındaki büyüme stratejisine yön verir. Satış ve müşteri edinme süreçlerinde kilit rol oynar."
+      },
+      "eyup": {
+        "title": "Yazılım Geliştirici",
+        "desc": "Frontend ve backend geliştirme süreçlerinde aktif rol alır. Kullanıcı deneyiminin iyileştirilmesi ve yeni özelliklerin hayata geçirilmesinde çalışır."
+      },
+      "ramazan": {
+        "title": "Yazılım Geliştirici",
+        "desc": "Entegrasyon geliştirme ve test süreçlerinde görev alır. Sistemin güvenilirliği ve performansının artırılmasına katkı sağlar."
+      },
+      "merve": {
+        "title": "Pazarlama & İçerik",
+        "desc": "Dijital pazarlama stratejileri, içerik üretimi ve marka iletişimini yönetir. Telyx'in hikayesini doğru kitleye ulaştırır."
       }
     },
     "cta": {
-      "title": "Bize Katılın",
-      "subtitle": "Demo talep edin ve AI destekli müşteri hizmetlerinin gücünü keşfedin.",
-      "button": "Demo Talep Edin"
+      "title": "Hikayemizin Bir Parçası Olun",
+      "subtitle": "Yapay zeka destekli müşteri hizmetlerinin gücünü keşfedin. Ücretsiz deneyin, farkı yaşayın.",
+      "button": "Ücretsiz Başlayın"
     },
     "companyInfo": {
-      "title": "Şirket bilgileri",
-      "description": "Telyx, telefon, chat, WhatsApp ve e-posta kanallarında müşteri iletişim süreçlerini otomatikleştiren pratik AI asistanları geliştirir.",
-      "locationLabel": "Konum",
-      "contactLabel": "İletişim kanalı",
-      "legalAddressLabel": "Yasal adres",
-      "locationFallback": "Konum bilgisi onboarding ve sözleşme aşamasında paylaşılır.",
-      "legalAddressFallback": "Yasal adres bilgisi gerekli durumlarda teklif/sözleşme dokümanlarında paylaşılır."
+      "title": "Şirket Bilgileri",
+      "description": "Telyx, telefon, chat, WhatsApp ve e-posta kanallarında müşteri iletişim süreçlerini yapay zeka ile otomatikleştiren bir SaaS platformudur. 2023 yılında Los Angeles'ta kurulmuştur.",
+      "locationLabel": "Merkez",
+      "contactLabel": "İletişim",
+      "foundedLabel": "Kuruluş"
     }
   },
   "help": {

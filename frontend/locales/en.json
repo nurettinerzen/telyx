@@ -3256,52 +3256,78 @@
   },
   "about": {
     "hero": {
-      "title": "About Telyx.ai",
-      "subtitle": "Transforming customer service with artificial intelligence"
+      "badge": "About Us",
+      "title": "Bringing AI to Every Business",
+      "subtitle": "Headquartered in Los Angeles with Turkish founders, Telyx combines 15+ years of business experience with cutting-edge AI to transform how businesses communicate with their customers."
+    },
+    "stats": {
+      "founded": "Year Founded",
+      "experience": "Years Experience",
+      "channels": "Communication Channels",
+      "languages": "Languages Supported"
     },
     "story": {
       "title": "Our Story",
-      "content": "Telyx.ai was founded to transform customer service for small and medium-sized businesses with artificial intelligence. We believe that SMBs should be able to provide the same quality customer experience as large enterprises."
+      "originTitle": "Where We Come From",
+      "originContent": "Since 2010, we've built expertise across software development, e-commerce, and digital marketing. We experienced firsthand that customer service is the biggest bottleneck for every business — repetitive questions, 24/7 support pressure, rising costs. In 2023, we combined this experience with AI to build Telyx.",
+      "laTitle": "Why Los Angeles",
+      "laContent": "Telyx was founded in Los Angeles, at the heart of the AI and technology ecosystem. With Turkish founders, we bring global technology to Turkey and the world. We started in Turkey to prove ourselves in its dynamic SMB ecosystem, with plans to expand to global markets."
     },
-    "mission": {
-      "title": "Our Mission",
-      "content": "To enable every business to provide 24/7 professional customer service."
-    },
-    "whyTurkey": {
-      "title": "Why Turkey?",
-      "content": "Turkey's dynamic SMB ecosystem, openness to innovative solutions, and need for digital transformation make it an ideal market to start. After proving ourselves in Turkey, we aim to expand to global markets."
+    "values": {
+      "title": "Our Values",
+      "subtitle": "We build technology with a human-centered approach.",
+      "mission": {
+        "title": "Our Mission",
+        "desc": "To enable every business, regardless of size, to provide 24/7 professional, consistent, and personalized customer service."
+      },
+      "vision": {
+        "title": "Our Vision",
+        "desc": "To build a world where customer communication is fully transformed by AI, enabling every business to deliver enterprise-grade service."
+      },
+      "culture": {
+        "title": "Our Culture",
+        "desc": "We're a small but passionate team. Every line of code, every integration, and every improvement starts from our customers' real needs."
+      }
     },
     "team": {
       "title": "Our Team",
-      "content": "As a small but passionate team, we work every day to improve the customer experience of businesses.",
-      "roles": {
-        "founder": {
-          "title": "Founder",
-          "desc": "Owns product direction and partner relationships."
-        },
-        "product": {
-          "title": "Product & AI",
-          "desc": "Builds assistant flows, quality checks, and analytics."
-        },
-        "customerOps": {
-          "title": "Customer Operations",
-          "desc": "Handles launch, onboarding, and channel operations."
-        }
+      "subtitle": "A passionate, results-driven team bringing together diverse expertise.",
+      "nurettin": {
+        "title": "Founder & CEO",
+        "desc": "Leads product vision, business strategy, and partnerships. Shaped every stage of Telyx from founding to its current state."
+      },
+      "mirac": {
+        "title": "CTO",
+        "desc": "Manages all technical infrastructure and engineering processes. Backend architecture, AI pipeline, and system security are under his responsibility."
+      },
+      "davut": {
+        "title": "Turkey Operations Advisor",
+        "desc": "Guides Turkey market growth strategy with academic experience and extensive business network. Plays a key role in sales and customer acquisition."
+      },
+      "eyup": {
+        "title": "Software Developer",
+        "desc": "Takes active role in frontend and backend development. Works on improving user experience and shipping new features."
+      },
+      "ramazan": {
+        "title": "Software Developer",
+        "desc": "Works on integration development and testing processes. Contributes to improving system reliability and performance."
+      },
+      "merve": {
+        "title": "Marketing & Content",
+        "desc": "Manages digital marketing strategies, content creation, and brand communications. Brings Telyx's story to the right audience."
       }
     },
     "cta": {
-      "title": "Join Us",
-      "subtitle": "Apply for early access and discover the power of AI-powered customer service.",
-      "button": "Request Demo"
+      "title": "Be Part of Our Story",
+      "subtitle": "Discover the power of AI-powered customer service. Try it free, experience the difference.",
+      "button": "Get Started Free"
     },
     "companyInfo": {
-      "title": "Company information",
-      "description": "Telyx builds practical AI assistants for customer communication workflows across phone, chat, WhatsApp, and email.",
-      "locationLabel": "Location",
-      "contactLabel": "Contact channel",
-      "legalAddressLabel": "Legal address",
-      "locationFallback": "Location details shared during onboarding and contract stage.",
-      "legalAddressFallback": "Legal address is shared in contract/proposal documents when required."
+      "title": "Company Information",
+      "description": "Telyx is a SaaS platform that automates customer communication processes across phone, chat, WhatsApp, and email channels using AI. Founded in 2023 in Los Angeles.",
+      "locationLabel": "Headquarters",
+      "contactLabel": "Contact",
+      "foundedLabel": "Founded"
     }
   },
   "help": {
