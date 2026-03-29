@@ -40,6 +40,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import EmptyState from '@/components/EmptyState';
+import VoiceCard from '@/components/VoiceCard';
 import { apiClient } from '@/lib/api';
 import { Bot, Plus, Edit, Trash2, Search, PhoneOutgoing, MessageSquare, Loader2, RefreshCw, ChevronDown, ChevronRight } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
@@ -130,7 +131,7 @@ export default function AssistantsPage() {
 
   // React Query hooks
   const { data: assistantsData, isLoading: assistantsLoading } = useAssistants();
-  const { data: voicesData, isLoading: voicesLoading } = useVoices();
+  const { data: voicesData, isLoading: voicesLoading } = useVoices({ withSamples: true });
   const { data: businessData } = useBusiness(user?.businessId);
   const createAssistant = useCreateAssistant();
   const updateAssistant = useUpdateAssistant();
@@ -792,30 +793,29 @@ export default function AssistantsPage() {
                   </p>
                 </div>
 
-                {/* Voice */}
+                {/* Voice Selection Grid */}
                 <div>
-                  <Label htmlFor="voice">{t('dashboard.assistantsPage.voiceRequired')}</Label>
-                  <Select
-                    value={formData.voiceId}
-                    onValueChange={(value) => setFormData({ ...formData, voiceId: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('dashboard.assistantsPage.selectVoice')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {filteredVoices.length > 0 ? (
-                        filteredVoices.map((voice) => (
-                          <SelectItem key={voice.id} value={voice.id}>
-                            {voice.name} ({voice.gender})
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <div className="px-2 py-1 text-sm text-neutral-500">
-                          {t('dashboard.assistantsPage.noVoicesForLanguage')}
-                        </div>
-                      )}
-                    </SelectContent>
-                  </Select>
+                  <Label>{t('dashboard.assistantsPage.voiceRequired')}</Label>
+                  <p className="text-xs text-neutral-500 mb-3">
+                    {t('dashboard.assistantsPage.voicePreviewHint')}
+                  </p>
+                  {filteredVoices.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-3 max-h-[400px] overflow-y-auto pr-1">
+                      {filteredVoices.map((voice) => (
+                        <VoiceCard
+                          key={voice.id}
+                          voice={voice}
+                          compact
+                          isSelected={formData.voiceId === voice.id}
+                          onSelect={(v) => setFormData({ ...formData, voiceId: v.id })}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-neutral-500 py-4 text-center border border-dashed border-neutral-200 dark:border-neutral-700 rounded-lg">
+                      {t('dashboard.assistantsPage.noVoicesForLanguage')}
+                    </div>
+                  )}
                 </div>
 
                 {/* First Message */}

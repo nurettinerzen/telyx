@@ -1226,6 +1226,7 @@
       "deletedSuccess": "Assistant deleted successfully!",
       "assistantLanguage": "Assistant Language",
       "voicesFilteredByLanguage": "Voices are filtered based on the selected language",
+      "voicePreviewHint": "Listen and compare voices before making your selection",
       "noVoicesForLanguage": "No voices available for this language",
       "chooseTemplate": "Choose an Assistant Template",
       "startWithTemplateOrScratch": "Start with a pre-built template or create from scratch",

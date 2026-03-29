@@ -1226,6 +1226,7 @@
       "deletedSuccess": "Asistan başarıyla silindi!",
       "assistantLanguage": "Asistan Dili",
       "voicesFilteredByLanguage": "Sesler seçilen dile göre filtrelenir",
+      "voicePreviewHint": "Bir ses seçmeden önce dinleyerek karşılaştırabilirsiniz",
       "noVoicesForLanguage": "Bu dil için ses bulunamadı",
       "chooseTemplate": "Asistan Şablonu Seçin",
       "startWithTemplateOrScratch": "Hazır şablonla başlayın veya sıfırdan oluşturun",

@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-export default function VoiceCard({ voice, onSelect, isSelected }) {
+export default function VoiceCard({ voice, onSelect, isSelected, compact = false }) {
   const { t } = useLanguage();
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef(null);
@@ -41,38 +41,45 @@ export default function VoiceCard({ voice, onSelect, isSelected }) {
 
   return (
     <div
-      className={`relative bg-white dark:bg-neutral-900 rounded-xl border-2 p-6 cursor-pointer transition-all hover:shadow-md ${
+      className={`relative bg-white dark:bg-neutral-900 rounded-xl border-2 cursor-pointer transition-all hover:shadow-md ${
+        compact ? 'p-3' : 'p-6'
+      } ${
         isSelected ? 'border-primary-600 ring-2 ring-primary-100 dark:ring-primary-900' : 'border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600'
       }`}
       onClick={() => onSelect(voice)}
     >
       {/* Selected indicator */}
       {isSelected && (
-        <div className="absolute top-4 right-4 bg-primary-600 rounded-full p-1">
+        <div className={`absolute ${compact ? 'top-2 right-2' : 'top-4 right-4'} bg-primary-600 rounded-full p-1`}>
           <Check className="h-4 w-4 text-white" />
         </div>
       )}
 
       {/* Voice info */}
-      <div className="mb-4">
-        <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-2">{voice.name}</h3>
-        
-        <div className="flex flex-wrap gap-2 mb-3">
+      <div className={compact ? 'mb-2' : 'mb-4'}>
+        <h3 className={`${compact ? 'text-sm' : 'text-lg'} font-semibold text-neutral-900 dark:text-white ${compact ? 'mb-1' : 'mb-2'}`}>{voice.name}</h3>
+
+        <div className="flex flex-wrap gap-1.5 mb-2">
           <Badge variant="secondary" className="text-xs">
             {t(`dashboard.voicesPage.genders.${voice.gender?.toLowerCase()}`) || voice.gender}
           </Badge>
-          <Badge variant="outline" className="text-xs">
-            {t(`dashboard.voicesPage.accents.${voice.accent}`) || voice.accent}
-          </Badge>
-          {voice.language && (
+          {!compact && (
+            <Badge variant="outline" className="text-xs">
+              {t(`dashboard.voicesPage.accents.${voice.accent}`) || voice.accent}
+            </Badge>
+          )}
+          {!compact && voice.language && (
             <Badge variant="outline" className="text-xs">
               {voice.language}
             </Badge>
           )}
         </div>
-        
-        {voice.description && (
+
+        {voice.description && !compact && (
           <p className="text-sm text-neutral-600 dark:text-neutral-400 line-clamp-2">{voice.description}</p>
+        )}
+        {voice.description && compact && (
+          <p className="text-xs text-neutral-500 dark:text-neutral-400 line-clamp-1">{voice.description}</p>
         )}
       </div>
 

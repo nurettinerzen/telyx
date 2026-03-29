@@ -20,11 +20,11 @@ export function useAssistants() {
  * Hook to fetch all voices
  * @returns {object} Query result with voices data
  */
-export function useVoices() {
+export function useVoices({ withSamples = false } = {}) {
   return useQuery({
-    queryKey: ['voices'],
+    queryKey: ['voices', { withSamples }],
     queryFn: async () => {
-      const data = await apiClient.voices.getAll();
+      const data = await apiClient.voices.getAll({ withSamples: withSamples ? 'true' : undefined });
       return data;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes - voices rarely change
