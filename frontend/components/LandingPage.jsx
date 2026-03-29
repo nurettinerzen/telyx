@@ -45,7 +45,7 @@ export function LandingPage() {
 
       function updateHero() {
         const scrolled = window.scrollY;
-        const thresholds = [10, 80, 150, 220];
+        const thresholds = [0, 80, 150, 220];
         for (let i = 0; i < lines.length; i++) {
           lines[i].classList.toggle('active', scrolled >= thresholds[i]);
         }

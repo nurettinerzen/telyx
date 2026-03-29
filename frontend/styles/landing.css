@@ -180,10 +180,11 @@
 /* --- Hero --- */
 .landing-page .hero {
   position: relative;
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   text-align: center;
-  padding: 100px 24px 80px;
+  padding: 80px 24px 0;
 }
 .landing-page .hero-grid-bg {
   position: absolute; inset: 0; pointer-events: none;
@@ -194,7 +195,7 @@
   mask-image: radial-gradient(ellipse 70% 50% at 50% 40%, black 10%, transparent 70%);
   -webkit-mask-image: radial-gradient(ellipse 70% 50% at 50% 40%, black 10%, transparent 70%);
 }
-.landing-page .hero-text-stack { position: relative; z-index: 1; }
+.landing-page .hero-text-stack { position: relative; z-index: 1; margin-top: 80px; }
 .landing-page .hero-line {
   display: block;
   font-size: clamp(3.4rem, 8.5vw, 8rem);
@@ -562,7 +563,7 @@
 @media (max-width: 640px) {
   .landing-page .hero-line { font-size: clamp(2.6rem, 12vw, 4rem); }
   .landing-page .hero-tagline { font-size: clamp(1.2rem, 5vw, 1.8rem); }
-  .landing-page .hero { min-height: 92vh; padding: 90px 16px 60px; }
+  .landing-page .hero { height: 100vh; height: 100dvh; padding: 70px 16px 40px; }
   .landing-page .cta-panel { padding: 36px 20px; }
   .landing-page .shield-grid { grid-template-columns: 1fr; }
   .landing-page .manifesto-text { font-size: clamp(1.4rem, 6vw, 2.4rem); }
