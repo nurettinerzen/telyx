@@ -43,6 +43,24 @@ const changeTypes = {
 /* ── Changelog data ── */
 const entries = [
   {
+    version: 'v0.6.0',
+    dateTR: 'Haziran 2026',
+    dateEN: 'June 2026',
+    titleTR: 'Arama Desteği & Yeni Diller',
+    titleEN: 'Search Support & New Languages',
+    descTR: 'Bilgi tabanı ve konuşma geçmişinde gelişmiş arama desteği eklendi. Portekizce, Almanca ve Fransızca dil destekleri ile global erişiminizi genişletin.',
+    descEN: 'Added advanced search support across knowledge base and conversation history. Expand your global reach with Portuguese, German and French language support.',
+    color: 'from-purple-500 to-pink-500',
+    changes: [
+      { type: 'new', textTR: 'Bilgi tabanında gelişmiş arama', textEN: 'Advanced knowledge base search' },
+      { type: 'new', textTR: 'Konuşma geçmişi arama', textEN: 'Conversation history search' },
+      { type: 'new', textTR: 'Portekizce dil desteği', textEN: 'Portuguese language support' },
+      { type: 'new', textTR: 'Almanca dil desteği', textEN: 'German language support' },
+      { type: 'new', textTR: 'Fransızca dil desteği', textEN: 'French language support' },
+      { type: 'improvement', textTR: 'Arama sonuçları sıralama algoritması', textEN: 'Search results ranking algorithm' },
+    ],
+  },
+  {
     version: 'v0.5.0',
     dateTR: 'Mart 2026',
     dateEN: 'March 2026',
@@ -289,6 +307,7 @@ export default function ChangelogPage() {
                       size="lg"
                       variant="outline"
                       className="w-full sm:w-auto rounded-full border-white/30 text-white hover:bg-white/10 px-8 transition-all duration-200"
+                      style={{ color: 'white', borderColor: 'rgba(255,255,255,0.3)', backgroundColor: 'transparent' }}
                     >
                       {t('changelog.ctaContact')}
                     </Button>

@@ -123,15 +123,16 @@ export default function IntegrationsPage() {
 
         <div className="container mx-auto px-4 relative z-10">
           <div className="text-center max-w-3xl mx-auto">
-            <motion.div initial={fadeUp} animate={visible} transition={{ ...transition, delay: 0 }}>
+            <motion.div initial={fadeUp} whileInView={visible} viewport={{ once: true }} transition={{ ...transition, delay: 0 }}>
               <span className="int-badge-shimmer inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-semibold text-white mb-6">
                 <Sparkles className="w-4 h-4" />
-                {t('integrationsPage.hero.badge') || 'Entegrasyonlar'}
+                {t('integrationsPage.hero.badge')}
               </span>
             </motion.div>
             <motion.h1
               initial={fadeUp}
-              animate={visible}
+              whileInView={visible}
+              viewport={{ once: true }}
               transition={{ ...transition, delay: 0.06 }}
               className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight mb-5"
               style={{ color: 'var(--int-text-primary)' }}
@@ -140,7 +141,8 @@ export default function IntegrationsPage() {
             </motion.h1>
             <motion.p
               initial={fadeUp}
-              animate={visible}
+              whileInView={visible}
+              viewport={{ once: true }}
               transition={{ ...transition, delay: 0.12 }}
               className="text-lg sm:text-xl max-w-2xl mx-auto"
               style={{ color: 'var(--int-text-secondary)' }}
@@ -149,7 +151,8 @@ export default function IntegrationsPage() {
             </motion.p>
             <motion.p
               initial={fadeUp}
-              animate={visible}
+              whileInView={visible}
+              viewport={{ once: true }}
               transition={{ ...transition, delay: 0.18 }}
               className="mt-3 text-sm"
               style={{ color: 'var(--int-text-muted)' }}
@@ -230,7 +233,7 @@ export default function IntegrationsPage() {
                                     style={{ color: isAvailable ? '#22c55e' : '#f59e0b' }}
                                   >
                                     {isAvailable
-                                      ? (t('integrationsPage.status.active') || 'Aktif')
+                                      ? t('integrationsPage.status.available')
                                       : t('integrationsPage.status.soon')}
                                   </span>
                                 </div>
@@ -295,13 +298,13 @@ export default function IntegrationsPage() {
                   className="text-xl font-bold mb-2"
                   style={{ color: 'var(--int-text-primary)' }}
                 >
-                  {t('integrationsPage.request.title') || 'Entegrasyon isteği'}
+                  {t('integrationsPage.request.title')}
                 </h3>
                 <p
                   className="text-sm leading-relaxed mb-5 max-w-md mx-auto"
                   style={{ color: 'var(--int-text-secondary)' }}
                 >
-                  {t('integrationsPage.request.desc') || 'Kullandığınız bir platform listede yok mu? Bize bildirin, en kısa sürede ekleyelim.'}
+                  {t('integrationsPage.request.desc')}
                 </p>
                 <Link href="/contact">
                   <Button
@@ -309,7 +312,7 @@ export default function IntegrationsPage() {
                     className="rounded-full hover:bg-primary hover:text-white hover:border-primary hover:shadow-lg hover:shadow-primary/15 transition-all duration-200"
                   >
                     <Mail className="w-4 h-4 mr-2" />
-                    {t('integrationsPage.request.button') || 'Entegrasyon Talep Et'}
+                    {t('integrationsPage.request.button')}
                   </Button>
                 </Link>
               </div>
@@ -349,6 +352,7 @@ export default function IntegrationsPage() {
                       size="lg"
                       variant="outline"
                       className="w-full sm:w-auto rounded-full border-white/30 text-white hover:bg-white/10 px-8 transition-all duration-200"
+                      style={{ color: 'white', borderColor: 'rgba(255,255,255,0.3)', backgroundColor: 'transparent' }}
                     >
                       <Mail className="h-4 w-4 mr-2" />
                       {t('integrationsPage.cta.contact')}

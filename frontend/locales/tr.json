@@ -3330,8 +3330,16 @@
     },
     "contact": {
       "title": "Başka Sorunuz mu Var?",
-      "text": "Bize e-posta gönderin, en kısa sürede yanıt verelim."
-    }
+      "text": "Bize e-posta gönderin, en kısa sürede yanıt verelim.",
+      "formButton": "İletişim Formu"
+    },
+    "quickStartTitle": "Hızlı Başlangıç",
+    "quickStartSubtitle": "4 adımda AI asistanınızı kurun ve müşterilerinize hizmet vermeye başlayın.",
+    "faqTitle": "Sıkça Sorulan Sorular",
+    "faqSubtitle": "Telyx hakkında en çok merak edilen konular ve yanıtları.",
+    "topicsTitle": "Popüler Konular",
+    "topicsSubtitle": "Daha fazla bilgi almak istediğiniz konuları keşfedin.",
+    "topicExplore": "Keşfet"
   },
   "apiDocs": {
     "title": "API Dokümantasyonu",
@@ -3417,6 +3425,7 @@
   },
   "integrationsPage": {
     "hero": {
+      "badge": "Entegrasyonlar",
       "title": "Entegrasyonlar",
       "subtitle": "Kullandığınız araçlarla sorunsuz çalışın"
     },
@@ -3494,6 +3503,11 @@
     },
     "hubspot": {
       "desc": "Müşteri ve talep bilgilerini iki yönlü senkronize edin"
+    },
+    "request": {
+      "title": "Entegrasyon İsteği",
+      "desc": "Kullandığınız bir platform listede yok mu? Bize bildirin, en kısa sürede ekleyelim.",
+      "button": "Entegrasyon Talep Et"
     }
   },
   "upgradeModal": {

@@ -587,6 +587,7 @@ export default function BlogPostPage() {
                       size="lg"
                       variant="outline"
                       className="w-full sm:w-auto rounded-full border-white/30 text-white hover:bg-white/10 px-8 transition-all duration-200"
+                      style={{ color: 'white', borderColor: 'rgba(255,255,255,0.3)', backgroundColor: 'transparent' }}
                     >
                       {t('blog.postCtaContact')}
                     </Button>

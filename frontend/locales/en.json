@@ -3330,8 +3330,16 @@
     },
     "contact": {
       "title": "Have Another Question?",
-      "text": "Send us an email and we'll get back to you shortly."
-    }
+      "text": "Send us an email and we'll get back to you shortly.",
+      "formButton": "Contact Form"
+    },
+    "quickStartTitle": "Quick Start",
+    "quickStartSubtitle": "Set up your AI assistant in 4 steps and start serving your customers.",
+    "faqTitle": "Frequently Asked Questions",
+    "faqSubtitle": "The most common questions about Telyx and their answers.",
+    "topicsTitle": "Popular Topics",
+    "topicsSubtitle": "Explore the topics you want to learn more about.",
+    "topicExplore": "Explore"
   },
   "apiDocs": {
     "title": "API Documentation",
@@ -3417,6 +3425,7 @@
   },
   "integrationsPage": {
     "hero": {
+      "badge": "Integrations",
       "title": "Integrations",
       "subtitle": "Work seamlessly with the tools you use"
     },
@@ -3494,6 +3503,11 @@
     },
     "hubspot": {
       "desc": "Two-way sync of contacts and ticket updates"
+    },
+    "request": {
+      "title": "Integration Request",
+      "desc": "Can't find your platform? Let us know and we'll add it soon.",
+      "button": "Request Integration"
     }
   },
   "upgradeModal": {

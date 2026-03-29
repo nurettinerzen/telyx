@@ -1,14 +1,108 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import Navigation from '@/components/Navigation';
 import { Footer } from '@/components/Footer';
+import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { ChevronDown, HelpCircle, Mail } from 'lucide-react';
+import {
+  ChevronDown,
+  HelpCircle,
+  Mail,
+  Sparkles,
+  Rocket,
+  BookOpen,
+  Link2,
+  PlayCircle,
+  Shield,
+  CreditCard,
+  Layers,
+  ArrowRight,
+} from 'lucide-react';
+
+/* -- Animation helpers (matches changelog pattern) -- */
+const fadeUp = { opacity: 0, y: 24 };
+const visible = { opacity: 1, y: 0 };
+const transition = { duration: 0.55, ease: [0.22, 1, 0.36, 1] };
+const vp = { once: true, margin: '-60px' };
+
+/* -- Quick Start steps data -- */
+const quickStartSteps = [
+  {
+    icon: Rocket,
+    color: 'from-blue-500 to-cyan-500',
+    titleTR: 'Asistan Olustur',
+    titleEN: 'Create Assistant',
+    descTR: '10 dakikada ilk asistanınızı oluşturun',
+    descEN: 'Create your first assistant in 10 minutes',
+  },
+  {
+    icon: BookOpen,
+    color: 'from-emerald-500 to-teal-500',
+    titleTR: 'Bilgi Tabanı Ekle',
+    titleEN: 'Add Knowledge Base',
+    descTR: 'Dokümanlarınızı yükleyin, AI öğrensin',
+    descEN: 'Upload your documents and let AI learn',
+  },
+  {
+    icon: Link2,
+    color: 'from-violet-500 to-purple-500',
+    titleTR: 'Kanalları Bağla',
+    titleEN: 'Connect Channels',
+    descTR: 'WhatsApp, email, web chat entegre edin',
+    descEN: 'Integrate WhatsApp, email, web chat',
+  },
+  {
+    icon: PlayCircle,
+    color: 'from-orange-500 to-red-500',
+    titleTR: 'Yayına Alın',
+    titleEN: 'Go Live',
+    descTR: 'Müşterilerinize hizmet vermeye başlayın',
+    descEN: 'Start serving your customers',
+  },
+];
+
+/* -- Popular Topics data -- */
+const popularTopics = [
+  {
+    icon: Link2,
+    titleTR: 'Entegrasyonlar',
+    titleEN: 'Integrations',
+    descTR: 'E-ticaret, CRM ve kanal entegrasyonları',
+    descEN: 'E-commerce, CRM and channel integrations',
+    href: '/integrations',
+  },
+  {
+    icon: Shield,
+    titleTR: 'Güvenlik & Uyumluluk',
+    titleEN: 'Security & Compliance',
+    descTR: 'Veri güvenliği, KVKK ve GDPR uyumluluğu',
+    descEN: 'Data security, KVKK and GDPR compliance',
+    href: '/security',
+  },
+  {
+    icon: CreditCard,
+    titleTR: 'Fiyatlandırma',
+    titleEN: 'Pricing',
+    descTR: 'Planlar, özellikler ve fiyat karşılaştırması',
+    descEN: 'Plans, features and price comparison',
+    href: '/pricing',
+  },
+  {
+    icon: Layers,
+    titleTR: 'Özellikler',
+    titleEN: 'Features',
+    descTR: 'Tüm platform özellikleri ve yetenekleri',
+    descEN: 'All platform features and capabilities',
+    href: '/features',
+  },
+];
 
 export default function HelpPage() {
-  const { t } = useLanguage();
+  const { locale, t } = useLanguage();
+  const isTR = locale === 'tr';
   const [openIndex, setOpenIndex] = useState(null);
 
   const faqs = [
@@ -28,35 +122,40 @@ export default function HelpPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-teal-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
+    <div className="features-page min-h-screen bg-white dark:bg-neutral-950 overflow-hidden">
       <Navigation />
 
-      {/* Hero Section */}
-      <section className="pt-28 md:pt-32 pb-12 md:pb-16">
-        <div className="container mx-auto px-4">
+      {/* ═══ Hero ═══ */}
+      <section className="relative pt-28 md:pt-36 pb-16 md:pb-24">
+        {/* Glow blobs */}
+        <div className="ft-glow-blob" style={{ width: 600, height: 600, top: -200, left: '8%', background: '#17a2b3' }} />
+        <div className="ft-glow-blob" style={{ width: 450, height: 450, top: -40, right: '5%', background: '#8b5cf6' }} />
+
+        <div className="container mx-auto px-4 relative z-10">
           <div className="text-center max-w-3xl mx-auto">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-              className="inline-flex items-center gap-2 bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300 px-4 py-2 rounded-full text-sm font-medium mb-6"
-            >
-              <HelpCircle className="w-4 h-4" />
-              {t('help.badge')}
+            <motion.div initial={fadeUp} whileInView={visible} viewport={{ once: true }} transition={{ ...transition, delay: 0 }}>
+              <span className="ft-badge-shimmer inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-semibold text-white mb-6">
+                <HelpCircle className="w-4 h-4" />
+                {t('help.badge')}
+              </span>
             </motion.div>
             <motion.h1
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-              className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6 text-gray-900 dark:text-white"
+              initial={fadeUp}
+              whileInView={visible}
+              viewport={{ once: true }}
+              transition={{ ...transition, delay: 0.06 }}
+              className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight mb-5"
+              style={{ color: 'var(--ft-text-primary)' }}
             >
               {t('help.hero.title')}
             </motion.h1>
             <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="text-base sm:text-xl text-gray-600 dark:text-neutral-400"
+              initial={fadeUp}
+              whileInView={visible}
+              viewport={{ once: true }}
+              transition={{ ...transition, delay: 0.12 }}
+              className="text-lg sm:text-xl max-w-2xl mx-auto"
+              style={{ color: 'var(--ft-text-secondary)' }}
             >
               {t('help.hero.subtitle')}
             </motion.p>
@@ -64,74 +163,265 @@ export default function HelpPage() {
         </div>
       </section>
 
-      {/* FAQ Section */}
-      <section className="py-16">
+      {/* ═══ Quick Start ═══ */}
+      <section className="py-12 md:py-20">
         <div className="container mx-auto px-4">
-          <div className="max-w-3xl mx-auto">
-            <div className="space-y-4">
-              {faqs.map((faq, index) => (
+          <div className="text-center max-w-2xl mx-auto mb-12">
+            <motion.h2
+              initial={fadeUp}
+              whileInView={visible}
+              viewport={vp}
+              transition={transition}
+              className="text-3xl md:text-4xl font-bold tracking-tight mb-4"
+              style={{ color: 'var(--ft-text-primary)' }}
+            >
+              {t('help.quickStartTitle')}
+            </motion.h2>
+            <motion.p
+              initial={fadeUp}
+              whileInView={visible}
+              viewport={vp}
+              transition={{ ...transition, delay: 0.06 }}
+              style={{ color: 'var(--ft-text-secondary)' }}
+              className="text-lg"
+            >
+              {t('help.quickStartSubtitle')}
+            </motion.p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
+            {quickStartSteps.map((step, index) => {
+              const Icon = step.icon;
+              return (
                 <motion.div
                   key={index}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.4, delay: index * 0.05 }}
+                  initial={fadeUp}
+                  whileInView={visible}
+                  viewport={vp}
+                  transition={{ ...transition, delay: index * 0.08 }}
+                  className="ft-card ft-card-sm text-center"
                 >
-                  <div className="bg-white dark:bg-neutral-800 rounded-xl border border-gray-100 dark:border-neutral-700 overflow-hidden shadow-sm">
-                    <button
-                      onClick={() => toggleFaq(index)}
-                      className="w-full px-6 py-5 text-left flex items-center justify-between hover:bg-gray-50 dark:hover:bg-neutral-700/50 transition-colors"
+                  <div className="relative z-10">
+                    <div className="ft-step-number mx-auto">{index + 1}</div>
+                    <div className={`ft-icon bg-gradient-to-br ${step.color} mx-auto`}>
+                      <Icon className="w-5 h-5 text-white" />
+                    </div>
+                    <h3
+                      className="text-lg font-bold mb-2"
+                      style={{ color: 'var(--ft-text-primary)' }}
                     >
-                      <span className="font-semibold text-gray-900 dark:text-white pr-4">{t(faq.questionKey)}</span>
-                      <ChevronDown
-                        className={`w-5 h-5 text-gray-500 dark:text-neutral-400 flex-shrink-0 transition-transform duration-300 ${
-                          openIndex === index ? 'rotate-180' : ''
-                        }`}
-                      />
-                    </button>
-                    <AnimatePresence>
-                      {openIndex === index && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.3 }}
-                        >
-                          <div className="px-6 pb-5 text-gray-600 dark:text-neutral-300 border-t border-gray-100 dark:border-neutral-700 pt-4">
-                            {t(faq.answerKey)}
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+                      {isTR ? step.titleTR : step.titleEN}
+                    </h3>
+                    <p
+                      className="text-sm leading-relaxed"
+                      style={{ color: 'var(--ft-text-secondary)' }}
+                    >
+                      {isTR ? step.descTR : step.descEN}
+                    </p>
                   </div>
                 </motion.div>
-              ))}
-            </div>
+              );
+            })}
           </div>
         </div>
       </section>
 
-      {/* Contact Section */}
-      <section className="py-16">
+      {/* ═══ FAQ ═══ */}
+      <section className="py-12 md:py-20">
+        <div className="container mx-auto px-4">
+          <div className="text-center max-w-2xl mx-auto mb-12">
+            <motion.h2
+              initial={fadeUp}
+              whileInView={visible}
+              viewport={vp}
+              transition={transition}
+              className="text-3xl md:text-4xl font-bold tracking-tight mb-4"
+              style={{ color: 'var(--ft-text-primary)' }}
+            >
+              {t('help.faqTitle')}
+            </motion.h2>
+            <motion.p
+              initial={fadeUp}
+              whileInView={visible}
+              viewport={vp}
+              transition={{ ...transition, delay: 0.06 }}
+              style={{ color: 'var(--ft-text-secondary)' }}
+              className="text-lg"
+            >
+              {t('help.faqSubtitle')}
+            </motion.p>
+          </div>
+
+          <div className="max-w-3xl mx-auto space-y-4">
+            {faqs.map((faq, index) => (
+              <motion.div
+                key={index}
+                initial={fadeUp}
+                whileInView={visible}
+                viewport={vp}
+                transition={{ ...transition, delay: index * 0.04 }}
+              >
+                <div
+                  className="rounded-2xl border backdrop-blur-xl overflow-hidden transition-all duration-300"
+                  style={{
+                    background: 'var(--ft-card-bg)',
+                    borderColor: 'var(--ft-border)',
+                  }}
+                >
+                  <button
+                    onClick={() => toggleFaq(index)}
+                    className="w-full px-6 py-5 text-left flex items-center justify-between transition-colors"
+                    style={{ color: 'var(--ft-text-primary)' }}
+                  >
+                    <span className="font-semibold pr-4">{t(faq.questionKey)}</span>
+                    <ChevronDown
+                      className={`w-5 h-5 flex-shrink-0 transition-transform duration-300 ${
+                        openIndex === index ? 'rotate-180' : ''
+                      }`}
+                      style={{ color: 'var(--ft-text-muted)' }}
+                    />
+                  </button>
+                  <AnimatePresence>
+                    {openIndex === index && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.3 }}
+                      >
+                        <div
+                          className="px-6 pb-5 pt-4 text-sm leading-relaxed"
+                          style={{
+                            color: 'var(--ft-text-secondary)',
+                            borderTop: '1px solid var(--ft-border)',
+                          }}
+                        >
+                          {t(faq.answerKey)}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ═══ Popular Topics ═══ */}
+      <section className="py-12 md:py-20">
+        <div className="container mx-auto px-4">
+          <div className="text-center max-w-2xl mx-auto mb-12">
+            <motion.h2
+              initial={fadeUp}
+              whileInView={visible}
+              viewport={vp}
+              transition={transition}
+              className="text-3xl md:text-4xl font-bold tracking-tight mb-4"
+              style={{ color: 'var(--ft-text-primary)' }}
+            >
+              {t('help.topicsTitle')}
+            </motion.h2>
+            <motion.p
+              initial={fadeUp}
+              whileInView={visible}
+              viewport={vp}
+              transition={{ ...transition, delay: 0.06 }}
+              style={{ color: 'var(--ft-text-secondary)' }}
+              className="text-lg"
+            >
+              {t('help.topicsSubtitle')}
+            </motion.p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
+            {popularTopics.map((topic, index) => {
+              const Icon = topic.icon;
+              return (
+                <motion.div
+                  key={index}
+                  initial={fadeUp}
+                  whileInView={visible}
+                  viewport={vp}
+                  transition={{ ...transition, delay: index * 0.08 }}
+                >
+                  <Link href={topic.href} className="block">
+                    <div className="ft-card ft-card-sm group cursor-pointer">
+                      <div className="relative z-10">
+                        <div className="ft-icon bg-gradient-to-br from-[var(--ft-accent)] to-[var(--ft-accent-light)]">
+                          <Icon className="w-5 h-5 text-white" />
+                        </div>
+                        <h3
+                          className="text-lg font-bold mb-2"
+                          style={{ color: 'var(--ft-text-primary)' }}
+                        >
+                          {isTR ? topic.titleTR : topic.titleEN}
+                        </h3>
+                        <p
+                          className="text-sm leading-relaxed mb-3"
+                          style={{ color: 'var(--ft-text-secondary)' }}
+                        >
+                          {isTR ? topic.descTR : topic.descEN}
+                        </p>
+                        <span
+                          className="inline-flex items-center gap-1 text-sm font-medium transition-all duration-200 group-hover:gap-2"
+                          style={{ color: 'var(--ft-accent)' }}
+                        >
+                          {t('help.topicExplore')}
+                          <ArrowRight className="w-4 h-4" />
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+                </motion.div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* ═══ CTA / Contact ═══ */}
+      <section className="py-16 md:py-24">
         <div className="container mx-auto px-4">
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="max-w-2xl mx-auto text-center bg-white dark:bg-neutral-800 rounded-2xl p-8 shadow-sm border border-gray-100 dark:border-neutral-700"
+            initial={fadeUp}
+            whileInView={visible}
+            viewport={vp}
+            transition={transition}
           >
-            <div className="w-16 h-16 bg-gradient-to-br from-teal-500 to-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
-              <Mail className="w-8 h-8 text-white" />
+            <div className="ft-cta text-center max-w-4xl mx-auto">
+              <div className="relative z-10">
+                <div className="w-16 h-16 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-6">
+                  <Mail className="w-8 h-8 text-white" />
+                </div>
+                <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4 text-white">
+                  {t('help.contact.title')}
+                </h2>
+                <p className="text-lg text-blue-100 dark:text-neutral-400 mb-8 max-w-2xl mx-auto">
+                  {t('help.contact.text')}
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <a href="mailto:info@telyx.ai">
+                    <Button
+                      size="lg"
+                      className="ft-glow-btn w-full sm:w-auto rounded-full bg-white text-slate-900 hover:bg-gray-100 px-8 font-semibold shadow-lg"
+                    >
+                      <Mail className="w-4 h-4 mr-2" />
+                      info@telyx.ai
+                    </Button>
+                  </a>
+                  <Link href="/contact">
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      className="w-full sm:w-auto rounded-full border-white/30 text-white hover:bg-white/10 px-8 transition-all duration-200"
+                    >
+                      {t('help.contact.formButton')}
+                    </Button>
+                  </Link>
+                </div>
+              </div>
             </div>
-            <h3 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">{t('help.contact.title')}</h3>
-            <p className="text-gray-600 dark:text-neutral-400 mb-4">{t('help.contact.text')}</p>
-            <a
-              href="mailto:info@telyx.ai"
-              className="text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300 font-semibold text-lg"
-            >
-              info@telyx.ai
-            </a>
           </motion.div>
         </div>
       </section>
