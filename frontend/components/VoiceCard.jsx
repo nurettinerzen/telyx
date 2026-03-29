@@ -3,7 +3,7 @@
  * Voice selection card with play button for 11Labs voices
  */
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Play, Pause, Check, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,59 +13,98 @@ export default function VoiceCard({ voice, onSelect, isSelected, compact = false
   const { t } = useLanguage();
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [hasError, setHasError] = useState(false);
   const audioRef = useRef(null);
   const blobUrlRef = useRef(null);
+
+  // Cleanup blob URL on unmount
+  useEffect(() => {
+    return () => {
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+      }
+    };
+  }, []);
 
   const handlePlayPause = useCallback(async (e) => {
     e.stopPropagation();
 
     if (!voice.sampleUrl) return;
+    if (isLoading) return;
+
+    const audio = audioRef.current;
+    if (!audio) return;
 
     // If playing, just pause
     if (isPlaying) {
-      audioRef.current?.pause();
+      audio.pause();
       setIsPlaying(false);
       return;
     }
 
-    // If loading, ignore
-    if (isLoading) return;
-
     // Pause all other audio elements on page
-    document.querySelectorAll('audio').forEach(audio => {
-      if (audio !== audioRef.current) {
-        audio.pause();
+    document.querySelectorAll('audio').forEach(a => {
+      if (a !== audio) {
+        a.pause();
+        a.currentTime = 0;
       }
     });
 
-    // If we already have a blob URL cached, play directly
-    if (blobUrlRef.current && audioRef.current) {
+    // If we already have a blob URL loaded, replay
+    if (blobUrlRef.current) {
       try {
-        await audioRef.current.play();
+        audio.currentTime = 0;
+        await audio.play();
         setIsPlaying(true);
       } catch (err) {
-        console.error('Audio play failed:', err);
+        console.error('Audio replay failed:', err);
+        setHasError(true);
       }
       return;
     }
 
-    // Fetch audio as blob (handles slow TTS endpoints properly)
+    // Fetch audio as blob (handles slow TTS endpoints)
     setIsLoading(true);
+    setHasError(false);
     try {
-      const response = await fetch(voice.sampleUrl);
+      // Use relative URL to go through Next.js proxy (avoids CORS/CSP)
+      const sampleUrl = voice.sampleUrl.includes('/api/voices/preview/')
+        ? '/api/voices/preview/' + voice.sampleUrl.split('/api/voices/preview/')[1]
+        : voice.sampleUrl;
+      const response = await fetch(sampleUrl);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-      const blob = await response.blob();
+      const arrayBuffer = await response.arrayBuffer();
+      if (arrayBuffer.byteLength === 0) throw new Error('Empty audio response');
+
+      const blob = new Blob([arrayBuffer], { type: 'audio/mpeg' });
       const url = URL.createObjectURL(blob);
       blobUrlRef.current = url;
 
-      if (audioRef.current) {
-        audioRef.current.src = url;
-        await audioRef.current.play();
-        setIsPlaying(true);
-      }
+      // Set src and wait for it to be playable
+      audio.src = url;
+      await new Promise((resolve, reject) => {
+        const onCanPlay = () => { cleanup(); resolve(); };
+        const onError = () => { cleanup(); reject(new Error('Audio load error')); };
+        const cleanup = () => {
+          audio.removeEventListener('canplaythrough', onCanPlay);
+          audio.removeEventListener('error', onError);
+        };
+        audio.addEventListener('canplaythrough', onCanPlay, { once: true });
+        audio.addEventListener('error', onError, { once: true });
+        audio.load();
+      });
+
+      await audio.play();
+      setIsPlaying(true);
     } catch (err) {
       console.error('Failed to load voice preview:', err);
+      setHasError(true);
+      // Cleanup failed blob
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = null;
+      }
     } finally {
       setIsLoading(false);
     }
@@ -73,6 +112,11 @@ export default function VoiceCard({ voice, onSelect, isSelected, compact = false
 
   const handleAudioEnd = () => {
     setIsPlaying(false);
+  };
+
+  const handleAudioError = () => {
+    setIsPlaying(false);
+    setIsLoading(false);
   };
 
   return (
@@ -127,12 +171,17 @@ export default function VoiceCard({ voice, onSelect, isSelected, compact = false
             size="sm"
             onClick={handlePlayPause}
             disabled={isLoading}
-            className="w-full"
+            className={`w-full ${hasError ? 'border-red-300 text-red-500' : ''}`}
           >
             {isLoading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 {t('dashboard.voicesPage.loadingSample')}
+              </>
+            ) : hasError ? (
+              <>
+                <Play className="h-4 w-4 mr-2" />
+                {t('dashboard.voicesPage.playSampleError')}
               </>
             ) : isPlaying ? (
               <>
@@ -150,6 +199,8 @@ export default function VoiceCard({ voice, onSelect, isSelected, compact = false
           <audio
             ref={audioRef}
             onEnded={handleAudioEnd}
+            onError={handleAudioError}
+            preload="none"
             className="hidden"
           />
         </>

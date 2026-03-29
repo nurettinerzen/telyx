@@ -9,6 +9,7 @@ const contentSecurityPolicy = [
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://apis.google.com https://www.gstatic.com https://static.iyzipay.com https://sandbox-static.iyzipay.com https://connect.facebook.net https://*.facebook.net https://*.facebook.com https://*.fbcdn.net",
   "style-src 'self' 'unsafe-inline' https://accounts.google.com https://fonts.googleapis.com",
   "img-src 'self' data: blob: https:",
+  "media-src 'self' blob: https:",
   "font-src 'self' data: https:",
   "connect-src 'self' https: wss:",
   "frame-src 'self' https://accounts.google.com https://*.google.com https://*.iyzipay.com https://www.facebook.com https://web.facebook.com https://*.facebook.com",
@@ -107,6 +108,15 @@ const nextConfig = {
         headers: [
           { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
         ],
+      },
+    ];
+  },
+  async rewrites() {
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    return [
+      {
+        source: '/api/voices/preview/:voiceId',
+        destination: `${backendUrl}/api/voices/preview/:voiceId`,
       },
     ];
   },
