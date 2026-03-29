@@ -6,6 +6,18 @@ import { Providers } from './providers';
 export const metadata = {
   title: 'Telyx AI',
   description: 'Yapay zeka destekli telefon, chat, e-posta ve WhatsApp ile işletme iletişiminizi otomatikleştirin.',
+  icons: {
+    icon: [
+      {
+        url: '/favicon-light.png',
+        media: '(prefers-color-scheme: light)',
+      },
+      {
+        url: '/favicon-dark.png',
+        media: '(prefers-color-scheme: dark)',
+      },
+    ],
+  },
 };
 
 export default function RootLayout({ children }) {
