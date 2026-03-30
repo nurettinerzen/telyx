@@ -131,6 +131,13 @@ export default function DashboardLayout({ children }) {
       } catch (subError) {
         console.warn('Failed to load subscription:', subError);
         setCredits(0);
+        setUser(prev => (prev ? {
+          ...prev,
+          subscription: prev.subscription || {
+            plan: 'FREE',
+            status: 'UNKNOWN'
+          }
+        } : prev));
       }
 
       // Cache the data for next page navigation

@@ -22,11 +22,7 @@ export const authenticateToken = async (req, res, next) => {
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
       include: {
-        business: {
-          include: {
-            subscription: true
-          }
-        }
+        business: true
       }
     });
 

@@ -312,11 +312,7 @@ router.post('/login', strictRateLimit, async (req, res) => {
     const user = await prisma.user.findUnique({
       where: { email },
       include: {
-        business: {
-          include: {
-            subscription: true,
-          },
-        },
+        business: true,
       },
     });
 
@@ -371,11 +367,7 @@ router.get('/me', authenticateToken, async (req, res) => {
         acceptedAt: true,
         createdAt: true,
         updatedAt: true,
-        business: {
-          include: {
-            subscription: true,
-          },
-        },
+        business: true,
       },
     });
 
