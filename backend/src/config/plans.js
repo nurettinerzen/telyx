@@ -125,12 +125,12 @@ export const REGIONAL_PRICING = {
 
       // YENİ FİYATLANDIRMA - Ocak 2026 - SABİT 23 TL AŞIM (POSTPAID)
       // Note: phoneNumbersLimit removed - platform limit is 1 (hard-coded in route)
-      STARTER: { price: 2499, minutes: 150, overageRate: 23, concurrentLimit: 1, pricePerMinute: 17, assistantsLimit: 5, paymentModel: 'POSTPAID' },
-      PRO: { price: 7499, minutes: 500, overageRate: 23, concurrentLimit: 5, pricePerMinute: 15, assistantsLimit: 10, paymentModel: 'POSTPAID' },
+      STARTER: { price: 2499, minutes: 0, overageRate: 23, concurrentLimit: 0, pricePerMinute: 0, assistantsLimit: 5, paymentModel: 'POSTPAID' },
+      PRO: { price: 7499, minutes: 500, overageRate: 23, concurrentLimit: 2, pricePerMinute: 15, assistantsLimit: 10, paymentModel: 'POSTPAID' },
       ENTERPRISE: { price: null, minutes: null, overageRate: 23, concurrentLimit: 5, pricePerMinute: 12, assistantsLimit: 25, paymentModel: 'POSTPAID' }, // Configurable per enterprise client
 
       // Legacy plan aliases - SABİT 23 TL AŞIM
-      BASIC: { price: 2499, minutes: 150, overageRate: 23, concurrentLimit: 1, pricePerMinute: 17, assistantsLimit: 5, paymentModel: 'POSTPAID' }
+      BASIC: { price: 2499, minutes: 0, overageRate: 23, concurrentLimit: 0, pricePerMinute: 0, assistantsLimit: 5, paymentModel: 'POSTPAID' }
     },
     // PAYG dakika fiyatı: 23 TL/dk (PREPAID)
     creditTiers: [
@@ -148,10 +148,10 @@ export const REGIONAL_PRICING = {
       TRIAL: { price: 0, minutes: 15, overageRate: 0, concurrentLimit: 1, chatDays: 7, paymentModel: null },
       PAYG: { price: 0, minutes: 0, overageRate: 0, concurrentLimit: 1, pricePerMinute: 4.60, assistantsLimit: 5, minTopup: 4, paymentModel: 'PREPAID' },
       // SABİT 4.60 R$ AŞIM (POSTPAID)
-      STARTER: { price: 500, minutes: 150, overageRate: 4.60, concurrentLimit: 1, pricePerMinute: 3.40, assistantsLimit: 5, paymentModel: 'POSTPAID' },
-      PRO: { price: 1500, minutes: 500, overageRate: 4.60, concurrentLimit: 5, pricePerMinute: 3.00, assistantsLimit: 10, paymentModel: 'POSTPAID' },
+      STARTER: { price: 500, minutes: 0, overageRate: 4.60, concurrentLimit: 0, pricePerMinute: 0, assistantsLimit: 5, paymentModel: 'POSTPAID' },
+      PRO: { price: 1500, minutes: 500, overageRate: 4.60, concurrentLimit: 2, pricePerMinute: 3.00, assistantsLimit: 10, paymentModel: 'POSTPAID' },
       ENTERPRISE: { price: null, minutes: null, overageRate: 4.60, concurrentLimit: 5, pricePerMinute: 2.40, assistantsLimit: 25, paymentModel: 'POSTPAID' },
-      BASIC: { price: 500, minutes: 150, overageRate: 4.60, concurrentLimit: 1, assistantsLimit: 5, paymentModel: 'POSTPAID' }
+      BASIC: { price: 500, minutes: 0, overageRate: 4.60, concurrentLimit: 0, assistantsLimit: 5, paymentModel: 'POSTPAID' }
     },
     creditTiers: [
       { minMinutes: 1, unitPrice: 4.60 }
@@ -166,10 +166,10 @@ export const REGIONAL_PRICING = {
       TRIAL: { price: 0, minutes: 15, overageRate: 0, concurrentLimit: 1, chatDays: 7, paymentModel: null },
       PAYG: { price: 0, minutes: 0, overageRate: 0, concurrentLimit: 1, pricePerMinute: 0.51, assistantsLimit: 5, minTopup: 4, paymentModel: 'PREPAID' },
       // SABİT $0.51 AŞIM (POSTPAID)
-      STARTER: { price: 55, minutes: 150, overageRate: 0.51, concurrentLimit: 1, pricePerMinute: 0.38, assistantsLimit: 5, paymentModel: 'POSTPAID' },
-      PRO: { price: 167, minutes: 500, overageRate: 0.51, concurrentLimit: 5, pricePerMinute: 0.33, assistantsLimit: 10, paymentModel: 'POSTPAID' },
+      STARTER: { price: 55, minutes: 0, overageRate: 0.51, concurrentLimit: 0, pricePerMinute: 0.0, assistantsLimit: 5, paymentModel: 'POSTPAID' },
+      PRO: { price: 167, minutes: 500, overageRate: 0.51, concurrentLimit: 2, pricePerMinute: 0.33, assistantsLimit: 10, paymentModel: 'POSTPAID' },
       ENTERPRISE: { price: null, minutes: null, overageRate: 0.51, concurrentLimit: 5, pricePerMinute: 0.27, assistantsLimit: 25, paymentModel: 'POSTPAID' },
-      BASIC: { price: 55, minutes: 150, overageRate: 0.51, concurrentLimit: 1, paymentModel: 'POSTPAID' }
+      BASIC: { price: 55, minutes: 0, overageRate: 0.51, concurrentLimit: 0, paymentModel: 'POSTPAID' }
     },
     creditTiers: [
       { minMinutes: 1, unitPrice: 0.51 }
@@ -298,28 +298,28 @@ export const PLANS = {
     nameTR: 'Başlangıç',
     nameEN: 'Starter',
     namePR: 'Inicial',
-    minutesLimit: 150,        // 150 dk dahil
-    callsLimit: -1,           // Sınırsız çağrı
-    assistantsLimit: 3,       // 3 asistan
-    phoneNumbersLimit: -1,    // Sınırsız numara
-    overageLimit: 200,        // Max 200 dk aşım
-    concurrentLimit: 1,       // 1 eşzamanlı çağrı
+    minutesLimit: 0,          // Telefon dahil değil
+    callsLimit: 0,
+    assistantsLimit: 5,
+    phoneNumbersLimit: 0,
+    overageLimit: 0,          // Telefon aşımı yok
+    concurrentLimit: 0,       // Telefon erişimi yok
     features: {
-      phone: true,
-      whatsappCalling: true,
+      phone: false,
+      whatsappCalling: false,
       whatsappMessaging: true,
       chatWidget: true,
       email: true,            // Tüm planlarda açık
       ecommerce: true,
       calendar: true,
       googleSheets: true,     // Tüm planlarda açık
-      batchCalls: true,
+      batchCalls: false,
       prioritySupport: false, // Pro'da açık
       analytics: true,        // Basic analytics
       advancedAnalytics: false,
       apiAccess: false
     },
-    channels: ['phone', 'whatsapp', 'chat_widget', 'email'],
+    channels: ['whatsapp', 'chat_widget', 'email'],
     analyticsLevel: 'basic',
     supportLevel: 'email'
   },
@@ -334,7 +334,7 @@ export const PLANS = {
     assistantsLimit: 10,      // 10 asistan
     phoneNumbersLimit: -1,    // Sınırsız numara
     overageLimit: 500,        // Max 500 dk aşım
-    concurrentLimit: 5,       // 5 eşzamanlı çağrı
+    concurrentLimit: 2,       // 2 eşzamanlı çağrı
     features: {
       phone: true,
       whatsappCalling: true,
@@ -401,15 +401,15 @@ export const PLANS = {
     nameEN: 'Basic',
     namePR: 'Básico',
     deprecated: true,
-    minutesLimit: 150,
-    callsLimit: -1,
-    assistantsLimit: 3,
-    phoneNumbersLimit: -1,
-    overageLimit: 200,
-    concurrentLimit: 1,
+    minutesLimit: 0,
+    callsLimit: 0,
+    assistantsLimit: 5,
+    phoneNumbersLimit: 0,
+    overageLimit: 0,
+    concurrentLimit: 0,
     features: {
-      phone: true,
-      whatsappCalling: true,
+      phone: false,
+      whatsappCalling: false,
       whatsappMessaging: true,
       chatWidget: true,
       email: true,
@@ -421,7 +421,7 @@ export const PLANS = {
       analytics: true,
       apiAccess: false
     },
-    channels: ['phone', 'whatsapp', 'chat_widget', 'email']
+    channels: ['whatsapp', 'chat_widget', 'email']
   }
 };
 

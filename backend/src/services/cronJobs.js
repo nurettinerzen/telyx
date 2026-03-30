@@ -47,7 +47,7 @@ export async function resetIncludedMinutes() {
     // These have period_end in the past but still have usage
     const subscriptionsToCheck = await prisma.subscription.findMany({
       where: {
-        status: 'active',
+        status: { in: ['ACTIVE', 'active'] },
         plan: { in: ['STARTER', 'PRO', 'ENTERPRISE', 'BASIC'] },
         stripeSubscriptionId: { not: null },  // Only Stripe subs (iyzico handled separately)
         currentPeriodEnd: { lte: now }
@@ -95,6 +95,9 @@ export async function resetIncludedMinutes() {
           data: {
             includedMinutesUsed: 0,
             packageWarningAt80: false,
+            creditWarningAt80: false,
+            voiceAddOnMinutesBalance: 0,
+            writtenInteractionAddOnBalance: 0,
             // CRITICAL: Use provider's dates, never calculate ourselves
             currentPeriodStart: providerPeriodStart,
             currentPeriodEnd: providerPeriodEnd,
@@ -136,7 +139,7 @@ export async function checkLowBalance() {
     // SADECE PAYG kullanıcıları için düşük bakiye kontrolü (prepaid model)
     const lowBalanceSubscriptions = await prisma.subscription.findMany({
       where: {
-        status: 'active',
+        status: { in: ['ACTIVE', 'active'] },
         plan: 'PAYG', // Sadece PAYG
         balance: { lt: 100 }, // Less than 100 TL
         // Don't warn if already warned in last 24 hours
@@ -206,7 +209,7 @@ export async function processAutoReload() {
     // Find subscriptions with auto-reload enabled and balance below threshold
     const autoReloadSubscriptions = await prisma.subscription.findMany({
       where: {
-        status: 'active',
+        status: { in: ['ACTIVE', 'active'] },
         autoReloadEnabled: true,
         autoReloadThreshold: { gt: 0 },
         autoReloadAmount: { gt: 0 }
@@ -272,7 +275,7 @@ export async function checkTrialExpired() {
     // Find TRIAL subscriptions where trial has expired
     const expiredTrials = await prisma.subscription.findMany({
       where: {
-        status: 'active',
+        status: { in: ['ACTIVE', 'active'] },
         plan: 'TRIAL',
         OR: [
           // Phone trial expired (15 minutes used)
@@ -300,12 +303,12 @@ export async function checkTrialExpired() {
       const ownerEmail = subscription.business?.users?.[0]?.email;
 
       // Mark trial as expired if not already
-      if (subscription.status === 'active') {
+      if (['ACTIVE', 'active'].includes(subscription.status)) {
         await prisma.subscription.update({
           where: { id: subscription.id },
           data: {
             trialUsed: true,
-            status: 'trial_expired',
+            status: 'TRIAL_EXPIRED',
             updatedAt: now
           }
         });
@@ -387,7 +390,7 @@ export async function billOverageUsage() {
     // These are STARTER/PRO/ENTERPRISE plans whose billing period has ended
     const subscriptionsWithOverage = await prisma.subscription.findMany({
       where: {
-        status: 'active',
+        status: { in: ['ACTIVE', 'active'] },
         plan: { in: ['STARTER', 'PRO', 'ENTERPRISE', 'BASIC'] },
         overageMinutes: { gt: 0 },
         currentPeriodEnd: { lte: now },

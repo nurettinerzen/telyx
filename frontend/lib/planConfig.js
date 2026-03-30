@@ -98,12 +98,12 @@ export const PLAN_FEATURES = {
     googleSheets: true,
     ecommerce: true,
     customCrm: false, // Can connect, usage PRO+
-    batchCalls: true,
+    batchCalls: false,
     apiAccess: false,
-    maxMinutes: 150,
+    maxMinutes: 0,
     maxAssistants: 5,
-    maxConcurrentCalls: 1,
-    maxPhoneNumbers: 1,
+    maxConcurrentCalls: 0,
+    maxPhoneNumbers: 0,
     dailyMessages: 2000,
     monthlyTokens: 2000000,
   },
@@ -120,7 +120,7 @@ export const PLAN_FEATURES = {
     prioritySupport: true,
     maxMinutes: 500,
     maxAssistants: 10,
-    maxConcurrentCalls: 3, // Updated from 5 to 3
+    maxConcurrentCalls: 2,
     maxPhoneNumbers: 1,
     dailyMessages: 5000,
     monthlyTokens: 5000000,
@@ -158,10 +158,10 @@ export const REGIONAL_PRICING = {
     plans: {
       TRIAL: { price: 0, minutes: 15, concurrent: 1, assistants: 5, pricePerMinute: 0, chatDays: 7, paymentModel: null },
       PAYG: { price: 0, minutes: 0, concurrent: 1, assistants: 5, pricePerMinute: 23, minTopup: 4, paymentModel: 'PREPAID' },
-      STARTER: { price: 2499, minutes: 150, concurrent: 1, assistants: 5, pricePerMinute: 17, overageRate: 23, paymentModel: 'POSTPAID' },
-      PRO: { price: 7499, minutes: 500, concurrent: 3, assistants: 10, pricePerMinute: 15, overageRate: 23, paymentModel: 'POSTPAID' },
+      STARTER: { price: 2499, minutes: 0, concurrent: 0, assistants: 5, pricePerMinute: 0, overageRate: 0, paymentModel: 'POSTPAID' },
+      PRO: { price: 7499, minutes: 500, concurrent: 2, assistants: 10, pricePerMinute: 15, overageRate: 23, paymentModel: 'POSTPAID' },
       ENTERPRISE: { price: null, minutes: null, concurrent: 5, pricePerMinute: 12, overageRate: 23, paymentModel: 'POSTPAID' },
-      BASIC: { price: 2499, minutes: 150, concurrent: 1, pricePerMinute: 17, overageRate: 23, paymentModel: 'POSTPAID' },
+      BASIC: { price: 2499, minutes: 0, concurrent: 0, pricePerMinute: 0, overageRate: 0, paymentModel: 'POSTPAID' },
     },
   },
   BR: {
@@ -171,10 +171,10 @@ export const REGIONAL_PRICING = {
     plans: {
       TRIAL: { price: 0, minutes: 15, concurrent: 1, pricePerMinute: 0, chatDays: 7, paymentModel: null },
       PAYG: { price: 0, minutes: 0, concurrent: 1, pricePerMinute: 4.60, minTopup: 4, paymentModel: 'PREPAID' },
-      STARTER: { price: 500, minutes: 150, concurrent: 1, pricePerMinute: 3.40, overageRate: 4.60, paymentModel: 'POSTPAID' },
-      PRO: { price: 1500, minutes: 500, concurrent: 5, pricePerMinute: 3.00, overageRate: 4.60, paymentModel: 'POSTPAID' },
+      STARTER: { price: 500, minutes: 0, concurrent: 0, pricePerMinute: 0, overageRate: 0, paymentModel: 'POSTPAID' },
+      PRO: { price: 1500, minutes: 500, concurrent: 2, pricePerMinute: 3.00, overageRate: 4.60, paymentModel: 'POSTPAID' },
       ENTERPRISE: { price: null, minutes: null, concurrent: 5, pricePerMinute: 2.40, overageRate: 4.60, paymentModel: 'POSTPAID' },
-      BASIC: { price: 500, minutes: 150, concurrent: 1, pricePerMinute: 3.40, overageRate: 4.60, paymentModel: 'POSTPAID' },
+      BASIC: { price: 500, minutes: 0, concurrent: 0, pricePerMinute: 0, overageRate: 0, paymentModel: 'POSTPAID' },
     },
   },
   US: {
@@ -184,10 +184,10 @@ export const REGIONAL_PRICING = {
     plans: {
       TRIAL: { price: 0, minutes: 15, concurrent: 1, pricePerMinute: 0, chatDays: 7, paymentModel: null },
       PAYG: { price: 0, minutes: 0, concurrent: 1, pricePerMinute: 0.51, minTopup: 4, paymentModel: 'PREPAID' },
-      STARTER: { price: 55, minutes: 150, concurrent: 1, pricePerMinute: 0.38, overageRate: 0.51, paymentModel: 'POSTPAID' },
-      PRO: { price: 167, minutes: 500, concurrent: 5, pricePerMinute: 0.33, overageRate: 0.51, paymentModel: 'POSTPAID' },
+      STARTER: { price: 55, minutes: 0, concurrent: 0, pricePerMinute: 0, overageRate: 0, paymentModel: 'POSTPAID' },
+      PRO: { price: 167, minutes: 500, concurrent: 2, pricePerMinute: 0.33, overageRate: 0.51, paymentModel: 'POSTPAID' },
       ENTERPRISE: { price: null, minutes: null, concurrent: 5, pricePerMinute: 0.27, overageRate: 0.51, paymentModel: 'POSTPAID' },
-      BASIC: { price: 55, minutes: 150, concurrent: 1, pricePerMinute: 0.38, overageRate: 0.51, paymentModel: 'POSTPAID' },
+      BASIC: { price: 55, minutes: 0, concurrent: 0, pricePerMinute: 0, overageRate: 0, paymentModel: 'POSTPAID' },
     },
   },
 };

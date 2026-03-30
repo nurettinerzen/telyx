@@ -181,7 +181,7 @@ export function checkFeatureAccess(featureName) {
 
       // Feature-specific requirements
       const requirements = {
-        email: 'PRO',
+        email: 'STARTER',
         integrations: 'PRO',
         batchCalls: 'TRIAL',
         analytics: 'STARTER',

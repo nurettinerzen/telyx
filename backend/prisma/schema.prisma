@@ -299,6 +299,9 @@ model Subscription {
   // Kredi sistemi (YENİ) - Legacy, bakiye sistemi ile değiştirildi
   creditMinutes     Int @default(0) // Satın alınan toplam kredi dakikaları
   creditMinutesUsed Int @default(0) // Krediden kullanılan dakikalar
+  voiceAddOnMinutesBalance Float @default(0) // Mevcut dönem için kalan ses dakikası add-on bakiyesi
+  writtenInteractionAddOnBalance Int @default(0) // Mevcut dönem için kalan yazılı etkileşim add-on bakiyesi
+  writtenOverageBilledAt DateTime? // Son yazılı aşım faturası tarihi
 
   // Aşım sistemi (YENİ) - POSTPAID model için
   overageMinutes  Int       @default(0) // Bu ay aşım dakikaları
@@ -345,6 +348,8 @@ model Subscription {
   // İlişkiler
   usageRecords        UsageRecord[]
   balanceTransactions BalanceTransaction[]
+  writtenUsageEvents  WrittenUsageEvent[]
+  addOnPurchases      AddOnPurchase[]
 
   @@index([businessId])
   @@index([plan])
@@ -1434,6 +1439,50 @@ model BalanceTransaction {
   @@index([subscriptionId])
   @@index([type])
   @@index([createdAt])
+}
+
+model WrittenUsageEvent {
+  id             String   @id @default(cuid())
+  subscriptionId Int
+  channel        String // CHAT, WHATSAPP, EMAIL
+  idempotencyKey String   @unique
+  status         String   @default("RESERVED") // RESERVED, COMMITTED, REVERSED
+  chargeType     String // TRIAL, INCLUDED, ADDON, WALLET, OVERAGE
+  quantity       Int      @default(1)
+  unitPrice      Float    @default(0)
+  totalCharge    Float    @default(0)
+  assistantId    String?
+  metadata       Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId, channel, createdAt])
+  @@index([subscriptionId, chargeType, createdAt])
+  @@index([status, createdAt])
+}
+
+model AddOnPurchase {
+  id                    String   @id @default(cuid())
+  subscriptionId        Int
+  businessId            Int
+  kind                  String // WRITTEN, VOICE
+  packageId             String
+  quantity              Float
+  amount                Float
+  unitPrice             Float
+  stripePaymentIntentId String?  @unique
+  stripeSessionId       String?  @unique
+  status                String   @default("PENDING") // PENDING, COMPLETED, FAILED, REFUNDED
+  createdAt             DateTime @default(now())
+  completedAt           DateTime?
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId, kind, createdAt])
+  @@index([businessId, kind, createdAt])
+  @@index([status, createdAt])
 }
 
 // ============================================================================

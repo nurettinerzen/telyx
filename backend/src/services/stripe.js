@@ -16,6 +16,10 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
  * - Dynamic pricing based on country
  */
 class StripeService {
+  getStripeClient() {
+    return stripe;
+  }
+
   /**
    * Create a customer with regional metadata
    * @param {string} email - Customer email
@@ -183,6 +187,69 @@ class StripeService {
       return session;
     } catch (error) {
       console.error('Create credit purchase session error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create a one-time checkout session for add-on purchases
+   * @param {object} options - Checkout options
+   */
+  async createAddonCheckoutSession({
+    stripeCustomerId,
+    countryCode = 'TR',
+    currency = 'TRY',
+    successUrl,
+    cancelUrl,
+    businessId,
+    subscriptionId,
+    addOnKind,
+    packageId,
+    quantity,
+    unitPrice,
+    amount
+  }) {
+    try {
+      const paymentMethods = this.getPaymentMethodsForCountry(countryCode);
+      const noun = addOnKind === 'VOICE'
+        ? (countryCode === 'TR' ? 'Ses dakikası add-on' : 'Voice minute add-on')
+        : (countryCode === 'TR' ? 'Yazılı etkileşim add-on' : 'Written interaction add-on');
+
+      const unitLabel = addOnKind === 'VOICE'
+        ? (countryCode === 'TR' ? 'dakika' : 'minutes')
+        : (countryCode === 'TR' ? 'etkileşim' : 'interactions');
+
+      return await stripe.checkout.sessions.create({
+        mode: 'payment',
+        customer: stripeCustomerId,
+        payment_method_types: paymentMethods,
+        line_items: [{
+          price_data: {
+            currency: currency.toLowerCase(),
+            product_data: {
+              name: `TELYX.AI ${noun}`,
+              description: `${quantity} ${unitLabel} - mevcut fatura donemi icin`
+            },
+            unit_amount: Math.round(amount * 100)
+          },
+          quantity: 1
+        }],
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+        metadata: {
+          type: 'addon_purchase',
+          addonKind: addOnKind,
+          packageId,
+          quantity: String(quantity),
+          unitPrice: String(unitPrice),
+          businessId: String(businessId),
+          subscriptionId: String(subscriptionId),
+          country: countryCode
+        },
+        locale: this.getStripeLocale(countryCode)
+      });
+    } catch (error) {
+      console.error('Create addon checkout session error:', error);
       throw error;
     }
   }
@@ -430,6 +497,84 @@ class StripeService {
 
     } catch (error) {
       console.error('Create overage invoice error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create an invoice for written interaction overage
+   * @param {object} options - Invoice options
+   */
+  async createWrittenOverageInvoice({
+    customerId,
+    interactionCount,
+    unitPrice,
+    totalAmount,
+    currency = 'TRY',
+    countryCode = 'TR',
+    businessName,
+    periodStart,
+    periodEnd
+  }) {
+    try {
+      const formatDate = (date) => {
+        const d = new Date(date);
+        return d.toLocaleDateString(countryCode === 'TR' ? 'tr-TR' : countryCode === 'BR' ? 'pt-BR' : 'en-US');
+      };
+
+      const periodStr = `${formatDate(periodStart)} - ${formatDate(periodEnd)}`;
+      const descriptions = {
+        TR: `Yazili destek asimi: ${interactionCount} etkileşim × ${unitPrice} ₺ (${periodStr})`,
+        BR: `Excedente de suporte escrito: ${interactionCount} interacoes × R$ ${unitPrice} (${periodStr})`,
+        US: `Written support overage: ${interactionCount} interactions × $${unitPrice} (${periodStr})`
+      };
+      const productNames = {
+        TR: 'TELYX.AI Yazili Destek Asimi',
+        BR: 'TELYX.AI Excedente de Suporte Escrito',
+        US: 'TELYX.AI Written Support Overage'
+      };
+
+      const invoiceItem = await stripe.invoiceItems.create({
+        customer: customerId,
+        amount: Math.round(totalAmount * 100),
+        currency: currency.toLowerCase(),
+        description: descriptions[countryCode] || descriptions.US,
+        metadata: {
+          type: 'written_overage_charge',
+          interactionCount: String(interactionCount),
+          unitPrice: String(unitPrice),
+          periodStart: periodStart.toISOString(),
+          periodEnd: periodEnd.toISOString()
+        }
+      });
+
+      const invoice = await stripe.invoices.create({
+        customer: customerId,
+        auto_advance: true,
+        collection_method: 'charge_automatically',
+        description: productNames[countryCode] || productNames.US,
+        metadata: {
+          type: 'written_overage_invoice',
+          businessName,
+          periodStart: periodStart.toISOString(),
+          periodEnd: periodEnd.toISOString()
+        }
+      });
+
+      const finalizedInvoice = await stripe.invoices.finalizeInvoice(invoice.id);
+
+      return {
+        success: true,
+        invoiceId: finalizedInvoice.id,
+        invoiceItemId: invoiceItem.id,
+        amount: totalAmount,
+        currency,
+        status: finalizedInvoice.status,
+        hostedInvoiceUrl: finalizedInvoice.hosted_invoice_url,
+        pdfUrl: finalizedInvoice.invoice_pdf
+      };
+    } catch (error) {
+      console.error('Create written overage invoice error:', error);
       throw error;
     }
   }

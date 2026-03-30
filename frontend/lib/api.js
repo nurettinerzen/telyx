@@ -125,6 +125,7 @@ export const apiClient = {
     getPlans: () => api.get('/api/subscription/plans'),
     getPaymentProvider: () => api.get('/api/subscription/payment-provider'),
     createCheckout: (data) => api.post('/api/subscription/create-checkout', data),
+    createAddOnCheckout: (data) => api.post('/api/subscription/addons/checkout', data),
     upgrade: (planId) => api.post('/api/subscription/upgrade', { planId }),
     cancel: () => api.post('/api/subscription/cancel'),
     reactivate: () => api.post('/api/subscription/reactivate'),

@@ -7,7 +7,7 @@ import express from 'express';
 import crypto from 'crypto';
 import { PrismaClient } from '@prisma/client';
 import { authenticateToken } from '../middleware/auth.js';
-import { requireProOrAbove } from '../middleware/planGating.js';
+import { requireStarterOrAbove } from '../middleware/planGating.js';
 import gmailService from '../services/gmail.js';
 import outlookService from '../services/outlook.js';
 import emailAggregator from '../services/email-aggregator.js';
@@ -18,6 +18,13 @@ import { buildEmailPairs, getPairStatistics } from '../services/email-pair-build
 import { generateOAuthState, validateOAuthState } from '../middleware/oauthState.js';
 import { safeRedirect } from '../middleware/redirectWhitelist.js';
 import { queueUnifiedResponseTrace } from '../services/trace/responseTraceLogger.js';
+import {
+  buildEmailWrittenIdempotencyKey,
+  commitWrittenInteraction,
+  isWrittenUsageBlockError,
+  releaseWrittenInteraction,
+  reserveWrittenInteraction
+} from '../services/writtenUsageService.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -126,6 +133,32 @@ async function releaseEmailSendLease(leaseId) {
   await prisma.outboundMessage.delete({
     where: { id: leaseId }
   }).catch(() => undefined);
+}
+
+async function getSubscriptionForWrittenUsage(businessId) {
+  if (!businessId) return null;
+
+  return prisma.subscription.findUnique({
+    where: { businessId },
+    include: {
+      business: {
+        select: {
+          country: true
+        }
+      }
+    }
+  });
+}
+
+function buildWrittenUsageErrorResponse(error) {
+  const status = error?.code === 'INSUFFICIENT_BALANCE' ? 402 : 403;
+  return {
+    status,
+    body: {
+      error: error?.message || 'Written usage is not available',
+      code: error?.code || 'WRITTEN_USAGE_BLOCKED'
+    }
+  };
 }
 
 async function persistOutboundEmail({
@@ -500,7 +533,7 @@ router.get('/status', authenticateToken, async (req, res) => {
  * GET /api/email/threads
  * P1: PRO+ gating for email usage
  */
-router.get('/threads', authenticateToken, requireProOrAbove, async (req, res) => {
+router.get('/threads', authenticateToken, requireStarterOrAbove, async (req, res) => {
   try {
     const { status, limit = 20, offset = 0, search } = req.query;
 
@@ -867,6 +900,14 @@ router.post('/drafts/:draftId/send', authenticateToken, async (req, res) => {
       lockKey: sendLockKey
     });
     const fallbackMessageId = buildSyntheticSentMessageId(sendLockKey);
+    const meteringSubscription = await getSubscriptionForWrittenUsage(req.businessId);
+    const writtenUsageKey = meteringSubscription?.id
+      ? buildEmailWrittenIdempotencyKey({
+        subscriptionId: meteringSubscription.id,
+        lockKey: sendLockKey,
+        threadId: thread.id
+      })
+      : null;
 
     if (leaseResult.status === 'in_progress') {
       return res.status(409).json({
@@ -877,6 +918,14 @@ router.post('/drafts/:draftId/send', authenticateToken, async (req, res) => {
 
     if (leaseResult.status === 'duplicate') {
       const duplicateMessageId = leaseResult.lease?.externalId || draft.sentMessageId || fallbackMessageId;
+
+      if (writtenUsageKey) {
+        await commitWrittenInteraction(writtenUsageKey, {
+          duplicate: true,
+          messageId: duplicateMessageId,
+          channel: 'EMAIL'
+        }).catch(() => null);
+      }
 
       try {
         await persistOutboundEmail({
@@ -910,6 +959,28 @@ router.post('/drafts/:draftId/send', authenticateToken, async (req, res) => {
       }
     }
 
+    if (writtenUsageKey) {
+      try {
+        await reserveWrittenInteraction({
+          subscriptionId: meteringSubscription.id,
+          channel: 'EMAIL',
+          idempotencyKey: writtenUsageKey,
+          metadata: {
+            threadId: thread.id,
+            draftId: draft.id,
+            customerEmail: thread.customerEmail
+          }
+        });
+      } catch (error) {
+        await releaseEmailSendLease(leaseResult.lease?.id);
+        if (isWrittenUsageBlockError(error)) {
+          const response = buildWrittenUsageErrorResponse(error);
+          return res.status(response.status).json(response.body);
+        }
+        throw error;
+      }
+    }
+
     // Send the email (with HTML content)
     let result;
     try {
@@ -921,6 +992,9 @@ router.post('/drafts/:draftId/send', authenticateToken, async (req, res) => {
         options
       );
     } catch (sendError) {
+      if (writtenUsageKey) {
+        await releaseWrittenInteraction(writtenUsageKey, 'EMAIL_SEND_FAILED').catch(() => null);
+      }
       await releaseEmailSendLease(leaseResult.lease?.id);
       throw sendError;
     }
@@ -934,6 +1008,14 @@ router.post('/drafts/:draftId/send', authenticateToken, async (req, res) => {
     }
 
     try {
+      if (writtenUsageKey) {
+        await commitWrittenInteraction(writtenUsageKey, {
+          channel: 'EMAIL',
+          messageId: finalMessageId,
+          provider: 'email'
+        });
+      }
+
       await persistOutboundEmail({
         businessId: req.businessId,
         thread,
@@ -1000,6 +1082,14 @@ router.post('/threads/:threadId/quick-reply', authenticateToken, async (req, res
       lockKey: sendLockKey
     });
     const fallbackMessageId = buildSyntheticSentMessageId(sendLockKey);
+    const meteringSubscription = await getSubscriptionForWrittenUsage(req.businessId);
+    const writtenUsageKey = meteringSubscription?.id
+      ? buildEmailWrittenIdempotencyKey({
+        subscriptionId: meteringSubscription.id,
+        lockKey: sendLockKey,
+        threadId: thread.id
+      })
+      : null;
 
     console.log('📧 [Email Quick Reply] Request received', {
       businessId: req.businessId,
@@ -1028,6 +1118,14 @@ router.post('/threads/:threadId/quick-reply', authenticateToken, async (req, res
         messageId: duplicateMessageId,
         lockKey: sendLockKey
       });
+
+      if (writtenUsageKey) {
+        await commitWrittenInteraction(writtenUsageKey, {
+          duplicate: true,
+          messageId: duplicateMessageId,
+          channel: 'EMAIL'
+        }).catch(() => null);
+      }
 
       try {
         await persistOutboundEmail({
@@ -1059,6 +1157,28 @@ router.post('/threads/:threadId/quick-reply', authenticateToken, async (req, res
       }
     }
 
+    if (writtenUsageKey) {
+      try {
+        await reserveWrittenInteraction({
+          subscriptionId: meteringSubscription.id,
+          channel: 'EMAIL',
+          idempotencyKey: writtenUsageKey,
+          metadata: {
+            threadId: thread.id,
+            quickReply: true,
+            customerEmail: thread.customerEmail
+          }
+        });
+      } catch (error) {
+        await releaseEmailSendLease(leaseResult.lease?.id);
+        if (isWrittenUsageBlockError(error)) {
+          const response = buildWrittenUsageErrorResponse(error);
+          return res.status(response.status).json(response.body);
+        }
+        throw error;
+      }
+    }
+
     let result;
     try {
       result = await emailAggregator.sendMessage(
@@ -1074,6 +1194,9 @@ router.post('/threads/:threadId/quick-reply', authenticateToken, async (req, res
         providerMessageId: result?.messageId || null
       });
     } catch (sendError) {
+      if (writtenUsageKey) {
+        await releaseWrittenInteraction(writtenUsageKey, 'EMAIL_SEND_FAILED').catch(() => null);
+      }
       await releaseEmailSendLease(leaseResult.lease?.id);
       throw sendError;
     }
@@ -1087,6 +1210,14 @@ router.post('/threads/:threadId/quick-reply', authenticateToken, async (req, res
     }
 
     try {
+      if (writtenUsageKey) {
+        await commitWrittenInteraction(writtenUsageKey, {
+          channel: 'EMAIL',
+          messageId: finalMessageId,
+          provider: 'email'
+        });
+      }
+
       await persistOutboundEmail({
         businessId: req.businessId,
         thread,

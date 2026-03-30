@@ -50,9 +50,31 @@ import {
   buildGeminiChatHistory,
   extractTokenUsage
 } from '../services/gemini-utils.js';
+import {
+  buildChatWrittenIdempotencyKey,
+  commitWrittenInteraction,
+  isWrittenUsageBlockError,
+  releaseWrittenInteraction,
+  reserveWrittenInteraction
+} from '../services/writtenUsageService.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
+
+function buildWrittenUsageErrorResponse(language = 'TR', error) {
+  const isEnglish = String(language || '').toUpperCase() === 'EN';
+  const insufficientBalance = error?.code === 'INSUFFICIENT_BALANCE';
+  return {
+    status: insufficientBalance ? 402 : 403,
+    body: {
+      error: insufficientBalance
+        ? (isEnglish ? 'Insufficient wallet balance for written support usage.' : 'Yazili destek kullanimi icin bakiye yetersiz.')
+        : (isEnglish ? 'Written support limit reached for this plan.' : 'Bu paket icin yazili destek limiti doldu.'),
+      code: error?.code || 'WRITTEN_USAGE_BLOCKED',
+      upgradeRequired: !insufficientBalance
+    }
+  };
+}
 
 /**
  * Process chat with Gemini - with function calling support
@@ -348,6 +370,8 @@ router.post('/widget', async (req, res) => {
     businessId: req.businessId,
     headers: req.headers.authorization ? 'Auth present' : 'No auth'
   });
+  let writtenUsageKey = null;
+
   try {
     const { embedKey, assistantId, sessionId, message } = req.body;
 
@@ -504,6 +528,34 @@ router.post('/widget', async (req, res) => {
       });
     }
 
+    if (subscription && subscription.plan !== 'FREE') {
+      writtenUsageKey = buildChatWrittenIdempotencyKey({
+        subscriptionId: subscription.id,
+        sessionId: chatSessionId,
+        turnIndex: req.requestId || `${Date.now()}`,
+        userMessage: message
+      });
+
+      try {
+        await reserveWrittenInteraction({
+          subscriptionId: subscription.id,
+          channel: 'CHAT',
+          idempotencyKey: writtenUsageKey,
+          assistantId: assistant?.id || null,
+          metadata: {
+            requestId: req.requestId || null,
+            sessionId: chatSessionId
+          }
+        });
+      } catch (error) {
+        if (isWrittenUsageBlockError(error)) {
+          const response = buildWrittenUsageErrorResponse(language, error);
+          return res.status(response.status).json(response.body);
+        }
+        throw error;
+      }
+    }
+
     // Get Knowledge Base content for this business
     const knowledgeItems = await prisma.knowledgeBase.findMany({
       where: { businessId: business.id, status: 'ACTIVE' }
@@ -653,42 +705,17 @@ ${knowledgeContext}`;
           updatedAt: new Date()
         }
       });
-
-      // If not free plan, deduct from balance (PAYG) or track for billing
-      if (!isFree && tokenCost.totalCost > 0 && subscription) {
-        // For PAYG: deduct from balance
-        // For STARTER/PRO: track as usage (will be billed if over included amount)
-        await prisma.subscription.update({
-          where: { id: subscription.id },
-          data: {
-            balance: {
-              decrement: planName === 'PAYG' ? tokenCost.totalCost : 0
-            }
-          }
-        });
-
-        // Create usage record for tracking
-        await prisma.usageRecord.create({
-          data: {
-            subscriptionId: subscription.id,
-            channel: 'CHAT',
-            conversationId: chatSessionId,
-            durationSeconds: 0,
-            durationMinutes: 0,
-            chargeType: planName === 'PAYG' ? 'BALANCE' : 'INCLUDED',
-            totalCharge: tokenCost.totalCost,
-            assistantId: assistant.id,
-            metadata: {
-              inputTokens: result.inputTokens,
-              outputTokens: result.outputTokens,
-              inputCost: tokenCost.inputCost,
-              outputCost: tokenCost.outputCost
-            }
-          }
-        });
-      }
     } catch (logError) {
       console.error('Failed to save chat log:', logError);
+    }
+
+    if (writtenUsageKey) {
+      await commitWrittenInteraction(writtenUsageKey, {
+        channel: 'CHAT',
+        requestId: req.requestId || null,
+        finalReplyLength: result.reply?.length || 0
+      });
+      writtenUsageKey = null;
     }
 
     // Return response with conversation history for frontend
@@ -708,6 +735,9 @@ ${knowledgeContext}`;
     });
 
   } catch (error) {
+    if (writtenUsageKey) {
+      await releaseWrittenInteraction(writtenUsageKey, 'CHAT_LEGACY_FAILED').catch(() => null);
+    }
     console.error('Chat widget error:', error);
     res.status(500).json({ error: 'Failed to process message' });
   }

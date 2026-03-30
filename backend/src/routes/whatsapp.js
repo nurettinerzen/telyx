@@ -54,6 +54,13 @@ import { resolveChatAssistantForBusiness } from '../services/assistantChannels.j
 import { syncPersistedAssistantReply } from '../services/reply-parity.js';
 import { safeCompareHex } from '../security/constantTime.js';
 import { queueUnifiedResponseTrace } from '../services/trace/responseTraceLogger.js';
+import {
+  buildWhatsappWrittenIdempotencyKey,
+  commitWrittenInteraction,
+  isWrittenUsageBlockError,
+  releaseWrittenInteraction,
+  reserveWrittenInteraction
+} from '../services/writtenUsageService.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -72,6 +79,10 @@ const conversations = new Map();
 // Messages are kept for 5 minutes then cleaned up
 const processedMessages = new Map();
 const MESSAGE_DEDUP_TTL = 5 * 60 * 1000; // 5 minutes
+const WRITTEN_LIMIT_MESSAGE = {
+  TR: 'Yazili destek limitinize ulastiniz. Devam etmek icin paketinizi yukseltin veya ek paket satin alin.',
+  EN: 'You have reached your written support limit. Upgrade your plan or purchase an add-on to continue.'
+};
 
 // Cleanup old processed messages every minute
 setInterval(() => {
@@ -123,6 +134,12 @@ function sendWebhookStatus(req, res, statusCode, reason, extra = {}) {
     });
   }
   return res.sendStatus(statusCode);
+}
+
+function getWrittenLimitMessage(language = 'TR') {
+  return String(language || '').toUpperCase() === 'EN'
+    ? WRITTEN_LIMIT_MESSAGE.EN
+    : WRITTEN_LIMIT_MESSAGE.TR;
 }
 
 // ============================================================================
@@ -467,7 +484,10 @@ async function processWhatsAppMessage(business, from, messageBody, messageId, tr
       const shouldSend = await shouldSendAndMarkLockMessage(sessionId);
       if (shouldSend) {
         const lockMsg = getLockMessage(lockStatus.reason, language);
-        await sendWhatsAppMessage(business, from, lockMsg, { inboundMessageId: messageId });
+        await sendWhatsAppMessage(business, from, lockMsg, {
+          inboundMessageId: messageId,
+          skipUsageMetering: true
+        });
         console.log(`🔒 [WhatsApp Guard] Lock message sent`);
       } else {
         console.log(`🔒 [WhatsApp Guard] Lock message skipped (spam prevention)`);
@@ -492,7 +512,7 @@ async function processWhatsAppMessage(business, from, messageBody, messageId, tr
         business,
         from,
         'Üzgünüm, şu anda yanıt veremiyorum. Lütfen daha sonra tekrar deneyin.',
-        { inboundMessageId: messageId }
+        { inboundMessageId: messageId, skipUsageMetering: true }
       );
       return;
     }
@@ -522,7 +542,21 @@ async function processWhatsAppMessage(business, from, messageBody, messageId, tr
       : [];
 
     // Send response using business's credentials (with idempotency)
-    await sendWhatsAppMessage(business, from, aiResponse, { inboundMessageId: messageId });
+    try {
+      await sendWhatsAppMessage(business, from, aiResponse, {
+        inboundMessageId: messageId,
+        assistantId: resolved.assistant?.id || null
+      });
+    } catch (sendError) {
+      if (isWrittenUsageBlockError(sendError)) {
+        await sendWhatsAppMessage(business, from, getWrittenLimitMessage(business.language), {
+          inboundMessageId: `${messageId}:limit`,
+          skipUsageMetering: true
+        });
+        return;
+      }
+      throw sendError;
+    }
     try {
       const paritySync = await syncPersistedAssistantReply({
         sessionId,
@@ -738,7 +772,10 @@ async function generateAIResponse_DEPRECATED(business, phoneNumber, messageBody,
       const terminationMessage = getTerminationMessage(session.terminationReason || 'off_topic', business.language);
 
       // Send termination message (with idempotency)
-      await sendWhatsAppMessage(business, phoneNumber, terminationMessage, { inboundMessageId: context.messageId });
+      await sendWhatsAppMessage(business, phoneNumber, terminationMessage, {
+        inboundMessageId: context.messageId,
+        skipUsageMetering: true
+      });
 
       // Don't process further
       return;
@@ -758,7 +795,10 @@ async function generateAIResponse_DEPRECATED(business, phoneNumber, messageBody,
       terminateSession(sessionId, intentResult.intent === 'off_topic' ? 'off_topic' : 'verification_failed');
 
       // Send termination message (with idempotency)
-      await sendWhatsAppMessage(business, phoneNumber, intentResult.response, { inboundMessageId: context.messageId });
+      await sendWhatsAppMessage(business, phoneNumber, intentResult.response, {
+        inboundMessageId: context.messageId,
+        skipUsageMetering: true
+      });
 
       // Save to conversation history
       history.push({ role: 'assistant', content: intentResult.response });
@@ -784,7 +824,10 @@ async function generateAIResponse_DEPRECATED(business, phoneNumber, messageBody,
 
     // Handle direct responses (no tools needed)
     if (intentResult.response) {
-      await sendWhatsAppMessage(business, phoneNumber, intentResult.response, { inboundMessageId: context.messageId });
+      await sendWhatsAppMessage(business, phoneNumber, intentResult.response, {
+        inboundMessageId: context.messageId,
+        skipUsageMetering: true
+      });
 
       // Save to conversation history
       history.push({ role: 'assistant', content: intentResult.response });
@@ -841,7 +884,15 @@ async function generateAIResponse_DEPRECATED(business, phoneNumber, messageBody,
         // Check if verification failed and should terminate
         if (toolResult.shouldTerminate) {
           terminateSession(sessionId, 'verification_failed');
-          await sendWhatsAppMessage(business, phoneNumber, toolResult.error || getTerminationMessage('verification_failed', business.language), { inboundMessageId: context.messageId });
+          await sendWhatsAppMessage(
+            business,
+            phoneNumber,
+            toolResult.error || getTerminationMessage('verification_failed', business.language),
+            {
+              inboundMessageId: context.messageId,
+              skipUsageMetering: true
+            }
+          );
 
           history.push({ role: 'assistant', content: toolResult.error || getTerminationMessage('verification_failed', business.language) });
 
@@ -1146,39 +1197,6 @@ async function generateAIResponse_DEPRECATED(business, phoneNumber, messageBody,
           status: 'active'
         }
       });
-
-      // If not free plan, track usage
-      if (!isFree && tokenCost.totalCost > 0 && subscription) {
-        // For PAYG: deduct from balance
-        await prisma.subscription.update({
-          where: { id: subscription.id },
-          data: {
-            balance: {
-              decrement: planName === 'PAYG' ? tokenCost.totalCost : 0
-            }
-          }
-        });
-
-        // Create usage record for tracking
-        await prisma.usageRecord.create({
-          data: {
-            subscriptionId: subscription.id,
-            channel: 'WHATSAPP',
-            conversationId: sessionId,
-            durationSeconds: 0,
-            durationMinutes: 0,
-            chargeType: planName === 'PAYG' ? 'BALANCE' : 'INCLUDED',
-            totalCharge: tokenCost.totalCost,
-            assistantId: assistant?.id || null,
-            metadata: {
-              inputTokens: totalInputTokens,
-              outputTokens: totalOutputTokens,
-              inputCost: tokenCost.inputCost,
-              outputCost: tokenCost.outputCost
-            }
-          }
-        });
-      }
     } catch (logError) {
       console.error('⚠️ Failed to save WhatsApp chat log:', logError.message);
     }
@@ -1286,7 +1304,39 @@ function getErrorMessage(language) {
  * @param {string} options.inboundMessageId - Original webhook message ID (for idempotency)
  */
 async function sendWhatsAppMessage(business, to, text, options = {}) {
+  let writtenUsageKey = null;
+
   try {
+    if (!options.skipUsageMetering && business?.id && options.inboundMessageId) {
+      const subscription = await prisma.subscription.findUnique({
+        where: { businessId: business.id },
+        include: {
+          business: {
+            select: { country: true }
+          }
+        }
+      });
+
+      if (subscription) {
+        writtenUsageKey = buildWhatsappWrittenIdempotencyKey({
+          subscriptionId: subscription.id,
+          inboundMessageId: options.inboundMessageId,
+          phoneNumber: to
+        });
+
+        await reserveWrittenInteraction({
+          subscriptionId: subscription.id,
+          channel: 'WHATSAPP',
+          idempotencyKey: writtenUsageKey,
+          assistantId: options.assistantId || null,
+          metadata: {
+            inboundMessageId: options.inboundMessageId,
+            phoneNumber: to
+          }
+        });
+      }
+    }
+
     const result = await sendWhatsAppMessageCentral(business, to, text, options);
 
     if (!result || result.success === false) {
@@ -1302,8 +1352,21 @@ async function sendWhatsAppMessage(business, to, text, options = {}) {
       console.log(`✅ WhatsApp message sent for business ${business.name}:`, result.messageId);
     }
 
+    if (writtenUsageKey) {
+      await commitWrittenInteraction(writtenUsageKey, {
+        channel: 'WHATSAPP',
+        inboundMessageId: options.inboundMessageId || null,
+        providerMessageId: result.messageId || null,
+        duplicate: Boolean(result.duplicate)
+      });
+    }
+
     return result;
   } catch (error) {
+    if (writtenUsageKey) {
+      await releaseWrittenInteraction(writtenUsageKey, 'WHATSAPP_SEND_FAILED').catch(() => null);
+    }
+
     console.error('❌ Error sending WhatsApp message:', {
       businessId: business?.id || null,
       to,
@@ -1341,7 +1404,7 @@ router.post('/send', async (req, res) => {
       return res.status(404).json({ error: 'Business not found' });
     }
 
-    const result = await sendWhatsAppMessage(business, to, message);
+    const result = await sendWhatsAppMessage(business, to, message, { skipUsageMetering: true });
     res.json({ success: true, data: result });
   } catch (error) {
     // Persist to ErrorLog

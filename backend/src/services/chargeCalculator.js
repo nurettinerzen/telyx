@@ -26,6 +26,7 @@ import {
   getFixedOveragePrice
 } from '../config/plans.js';
 import { getEffectivePlanConfig } from './planConfig.js';
+import { getBillingPlanDefinition } from '../config/billingCatalog.js';
 
 const prisma = new PrismaClient();
 
@@ -65,21 +66,29 @@ export async function calculateChargeWithBalance(subscription, durationMinutes, 
     };
   }
 
-  // ===== PAYG PLAN (Balance-only, no included/overage) =====
+  const billingPlan = getBillingPlanDefinition(subscription, country);
+
+  // ===== PAYG PLAN (voice add-on first, then wallet) =====
   if (plan === 'PAYG') {
     const pricePerMinute = getPricePerMinute(plan, country);
-    const totalCharge = durationMinutes * pricePerMinute;
+    const voiceAddOnBalance = Math.max(Number(subscription.voiceAddOnMinutesBalance || 0), 0);
+    const fromAddOn = Math.min(durationMinutes, voiceAddOnBalance);
+    const remainingAfterAddOn = Math.max(durationMinutes - fromAddOn, 0);
+    const totalCharge = remainingAfterAddOn * pricePerMinute;
 
     if (subscription.balance < totalCharge) {
       throw new Error('INSUFFICIENT_BALANCE');
     }
 
     return {
-      chargeType: 'BALANCE',
+      chargeType: fromAddOn > 0 && totalCharge > 0
+        ? 'ADDON_BALANCE'
+        : (fromAddOn > 0 ? 'ADDON' : 'BALANCE'),
       pricePerMinute,
       totalCharge,
       breakdown: {
-        fromBalance: durationMinutes,
+        fromAddOn,
+        fromBalance: remainingAfterAddOn,
         balanceCharge: totalCharge,
         fromIncluded: 0,
         overageMinutes: 0
@@ -88,39 +97,35 @@ export async function calculateChargeWithBalance(subscription, durationMinutes, 
   }
 
   // ===== PAID PLANS (STARTER/PRO/ENTERPRISE) =====
-  // Payment priority: BALANCE → INCLUDED → OVERAGE
+  // Payment priority: INCLUDED → ADDON → OVERAGE
 
   const pricePerMinute = getPricePerMinute(plan, country); // For balance calculation
-  const includedMinutes = getIncludedMinutes(plan, country);
+  const includedMinutes = billingPlan.includedVoiceMinutes ?? getIncludedMinutes(plan, country);
   const usedIncluded = subscription.includedMinutesUsed || 0;
   const remainingIncluded = Math.max(0, includedMinutes - usedIncluded);
   const overageRate = getFixedOveragePrice(country); // Fixed 23 TL/min
-  const balance = subscription.balance || 0;
+  const voiceAddOnBalance = Math.max(Number(subscription.voiceAddOnMinutesBalance || 0), 0);
 
   let minutesLeft = durationMinutes;
-  let fromBalance = 0;
   let fromIncluded = 0;
+  let fromAddOn = 0;
   let overageMinutes = 0;
   let balanceCharge = 0;
 
-  // STEP 1: Use PAYG balance first (if available)
-  if (balance > 0 && minutesLeft > 0) {
-    const balanceMinutes = balance / pricePerMinute;
-    const minutesFromBalance = Math.min(minutesLeft, balanceMinutes);
-
-    fromBalance = minutesFromBalance;
-    balanceCharge = minutesFromBalance * pricePerMinute;
-    minutesLeft -= minutesFromBalance;
-
-    console.log(`💰 Using ${minutesFromBalance.toFixed(2)} min from balance (${balanceCharge.toFixed(2)} TL)`);
-  }
-
-  // STEP 2: Use included minutes
+  // STEP 1: Use included minutes
   if (remainingIncluded > 0 && minutesLeft > 0) {
     fromIncluded = Math.min(minutesLeft, remainingIncluded);
     minutesLeft -= fromIncluded;
 
     console.log(`📦 Using ${fromIncluded.toFixed(2)} min from included`);
+  }
+
+  // STEP 2: Use cycle-bounded voice add-on minutes
+  if (voiceAddOnBalance > 0 && minutesLeft > 0) {
+    fromAddOn = Math.min(minutesLeft, voiceAddOnBalance);
+    minutesLeft -= fromAddOn;
+
+    console.log(`🎁 Using ${fromAddOn.toFixed(2)} min from voice add-on`);
   }
 
   // STEP 3: Remaining goes to POSTPAID overage
@@ -131,16 +136,16 @@ export async function calculateChargeWithBalance(subscription, durationMinutes, 
 
   // Determine charge type
   let chargeType = 'INCLUDED';
-  if (fromBalance > 0 && fromIncluded > 0 && overageMinutes > 0) {
-    chargeType = 'BALANCE_INCLUDED_OVERAGE'; // All three
-  } else if (fromBalance > 0 && fromIncluded > 0) {
-    chargeType = 'BALANCE_INCLUDED';
-  } else if (fromBalance > 0 && overageMinutes > 0) {
-    chargeType = 'BALANCE_OVERAGE';
+  if (fromIncluded > 0 && fromAddOn > 0 && overageMinutes > 0) {
+    chargeType = 'INCLUDED_ADDON_OVERAGE';
+  } else if (fromIncluded > 0 && fromAddOn > 0) {
+    chargeType = 'INCLUDED_ADDON';
+  } else if (fromAddOn > 0 && overageMinutes > 0) {
+    chargeType = 'ADDON_OVERAGE';
   } else if (fromIncluded > 0 && overageMinutes > 0) {
     chargeType = 'INCLUDED_OVERAGE';
-  } else if (fromBalance > 0) {
-    chargeType = 'BALANCE';
+  } else if (fromAddOn > 0) {
+    chargeType = 'ADDON';
   } else if (overageMinutes > 0) {
     chargeType = 'OVERAGE';
   }
@@ -150,13 +155,15 @@ export async function calculateChargeWithBalance(subscription, durationMinutes, 
     pricePerMinute, // For balance deduction
     totalCharge: balanceCharge, // IMMEDIATE charge (balance only) - NOT full cost. Full breakdown in breakdown{}
     breakdown: {
-      fromBalance,
-      balanceCharge, // Immediate charge (deducted now)
+      fromAddOn,
+      fromBalance: 0,
+      balanceCharge,
       fromIncluded,
       overageMinutes, // Deferred charge (billed at period end)
       overageRate,
       includedRemaining: remainingIncluded - fromIncluded,
-      paymentModel: 'HYBRID' // Balance (prepaid) + Included/Overage (postpaid)
+      addOnRemaining: Math.max(voiceAddOnBalance - fromAddOn, 0),
+      paymentModel: 'POSTPAID_ADDON'
     }
   };
 }
@@ -222,6 +229,12 @@ export async function applyChargeWithBalance(subscriptionId, chargeResult, usage
         });
 
         console.log(`💸 Deducted ${breakdown.balanceCharge.toFixed(2)} TL from balance`);
+      }
+
+      if (breakdown.fromAddOn > 0) {
+        updateData.voiceAddOnMinutesBalance = {
+          decrement: breakdown.fromAddOn
+        };
       }
 
       // STEP 2: Update included minutes (if used)
@@ -307,8 +320,15 @@ export async function canMakeCallWithBalance(businessId) {
       return { canMakeCall: true, estimatedMinutesRemaining: remaining };
     }
 
-    // PAYG plan: MUST have balance >= 1 minute
+    // PAYG plan: voice add-on counts first, otherwise wallet must cover at least 1 minute
     if (plan === 'PAYG') {
+      if (Number(subscription.voiceAddOnMinutesBalance || 0) >= 1) {
+        return {
+          canMakeCall: true,
+          estimatedMinutesRemaining: Number(subscription.voiceAddOnMinutesBalance || 0)
+        };
+      }
+
       const pricePerMinute = getPricePerMinute(plan, subscription.business?.country || 'TR');
       if (subscription.balance < pricePerMinute) {
         return { canMakeCall: false, reason: 'INSUFFICIENT_BALANCE' };
@@ -323,9 +343,11 @@ export async function canMakeCallWithBalance(businessId) {
     // Authorization based on included + overage, NOT balance
     // Balance is optional payment method, not entitlement
 
-    const includedMinutes = getIncludedMinutes(plan, subscription.business?.country || 'TR');
+    const billingPlan = getBillingPlanDefinition(subscription, subscription.business?.country || 'TR');
+    const includedMinutes = billingPlan.includedVoiceMinutes ?? getIncludedMinutes(plan, subscription.business?.country || 'TR');
     const usedIncluded = subscription.includedMinutesUsed || 0;
     const remainingIncluded = Math.max(0, includedMinutes - usedIncluded);
+    const addOnRemaining = Number(subscription.voiceAddOnMinutesBalance || 0);
     const overageUsed = subscription.overageMinutes || 0;
     const overageLimit = subscription.overageLimit || 200; // Default 200 min for STARTER
 
@@ -335,6 +357,14 @@ export async function canMakeCallWithBalance(businessId) {
         canMakeCall: true,
         reason: 'INCLUDED_MINUTES_AVAILABLE',
         estimatedMinutesRemaining: remainingIncluded
+      };
+    }
+
+    if (addOnRemaining > 0) {
+      return {
+        canMakeCall: true,
+        reason: 'VOICE_ADDON_AVAILABLE',
+        estimatedMinutesRemaining: addOnRemaining
       };
     }
 

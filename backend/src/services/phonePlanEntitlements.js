@@ -3,8 +3,6 @@ import { isPhoneInboundForceDisabled } from './phoneInboundGate.js';
 const PHONE_ENABLED_PLANS = new Set([
   'TRIAL',
   'PAYG',
-  'STARTER',
-  'BASIC',
   'PRO',
   'ENTERPRISE'
 ]);

@@ -15,7 +15,8 @@
  * - All gating/limits use this function ONLY
  */
 
-import { getRegionalPricing, getIncludedMinutes, getPricePerMinute } from '../config/plans.js';
+import { getRegionalPricing, getIncludedMinutes } from '../config/plans.js';
+import { getBillingPlanDefinition } from '../config/billingCatalog.js';
 
 /**
  * Get effective plan configuration for a subscription
@@ -38,6 +39,7 @@ export function getEffectivePlanConfig(subscription) {
   const country = subscription.business?.country || 'TR';
   const regional = getRegionalPricing(country);
   const planDefaults = regional.plans[plan] || {};
+  const billingPlan = getBillingPlanDefinition(subscription, country);
 
   // PRIORITY ORDER:
   // 1. Enterprise DB overrides (highest priority)
@@ -50,22 +52,22 @@ export function getEffectivePlanConfig(subscription) {
     country: country,
 
     // Minutes & pricing
-    includedMinutes: subscription.enterpriseMinutes ?? getIncludedMinutes(plan, country),
-    pricePerMinute: planDefaults.pricePerMinute ?? 0,
+    includedMinutes: billingPlan.includedVoiceMinutes ?? subscription.enterpriseMinutes ?? getIncludedMinutes(plan, country),
+    pricePerMinute: billingPlan.voiceMinuteUnitPrice ?? planDefaults.pricePerMinute ?? 0,
     overageRate: planDefaults.overageRate ?? 23,
     overageLimit: subscription.overageLimit ?? 200,
 
     // Limits
-    assistantsLimit: subscription.enterpriseAssistants ?? planDefaults.assistantsLimit ?? 1,
-    concurrentLimit: subscription.enterpriseConcurrent ?? planDefaults.concurrentLimit ?? 1,
+    assistantsLimit: billingPlan.assistantLimit ?? subscription.enterpriseAssistants ?? planDefaults.assistantsLimit ?? 1,
+    concurrentLimit: billingPlan.concurrentCallLimit ?? subscription.enterpriseConcurrent ?? planDefaults.concurrentLimit ?? 1,
     phoneNumbersLimit: 1, // Platform constraint (not plan-based)
 
     // Features (from plan defaults)
     features: {
-      phone: planDefaults.pricePerMinute > 0 || plan !== 'FREE',
-      whatsapp: plan !== 'FREE',
-      chat: plan !== 'FREE',
-      email: ['PRO', 'ENTERPRISE'].includes(plan),
+      phone: billingPlan.channels.phone,
+      whatsapp: billingPlan.channels.whatsapp,
+      chat: billingPlan.channels.webchat,
+      email: billingPlan.channels.email,
       integrations: ['PRO', 'ENTERPRISE'].includes(plan),
       batchCalls: plan !== 'FREE',
       analytics: plan !== 'FREE',

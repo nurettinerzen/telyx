@@ -69,9 +69,31 @@ import {
 import { extractSessionToken, verifySessionToken } from '../security/sessionToken.js';
 import { queueUnifiedResponseTrace } from '../services/trace/responseTraceLogger.js';
 import { logAssistantFeedback } from '../services/operationalIncidentLogger.js';
+import {
+  buildChatWrittenIdempotencyKey,
+  commitWrittenInteraction,
+  isWrittenUsageBlockError,
+  releaseWrittenInteraction,
+  reserveWrittenInteraction
+} from '../services/writtenUsageService.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
+
+function buildWrittenUsageErrorResponse(language = 'TR', error) {
+  const isEnglish = String(language || '').toUpperCase() === 'EN';
+  const insufficientBalance = error?.code === 'INSUFFICIENT_BALANCE';
+  return {
+    status: insufficientBalance ? 402 : 403,
+    body: {
+      error: insufficientBalance
+        ? (isEnglish ? 'Insufficient wallet balance for written support usage.' : 'Yazili destek kullanimi icin bakiye yetersiz.')
+        : (isEnglish ? 'Written support limit reached for this plan.' : 'Bu paket icin yazili destek limiti doldu.'),
+      code: error?.code || 'WRITTEN_USAGE_BLOCKED',
+      upgradeRequired: !insufficientBalance
+    }
+  };
+}
 
 /**
  * Dashboard preview detection: validate JWT token and check business ownership.
@@ -945,6 +967,7 @@ router.post('/widget', async (req, res) => {
 
   let business = null;
   let clientSessionId = null;
+  let writtenUsageKey = null;
 
   try {
     const { embedKey, assistantId, sessionId: requestSessionId, message } = req.body;
@@ -1122,6 +1145,35 @@ router.post('/widget', async (req, res) => {
 
     console.log(`⏱️ [Widget] Security guards: ${Date.now() - _t}ms`); _t = Date.now();
 
+    if (subscription && subscription.plan !== 'FREE') {
+      writtenUsageKey = buildChatWrittenIdempotencyKey({
+        subscriptionId: subscription.id,
+        sessionId,
+        turnIndex: req.requestId || `${Date.now()}`,
+        userMessage: message
+      });
+
+      try {
+        await reserveWrittenInteraction({
+          subscriptionId: subscription.id,
+          channel: 'CHAT',
+          idempotencyKey: writtenUsageKey,
+          assistantId: assistant?.id || null,
+          metadata: {
+            requestId: req.requestId || null,
+            sessionId,
+            clientSessionId
+          }
+        });
+      } catch (error) {
+        if (isWrittenUsageBlockError(error)) {
+          const response = buildWrittenUsageErrorResponse(language, error);
+          return res.status(response.status).json(response.body);
+        }
+        throw error;
+      }
+    }
+
     // ===== SESSION OK - CONTINUE NORMAL PROCESSING =====
 
     // SECURITY: KB Empty Hard Fallback (lightweight — COUNT only, no full KB fetch)
@@ -1179,6 +1231,11 @@ router.post('/widget', async (req, res) => {
     } catch (timeoutError) {
       if (timeoutError.message === 'Widget request timeout') {
         console.error('⏱️  [Widget] Request timeout - returning fast ACK');
+
+        if (writtenUsageKey) {
+          await releaseWrittenInteraction(writtenUsageKey, 'WIDGET_TIMEOUT').catch(() => null);
+          writtenUsageKey = null;
+        }
 
         // Fast ACK response
         result = {
@@ -1251,35 +1308,6 @@ router.post('/widget', async (req, res) => {
       }
     });
 
-    // Deduct from balance if needed
-    if (!isFree && tokenCost.totalCost > 0 && subscription) {
-      await prisma.subscription.update({
-        where: { id: subscription.id },
-        data: {
-          balance: {
-            decrement: planName === 'PAYG' ? tokenCost.totalCost : 0
-          }
-        }
-      });
-
-      await prisma.usageRecord.create({
-        data: {
-          subscriptionId: subscription.id,
-          channel: 'CHAT',
-          conversationId: sessionId,
-          durationSeconds: 0,
-          durationMinutes: 0,
-          chargeType: planName === 'PAYG' ? 'BALANCE' : 'INCLUDED',
-          totalCharge: tokenCost.totalCost,
-          assistantId: assistant.id,
-          metadata: {
-            inputTokens: result.inputTokens,
-            outputTokens: result.outputTokens
-          }
-        }
-      });
-    }
-
     // Route-level firewall: Step7 is the single enforcement point by default.
     // Use FEATURE_ROUTE_FIREWALL_MODE=enforce only as rollback switch.
     const routeFirewallMode = String(FEATURE_FLAGS.ROUTE_FIREWALL_MODE || 'telemetry').toLowerCase();
@@ -1316,6 +1344,16 @@ router.post('/widget', async (req, res) => {
     const resultWarnings = Array.isArray(result.warnings) ? result.warnings : [];
     if (resultWarnings.length > 0) {
       postprocessorsApplied.push('core_warning_prefix');
+    }
+
+    if (writtenUsageKey) {
+      await commitWrittenInteraction(writtenUsageKey, {
+        channel: 'CHAT',
+        requestId: req.requestId || null,
+        clientSessionId,
+        finalReplyLength: finalReply.length
+      });
+      writtenUsageKey = null;
     }
 
     const historyParity = updateAssistantReplyInMessages({
@@ -1420,6 +1458,9 @@ router.post('/widget', async (req, res) => {
     });
 
   } catch (error) {
+    if (writtenUsageKey) {
+      await releaseWrittenInteraction(writtenUsageKey, 'CHAT_WIDGET_FAILED').catch(() => null);
+    }
     console.error('❌ Chat error:', error);
     console.error('Error stack:', error.stack);
     console.error('Error details:', {

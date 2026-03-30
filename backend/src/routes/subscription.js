@@ -23,6 +23,9 @@ import balanceService from '../services/balanceService.js';
 import { getEffectivePlanConfig } from '../services/planConfig.js';
 import { isPhoneInboundEnabledForBusinessRecord } from '../services/phoneInboundGate.js';
 import { buildPhoneEntitlements } from '../services/phonePlanEntitlements.js';
+import stripeService from '../services/stripe.js';
+import { getAddOnCatalog, getBillingPlanDefinition } from '../config/billingCatalog.js';
+import { getWrittenUsageSummary } from '../services/writtenUsageService.js';
 import {
   resolvePlanFromStripePriceId,
   resolveStripePriceIdForPlan,
@@ -67,6 +70,32 @@ async function resolvePlanFromPriceId(priceId) {
   return null;
 }
 
+async function ensureStripeCustomerForSubscription(subscription, ownerEmail) {
+  if (subscription.stripeCustomerId) {
+    return subscription.stripeCustomerId;
+  }
+
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error('Stripe not configured');
+  }
+
+  const customer = await stripeService.createCustomer(
+    ownerEmail,
+    subscription.business?.name || `Business ${subscription.businessId}`,
+    subscription.business?.country || 'TR'
+  );
+
+  await prisma.subscription.update({
+    where: { id: subscription.id },
+    data: {
+      stripeCustomerId: customer.id,
+      paymentProvider: 'stripe'
+    }
+  });
+
+  return customer.id;
+}
+
 function resolveUsageCycleStart(subscription) {
   if (subscription?.currentPeriodStart) {
     return new Date(subscription.currentPeriodStart);
@@ -89,8 +118,12 @@ function resolveUsageCycleStart(subscription) {
 }
 
 async function buildSupportUsageSummary({ businessId, subscription }) {
-  const periodStart = resolveUsageCycleStart(subscription);
+  const usageSummary = await getWrittenUsageSummary(subscription, { includeReserved: false });
+  if (usageSummary && usageSummary.used > 0) {
+    return usageSummary;
+  }
 
+  const periodStart = resolveUsageCycleStart(subscription);
   const [webchatSessions, whatsappSessions, answeredEmails] = await Promise.all([
     prisma.chatLog.count({
       where: {
@@ -106,40 +139,264 @@ async function buildSupportUsageSummary({ businessId, subscription }) {
         createdAt: { gte: periodStart }
       }
     }),
-    prisma.emailDraft.count({
+    prisma.emailMessage.count({
       where: {
-        businessId,
+        direction: 'OUTBOUND',
         status: 'SENT',
+        thread: {
+          businessId
+        },
         createdAt: { gte: periodStart }
       }
     })
   ]);
 
   const used = webchatSessions + whatsappSessions + answeredEmails;
-  const configuredTotal = Number.isFinite(subscription?.enterpriseSupportInteractions)
-    ? Math.max(Number(subscription.enterpriseSupportInteractions), 0)
-    : null;
-  const hasExplicitSupportLimit = configuredTotal !== null;
-
   return {
+    ...(usageSummary || {}),
     metric: 'support_interactions',
-    configured: hasExplicitSupportLimit,
-    total: configuredTotal,
     used,
-    remaining: hasExplicitSupportLimit ? Math.max(configuredTotal - used, 0) : null,
-    overage: hasExplicitSupportLimit ? Math.max(used - configuredTotal, 0) : 0,
     periodStart,
     channels: {
       webchat: webchatSessions,
       whatsapp: whatsappSessions,
       email: answeredEmails
-    },
-    note: hasExplicitSupportLimit
-      ? 'SUPPORT_LIMIT_CONFIGURED'
-      : (subscription?.plan === 'ENTERPRISE'
-        ? 'ENTERPRISE_SUPPORT_LIMIT_NOT_CONFIGURED'
-        : 'SUPPORT_USAGE_TRACKED_WITHOUT_EXPLICIT_LIMIT')
+    }
   };
+}
+
+function buildBillingSnapshot({
+  subscription,
+  supportUsage,
+  billingPlan,
+  effectiveMinutesLimit
+}) {
+  const voiceUsed = Number(subscription.includedMinutesUsed || 0);
+  const voiceOverage = Number(subscription.overageMinutes || 0);
+  const voiceIncluded = Math.max(Number(effectiveMinutesLimit || 0), 0);
+  const voiceAddOnRemaining = Math.max(Number(subscription.voiceAddOnMinutesBalance || 0), 0);
+  const writtenAddOnRemaining = Math.max(Number(subscription.writtenInteractionAddOnBalance || 0), 0);
+  const writtenIncluded = Number.isFinite(supportUsage?.total)
+    ? Math.max(Number(supportUsage.total || 0), 0)
+    : 0;
+  const writtenUsed = Number(supportUsage?.used || 0);
+  const writtenOverage = Number(supportUsage?.overage || 0);
+  const hasWrittenAllowance = writtenIncluded > 0 || writtenAddOnRemaining > 0;
+  const hasVoiceAllowance = voiceIncluded > 0 || voiceAddOnRemaining > 0;
+
+  return {
+    plan: subscription.plan,
+    status: subscription.status,
+    channels: {
+      webchat: billingPlan.channels.webchat,
+      whatsapp: billingPlan.channels.whatsapp,
+      email: billingPlan.channels.email,
+      phone: billingPlan.channels.phone
+    },
+    entitlements: {
+      concurrentCalls: billingPlan.concurrentCallLimit,
+      assistants: billingPlan.assistantLimit
+    },
+    includedUsage: {
+      writtenInteractions: {
+        total: writtenIncluded,
+        used: writtenUsed,
+        remaining: hasWrittenAllowance
+          ? Math.max(writtenIncluded + writtenAddOnRemaining - writtenUsed, 0)
+          : null,
+        overage: writtenOverage,
+        overageUnitPrice: billingPlan.writtenInteractionUnitPrice
+      },
+      voiceMinutes: {
+        total: voiceIncluded,
+        used: voiceUsed,
+        remaining: hasVoiceAllowance
+          ? Math.max(voiceIncluded + voiceAddOnRemaining - voiceUsed, 0)
+          : 0,
+        overage: voiceOverage,
+        overageUnitPrice: billingPlan.voiceMinuteUnitPrice
+      }
+    },
+    addOns: {
+      writtenInteractions: {
+        remaining: writtenAddOnRemaining
+      },
+      voiceMinutes: {
+        remaining: voiceAddOnRemaining
+      }
+    },
+    wallet: {
+      enabled: billingPlan.billingModel === 'payg',
+      balance: Number(subscription.balance || 0),
+      writtenUnitPrice: billingPlan.writtenInteractionUnitPrice,
+      phoneMinuteUnitPrice: billingPlan.voiceMinuteUnitPrice
+    },
+    renewalDate: subscription.currentPeriodEnd || null
+  };
+}
+
+function normalizeSubscriptionStatus(status) {
+  const normalized = String(status || '').trim().toUpperCase();
+  if (['ACTIVE', 'TRIAL', 'TRIALING', 'PAST_DUE', 'CANCELED', 'UNPAID', 'INCOMPLETE', 'INCOMPLETE_EXPIRED'].includes(normalized)) {
+    return normalized === 'TRIALING' ? 'TRIAL' : normalized;
+  }
+  return normalized || 'ACTIVE';
+}
+
+function shouldExpireCycleScopedAddOns({ existingSubscription, nextPeriodStart, billingPlan }) {
+  if (!existingSubscription?.currentPeriodStart || !nextPeriodStart) {
+    return false;
+  }
+
+  if (!['recurring', 'enterprise'].includes(String(billingPlan?.billingModel || '').toLowerCase())) {
+    return false;
+  }
+
+  return new Date(nextPeriodStart).getTime() > new Date(existingSubscription.currentPeriodStart).getTime();
+}
+
+async function recordCompletedAddOnPurchase(session) {
+  const paymentIntentId = session.payment_intent ? String(session.payment_intent) : null;
+  const sessionId = session.id ? String(session.id) : null;
+  const subscriptionId = session.metadata?.subscriptionId
+    ? Number.parseInt(session.metadata.subscriptionId, 10)
+    : null;
+  const businessId = session.metadata?.businessId
+    ? Number.parseInt(session.metadata.businessId, 10)
+    : null;
+  const addOnKind = String(session.metadata?.addonKind || '').trim().toUpperCase();
+  const quantity = Number.parseFloat(session.metadata?.quantity || '0');
+  const unitPrice = Number.parseFloat(session.metadata?.unitPrice || '0');
+  const amount = Number.isFinite(session.amount_total) ? session.amount_total / 100 : +(quantity * unitPrice).toFixed(2);
+
+  if (!subscriptionId || !businessId || !['WRITTEN', 'VOICE'].includes(addOnKind) || !(quantity > 0)) {
+    throw new Error(`Invalid add-on checkout metadata for session ${session.id}`);
+  }
+
+  const existingPurchase = await prisma.addOnPurchase.findFirst({
+    where: {
+      OR: [
+        ...(paymentIntentId ? [{ stripePaymentIntentId: paymentIntentId }] : []),
+        ...(sessionId ? [{ stripeSessionId: sessionId }] : [])
+      ]
+    }
+  });
+
+  if (existingPurchase?.status === 'COMPLETED') {
+    return existingPurchase;
+  }
+
+  const updateData = addOnKind === 'VOICE'
+    ? { voiceAddOnMinutesBalance: { increment: quantity } }
+    : { writtenInteractionAddOnBalance: { increment: Math.round(quantity) } };
+
+  await prisma.subscription.update({
+    where: { id: subscriptionId },
+    data: updateData
+  });
+
+  const purchaseData = {
+    subscriptionId,
+    businessId,
+    kind: addOnKind,
+    packageId: String(session.metadata?.packageId || ''),
+    quantity,
+    amount,
+    unitPrice,
+    stripePaymentIntentId: paymentIntentId,
+    stripeSessionId: sessionId,
+    status: 'COMPLETED',
+    completedAt: new Date()
+  };
+
+  if (existingPurchase) {
+    return prisma.addOnPurchase.update({
+      where: { id: existingPurchase.id },
+      data: purchaseData
+    });
+  }
+
+  return prisma.addOnPurchase.create({
+    data: purchaseData
+  });
+}
+
+async function billWrittenOverageIfNeeded(subscription, billingWindowEnd = null) {
+  if (!subscription?.id || !subscription?.currentPeriodStart) {
+    return null;
+  }
+
+  const country = subscription.business?.country || 'TR';
+  const billingPlan = getBillingPlanDefinition(subscription, country);
+  if (!billingPlan.overageAllowed?.written) {
+    return null;
+  }
+
+  if (!subscription.stripeCustomerId) {
+    console.log(`ℹ️ Skipping written overage billing for subscription ${subscription.id}: no Stripe customer`);
+    return null;
+  }
+
+  const periodStart = new Date(subscription.currentPeriodStart);
+  const periodEnd = new Date(billingWindowEnd || subscription.currentPeriodEnd || Date.now());
+  const lastBilledAt = subscription.writtenOverageBilledAt
+    ? new Date(subscription.writtenOverageBilledAt)
+    : null;
+  const meterWindowStart = lastBilledAt && lastBilledAt > periodStart
+    ? lastBilledAt
+    : periodStart;
+
+  const overageCount = await prisma.writtenUsageEvent.count({
+    where: {
+      subscriptionId: subscription.id,
+      status: 'COMMITTED',
+      chargeType: 'OVERAGE',
+      createdAt: {
+        gte: meterWindowStart,
+        lt: periodEnd
+      }
+    }
+  });
+
+  if (overageCount <= 0) {
+    return null;
+  }
+
+  const unitPrice = Number(billingPlan.writtenInteractionUnitPrice || 0);
+  const totalAmount = +(overageCount * unitPrice).toFixed(2);
+  const currency = country === 'TR' ? 'TRY' : country === 'BR' ? 'BRL' : 'USD';
+  const invoiceResult = await stripeService.createWrittenOverageInvoice({
+    customerId: subscription.stripeCustomerId,
+    interactionCount: overageCount,
+    unitPrice,
+    totalAmount,
+    currency,
+    countryCode: country,
+    businessName: subscription.business?.name || `Business ${subscription.businessId}`,
+    periodStart: meterWindowStart,
+    periodEnd
+  });
+
+  await prisma.subscription.update({
+    where: { id: subscription.id },
+    data: {
+      writtenOverageBilledAt: periodEnd
+    }
+  });
+
+  await prisma.balanceTransaction.create({
+    data: {
+      subscriptionId: subscription.id,
+      type: 'OVERAGE',
+      amount: -totalAmount,
+      balanceBefore: Number(subscription.balance || 0),
+      balanceAfter: Number(subscription.balance || 0),
+      description: `Written overage billed: ${overageCount} interactions`,
+      stripePaymentIntentId: null
+    }
+  });
+
+  return invoiceResult;
 }
 
 // Plan configurations with both Stripe and iyzico pricing
@@ -170,10 +427,10 @@ const PLAN_CONFIG = {
     iyzicoPlanRef: process.env.IYZICO_STARTER_PLAN_REF,
     price: 55,        // $55 USD
     priceTRY: 2499,   // ₺2,499 TRY
-    minutesLimit: 150,
-    callsLimit: -1,   // unlimited
-    assistantsLimit: 3,
-    phoneNumbersLimit: -1 // unlimited
+    minutesLimit: 0,
+    callsLimit: 0,
+    assistantsLimit: 5,
+    phoneNumbersLimit: 0
   },
   PRO: {
     name: 'PRO',
@@ -262,6 +519,12 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
             console.log(`ℹ️ Balance top-up already processed for payment intent ${paymentIntentId}`);
           }
 
+          break;
+        }
+
+        if (session.metadata?.type === 'addon_purchase') {
+          await recordCompletedAddOnPurchase(session);
+          console.log(`✅ Add-on purchase applied: ${session.metadata?.addonKind || 'UNKNOWN'} for session ${session.id}`);
           break;
         }
 
@@ -404,29 +667,65 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
       }
 
       case 'customer.subscription.updated': {
-        const subscription = event.data.object;
-        console.log('🔄 Subscription updated:', subscription.id);
+        const stripeSubscription = event.data.object;
+        console.log('🔄 Subscription updated:', stripeSubscription.id);
 
-        const priceId = subscription.items.data[0]?.price?.id;
+        const priceId = stripeSubscription.items.data[0]?.price?.id;
         const plan = await resolvePlanFromPriceId(priceId) || 'STARTER';
-
+        const existingSubscription = await prisma.subscription.findFirst({
+          where: { stripeSubscriptionId: stripeSubscription.id },
+          include: {
+            business: {
+              select: { country: true, name: true }
+            }
+          }
+        });
         const planConfig = PLAN_CONFIG[plan];
+        const currentPeriodStart = new Date(stripeSubscription.current_period_start * 1000);
+        const currentPeriodEnd = new Date(stripeSubscription.current_period_end * 1000);
+        const billingPlan = getBillingPlanDefinition(
+          existingSubscription ? { ...existingSubscription, plan } : { plan },
+          existingSubscription?.business?.country || 'TR'
+        );
+        const shouldExpireAddOns = shouldExpireCycleScopedAddOns({
+          existingSubscription,
+          nextPeriodStart: currentPeriodStart,
+          billingPlan
+        });
+
+        if (shouldExpireAddOns && existingSubscription) {
+          try {
+            await billWrittenOverageIfNeeded(existingSubscription, currentPeriodStart);
+          } catch (billingError) {
+            console.error(`⚠️ Failed to bill written overage for subscription ${existingSubscription.id}:`, billingError.message);
+          }
+        }
+
+        const updateData = {
+          plan: plan,
+          status: normalizeSubscriptionStatus(stripeSubscription.status),
+          stripePriceId: priceId,
+          currentPeriodStart,
+          currentPeriodEnd,
+          cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
+          // Update limits
+          minutesLimit: planConfig.minutesLimit,
+          callsLimit: planConfig.callsLimit,
+          assistantsLimit: planConfig.assistantsLimit,
+          phoneNumbersLimit: planConfig.phoneNumbersLimit
+        };
+
+        if (shouldExpireAddOns) {
+          updateData.includedMinutesUsed = 0;
+          updateData.packageWarningAt80 = false;
+          updateData.creditWarningAt80 = false;
+          updateData.voiceAddOnMinutesBalance = 0;
+          updateData.writtenInteractionAddOnBalance = 0;
+        }
 
         await prisma.subscription.updateMany({
-          where: { stripeSubscriptionId: subscription.id },
-          data: {
-            plan: plan,
-            status: subscription.status.toUpperCase(),
-            stripePriceId: priceId,
-            currentPeriodStart: new Date(subscription.current_period_start * 1000),
-            currentPeriodEnd: new Date(subscription.current_period_end * 1000),
-            cancelAtPeriodEnd: subscription.cancel_at_period_end,
-            // Update limits
-            minutesLimit: planConfig.minutesLimit,
-            callsLimit: planConfig.callsLimit,
-            assistantsLimit: planConfig.assistantsLimit,
-            phoneNumbersLimit: planConfig.phoneNumbersLimit
-          }
+          where: { stripeSubscriptionId: stripeSubscription.id },
+          data: updateData
         });
 
         console.log('✅ Subscription plan updated to:', plan);
@@ -493,6 +792,8 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
             status: 'CANCELED',
             stripeSubscriptionId: null,
             stripePriceId: null,
+            voiceAddOnMinutesBalance: 0,
+            writtenInteractionAddOnBalance: 0,
             // Reset limits to FREE
             minutesLimit: 0,
             callsLimit: 0,
@@ -922,15 +1223,14 @@ router.get('/plans', async (req, res) => {
         iyzicoPlanRef: PLAN_CONFIG.STARTER.iyzicoPlanRef,
         popular: true,
         features: [
-          '3 AI assistants',
-          'Unlimited phone numbers',
-          '150 minutes per month',
-          'Unlimited calls',
-          'Unlimited trainings',
+          '5 AI assistants',
+          'Shared written support pool',
+          'Webchat support',
+          'WhatsApp support replies',
+          'Email replies',
+          'No phone access',
           'Basic analytics',
-          'All integrations',
-          'Email support',
-          'Overage: 23₺/min'
+          'Written add-ons available'
         ],
         limits: PLAN_CONFIG.STARTER
       },
@@ -947,9 +1247,10 @@ router.get('/plans', async (req, res) => {
         bestValue: true,
         features: [
           '10 AI assistants',
-          'Unlimited phone numbers',
+          'Phone enabled',
           '500 minutes per month',
-          'Unlimited calls',
+          'Shared written support pool',
+          '2 concurrent calls',
           'Unlimited trainings',
           'Advanced analytics with AI insights',
           'All integrations',
@@ -1042,21 +1343,44 @@ router.get('/current', verifyBusinessAccess, async (req, res) => {
       inboundEnabled: effectiveInboundEnabled
     });
     const supportUsage = await buildSupportUsageSummary({ businessId, subscription });
+    const billingPlan = getBillingPlanDefinition(subscription);
+    const addOnCatalog = getAddOnCatalog(subscription.business?.country || 'TR', subscription);
     const effectiveMinutesLimit = effectivePlanConfig.includedMinutes ?? subscription.minutesLimit;
     const effectiveAssistantsLimit = effectivePlanConfig.assistantsLimit ?? subscription.assistantsLimit;
     const effectivePhoneNumbersLimit = effectivePlanConfig.phoneNumbersLimit ?? subscription.phoneNumbersLimit;
     const effectiveConcurrentLimit = effectivePlanConfig.concurrentLimit ?? subscription.concurrentLimit;
+    const billingSnapshot = buildBillingSnapshot({
+      subscription,
+      supportUsage,
+      billingPlan,
+      effectiveMinutesLimit
+    });
 
     // Calculate usage percentages
     const response = {
       ...subscription,
       entitlements,
+      billingSnapshot,
+      addOnCatalog,
       supportUsage,
       writtenChannelsEnabled: Boolean(
-        effectivePlanConfig.features?.chat
-        || effectivePlanConfig.features?.whatsapp
-        || effectivePlanConfig.features?.email
+        billingPlan.channels?.webchat
+        || billingPlan.channels?.whatsapp
+        || billingPlan.channels?.email
       ),
+      paygWalletEnabled: billingPlan.billingModel === 'payg',
+      writtenInteractionsIncluded: supportUsage?.configured ? Number(supportUsage.total || 0) : 0,
+      writtenInteractionsUsed: Number(supportUsage?.used || 0),
+      writtenInteractionsOverage: Number(supportUsage?.overage || 0),
+      writtenInteractionUnitPrice: Number(billingPlan.writtenInteractionUnitPrice || 0),
+      writtenAddOnRemaining: Number(subscription.writtenInteractionAddOnBalance || 0),
+      writtenInteractionsResetAt: subscription.currentPeriodEnd || null,
+      voiceMinutesIncluded: Number(effectiveMinutesLimit || 0),
+      voiceMinutesUsed: Number(subscription.includedMinutesUsed || 0),
+      voiceMinutesOverage: Number(subscription.overageMinutes || 0),
+      phoneMinuteUnitPrice: Number(billingPlan.voiceMinuteUnitPrice || 0),
+      voiceAddOnRemaining: Number(subscription.voiceAddOnMinutesBalance || 0),
+      voiceMinutesResetAt: subscription.currentPeriodEnd || null,
       limits: {
         minutes: effectiveMinutesLimit,
         assistants: effectiveAssistantsLimit,
@@ -1093,6 +1417,18 @@ router.get('/current', verifyBusinessAccess, async (req, res) => {
         phoneNumbers: {
           used: subscription.business.phoneNumbers?.length || 0,
           limit: effectivePhoneNumbersLimit
+        },
+        writtenInteractions: {
+          included: supportUsage?.configured ? Number(supportUsage.total || 0) : 0,
+          used: Number(supportUsage?.used || 0),
+          overage: Number(supportUsage?.overage || 0),
+          addOnRemaining: Number(subscription.writtenInteractionAddOnBalance || 0)
+        },
+        voiceMinutes: {
+          included: Number(effectiveMinutesLimit || 0),
+          used: Number(subscription.includedMinutesUsed || 0),
+          overage: Number(subscription.overageMinutes || 0),
+          addOnRemaining: Number(subscription.voiceAddOnMinutesBalance || 0)
         }
       }
     };
@@ -1101,6 +1437,80 @@ router.get('/current', verifyBusinessAccess, async (req, res) => {
   } catch (error) {
     console.error('Get subscription error:', error);
     res.status(500).json({ error: 'Failed to get subscription' });
+  }
+});
+
+router.post('/addons/checkout', verifyBusinessAccess, async (req, res) => {
+  try {
+    const { businessId } = req.user;
+    const { kind, packageId } = req.body || {};
+
+    const subscription = await prisma.subscription.findUnique({
+      where: { businessId },
+      include: {
+        business: {
+          select: {
+            country: true,
+            name: true,
+            users: {
+              where: { role: 'OWNER' },
+              take: 1,
+              select: { email: true }
+            }
+          }
+        }
+      }
+    });
+
+    if (!subscription) {
+      return res.status(404).json({ error: 'Subscription not found' });
+    }
+
+    const billingPlan = getBillingPlanDefinition(subscription);
+    const normalizedKind = String(kind || '').trim().toUpperCase();
+    const pool = normalizedKind === 'VOICE' ? 'voice' : 'written';
+    const selectedPackage = (getAddOnCatalog(subscription.business?.country || 'TR', subscription)[pool] || [])
+      .find((item) => item.id === packageId);
+
+    if (!selectedPackage) {
+      return res.status(400).json({ error: 'Invalid add-on package' });
+    }
+
+    if (subscription.plan === 'TRIAL' || subscription.plan === 'FREE') {
+      return res.status(400).json({ error: 'Add-ons are not available on this plan' });
+    }
+
+    const stripeCustomerId = await ensureStripeCustomerForSubscription(
+      subscription,
+      subscription.business?.users?.[0]?.email || req.user?.email
+    );
+    const country = subscription.business?.country || 'TR';
+    const frontendUrl = process.env.FRONTEND_URL || 'https://app.telyx.ai';
+
+    const session = await stripeService.createAddonCheckoutSession({
+      stripeCustomerId,
+      countryCode: country,
+      currency: country === 'TR' ? 'TRY' : country === 'BR' ? 'BRL' : 'USD',
+      successUrl: `${frontendUrl}/dashboard/subscription?addon=success&addon_kind=${normalizedKind}`,
+      cancelUrl: `${frontendUrl}/dashboard/subscription?addon=cancel&addon_kind=${normalizedKind}`,
+      businessId: businessId.toString(),
+      subscriptionId: subscription.id.toString(),
+      addOnKind: normalizedKind,
+      packageId: selectedPackage.id,
+      quantity: selectedPackage.quantity,
+      unitPrice: selectedPackage.unitPrice,
+      amount: selectedPackage.amount
+    });
+
+    res.json({
+      success: true,
+      provider: 'stripe',
+      sessionUrl: session.url,
+      sessionId: session.id
+    });
+  } catch (error) {
+    console.error('Create add-on checkout error:', error);
+    res.status(500).json({ error: error.message || 'Failed to create add-on checkout' });
   }
 });
 

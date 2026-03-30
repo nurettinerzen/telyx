@@ -3,11 +3,15 @@ import express from 'express';
 import request from 'supertest';
 
 const prismaMock = {
+  $transaction: jest.fn(async (fn) => fn(prismaMock)),
   business: { findUnique: jest.fn() },
+  subscription: { findUnique: jest.fn(), update: jest.fn() },
   emailThread: { findFirst: jest.fn(), update: jest.fn() },
   emailMessage: { findFirst: jest.fn(), upsert: jest.fn() },
   emailDraft: { update: jest.fn() },
-  outboundMessage: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn() }
+  outboundMessage: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn() },
+  writtenUsageEvent: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), groupBy: jest.fn() },
+  balanceTransaction: { create: jest.fn() }
 };
 
 const emailAggregatorMock = {
@@ -19,6 +23,11 @@ const emailAggregatorMock = {
 const onEmailSentMock = jest.fn(() => Promise.resolve());
 
 jest.unstable_mockModule('@prisma/client', () => ({
+  Prisma: {
+    TransactionIsolationLevel: {
+      Serializable: 'Serializable'
+    }
+  },
   PrismaClient: jest.fn(() => prismaMock)
 }));
 
@@ -32,7 +41,7 @@ jest.unstable_mockModule('../../src/middleware/auth.js', () => ({
 }));
 
 jest.unstable_mockModule('../../src/middleware/planGating.js', () => ({
-  requireProOrAbove: (req, res, next) => next()
+  requireStarterOrAbove: (req, res, next) => next()
 }));
 
 jest.unstable_mockModule('../../src/services/gmail.js', () => ({
@@ -123,6 +132,17 @@ describe('Email send idempotency', () => {
       id: 1,
       name: 'Telyx'
     });
+    prismaMock.subscription.findUnique.mockResolvedValue({
+      id: 123,
+      businessId: 1,
+      plan: 'STARTER',
+      status: 'ACTIVE',
+      balance: 0,
+      writtenInteractionAddOnBalance: 0,
+      currentPeriodStart: new Date('2026-03-01T00:00:00.000Z'),
+      business: { country: 'TR' }
+    });
+    prismaMock.subscription.update.mockResolvedValue({});
     prismaMock.emailThread.update.mockResolvedValue({});
     prismaMock.emailMessage.upsert.mockResolvedValue({});
     prismaMock.emailDraft.update.mockResolvedValue({});
@@ -132,6 +152,17 @@ describe('Email send idempotency', () => {
     });
     prismaMock.outboundMessage.update.mockResolvedValue({});
     prismaMock.outboundMessage.delete.mockResolvedValue({});
+    prismaMock.writtenUsageEvent.findUnique.mockResolvedValue(null);
+    prismaMock.writtenUsageEvent.groupBy.mockResolvedValue([]);
+    prismaMock.writtenUsageEvent.create.mockResolvedValue({
+      id: 'written_evt_1',
+      status: 'RESERVED'
+    });
+    prismaMock.writtenUsageEvent.update.mockResolvedValue({
+      id: 'written_evt_1',
+      status: 'COMMITTED'
+    });
+    prismaMock.balanceTransaction.create.mockResolvedValue({});
 
     emailAggregatorMock.getIntegration.mockResolvedValue({
       email: 'support@telyx.ai'
