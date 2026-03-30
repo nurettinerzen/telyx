@@ -1,5 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
+import { LEGACY_PLAN_MAP } from '@/lib/planConfig';
+
+function normalizePlan(plan) {
+  const rawPlan = String(plan || '').trim().toUpperCase();
+  return LEGACY_PLAN_MAP[rawPlan] || rawPlan || null;
+}
 
 /**
  * Hook to fetch available integrations
@@ -25,8 +31,22 @@ export function useUserPlan() {
     queryKey: ['userPlan'],
     queryFn: async () => {
       const response = await apiClient.get('/api/auth/me');
-      const plan = response.data?.business?.subscription?.plan || response.data?.subscription?.plan || response.data?.plan || 'STARTER';
-      return plan;
+      let plan = normalizePlan(
+        response.data?.business?.subscription?.plan
+        || response.data?.subscription?.plan
+        || response.data?.plan
+      );
+
+      if (!plan) {
+        try {
+          const subscriptionResponse = await apiClient.get('/api/subscription/current');
+          plan = normalizePlan(subscriptionResponse.data?.plan);
+        } catch (_error) {
+          plan = null;
+        }
+      }
+
+      return plan || 'FREE';
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
   });

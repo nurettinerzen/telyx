@@ -13,6 +13,13 @@ import { hasProFeatures } from '../config/plans.js';
 
 const router = express.Router();
 
+const CRM_PLAN_CHECK_SUBSCRIPTION_SELECT = {
+  id: true,
+  businessId: true,
+  plan: true,
+  status: true
+};
+
 // All routes require authentication
 router.use(authenticateToken);
 
@@ -22,7 +29,12 @@ router.use(authenticateToken);
 async function checkPlanAccess(businessId) {
   const business = await prisma.business.findUnique({
     where: { id: businessId },
-    include: { subscription: true }
+    select: {
+      id: true,
+      subscription: {
+        select: CRM_PLAN_CHECK_SUBSCRIPTION_SELECT
+      }
+    }
   });
 
   if (!business) {

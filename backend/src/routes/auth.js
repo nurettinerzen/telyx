@@ -23,6 +23,59 @@ const prisma = new PrismaClient();
 const FRONTEND_URL = process.env.FRONTEND_URL;
 const OOB_TOKEN_TTL_MS = 10 * 60 * 1000;
 
+const AUTH_ME_SUBSCRIPTION_SELECT = {
+  id: true,
+  businessId: true,
+  plan: true,
+  status: true,
+  paymentProvider: true,
+  currentPeriodStart: true,
+  currentPeriodEnd: true,
+  cancelAtPeriodEnd: true,
+  balance: true,
+  minutesLimit: true,
+  minutesUsed: true,
+  trialMinutesUsed: true,
+  trialChatExpiry: true,
+  includedMinutesUsed: true,
+  overageMinutes: true,
+  overageRate: true,
+  overageLimit: true,
+  overageLimitReached: true,
+  creditMinutes: true,
+  creditMinutesUsed: true,
+  concurrentLimit: true,
+  assistantsLimit: true,
+  phoneNumbersLimit: true,
+  enterpriseMinutes: true,
+  enterpriseSupportInteractions: true,
+  enterprisePrice: true,
+  enterpriseConcurrent: true,
+  enterpriseAssistants: true,
+  enterpriseStartDate: true,
+  enterpriseEndDate: true,
+  enterprisePaymentStatus: true,
+  enterpriseNotes: true
+};
+
+const AUTH_BUSINESS_SELECT = {
+  id: true,
+  name: true,
+  aliases: true,
+  identitySummary: true,
+  businessType: true,
+  language: true,
+  country: true,
+  timezone: true,
+  phoneInboundEnabled: true,
+  chatEmbedKey: true,
+  chatWidgetEnabled: true,
+  chatAssistantId: true,
+  subscription: {
+    select: AUTH_ME_SUBSCRIPTION_SELECT
+  }
+};
+
 // Rate limit tracking for resend verification (in-memory, for production use Redis)
 const resendRateLimits = new Map();
 
@@ -367,7 +420,9 @@ router.get('/me', authenticateToken, async (req, res) => {
         acceptedAt: true,
         createdAt: true,
         updatedAt: true,
-        business: true,
+        business: {
+          select: AUTH_BUSINESS_SELECT
+        },
       },
     });
 
@@ -386,6 +441,8 @@ router.get('/me', authenticateToken, async (req, res) => {
 
     res.json({
       ...user,
+      subscription: user.business?.subscription || null,
+      plan: user.business?.subscription?.plan || null,
       isAdmin: Boolean(adminProfile?.isActive),
       adminRole: adminProfile?.isActive ? adminProfile.role : null,
     });
@@ -742,9 +799,7 @@ router.post('/google', async (req, res) => {
       where: { email: email.toLowerCase() },
       include: {
         business: {
-          include: {
-            subscription: true,
-          },
+          select: AUTH_BUSINESS_SELECT
         },
       },
     });
@@ -828,9 +883,7 @@ router.post('/google', async (req, res) => {
         where: { id: result.user.id },
         include: {
           business: {
-            include: {
-              subscription: true,
-            },
+            select: AUTH_BUSINESS_SELECT
           },
         },
       });
@@ -956,9 +1009,7 @@ router.post('/google/code', async (req, res) => {
       where: { email: email.toLowerCase() },
       include: {
         business: {
-          include: {
-            subscription: true,
-          },
+          select: AUTH_BUSINESS_SELECT
         },
       },
     });
@@ -1037,9 +1088,7 @@ router.post('/google/code', async (req, res) => {
         where: { id: result.user.id },
         include: {
           business: {
-            include: {
-              subscription: true,
-            },
+            select: AUTH_BUSINESS_SELECT
           },
         },
       });

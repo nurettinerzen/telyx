@@ -8,6 +8,18 @@ const PLAN_ALIASES = Object.freeze({
   ENT: 'ENTERPRISE'
 });
 
+const PHONE_OUTBOUND_SUBSCRIPTION_SELECT = {
+  id: true,
+  businessId: true,
+  plan: true,
+  status: true,
+  business: {
+    select: {
+      phoneInboundEnabled: true
+    }
+  }
+};
+
 export const PHONE_OUTBOUND_ENTRYPOINTS = Object.freeze({
   ASSISTANTS_TEST_CALL: '/api/assistants/test-call',
   BATCH_CALLS_PARSE: '/api/batch-calls/parse',
@@ -133,13 +145,7 @@ export async function resolvePhoneOutboundAccessForBusinessId(businessId, option
 
   const subscription = await prisma.subscription.findUnique({
     where: { businessId: parsedBusinessId },
-    include: {
-      business: {
-        select: {
-          phoneInboundEnabled: true
-        }
-      }
-    }
+    select: PHONE_OUTBOUND_SUBSCRIPTION_SELECT
   });
 
   return resolvePhoneOutboundAccessFromSubscription(subscription, options);

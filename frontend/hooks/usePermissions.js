@@ -126,8 +126,8 @@ export function usePermissions() {
   const role = user?.role;
 
   // Subscription status check
-  const subscriptionStatus = user?.subscription?.status;
-  const isSubscriptionActive = subscriptionStatus === 'ACTIVE';
+  const subscriptionStatus = user?.subscription?.status || user?.business?.subscription?.status;
+  const isSubscriptionActive = ['ACTIVE', 'TRIAL', 'TRIALING'].includes(subscriptionStatus);
   const isSubscriptionIncomplete = subscriptionStatus === 'INCOMPLETE';
 
   /**
@@ -136,9 +136,9 @@ export function usePermissions() {
    */
   const hasActiveSubscription = useCallback(() => {
     // Allow if no subscription data (backwards compatibility)
-    if (!user?.subscription) return true;
+    if (!user?.subscription && !user?.business?.subscription) return true;
     // ACTIVE and TRIALING are allowed
-    return ['ACTIVE', 'TRIALING'].includes(subscriptionStatus);
+    return ['ACTIVE', 'TRIAL', 'TRIALING'].includes(subscriptionStatus);
   }, [user, subscriptionStatus]);
 
   /**

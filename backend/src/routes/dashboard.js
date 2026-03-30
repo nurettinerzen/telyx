@@ -5,6 +5,15 @@ import { authenticateToken } from '../middleware/auth.js';
 const router = express.Router();
 const prisma = new PrismaClient();
 
+const DASHBOARD_SUBSCRIPTION_SELECT = {
+  id: true,
+  businessId: true,
+  plan: true,
+  status: true,
+  minutesUsed: true,
+  minutesLimit: true
+};
+
 // GET /api/dashboard/stats
 router.get('/stats', authenticateToken, async (req, res) => {
   try {
@@ -12,6 +21,7 @@ router.get('/stats', authenticateToken, async (req, res) => {
 
     const subscription = await prisma.subscription.findUnique({
       where: { businessId },
+      select: DASHBOARD_SUBSCRIPTION_SELECT
     });
 
     const calls = await prisma.callLog.findMany({
