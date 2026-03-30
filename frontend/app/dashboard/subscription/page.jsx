@@ -116,6 +116,13 @@ export default function SubscriptionPage() {
     }
   }, [profileData]);
 
+  useEffect(() => {
+    if (subscription?.business?.country || subscription?.country) {
+      const country = subscription.business?.country || subscription.country;
+      setUserCountry(country);
+    }
+  }, [subscription]);
+
   // Determine region from business country (NOT from UI language)
   const getRegion = () => {
     // Region is based on business.country, not locale

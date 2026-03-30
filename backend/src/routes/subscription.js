@@ -21,6 +21,7 @@ import iyzicoSubscription from '../services/iyzicoSubscription.js';
 import paymentProvider from '../services/paymentProvider.js';
 import balanceService from '../services/balanceService.js';
 import { getEffectivePlanConfig } from '../services/planConfig.js';
+import { getPlanWithPricing } from '../config/plans.js';
 import { isPhoneInboundEnabledForBusinessRecord } from '../services/phoneInboundGate.js';
 import { buildPhoneEntitlements } from '../services/phonePlanEntitlements.js';
 import stripeService from '../services/stripe.js';
@@ -33,6 +34,114 @@ import {
 
 const router = express.Router();
 const prisma = new PrismaClient();
+
+const LEGACY_SUBSCRIPTION_BASE_SELECT = {
+  id: true,
+  businessId: true,
+  plan: true,
+  status: true,
+  paymentProvider: true,
+  stripeCustomerId: true,
+  stripeSubscriptionId: true,
+  stripePriceId: true,
+  currentPeriodStart: true,
+  currentPeriodEnd: true,
+  cancelAtPeriodEnd: true,
+  minutesUsed: true,
+  callsThisMonth: true,
+  assistantsCreated: true,
+  phoneNumbersUsed: true,
+  minutesLimit: true,
+  callsLimit: true,
+  assistantsLimit: true,
+  phoneNumbersLimit: true,
+  balance: true,
+  trialMinutesUsed: true,
+  trialChatExpiry: true,
+  trialStartDate: true,
+  includedMinutesUsed: true,
+  includedMinutesResetAt: true,
+  autoReloadEnabled: true,
+  autoReloadThreshold: true,
+  autoReloadAmount: true,
+  creditMinutes: true,
+  creditMinutesUsed: true,
+  overageMinutes: true,
+  overageRate: true,
+  overageLimit: true,
+  overageBilledAt: true,
+  packageWarningAt80: true,
+  creditWarningAt80: true,
+  overageLimitReached: true,
+  lowBalanceWarningAt: true,
+  concurrentLimit: true,
+  activeCalls: true,
+  chatTokensUsed: true,
+  chatTokensResetAt: true,
+  chatTokensLimit: true,
+  chatDailyMessageDate: true,
+  chatDailyMessageCount: true,
+  enterpriseMinutes: true,
+  enterpriseSupportInteractions: true,
+  enterprisePrice: true,
+  enterpriseConcurrent: true,
+  enterpriseAssistants: true,
+  enterpriseStartDate: true,
+  enterpriseEndDate: true,
+  enterprisePaymentStatus: true,
+  enterpriseNotes: true,
+  createdAt: true,
+  updatedAt: true,
+  business: {
+    select: {
+      id: true,
+      country: true,
+      name: true,
+      phoneInboundEnabled: true,
+      phoneNumbers: true
+    }
+  }
+};
+
+const BILLING_V2_EXTENSION_SELECT = {
+  voiceAddOnMinutesBalance: true,
+  writtenInteractionAddOnBalance: true,
+  writtenOverageBilledAt: true
+};
+
+function isMissingBillingSchemaError(error) {
+  const code = String(error?.code || '').toUpperCase();
+  const message = String(error?.message || '');
+  return code === 'P2021'
+    || code === 'P2022'
+    || message.includes('voiceAddOnMinutesBalance')
+    || message.includes('writtenInteractionAddOnBalance')
+    || message.includes('writtenOverageBilledAt')
+    || message.includes('WrittenUsageEvent')
+    || message.includes('AddOnPurchase');
+}
+
+async function findSubscriptionWithBillingFallback(businessId) {
+  try {
+    return await prisma.subscription.findUnique({
+      where: { businessId },
+      select: {
+        ...LEGACY_SUBSCRIPTION_BASE_SELECT,
+        ...BILLING_V2_EXTENSION_SELECT
+      }
+    });
+  } catch (error) {
+    if (!isMissingBillingSchemaError(error)) {
+      throw error;
+    }
+
+    console.warn(`⚠️ Billing v2 schema not available for business ${businessId}, falling back to legacy subscription shape`);
+    return prisma.subscription.findUnique({
+      where: { businessId },
+      select: LEGACY_SUBSCRIPTION_BASE_SELECT
+    });
+  }
+}
 
 // Lazy initialize Stripe to ensure env vars are loaded
 let stripe = null;
@@ -1304,18 +1413,7 @@ router.get('/current', verifyBusinessAccess, async (req, res) => {
   try {
     const { businessId } = req.user;
 
-    const subscription = await prisma.subscription.findUnique({
-      where: { businessId },
-      include: {
-        business: {
-          select: {
-            phoneNumbers: true,
-            country: true,
-            phoneInboundEnabled: true
-          }
-        }
-      }
-    });
+    const subscription = await findSubscriptionWithBillingFallback(businessId);
 
     if (!subscription) {
       const entitlements = buildPhoneEntitlements({
@@ -2271,23 +2369,28 @@ router.get('/billing-history', authenticateToken, async (req, res) => {
   try {
     const { businessId } = req;
 
-    const subscription = await prisma.subscription.findUnique({
-      where: { businessId },
-      include: {
-        business: true
-      }
-    });
+    const subscription = await findSubscriptionWithBillingFallback(businessId);
 
     if (!subscription) {
       return res.json({ history: [] });
     }
 
     // Mock billing history for now (Stripe webhook'tan gelecek)
+    const pricedPlan = getPlanWithPricing(
+      subscription.plan,
+      subscription.business?.country || 'TR'
+    );
+    const enterprisePrice = Number.parseFloat(subscription.enterprisePrice);
+    const amount = Number.isFinite(enterprisePrice)
+      ? enterprisePrice
+      : (pricedPlan?.price ?? 0);
+
     const history = [
       {
         id: 1,
         date: new Date().toISOString(),
-        amount: subscription.plan === 'FREE' ? 0 : subscription.plan === 'BASIC' ? 29 : 99,
+        amount,
+        currency: pricedPlan?.currency || 'TRY',
         status: 'paid',
         plan: subscription.plan,
         period: 'monthly'

@@ -9,6 +9,25 @@ import { issueSession } from '../security/sessionToken.js';
 const router = express.Router();
 const prisma = new PrismaClient();
 
+const SETTINGS_SUBSCRIPTION_SELECT = {
+  id: true,
+  businessId: true,
+  plan: true,
+  status: true,
+  paymentProvider: true,
+  currentPeriodStart: true,
+  currentPeriodEnd: true,
+  cancelAtPeriodEnd: true,
+  balance: true,
+  minutesLimit: true,
+  minutesUsed: true,
+  includedMinutesUsed: true,
+  overageMinutes: true,
+  concurrentLimit: true,
+  assistantsLimit: true,
+  phoneNumbersLimit: true
+};
+
 function parseAliases(value) {
   if (value == null) return [];
 
@@ -74,6 +93,7 @@ router.get('/profile', authenticateToken, async (req, res) => {
 
     const subscription = await prisma.subscription.findUnique({
       where: { businessId },
+      select: SETTINGS_SUBSCRIPTION_SELECT
     });
 
     // Return in format frontend expects

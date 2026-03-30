@@ -17,6 +17,17 @@ export const WRITTEN_USAGE_BLOCK_ERROR_CODES = new Set([
   'SUBSCRIPTION_INACTIVE'
 ]);
 
+function isMissingWrittenBillingSchemaError(error) {
+  const code = String(error?.code || '').toUpperCase();
+  const message = String(error?.message || '');
+  return code === 'P2021'
+    || code === 'P2022'
+    || message.includes('writtenUsageEvent')
+    || message.includes('AddOnPurchase')
+    || message.includes('voiceAddOnMinutesBalance')
+    || message.includes('writtenInteractionAddOnBalance');
+}
+
 function createUsageError(code, message) {
   const error = new Error(message);
   error.code = code;
@@ -60,18 +71,40 @@ export function getWrittenUsageCycleStart(subscription) {
 }
 
 async function aggregateWrittenUsage(tx, subscriptionId, cycleStart, statuses) {
-  const rows = await tx.writtenUsageEvent.groupBy({
-    by: ['chargeType', 'channel'],
-    where: {
-      subscriptionId,
-      createdAt: { gte: cycleStart },
-      status: { in: statuses }
-    },
-    _sum: {
-      quantity: true,
-      totalCharge: true
+  let rows = [];
+  try {
+    rows = await tx.writtenUsageEvent.groupBy({
+      by: ['chargeType', 'channel'],
+      where: {
+        subscriptionId,
+        createdAt: { gte: cycleStart },
+        status: { in: statuses }
+      },
+      _sum: {
+        quantity: true,
+        totalCharge: true
+      }
+    });
+  } catch (error) {
+    if (isMissingWrittenBillingSchemaError(error)) {
+      return {
+        totalUsed: 0,
+        trialUsed: 0,
+        includedUsed: 0,
+        addOnUsed: 0,
+        walletUsed: 0,
+        overageUsed: 0,
+        totalImmediateCharge: 0,
+        channels: {
+          CHAT: 0,
+          WHATSAPP: 0,
+          EMAIL: 0
+        },
+        schemaFallback: true
+      };
     }
-  });
+    throw error;
+  }
 
   const summary = {
     totalUsed: 0,
@@ -343,6 +376,13 @@ export async function reserveWrittenInteraction({
       };
     });
   } catch (error) {
+    if (isMissingWrittenBillingSchemaError(error)) {
+      return {
+        duplicate: false,
+        schemaFallback: true,
+        event: null
+      };
+    }
     if (error?.code === 'P2002') {
       const existing = await prisma.writtenUsageEvent.findUnique({
         where: { idempotencyKey }
@@ -363,9 +403,17 @@ export async function reserveWrittenInteraction({
 export async function commitWrittenInteraction(idempotencyKey, metadataPatch = {}) {
   if (!idempotencyKey) return null;
 
-  const existing = await prisma.writtenUsageEvent.findUnique({
-    where: { idempotencyKey }
-  });
+  let existing;
+  try {
+    existing = await prisma.writtenUsageEvent.findUnique({
+      where: { idempotencyKey }
+    });
+  } catch (error) {
+    if (isMissingWrittenBillingSchemaError(error)) {
+      return null;
+    }
+    throw error;
+  }
 
   if (!existing) {
     return null;
@@ -380,90 +428,104 @@ export async function commitWrittenInteraction(idempotencyKey, metadataPatch = {
     ...(metadataPatch || {})
   };
 
-  return prisma.writtenUsageEvent.update({
-    where: { idempotencyKey },
-    data: {
-      status: 'COMMITTED',
-      metadata: mergedMetadata
+  try {
+    return await prisma.writtenUsageEvent.update({
+      where: { idempotencyKey },
+      data: {
+        status: 'COMMITTED',
+        metadata: mergedMetadata
+      }
+    });
+  } catch (error) {
+    if (isMissingWrittenBillingSchemaError(error)) {
+      return null;
     }
-  });
+    throw error;
+  }
 }
 
 export async function releaseWrittenInteraction(idempotencyKey, reason = 'SEND_FAILED') {
   if (!idempotencyKey) return null;
 
-  return runSerializableTransaction(async (tx) => {
-    const existing = await tx.writtenUsageEvent.findUnique({
-      where: { idempotencyKey }
-    });
+  try {
+    return await runSerializableTransaction(async (tx) => {
+      const existing = await tx.writtenUsageEvent.findUnique({
+        where: { idempotencyKey }
+      });
 
-    if (!existing) {
+      if (!existing) {
+        return null;
+      }
+
+      if (existing.status === 'REVERSED') {
+        return existing;
+      }
+
+      if (existing.status === 'COMMITTED') {
+        return existing;
+      }
+
+      const subscription = await tx.subscription.findUnique({
+        where: { id: existing.subscriptionId }
+      });
+
+      if (!subscription) {
+        throw createUsageError('SUBSCRIPTION_NOT_FOUND', 'Subscription not found while releasing written usage');
+      }
+
+      if (existing.chargeType === 'ADDON') {
+        await tx.subscription.update({
+          where: { id: subscription.id },
+          data: {
+            writtenInteractionAddOnBalance: {
+              increment: existing.quantity
+            }
+          }
+        });
+      }
+
+      if (existing.chargeType === 'WALLET' && existing.totalCharge > 0) {
+        const balanceBefore = Number(subscription.balance || 0);
+        const balanceAfter = balanceBefore + Number(existing.totalCharge || 0);
+
+        await tx.subscription.update({
+          where: { id: subscription.id },
+          data: {
+            balance: {
+              increment: Number(existing.totalCharge || 0)
+            }
+          }
+        });
+
+        await tx.balanceTransaction.create({
+          data: {
+            subscriptionId: subscription.id,
+            type: 'REFUND',
+            amount: Number(existing.totalCharge || 0),
+            balanceBefore,
+            balanceAfter,
+            description: `Written usage release: ${reason}`
+          }
+        });
+      }
+
+      return tx.writtenUsageEvent.update({
+        where: { idempotencyKey },
+        data: {
+          status: 'REVERSED',
+          metadata: {
+            ...(existing.metadata || {}),
+            releaseReason: reason
+          }
+        }
+      });
+    });
+  } catch (error) {
+    if (isMissingWrittenBillingSchemaError(error)) {
       return null;
     }
-
-    if (existing.status === 'REVERSED') {
-      return existing;
-    }
-
-    if (existing.status === 'COMMITTED') {
-      return existing;
-    }
-
-    const subscription = await tx.subscription.findUnique({
-      where: { id: existing.subscriptionId }
-    });
-
-    if (!subscription) {
-      throw createUsageError('SUBSCRIPTION_NOT_FOUND', 'Subscription not found while releasing written usage');
-    }
-
-    if (existing.chargeType === 'ADDON') {
-      await tx.subscription.update({
-        where: { id: subscription.id },
-        data: {
-          writtenInteractionAddOnBalance: {
-            increment: existing.quantity
-          }
-        }
-      });
-    }
-
-    if (existing.chargeType === 'WALLET' && existing.totalCharge > 0) {
-      const balanceBefore = Number(subscription.balance || 0);
-      const balanceAfter = balanceBefore + Number(existing.totalCharge || 0);
-
-      await tx.subscription.update({
-        where: { id: subscription.id },
-        data: {
-          balance: {
-            increment: Number(existing.totalCharge || 0)
-          }
-        }
-      });
-
-      await tx.balanceTransaction.create({
-        data: {
-          subscriptionId: subscription.id,
-          type: 'REFUND',
-          amount: Number(existing.totalCharge || 0),
-          balanceBefore,
-          balanceAfter,
-          description: `Written usage release: ${reason}`
-        }
-      });
-    }
-
-    return tx.writtenUsageEvent.update({
-      where: { idempotencyKey },
-      data: {
-        status: 'REVERSED',
-        metadata: {
-          ...(existing.metadata || {}),
-          releaseReason: reason
-        }
-      }
-    });
-  });
+    throw error;
+  }
 }
 
 export function buildChatWrittenIdempotencyKey({ subscriptionId, sessionId, turnIndex, userMessage }) {
