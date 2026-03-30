@@ -89,24 +89,29 @@ async function buildSupportUsageSummary({ businessId, subscription }) {
   ]);
 
   const used = webchatSessions + whatsappSessions + answeredEmails;
-  const hasExplicitSupportLimit = false;
+  const configuredTotal = Number.isFinite(subscription?.enterpriseSupportInteractions)
+    ? Math.max(Number(subscription.enterpriseSupportInteractions), 0)
+    : null;
+  const hasExplicitSupportLimit = configuredTotal !== null;
 
   return {
     metric: 'support_interactions',
     configured: hasExplicitSupportLimit,
-    total: null,
+    total: configuredTotal,
     used,
-    remaining: null,
-    overage: 0,
+    remaining: hasExplicitSupportLimit ? Math.max(configuredTotal - used, 0) : null,
+    overage: hasExplicitSupportLimit ? Math.max(used - configuredTotal, 0) : 0,
     periodStart,
     channels: {
       webchat: webchatSessions,
       whatsapp: whatsappSessions,
       email: answeredEmails
     },
-    note: subscription?.plan === 'ENTERPRISE'
-      ? 'ENTERPRISE_SUPPORT_LIMIT_NOT_CONFIGURED'
-      : 'SUPPORT_USAGE_TRACKED_WITHOUT_EXPLICIT_LIMIT'
+    note: hasExplicitSupportLimit
+      ? 'SUPPORT_LIMIT_CONFIGURED'
+      : (subscription?.plan === 'ENTERPRISE'
+        ? 'ENTERPRISE_SUPPORT_LIMIT_NOT_CONFIGURED'
+        : 'SUPPORT_USAGE_TRACKED_WITHOUT_EXPLICIT_LIMIT')
   };
 }
 

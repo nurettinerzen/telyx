@@ -365,15 +365,24 @@ export default function PhoneNumbersPage() {
     return phoneNumbers.length < phoneNumberLimit;
   };
 
-  const writtenProgress = writtenUsage?.total > 0
-    ? (Number(writtenUsage.used || 0) / Number(writtenUsage.total || 1)) * 100
-    : 0;
   const voiceProgress = voiceUsage?.total > 0
     ? (Number(voiceUsage.used || 0) / Number(voiceUsage.total || 1)) * 100
     : 0;
 
   const observedSupportChannels = supportUsageSummary?.channels || {};
-  const hasConfiguredWrittenLimit = Number(writtenUsage?.total || 0) > 0;
+  const supportConfiguredTotal = supportUsageSummary?.configured
+    ? Number(supportUsageSummary?.total || 0)
+    : Number(writtenUsage?.total || 0);
+  const supportConfiguredUsed = supportUsageSummary?.configured
+    ? Number(supportUsageSummary?.used || 0)
+    : Number(writtenUsage?.used || 0);
+  const supportConfiguredRemaining = supportUsageSummary?.configured
+    ? Number(supportUsageSummary?.remaining || 0)
+    : Number(writtenUsage?.remaining || 0);
+  const supportConfiguredOverage = supportUsageSummary?.configured
+    ? Number(supportUsageSummary?.overage || 0)
+    : Number(writtenUsage?.overage || 0);
+  const hasConfiguredWrittenLimit = Boolean(supportUsageSummary?.configured || Number(writtenUsage?.total || 0) > 0);
   const supportStatusTone = hasConfiguredWrittenLimit
     ? 'success'
     : (snapshot?.plan === 'ENTERPRISE' ? 'warning' : 'info');
@@ -390,7 +399,7 @@ export default function PhoneNumbersPage() {
     ? pageCopy.configuredShort
     : (snapshot?.plan === 'ENTERPRISE' ? pageCopy.notConfiguredShort : pageCopy.observedShort);
   const supportStatusDetail = hasConfiguredWrittenLimit
-    ? `${formatCount(writtenUsage?.used || 0)} / ${formatCount(writtenUsage?.total || 0)}`
+    ? `${formatCount(supportConfiguredUsed)} / ${formatCount(supportConfiguredTotal)}`
     : `${formatCount(supportObservedCount)} ${pageCopy.cycleObserved.toLowerCase()}`;
   const voiceSummaryValue = snapshot?.channels?.phone
     ? (voiceUsage?.total > 0 ? formatCount(voiceUsage?.remaining || 0, 1) : '—')
@@ -414,10 +423,10 @@ export default function PhoneNumbersPage() {
     : pageCopy.supportObservedSubtitle;
   const supportCardStats = hasConfiguredWrittenLimit
     ? [
-      { label: pageCopy.total, value: formatCount(writtenUsage?.total || 0) },
-      { label: pageCopy.used, value: formatCount(writtenUsage?.used || 0) },
-      { label: pageCopy.remaining, value: formatCount(writtenUsage?.remaining || 0) },
-      { label: pageCopy.overage, value: formatCount(writtenUsage?.overage || 0) }
+      { label: pageCopy.total, value: formatCount(supportConfiguredTotal) },
+      { label: pageCopy.used, value: formatCount(supportConfiguredUsed) },
+      { label: pageCopy.remaining, value: formatCount(supportConfiguredRemaining) },
+      { label: pageCopy.overage, value: formatCount(supportConfiguredOverage) }
     ]
     : [
       { label: pageCopy.cycleObserved, value: formatCount(supportObservedCount) },
@@ -598,7 +607,9 @@ export default function PhoneNumbersPage() {
           title={pageCopy.supportTitle}
           subtitle={supportCardSubtitle}
           stats={supportCardStats}
-          progress={hasConfiguredWrittenLimit && writtenUsage?.total > 0 ? writtenProgress : null}
+          progress={hasConfiguredWrittenLimit && supportConfiguredTotal > 0
+            ? (supportConfiguredUsed / Math.max(supportConfiguredTotal, 1)) * 100
+            : null}
           progressColorClass="bg-blue-500"
           footer={writtenFooter}
         />

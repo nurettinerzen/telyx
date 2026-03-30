@@ -65,6 +65,7 @@ export default function EnterpriseAdminPage() {
   const [formData, setFormData] = useState({
     businessId: '',
     minutes: 1000,
+    supportInteractions: null,
     price: 8500,
     concurrent: 10,
     assistants: null,
@@ -126,6 +127,7 @@ export default function EnterpriseAdminPage() {
       await apiClient.post('/api/admin/enterprise-customers', {
         businessId: formData.businessId,
         minutes: formData.minutes,
+        supportInteractions: formData.supportInteractions,
         price: formData.price,
         concurrent: formData.concurrent,
         assistants: formData.assistants,
@@ -153,6 +155,7 @@ export default function EnterpriseAdminPage() {
       setActionLoading(true);
       const response = await apiClient.put(`/api/admin/enterprise-customers/${selectedCustomer.id}`, {
         minutes: formData.minutes,
+        supportInteractions: formData.supportInteractions,
         price: formData.price,
         concurrent: formData.concurrent,
         assistants: formData.assistants,
@@ -203,6 +206,7 @@ export default function EnterpriseAdminPage() {
     setFormData({
       businessId: customer.businessId,
       minutes: customer.enterpriseMinutes || 1000,
+      supportInteractions: customer.enterpriseSupportInteractions || null,
       price: customer.enterprisePrice || 8500,
       concurrent: customer.enterpriseConcurrent || 10,
       assistants: customer.enterpriseAssistants || null,
@@ -218,6 +222,7 @@ export default function EnterpriseAdminPage() {
     setFormData({
       businessId: '',
       minutes: 1000,
+      supportInteractions: null,
       price: 8500,
       concurrent: 10,
       assistants: null,
@@ -404,6 +409,7 @@ export default function EnterpriseAdminPage() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Isletme</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Durum</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Dakika</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Yazili Limit</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Fiyat</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Kullanim</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Odeme</th>
@@ -413,7 +419,7 @@ export default function EnterpriseAdminPage() {
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {filteredCustomers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={8} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                     {filter === 'all' ? 'Henuz kurumsal musteri yok' :
                      filter === 'active' ? 'Aktif kurumsal musteri yok' :
                      'Bekleyen kurumsal musteri yok'}
@@ -444,6 +450,11 @@ export default function EnterpriseAdminPage() {
                       {customer.enterpriseMinutes?.toLocaleString()} dk
                     </td>
                     <td className="px-4 py-3 text-gray-900 dark:text-white">
+                      {customer.enterpriseSupportInteractions
+                        ? `${customer.enterpriseSupportInteractions.toLocaleString()} etkileşim`
+                        : 'Tanımsız'}
+                    </td>
+                    <td className="px-4 py-3 text-gray-900 dark:text-white">
                       {formatCurrency(customer.enterprisePrice)}
                     </td>
                     <td className="px-4 py-3">
@@ -454,6 +465,12 @@ export default function EnterpriseAdminPage() {
                         <span className="text-gray-500 dark:text-gray-400">
                           / {customer.enterpriseMinutes?.toLocaleString()} dk
                         </span>
+                      </div>
+                      <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        Yazılı: {customer.supportInteractionsUsed?.toLocaleString() || 0}
+                        {customer.enterpriseSupportInteractions
+                          ? ` / ${customer.enterpriseSupportInteractions.toLocaleString()}`
+                          : ''}
                       </div>
                       <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mt-1">
                         <Bot className="w-3 h-3" />
@@ -534,6 +551,18 @@ export default function EnterpriseAdminPage() {
                   onChange={(e) => setFormData({ ...formData, minutes: parseInt(e.target.value) })}
                 />
               </div>
+              <div>
+                <Label>Yazılı Destek Limiti</Label>
+                <Input
+                  type="number"
+                  value={formData.supportInteractions || ''}
+                  onChange={(e) => setFormData({ ...formData, supportInteractions: e.target.value ? parseInt(e.target.value) : null })}
+                  placeholder="Opsiyonel"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Aylik Fiyat (TL)</Label>
                 <Input
@@ -625,6 +654,18 @@ export default function EnterpriseAdminPage() {
                   onChange={(e) => setFormData({ ...formData, minutes: parseInt(e.target.value) })}
                 />
               </div>
+              <div>
+                <Label>Yazılı Destek Limiti</Label>
+                <Input
+                  type="number"
+                  value={formData.supportInteractions || ''}
+                  onChange={(e) => setFormData({ ...formData, supportInteractions: e.target.value ? parseInt(e.target.value) : null })}
+                  placeholder="Opsiyonel"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Aylik Fiyat (TL)</Label>
                 <Input

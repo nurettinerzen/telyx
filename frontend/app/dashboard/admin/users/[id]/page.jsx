@@ -75,6 +75,7 @@ export default function AdminUserDetailPage() {
     minutesUsed: 0,
     balance: 0,
     enterpriseMinutes: null,
+    enterpriseSupportInteractions: null,
     enterprisePrice: null,
     enterpriseNotes: '',
     phoneInboundEnabled: false,
@@ -116,6 +117,7 @@ export default function AdminUserDetailPage() {
         minutesUsed: response.data.business?.subscription?.minutesUsed || 0,
         balance: response.data.business?.subscription?.balance || 0,
         enterpriseMinutes: response.data.business?.subscription?.enterpriseMinutes || null,
+        enterpriseSupportInteractions: response.data.business?.subscription?.enterpriseSupportInteractions || null,
         enterprisePrice: response.data.business?.subscription?.enterprisePrice || null,
         enterpriseNotes: response.data.business?.subscription?.enterpriseNotes || '',
         phoneInboundEnabled: response.data.business?.phoneInboundEnabled || false,
@@ -383,6 +385,12 @@ export default function AdminUserDetailPage() {
                   <span className="text-gray-900 dark:text-white">{subscription?.enterpriseMinutes || '-'} dk</span>
                 </div>
                 <div className="flex justify-between">
+                  <span className="text-gray-500">Kurumsal Yazılı Limit</span>
+                  <span className="text-gray-900 dark:text-white">
+                    {subscription?.enterpriseSupportInteractions ? `${subscription.enterpriseSupportInteractions} etkileşim` : '-'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
                   <span className="text-gray-500">Kurumsal Fiyat</span>
                   <span className="text-gray-900 dark:text-white">{subscription?.enterprisePrice || '-'} TL/ay</span>
                 </div>
@@ -540,6 +548,17 @@ export default function AdminUserDetailPage() {
                       onChange={(e) => setEditForm({ ...editForm, enterpriseMinutes: parseInt(e.target.value) || null })}
                     />
                   </div>
+                  <div>
+                    <Label>Enterprise Yazılı Limit</Label>
+                    <Input
+                      type="number"
+                      className="mt-1"
+                      value={editForm.enterpriseSupportInteractions || ''}
+                      onChange={(e) => setEditForm({ ...editForm, enterpriseSupportInteractions: parseInt(e.target.value) || null })}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Enterprise Fiyat (TL/ay)</Label>
                     <Input

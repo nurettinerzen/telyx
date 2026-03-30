@@ -329,6 +329,7 @@ model Subscription {
   // KURUMSAL PLAN ALANLARI
   // ============================================================================
   enterpriseMinutes       Int? // Özel dakika limiti
+  enterpriseSupportInteractions Int? // Özel yazılı destek etkileşimi limiti
   enterprisePrice         Float? // Özel aylık fiyat (TL)
   enterpriseConcurrent    Int? // Özel eş zamanlı çağrı limiti
   enterpriseAssistants    Int? // Özel asistan limiti (null = sınırsız)

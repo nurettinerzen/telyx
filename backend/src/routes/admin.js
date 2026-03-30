@@ -92,7 +92,35 @@ router.get('/enterprise-customers', async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
 
-    const customers = subscriptions.map(sub => ({
+    const customers = await Promise.all(subscriptions.map(async (sub) => {
+      const periodStart = sub.currentPeriodStart || sub.trialStartDate || sub.createdAt;
+      const [webchatSessions, whatsappSessions, answeredEmails] = await Promise.all([
+        prisma.chatLog.count({
+          where: {
+            businessId: sub.businessId,
+            channel: 'CHAT',
+            createdAt: { gte: periodStart }
+          }
+        }),
+        prisma.chatLog.count({
+          where: {
+            businessId: sub.businessId,
+            channel: 'WHATSAPP',
+            createdAt: { gte: periodStart }
+          }
+        }),
+        prisma.emailDraft.count({
+          where: {
+            businessId: sub.businessId,
+            status: 'SENT',
+            createdAt: { gte: periodStart }
+          }
+        })
+      ]);
+
+      const supportInteractionsUsed = webchatSessions + whatsappSessions + answeredEmails;
+
+      return ({
       id: sub.id,
       businessId: sub.businessId,
       businessName: sub.business?.name,
@@ -102,6 +130,7 @@ router.get('/enterprise-customers', async (req, res) => {
       pendingPlan: sub.pendingPlanId,           // Bekleyen plan (ENTERPRISE)
       isActive: sub.plan === 'ENTERPRISE',      // Enterprise aktif mi?
       enterpriseMinutes: sub.enterpriseMinutes,
+      enterpriseSupportInteractions: sub.enterpriseSupportInteractions,
       enterprisePrice: sub.enterprisePrice,
       enterpriseConcurrent: sub.enterpriseConcurrent,
       enterpriseAssistants: sub.enterpriseAssistants,
@@ -110,9 +139,11 @@ router.get('/enterprise-customers', async (req, res) => {
       enterprisePaymentStatus: sub.enterprisePaymentStatus,
       enterpriseNotes: sub.enterpriseNotes,
       minutesUsed: sub.minutesUsed,
+      supportInteractionsUsed,
       assistantsCount: sub.business?._count?.assistants || 0,
       callsCount: sub.business?._count?.callLogs || 0,
       createdAt: sub.createdAt
+      });
     }));
 
     res.json(customers);
@@ -193,6 +224,7 @@ router.get('/users', async (req, res) => {
                   minutesUsed: true,
                   balance: true,
                   enterpriseMinutes: true,
+                  enterpriseSupportInteractions: true,
                   enterprisePrice: true,
                   enterprisePaymentStatus: true
                 }
@@ -233,6 +265,7 @@ router.get('/users', async (req, res) => {
       minutesUsed: u.business?.subscription?.minutesUsed || 0,
       balance: u.business?.subscription?.balance || 0,
       enterpriseMinutes: u.business?.subscription?.enterpriseMinutes,
+      enterpriseSupportInteractions: u.business?.subscription?.enterpriseSupportInteractions,
       enterprisePrice: u.business?.subscription?.enterprisePrice,
       enterprisePaymentStatus: u.business?.subscription?.enterprisePaymentStatus,
       assistantsCount: u.business?._count?.assistants || 0,
@@ -305,6 +338,7 @@ router.get('/users/:id', async (req, res) => {
                 phoneNumbersUsed: true,
                 concurrentLimit: true,
                 enterpriseMinutes: true,
+                enterpriseSupportInteractions: true,
                 enterprisePrice: true,
                 enterpriseConcurrent: true,
                 enterpriseAssistants: true,
@@ -382,6 +416,7 @@ router.patch('/users/:id', async (req, res) => {
     const allowedBusinessFields = ['phoneInboundEnabled'];
     const allowedSubscriptionFields = [
       'plan', 'status', 'minutesUsed', 'balance', 'minutesLimit',
+      'enterpriseSupportInteractions',
       'enterpriseMinutes', 'enterprisePrice', 'enterpriseConcurrent',
       'enterpriseAssistants', 'enterprisePaymentStatus', 'enterpriseNotes',
       'currentPeriodStart', 'currentPeriodEnd'
@@ -637,6 +672,7 @@ router.post('/enterprise-customers', async (req, res) => {
     const {
       businessId,
       minutes,
+      supportInteractions,
       price,
       concurrent,
       assistants,
@@ -691,6 +727,7 @@ router.post('/enterprise-customers', async (req, res) => {
         status: 'ACTIVE',
         pendingPlanId: 'ENTERPRISE', // Bekleyen plan
         enterpriseMinutes: minutes || 1000,
+        enterpriseSupportInteractions: supportInteractions ?? null,
         enterprisePrice: price || 8500,
         enterpriseConcurrent: concurrent || 10,
         enterpriseAssistants: assistants || null,
@@ -703,6 +740,7 @@ router.post('/enterprise-customers', async (req, res) => {
         // plan DEĞİŞMİYOR - mevcut planı koru
         pendingPlanId: 'ENTERPRISE', // Bekleyen plan
         enterpriseMinutes: minutes,
+        enterpriseSupportInteractions: supportInteractions,
         enterprisePrice: price,
         enterpriseConcurrent: concurrent,
         enterpriseAssistants: assistants,
@@ -717,7 +755,7 @@ router.post('/enterprise-customers', async (req, res) => {
     const changes = calculateChanges(
       existingSubscription,
       subscription,
-      ['enterpriseMinutes', 'enterprisePrice', 'enterpriseConcurrent', 'enterpriseAssistants', 'enterprisePaymentStatus', 'pendingPlanId']
+      ['enterpriseMinutes', 'enterpriseSupportInteractions', 'enterprisePrice', 'enterpriseConcurrent', 'enterpriseAssistants', 'enterprisePaymentStatus', 'pendingPlanId']
     );
 
     await createAdminAuditLog(
@@ -757,6 +795,7 @@ router.put('/enterprise-customers/:id', async (req, res) => {
     const { id } = req.params;
     const {
       minutes,
+      supportInteractions,
       price,
       concurrent,
       assistants,
@@ -802,6 +841,7 @@ router.put('/enterprise-customers/:id', async (req, res) => {
     // Build update data
     const updateData = {
       enterpriseMinutes: minutes,
+      enterpriseSupportInteractions: supportInteractions,
       enterprisePrice: price,
       enterpriseConcurrent: concurrent,
       enterpriseAssistants: assistants,
@@ -858,7 +898,7 @@ router.put('/enterprise-customers/:id', async (req, res) => {
     const changes = calculateChanges(
       currentSub,
       subscription,
-      ['plan', 'status', 'pendingPlanId', 'enterpriseMinutes', 'enterprisePrice', 'enterpriseConcurrent', 'enterpriseAssistants', 'enterprisePaymentStatus']
+      ['plan', 'status', 'pendingPlanId', 'enterpriseMinutes', 'enterpriseSupportInteractions', 'enterprisePrice', 'enterpriseConcurrent', 'enterpriseAssistants', 'enterprisePaymentStatus']
     );
 
     const event = (paymentStatus === 'paid' && currentSub?.plan !== 'ENTERPRISE')
@@ -978,9 +1018,29 @@ router.post('/enterprise-customers/:id/payment-link', async (req, res) => {
 
         if (currentConfigHash === priceHash) {
           console.log(`⚠️ Admin: Stripe price already exists with same config for subscription ${id}: ${subscription.stripePriceId}`);
+
+          const existingPaymentLink = await stripe.paymentLinks.create({
+            line_items: [{
+              price: subscription.stripePriceId,
+              quantity: 1,
+            }],
+            metadata: {
+              subscriptionId: subscription.id.toString(),
+              businessId: subscription.businessId.toString(),
+              type: 'enterprise',
+              priceId: subscription.stripePriceId
+            },
+            after_completion: {
+              type: 'redirect',
+              redirect: {
+                url: `${process.env.FRONTEND_URL || 'https://app.telyx.ai'}/dashboard/subscription?success=true`
+              }
+            }
+          });
+
           return res.json({
-            url: `${process.env.FRONTEND_URL || 'https://app.telyx.ai'}/dashboard/subscription`,
-            message: 'Price already created with same configuration',
+            url: existingPaymentLink.url,
+            message: 'Price already exists, new payment link created for the same configuration',
             priceId: subscription.stripePriceId,
             idempotent: true
           });
@@ -997,7 +1057,7 @@ router.post('/enterprise-customers/:id/payment-link', async (req, res) => {
     // First, create a Stripe product for this enterprise customer
     const product = await stripe.products.create({
       name: `Telyx.AI Kurumsal Plan - ${subscription.business?.name}`,
-      description: `${subscription.enterpriseMinutes} dakika dahil, özel kurumsal plan`,
+      description: `${subscription.enterpriseMinutes} dakika, ${subscription.enterpriseSupportInteractions ?? 'ozel'} destek etkilesimi dahil, özel kurumsal plan`,
       metadata: {
         businessId: subscription.businessId.toString(),
         type: 'enterprise'
