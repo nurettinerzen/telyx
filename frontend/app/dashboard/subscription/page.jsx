@@ -9,7 +9,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Check, CreditCard, Loader2, AlertCircle, X } from 'lucide-react';
+import { Check, CreditCard, Loader2, AlertCircle, MessageSquare, PhoneCall, X } from 'lucide-react';
 import { apiClient } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { formatDate } from '@/lib/utils';
@@ -54,7 +54,7 @@ const BASE_PLANS = [
     id: 'STARTER',
     nameKey: 'dashboard.subscriptionPage.planNameStarter',
     descriptionKey: 'dashboard.subscriptionPage.planDescStarter',
-    includedFeatures: ['minutes', 'concurrent', 'assistants', 'phoneNumbers', 'phone', 'whatsapp', 'chatWidget', 'analytics', 'email', 'batchCalls'],
+    includedFeatures: ['assistants', 'whatsapp', 'chatWidget', 'analytics', 'email'],
     paymentModel: 'POSTPAID',
   },
   {
@@ -89,6 +89,7 @@ export default function SubscriptionPage() {
   const [upgrading, setUpgrading] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [checkoutFormHtml, setCheckoutFormHtml] = useState('');
+  const [purchasingAddOn, setPurchasingAddOn] = useState('');
   const checkoutContainerRef = useRef(null);
   // Credit modal state
   const [creditModalOpen, setCreditModalOpen] = useState(false);
@@ -160,16 +161,39 @@ export default function SubscriptionPage() {
     const success = params.get('success');
     const session_id = params.get('session_id');
     const walletTopup = params.get('wallet_topup');
+    const addonStatus = params.get('addon');
+    const addonKind = params.get('addon_kind');
 
     if (walletTopup === 'success') {
-      toast.success(locale === 'tr' ? 'Bakiye yukleme tamamlandi' : 'Balance top-up completed');
+      toast.success(locale === 'tr' ? 'Bakiye yükleme tamamlandı' : 'Balance top-up completed');
       refetchSubscription();
       window.history.replaceState({}, '', window.location.pathname);
       return;
     }
 
     if (walletTopup === 'cancel') {
-      toast.error(locale === 'tr' ? 'Bakiye yukleme iptal edildi' : 'Balance top-up canceled');
+      toast.error(locale === 'tr' ? 'Bakiye yükleme iptal edildi' : 'Balance top-up canceled');
+      window.history.replaceState({}, '', window.location.pathname);
+      return;
+    }
+
+    if (addonStatus === 'success') {
+      toast.success(
+        locale === 'tr'
+          ? `${addonKind === 'VOICE' ? 'Ses dakikası' : 'Yazılı destek'} ek paketi satın alındı`
+          : `${addonKind === 'VOICE' ? 'Voice minute' : 'Written support'} add-on purchase completed`
+      );
+      refetchSubscription();
+      window.history.replaceState({}, '', window.location.pathname);
+      return;
+    }
+
+    if (addonStatus === 'cancel') {
+      toast.error(
+        locale === 'tr'
+          ? `${addonKind === 'VOICE' ? 'Ses dakikası' : 'Yazılı destek'} ek paket satın alma iptal edildi`
+          : `${addonKind === 'VOICE' ? 'Voice minute' : 'Written support'} add-on purchase canceled`
+      );
       window.history.replaceState({}, '', window.location.pathname);
       return;
     }
@@ -286,29 +310,31 @@ export default function SubscriptionPage() {
     setCheckoutFormHtml('');
   };
 
+  const handleBuyAddOn = async (kind, packageId) => {
+    try {
+      setPurchasingAddOn(`${kind}:${packageId}`);
+      const response = await apiClient.subscription.createAddOnCheckout({ kind, packageId });
+      if (response.data?.sessionUrl) {
+        window.location.href = response.data.sessionUrl;
+        return;
+      }
+      toast.error(locale === 'tr' ? 'Ek paket ödeme oturumu oluşturulamadı' : 'Failed to create add-on checkout session');
+    } catch (error) {
+      console.error('Add-on checkout error:', error);
+      toast.error(error.response?.data?.error || (locale === 'tr' ? 'Ek paket satın alma başarısız oldu' : 'Add-on purchase failed'));
+    } finally {
+      setPurchasingAddOn('');
+    }
+  };
+
   const usagePercent = subscription
     ? (subscription.creditsUsed / subscription.creditsLimit) * 100
     : 0;
-  const inboundEntitlements = subscription?.entitlements?.inbound;
-  const outboundEntitlements = subscription?.entitlements?.outbound;
-  const inboundEnabled = inboundEntitlements?.enabled ?? false;
-  const outboundEnabled = outboundEntitlements?.enabled ?? false;
-  const customerDataStatus = subscription?.entitlements?.customerData?.enabled ? 'Açık' : 'Kapalı';
-
-  const getEntitlementReasonLabel = (reasonCode) => {
-    if (!reasonCode) return null;
-
-    const reasonLabels = {
-      PLAN_DISABLED: 'Plan kapalı',
-      V1_OUTBOUND_ONLY: 'V1 outbound-only kısıtı',
-      BUSINESS_DISABLED: 'İşletme inbound toggle kapalı'
-    };
-
-    return reasonLabels[reasonCode] || reasonCode;
-  };
-
-  const inboundReasonLabel = getEntitlementReasonLabel(inboundEntitlements?.reason);
-  const outboundReasonLabel = getEntitlementReasonLabel(outboundEntitlements?.reason);
+  const billingSnapshot = subscription?.billingSnapshot || null;
+  const writtenUsage = billingSnapshot?.includedUsage?.writtenInteractions || null;
+  const voiceUsage = billingSnapshot?.includedUsage?.voiceMinutes || null;
+  const writtenAddOnCatalog = subscription?.addOnCatalog?.written || [];
+  const voiceAddOnCatalog = subscription?.addOnCatalog?.voice || [];
 
   // Show loading while permissions are being loaded
   if (permissionsLoading || loading) {
@@ -392,19 +418,6 @@ export default function SubscriptionPage() {
               )}
             </div>
 
-            <div className="mt-4 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-800 dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-200">
-              <div>
-                Inbound: {inboundEnabled ? 'Açık' : 'Kapalı'}
-                {!inboundEnabled && inboundReasonLabel ? ` (${inboundReasonLabel})` : ''}
-              </div>
-              <div>
-                Outbound (test-call + campaigns): {outboundEnabled ? 'Açık' : 'Kapalı'}
-                {!outboundEnabled && outboundReasonLabel ? ` (${outboundReasonLabel})` : ''}
-                {typeof subscription?.limits?.concurrent === 'number' && ` · Concurrent limit: ${subscription.limits.concurrent}`}
-              </div>
-              <div>Özel veriler: {customerDataStatus}</div>
-            </div>
-
             {/* Cancel Subscription Button - Only show for paid plans */}
             {subscription.plan !== 'FREE' && !subscription.cancelAtPeriodEnd && (
               <div className="mt-6 pt-4 border-t border-neutral-200 dark:border-neutral-700">
@@ -451,6 +464,144 @@ export default function SubscriptionPage() {
               onBuyCredit={() => setCreditModalOpen(true)}
               refreshTrigger={creditRefreshTrigger}
             />
+          </div>
+        </div>
+      )}
+
+      {!loading && subscription && (writtenAddOnCatalog.length > 0 || voiceAddOnCatalog.length > 0) && (
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-6 shadow-sm">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-primary-600" />
+                  <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
+                    {locale === 'tr' ? 'Yazılı Destek Kullanımı' : 'Written Support Usage'}
+                  </h3>
+                </div>
+                <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+                  {locale === 'tr'
+                    ? 'Webchat, WhatsApp ve e-posta aynı havuzdan düşer.'
+                    : 'Webchat, WhatsApp, and email all consume the same pool.'}
+                </p>
+              </div>
+              <Badge variant="outline">
+                {locale === 'tr'
+                  ? `${writtenUsage?.used || 0} / ${writtenUsage?.total ?? 0}`
+                  : `${writtenUsage?.used || 0} / ${writtenUsage?.total ?? 0}`}
+              </Badge>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+              <div className="rounded-lg bg-neutral-50 dark:bg-neutral-800/60 px-4 py-3">
+                <div className="text-neutral-500 dark:text-neutral-400">{locale === 'tr' ? 'Plana dahil kalan' : 'Included remaining'}</div>
+                <div className="mt-1 text-xl font-semibold text-neutral-900 dark:text-white">{writtenUsage?.remaining ?? '-'}</div>
+              </div>
+              <div className="rounded-lg bg-neutral-50 dark:bg-neutral-800/60 px-4 py-3">
+                <div className="text-neutral-500 dark:text-neutral-400">{locale === 'tr' ? 'Ek paket kalan' : 'Add-on remaining'}</div>
+                <div className="mt-1 text-xl font-semibold text-neutral-900 dark:text-white">
+                  {billingSnapshot?.addOns?.writtenInteractions?.remaining ?? 0}
+                </div>
+              </div>
+            </div>
+
+            {writtenAddOnCatalog.length > 0 && (
+              <div className="mt-5 space-y-3">
+                {writtenAddOnCatalog.map((pkg) => {
+                  const buttonKey = `WRITTEN:${pkg.id}`;
+                  return (
+                    <div key={pkg.id} className="flex items-center justify-between rounded-lg border border-neutral-200 dark:border-neutral-700 px-4 py-3">
+                      <div>
+                        <div className="font-medium text-neutral-900 dark:text-white">
+                          {pkg.quantity} {locale === 'tr' ? 'yazılı etkileşim' : 'written interactions'}
+                        </div>
+                        <div className="text-sm text-neutral-500 dark:text-neutral-400">
+                          {formatPrice(pkg.amount)}
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => handleBuyAddOn('WRITTEN', pkg.id)}
+                        disabled={purchasingAddOn === buttonKey}
+                      >
+                        {purchasingAddOn === buttonKey ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          locale === 'tr' ? 'Satın Al' : 'Buy'
+                        )}
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-6 shadow-sm">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <PhoneCall className="h-4 w-4 text-primary-600" />
+                  <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
+                    {locale === 'tr' ? 'Ses Dakikası Kullanımı' : 'Voice Minute Usage'}
+                  </h3>
+                </div>
+                <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+                  {locale === 'tr'
+                    ? 'Dahil dakikalar bittiğinde ek paket bakiyesi kullanılır.'
+                    : 'Add-on balance is used after included minutes are exhausted.'}
+                </p>
+              </div>
+              <Badge variant="outline">
+                {locale === 'tr'
+                  ? `${voiceUsage?.used || 0} / ${voiceUsage?.total ?? 0} dk`
+                  : `${voiceUsage?.used || 0} / ${voiceUsage?.total ?? 0} min`}
+              </Badge>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+              <div className="rounded-lg bg-neutral-50 dark:bg-neutral-800/60 px-4 py-3">
+                <div className="text-neutral-500 dark:text-neutral-400">{locale === 'tr' ? 'Plana dahil kalan' : 'Included remaining'}</div>
+                <div className="mt-1 text-xl font-semibold text-neutral-900 dark:text-white">{voiceUsage?.remaining ?? 0}</div>
+              </div>
+              <div className="rounded-lg bg-neutral-50 dark:bg-neutral-800/60 px-4 py-3">
+                <div className="text-neutral-500 dark:text-neutral-400">{locale === 'tr' ? 'Ek paket kalan' : 'Add-on remaining'}</div>
+                <div className="mt-1 text-xl font-semibold text-neutral-900 dark:text-white">
+                  {billingSnapshot?.addOns?.voiceMinutes?.remaining ?? 0}
+                </div>
+              </div>
+            </div>
+
+            {voiceAddOnCatalog.length > 0 && (
+              <div className="mt-5 space-y-3">
+                {voiceAddOnCatalog.map((pkg) => {
+                  const buttonKey = `VOICE:${pkg.id}`;
+                  return (
+                    <div key={pkg.id} className="flex items-center justify-between rounded-lg border border-neutral-200 dark:border-neutral-700 px-4 py-3">
+                      <div>
+                        <div className="font-medium text-neutral-900 dark:text-white">
+                          {pkg.quantity} {locale === 'tr' ? 'ses dakikası' : 'voice minutes'}
+                        </div>
+                        <div className="text-sm text-neutral-500 dark:text-neutral-400">
+                          {formatPrice(pkg.amount)}
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => handleBuyAddOn('VOICE', pkg.id)}
+                        disabled={purchasingAddOn === buttonKey}
+                      >
+                        {purchasingAddOn === buttonKey ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          locale === 'tr' ? 'Satın Al' : 'Buy'
+                        )}
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}
