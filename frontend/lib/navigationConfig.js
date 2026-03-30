@@ -124,6 +124,14 @@ export const NAVIGATION_ITEMS = {
     href: '/dashboard/team',
     group: 'management',
   },
+  phoneNumbers: {
+    labelTr: 'Telefon Numaraları',
+    labelEn: 'Phone Numbers',
+    descriptionTr: 'Telefon numaralarınızı, ses dakikalarını ve kullanım limitlerini yönetin.',
+    descriptionEn: 'Manage phone numbers, voice minutes, and usage limits.',
+    href: '/dashboard/phone-numbers',
+    group: 'management',
+  },
   subscription: {
     labelTr: 'Abonelik',
     labelEn: 'Subscription',
