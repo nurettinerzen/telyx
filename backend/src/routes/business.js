@@ -7,6 +7,41 @@ import { ASSISTANT_CHANNEL_CAPABILITIES, assistantHasCapability } from '../servi
 const router = express.Router();
 const prisma = new PrismaClient();
 
+const BUSINESS_SUBSCRIPTION_SELECT = {
+  id: true,
+  businessId: true,
+  plan: true,
+  status: true,
+  paymentProvider: true,
+  currentPeriodStart: true,
+  currentPeriodEnd: true,
+  cancelAtPeriodEnd: true,
+  balance: true,
+  minutesLimit: true,
+  minutesUsed: true,
+  trialMinutesUsed: true,
+  trialChatExpiry: true,
+  includedMinutesUsed: true,
+  overageMinutes: true,
+  overageRate: true,
+  overageLimit: true,
+  overageLimitReached: true,
+  creditMinutes: true,
+  creditMinutesUsed: true,
+  concurrentLimit: true,
+  assistantsLimit: true,
+  phoneNumbersLimit: true,
+  enterpriseMinutes: true,
+  enterpriseSupportInteractions: true,
+  enterprisePrice: true,
+  enterpriseConcurrent: true,
+  enterpriseAssistants: true,
+  enterpriseStartDate: true,
+  enterpriseEndDate: true,
+  enterprisePaymentStatus: true,
+  enterpriseNotes: true
+};
+
 function parseAliases(value) {
   if (value == null) return [];
 
@@ -156,8 +191,22 @@ router.get('/:businessId', authenticateToken, verifyBusinessAccess, async (req, 
   try {
     const business = await prisma.business.findUnique({
       where: { id: req.businessId },
-      include: {
-        subscription: true,
+      select: {
+        id: true,
+        name: true,
+        aliases: true,
+        identitySummary: true,
+        businessType: true,
+        language: true,
+        country: true,
+        timezone: true,
+        phoneInboundEnabled: true,
+        chatEmbedKey: true,
+        chatWidgetEnabled: true,
+        chatAssistantId: true,
+        subscription: {
+          select: BUSINESS_SUBSCRIPTION_SELECT
+        },
         users: {
           select: {
             id: true,
@@ -171,6 +220,8 @@ router.get('/:businessId', authenticateToken, verifyBusinessAccess, async (req, 
             id: true,
             name: true,
             createdAt: true,
+            isActive: true,
+            assistantType: true,
           },
         },
       },
