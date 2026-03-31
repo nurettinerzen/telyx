@@ -279,14 +279,14 @@ export default function SubscriptionPage() {
       } else if (response.data?.type === 'reactivate') {
         // Reactivated canceled subscription with new plan
         const effectiveDate = response.data.effectiveDate
-          ? formatDate(response.data.effectiveDate, 'long')
+          ? formatDate(response.data.effectiveDate, 'short')
           : t('dashboard.subscriptionPage.nextPeriod');
         toast.success(t('dashboard.subscriptionPage.reactivateSuccess').replace('{date}', effectiveDate).replace('{planName}', planName));
         await refreshBillingState();
       } else if (response.data?.type === 'downgrade') {
         // Scheduled downgrade (end of period)
         const effectiveDate = response.data.effectiveDate
-          ? formatDate(response.data.effectiveDate, 'long')
+          ? formatDate(response.data.effectiveDate, 'short')
           : t('dashboard.subscriptionPage.endOfPeriod');
         toast.success(t('dashboard.subscriptionPage.downgradeScheduled').replace('{date}', effectiveDate).replace('{planName}', planName));
         await refreshBillingState();

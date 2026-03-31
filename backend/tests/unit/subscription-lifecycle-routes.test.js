@@ -336,7 +336,7 @@ describe('Subscription lifecycle routes', () => {
       items: [{ id: 'si_test_123', price: 'price_starter_try' }],
       proration_behavior: 'none',
       billing_cycle_anchor: 'unchanged',
-      metadata: { scheduledPlanId: 'STARTER' }
+      metadata: { pendingPlanId: 'STARTER' }
     });
     expect(prismaMock.subscription.update).toHaveBeenCalledWith({
       where: { businessId: 11 },

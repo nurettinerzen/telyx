@@ -326,6 +326,15 @@ async function switchBusinessToPayg({ businessId, force = false }) {
     || currentSubscription.enterpriseEndDate
     || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
+  const previousPendingPlanId = currentSubscription.pendingPlanId || null;
+  await prisma.subscription.update({
+    where: { businessId },
+    data: {
+      cancelAtPeriodEnd: true,
+      pendingPlanId: 'PAYG'
+    }
+  });
+
   if (currentSubscription.stripeSubscriptionId) {
     try {
       await getStripe().subscriptions.update(currentSubscription.stripeSubscriptionId, {
@@ -333,16 +342,19 @@ async function switchBusinessToPayg({ businessId, force = false }) {
       });
       console.log(`📅 Scheduled Stripe cancellation for subscription ${currentSubscription.stripeSubscriptionId}`);
     } catch (stripeError) {
+      await prisma.subscription.update({
+        where: { businessId },
+        data: {
+          cancelAtPeriodEnd: currentSubscription.cancelAtPeriodEnd || false,
+          pendingPlanId: previousPendingPlanId
+        }
+      });
       console.error('Stripe cancellation error:', stripeError.message);
+      throw stripeError;
     }
   }
-
-  const subscription = await prisma.subscription.update({
-    where: { businessId },
-    data: {
-      cancelAtPeriodEnd: true,
-      pendingPlanId: 'PAYG'
-    }
+  const subscription = await prisma.subscription.findUnique({
+    where: { businessId }
   });
 
   return {
@@ -2258,25 +2270,34 @@ router.post('/upgrade', verifyBusinessAccess, async (req, res) => {
         });
       } else {
         // DOWNGRADE: Schedule for end of period
-        await getStripe().subscriptions.update(stripeSubscription.id, {
-          items: [{
-            id: stripeSubscription.items.data[0].id,
-            price: priceId
-          }],
-          proration_behavior: 'none', // No charge now
-          billing_cycle_anchor: 'unchanged', // Keep current billing cycle
-          metadata: {
-            scheduledPlanId: normalizedPlanId
-          }
-        });
-
-        // Mark as pending downgrade
         await prisma.subscription.update({
           where: { businessId },
           data: {
             pendingPlanId: normalizedPlanId
           }
         });
+
+        try {
+          await getStripe().subscriptions.update(stripeSubscription.id, {
+            items: [{
+              id: stripeSubscription.items.data[0].id,
+              price: priceId
+            }],
+            proration_behavior: 'none', // No charge now
+            billing_cycle_anchor: 'unchanged', // Keep current billing cycle
+            metadata: {
+              pendingPlanId: normalizedPlanId
+            }
+          });
+        } catch (stripeUpdateError) {
+          await prisma.subscription.update({
+            where: { businessId },
+            data: {
+              pendingPlanId: currentSubscription.pendingPlanId || null
+            }
+          });
+          throw stripeUpdateError;
+        }
 
         console.log(`⏰ Scheduled downgrade for business ${businessId}: ${currentSubscription.plan} → ${normalizedPlanId} (at period end)`);
 
