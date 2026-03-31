@@ -2243,7 +2243,7 @@ router.post('/upgrade', verifyBusinessAccess, async (req, res) => {
             price: priceId
           }],
           proration_behavior: 'always_invoice', // Invoice and attempt to collect the upgrade difference now
-          payment_behavior: 'pending_if_incomplete',
+          payment_behavior: 'error_if_incomplete',
           metadata: {
             planId: normalizedPlanId
           }
