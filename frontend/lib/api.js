@@ -129,6 +129,7 @@ export const apiClient = {
     upgrade: (planId) => api.post('/api/subscription/upgrade', { planId }),
     cancel: () => api.post('/api/subscription/cancel'),
     reactivate: () => api.post('/api/subscription/reactivate'),
+    undoScheduledChange: () => api.post('/api/subscription/undo-scheduled-change'),
     getBillingHistory: () => api.get('/api/subscription/billing-history'),
     createPortalSession: () => api.post('/api/subscription/create-portal-session'),
   },

@@ -358,6 +358,23 @@ export default function SubscriptionPage() {
     }
   };
 
+  const handleUndoScheduledChange = async () => {
+    try {
+      setUpgrading(true);
+      const response = await apiClient.subscription.undoScheduledChange();
+
+      if (response.data?.success) {
+        toast.success(t('dashboard.subscriptionPage.undoScheduledChangeSuccess'));
+        await refreshBillingState();
+      }
+    } catch (error) {
+      console.error('Undo scheduled change error:', error);
+      toast.error(error.response?.data?.error || t('dashboard.subscriptionPage.operationFailed'));
+    } finally {
+      setUpgrading(false);
+    }
+  };
+
   const closePaymentModal = () => {
     setShowPaymentModal(false);
     setCheckoutFormHtml('');
@@ -578,14 +595,34 @@ export default function SubscriptionPage() {
 
           {subscription.pendingPlanId && (
             <div className="rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 px-4 py-3 text-sm text-blue-800 dark:text-blue-200">
-              <strong>{t('dashboard.subscriptionPage.pendingPlanChange')}</strong>
-              {' '}
-              {subscription.currentPeriodEnd
-                ? t('dashboard.subscriptionPage.pendingPlanChangeDesc')
-                  .replace('{date}', formatDate(subscription.currentPeriodEnd, 'short'))
-                  .replace('{planName}', pendingPlanName)
-                : t('dashboard.subscriptionPage.pendingPlanChangeNoDate')
-                  .replace('{planName}', pendingPlanName)}
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <strong>{t('dashboard.subscriptionPage.pendingPlanChange')}</strong>
+                  {' '}
+                  {subscription.currentPeriodEnd
+                    ? t('dashboard.subscriptionPage.pendingPlanChangeDesc')
+                      .replace('{date}', formatDate(subscription.currentPeriodEnd, 'short'))
+                      .replace('{planName}', pendingPlanName)
+                    : t('dashboard.subscriptionPage.pendingPlanChangeNoDate')
+                      .replace('{planName}', pendingPlanName)}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleUndoScheduledChange}
+                  disabled={upgrading}
+                  className="shrink-0 border-blue-300 bg-white text-blue-700 hover:bg-blue-100 hover:text-blue-800 dark:border-blue-700 dark:bg-transparent dark:text-blue-200"
+                >
+                  {upgrading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {t('dashboard.subscriptionPage.processing')}
+                    </>
+                  ) : (
+                    t('dashboard.subscriptionPage.undoScheduledChange')
+                  )}
+                </Button>
+              </div>
             </div>
           )}
 

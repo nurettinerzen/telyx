@@ -389,6 +389,71 @@ describe('Subscription lifecycle routes', () => {
     });
   });
 
+  it('reverts a scheduled downgrade by restoring the current plan price in Stripe', async () => {
+    prismaMock.subscription.findUnique.mockResolvedValue({
+      id: 33,
+      businessId: 11,
+      plan: 'PRO',
+      status: 'ACTIVE',
+      paymentProvider: 'stripe',
+      stripeSubscriptionId: 'sub_test_123',
+      stripePriceId: null,
+      pendingPlanId: 'STARTER',
+      cancelAtPeriodEnd: false
+    });
+
+    const response = await request(app).post('/api/subscription/undo-scheduled-change').send({});
+
+    expect(response.status).toBe(200);
+    expect(stripeClientMock.subscriptions.update).toHaveBeenCalledWith('sub_test_123', {
+      items: [{ id: 'si_test_123', price: 'price_pro_try' }],
+      proration_behavior: 'none',
+      billing_cycle_anchor: 'unchanged',
+      metadata: {
+        planId: 'PRO',
+        pendingPlanId: ''
+      }
+    });
+    expect(prismaMock.subscription.update).toHaveBeenCalledWith({
+      where: { businessId: 11 },
+      data: {
+        pendingPlanId: null,
+        stripePriceId: 'price_pro_try'
+      }
+    });
+  });
+
+  it('reverts a scheduled PAYG switch by clearing period-end cancellation', async () => {
+    prismaMock.subscription.findUnique.mockResolvedValue({
+      id: 33,
+      businessId: 11,
+      plan: 'PRO',
+      status: 'ACTIVE',
+      paymentProvider: 'stripe',
+      stripeSubscriptionId: 'sub_test_123',
+      stripePriceId: 'price_pro_try',
+      pendingPlanId: 'PAYG',
+      cancelAtPeriodEnd: true
+    });
+
+    const response = await request(app).post('/api/subscription/undo-scheduled-change').send({});
+
+    expect(response.status).toBe(200);
+    expect(stripeClientMock.subscriptions.update).toHaveBeenCalledWith('sub_test_123', {
+      cancel_at_period_end: false,
+      metadata: {
+        pendingPlanId: ''
+      }
+    });
+    expect(prismaMock.subscription.update).toHaveBeenCalledWith({
+      where: { businessId: 11 },
+      data: {
+        pendingPlanId: null,
+        cancelAtPeriodEnd: false
+      }
+    });
+  });
+
   it('starts a trial exactly once per business until trial usage is exhausted', async () => {
     prismaMock.subscription.findUnique.mockResolvedValue(null);
     prismaMock.subscription.upsert.mockResolvedValue({

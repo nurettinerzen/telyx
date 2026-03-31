@@ -2059,6 +2059,133 @@ router.post('/reactivate', verifyBusinessAccess, async (req, res) => {
   }
 });
 
+// Undo a scheduled downgrade / scheduled PAYG switch
+router.post('/undo-scheduled-change', verifyBusinessAccess, async (req, res) => {
+  try {
+    const { businessId } = req.user;
+
+    const subscription = await prisma.subscription.findUnique({
+      where: { businessId },
+      select: {
+        id: true,
+        businessId: true,
+        plan: true,
+        status: true,
+        paymentProvider: true,
+        stripeSubscriptionId: true,
+        stripePriceId: true,
+        pendingPlanId: true,
+        cancelAtPeriodEnd: true
+      }
+    });
+
+    if (!subscription) {
+      return res.status(400).json({ error: 'No subscription found' });
+    }
+
+    if (!subscription.pendingPlanId) {
+      return res.status(400).json({ error: 'No scheduled plan change found' });
+    }
+
+    if (subscription.paymentProvider === 'iyzico') {
+      return res.status(400).json({
+        error: 'Scheduled plan changes cannot be reverted for iyzico subscriptions.'
+      });
+    }
+
+    const user = await prisma.user.findFirst({
+      where: { businessId },
+      include: { business: true }
+    });
+
+    const countryCode = user?.business?.country || 'TR';
+    const currentPlanPriceId = subscription.stripePriceId
+      || resolveStripePriceIdForPlan(
+        subscription.plan,
+        countryCode,
+        PLAN_CONFIG[subscription.plan]?.stripePriceId
+      );
+
+    if (subscription.pendingPlanId === 'PAYG') {
+      if (subscription.stripeSubscriptionId) {
+        await getStripe().subscriptions.update(subscription.stripeSubscriptionId, {
+          cancel_at_period_end: false,
+          metadata: {
+            pendingPlanId: ''
+          }
+        });
+      }
+
+      await prisma.subscription.update({
+        where: { businessId },
+        data: {
+          pendingPlanId: null,
+          cancelAtPeriodEnd: false
+        }
+      });
+
+      return res.json({
+        success: true,
+        message: 'Scheduled plan change reverted'
+      });
+    }
+
+    if (!subscription.stripeSubscriptionId) {
+      await prisma.subscription.update({
+        where: { businessId },
+        data: {
+          pendingPlanId: null
+        }
+      });
+
+      return res.json({
+        success: true,
+        message: 'Scheduled plan change reverted'
+      });
+    }
+
+    if (!currentPlanPriceId) {
+      return res.status(400).json({ error: 'Current plan price could not be resolved' });
+    }
+
+    const stripeSubscription = await getStripe().subscriptions.retrieve(subscription.stripeSubscriptionId);
+    const subscriptionItem = stripeSubscription?.items?.data?.[0];
+
+    if (!subscriptionItem?.id) {
+      return res.status(400).json({ error: 'Subscription item not found' });
+    }
+
+    await getStripe().subscriptions.update(subscription.stripeSubscriptionId, {
+      items: [{
+        id: subscriptionItem.id,
+        price: currentPlanPriceId
+      }],
+      proration_behavior: 'none',
+      billing_cycle_anchor: 'unchanged',
+      metadata: {
+        planId: subscription.plan,
+        pendingPlanId: ''
+      }
+    });
+
+    await prisma.subscription.update({
+      where: { businessId },
+      data: {
+        pendingPlanId: null,
+        stripePriceId: currentPlanPriceId
+      }
+    });
+
+    res.json({
+      success: true,
+      message: 'Scheduled plan change reverted'
+    });
+  } catch (error) {
+    console.error('Undo scheduled change error:', error);
+    res.status(500).json({ error: 'Failed to undo scheduled plan change' });
+  }
+});
+
 // ============================================================================
 // UPGRADE ENDPOINT - iyzico Subscription API with Plan References
 // ============================================================================

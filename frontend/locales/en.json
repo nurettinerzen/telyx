@@ -1991,6 +1991,8 @@
       "upgradeWithProrationSuccess": "Plan upgraded successfully. Your new entitlements are active now.",
       "reactivateSuccess": "Subscription reactivated! {planName} plan will be active from {date}.",
       "reactivateCurrentSuccess": "Subscription reactivated. Your current plan will continue without interruption.",
+      "undoScheduledChange": "Undo Plan Change",
+      "undoScheduledChangeSuccess": "Scheduled plan change was reverted. Your current plan will continue as-is.",
       "nextPeriod": "the next period",
       "downgradeScheduled": "Plan change scheduled. Will switch to {planName} plan on {date}.",
       "downgradeScheduledNoDate": "Plan change scheduled. Will switch to the {planName} plan at the end of the current period.",

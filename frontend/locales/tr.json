@@ -1991,6 +1991,8 @@
       "upgradeWithProrationSuccess": "Plan başarıyla yükseltildi. Yeni haklarınız hemen aktif edildi.",
       "reactivateSuccess": "Abonelik yeniden başlatıldı! {date} tarihinden itibaren {planName} planı aktif olacak.",
       "reactivateCurrentSuccess": "Abonelik yeniden aktifleştirildi. Mevcut planınız kesintisiz devam edecek.",
+      "undoScheduledChange": "Plan Değişikliğini Geri Al",
+      "undoScheduledChangeSuccess": "Plan değişikliği geri alındı. Mevcut planınız aynen devam edecek.",
       "nextPeriod": "bir sonraki dönem",
       "downgradeScheduled": "Plan değişikliği planlandı. {date} tarihinde {planName} planına geçilecek.",
       "downgradeScheduledNoDate": "Plan değişikliği planlandı. {planName} planına dönem sonunda geçilecek.",
