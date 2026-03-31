@@ -7,6 +7,8 @@ import { apiClient } from '@/lib/api';
 import { Toaster } from 'sonner';
 import { OnboardingModal } from '@/components/OnboardingModal';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { formatDate } from '@/lib/utils';
+import { getPlanDisplayName } from '@/lib/planConfig';
 
 // Avoid storing user/session data in browser storage.
 const USER_CACHE_KEY = 'dashboard_user_cache_disabled';
@@ -31,7 +33,7 @@ const markOnboardingCompleteLocally = (businessId) => {
 export default function DashboardLayout({ children }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const [user, setUser] = useState(null);
   const [credits, setCredits] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -184,6 +186,13 @@ export default function DashboardLayout({ children }) {
   // pendingPlanId = 'ENTERPRISE' ve enterprisePaymentStatus = 'pending' ise ödeme bekleniyor
   const hasPendingEnterprise = user?.subscription?.pendingPlanId === 'ENTERPRISE' &&
     user?.subscription?.enterprisePaymentStatus === 'pending';
+  const hasScheduledPlanChange = Boolean(user?.subscription?.pendingPlanId) && !hasPendingEnterprise;
+  const pendingPlanName = hasScheduledPlanChange
+    ? getPlanDisplayName(user?.subscription?.pendingPlanId, locale)
+    : null;
+  const pendingPlanDate = user?.subscription?.currentPeriodEnd
+    ? formatDate(user.subscription.currentPeriodEnd, 'short', locale)
+    : null;
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-950">
@@ -201,6 +210,25 @@ export default function DashboardLayout({ children }) {
               </svg>
               <p className="text-sm text-blue-800 dark:text-blue-200">
                 {t('dashboard.enterprisePendingBanner')}
+              </p>
+            </div>
+          </div>
+        )}
+        {hasScheduledPlanChange && (
+          <div className="bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800 px-6 py-3">
+            <div className="flex items-center gap-3">
+              <svg className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-sm text-blue-800 dark:text-blue-200">
+                <strong>{t('dashboard.subscriptionPage.pendingPlanChange')}</strong>
+                {' '}
+                {pendingPlanDate
+                  ? t('dashboard.subscriptionPage.pendingPlanChangeDesc')
+                    .replace('{date}', pendingPlanDate)
+                    .replace('{planName}', pendingPlanName)
+                  : t('dashboard.subscriptionPage.pendingPlanChangeNoDate')
+                    .replace('{planName}', pendingPlanName)}
               </p>
             </div>
           </div>
