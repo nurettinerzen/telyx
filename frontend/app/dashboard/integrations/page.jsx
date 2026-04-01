@@ -148,7 +148,7 @@ export default function IntegrationsPage() {
   // WhatsApp state
   const [whatsappModalOpen, setWhatsappModalOpen] = useState(false);
   const [whatsappLoading, setWhatsappLoading] = useState(false);
-  const [whatsappForm, setWhatsappForm] = useState({ accessToken: '', phoneNumberId: '', verifyToken: '' });
+  const [whatsappForm, setWhatsappForm] = useState({ accessToken: '', phoneNumberId: '', wabaId: '', verifyToken: '' });
   const [whatsappTestForm, setWhatsappTestForm] = useState({ recipientPhone: '', message: '' });
   const [whatsappTestSending, setWhatsappTestSending] = useState(false);
   const [whatsappTestResult, setWhatsappTestResult] = useState(null);
@@ -272,7 +272,7 @@ export default function IntegrationsPage() {
   };
 
   const handleWhatsAppConnect = async () => {
-    if (!whatsappForm.accessToken || !whatsappForm.phoneNumberId || !whatsappForm.verifyToken) {
+    if (!whatsappForm.accessToken || !whatsappForm.phoneNumberId) {
       toast.error(t('dashboard.integrationsPage.fillAllFields'));
       return;
     }
@@ -282,7 +282,7 @@ export default function IntegrationsPage() {
       if (response.data.success) {
         toast.success(t('dashboard.integrationsPage.whatsappConnected'));
         setWhatsappModalOpen(false);
-        setWhatsappForm({ accessToken: '', phoneNumberId: '', verifyToken: '' });
+        setWhatsappForm({ accessToken: '', phoneNumberId: '', wabaId: '', verifyToken: '' });
       }
     } catch (error) {
       toast.error(error.response?.data?.error || t('dashboard.integrationsPage.whatsappConnectFailed'));
@@ -1189,6 +1189,13 @@ const handleShopifyConnect = async () => {
               <div className="space-y-2">
                 <Label>{t('dashboard.integrationsPage.phoneNumberId')}</Label>
                 <Input type="text" placeholder={t('dashboard.integrationsPage.phoneNumberIdPlaceholder')} value={whatsappForm.phoneNumberId} onChange={(e) => setWhatsappForm({ ...whatsappForm, phoneNumberId: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>{t('dashboard.integrationsPage.whatsappBusinessAccountLabel')}</Label>
+                <Input type="text" placeholder={t('dashboard.integrationsPage.whatsappBusinessAccountPlaceholder')} value={whatsappForm.wabaId} onChange={(e) => setWhatsappForm({ ...whatsappForm, wabaId: e.target.value })} />
+                <p className="text-xs text-neutral-500">
+                  {t('dashboard.integrationsPage.whatsappBusinessAccountHint')}
+                </p>
               </div>
               <div className="space-y-2">
                 <Label>{t('dashboard.integrationsPage.verifyToken')}</Label>
