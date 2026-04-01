@@ -785,7 +785,7 @@ const handleShopifyConnect = async () => {
         )}
 
         {isWhatsApp && whatsappConnected && !whatsappNeedsReconnect && can('integrations:connect') && (
-          <div className="mb-4 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/50 p-4 space-y-3">
+          <div className="mb-4 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/50 p-4 space-y-4">
             <div className="space-y-1">
               <h4 className="text-sm font-semibold text-neutral-900 dark:text-white">
                 {t('dashboard.integrationsPage.whatsappTestPanelTitle')}
@@ -811,48 +811,31 @@ const handleShopifyConnect = async () => {
               )}
             </div>
 
-            {String(whatsappStatus?.displayPhoneNumber || '').replace(/[\s()-]/g, '').startsWith('+1555') && (
-              <div className="rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
-                {t('dashboard.integrationsPage.whatsappTestMetaNumberHint')}
-              </div>
-            )}
-
             {whatsappTestResult?.acceptedByMeta && (
-              <div className="rounded-lg border border-blue-200 dark:border-blue-900/50 bg-blue-50 dark:bg-blue-900/20 px-3 py-2 text-xs text-blue-800 dark:text-blue-300">
+              <div className="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white/80 dark:bg-neutral-900/40 px-3 py-2 text-xs text-neutral-600 dark:text-neutral-300">
                 {t('dashboard.integrationsPage.whatsappTestAcceptedHint')}
-                {whatsappTestResult.deliveryMode === 'template_hello_world' && (
-                  <div className="mt-1">{t('dashboard.integrationsPage.whatsappTestTemplateFallbackHint')}</div>
+                {whatsappTestResult.templateInfo?.name === 'hello_world' && (
+                  <div className="mt-1 text-neutral-500 dark:text-neutral-400">
+                    {t('dashboard.integrationsPage.whatsappTestTemplateFallbackHint')}
+                  </div>
                 )}
               </div>
             )}
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1.2fr_1fr]">
-              <div className="space-y-2">
-                <Label htmlFor={`whatsapp-test-recipient-${integration.type}`}>
-                  {t('dashboard.integrationsPage.whatsappTestRecipientLabel')}
-                </Label>
-                <Input
-                  id={`whatsapp-test-recipient-${integration.type}`}
-                  type="tel"
-                  value={whatsappTestForm.recipientPhone}
-                  placeholder={t('dashboard.integrationsPage.whatsappTestRecipientPlaceholder')}
-                  onChange={(event) => setWhatsappTestForm((prev) => ({ ...prev, recipientPhone: event.target.value }))}
-                />
-                <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
-                  {t('dashboard.integrationsPage.whatsappTestRecipientHint')}
-                </p>
-              </div>
-
-              {whatsappStatus?.displayPhoneNumber && (
-                <div className="rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white/80 dark:bg-neutral-900/40 px-3 py-3">
-                  <div className="text-[11px] uppercase tracking-wide text-neutral-500 dark:text-neutral-500">
-                    {t('dashboard.integrationsPage.whatsappSenderAssetLabel')}
-                  </div>
-                  <div className="mt-2 text-sm font-semibold text-neutral-900 dark:text-white break-words">
-                    {whatsappStatus.displayPhoneNumber}
-                  </div>
-                </div>
-              )}
+            <div className="space-y-2">
+              <Label htmlFor={`whatsapp-test-recipient-${integration.type}`}>
+                {t('dashboard.integrationsPage.whatsappTestRecipientLabel')}
+              </Label>
+              <Input
+                id={`whatsapp-test-recipient-${integration.type}`}
+                type="tel"
+                value={whatsappTestForm.recipientPhone}
+                placeholder={t('dashboard.integrationsPage.whatsappTestRecipientPlaceholder')}
+                onChange={(event) => setWhatsappTestForm((prev) => ({ ...prev, recipientPhone: event.target.value }))}
+              />
+              <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
+                {t('dashboard.integrationsPage.whatsappTestRecipientHint')}
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -885,17 +868,43 @@ const handleShopifyConnect = async () => {
             </Button>
 
             {whatsappTestResult && (
-              <div className="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white/80 dark:bg-neutral-900/40 px-3 py-3 text-xs text-neutral-700 dark:text-neutral-300">
+              <div className="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white/80 dark:bg-neutral-900/40 px-3 py-3 text-xs text-neutral-700 dark:text-neutral-300 space-y-2">
                 <div className="font-medium text-neutral-900 dark:text-white">{t('dashboard.integrationsPage.whatsappTestLastResult')}</div>
-                <div>{t('dashboard.integrationsPage.whatsappTestSentTo')}: {whatsappTestResult.recipientPhone}</div>
-                {whatsappTestResult.deliveryMode && (
-                  <div>{t('dashboard.integrationsPage.whatsappTestDeliveryMode')}: {whatsappTestResult.deliveryMode === 'template' ? t('dashboard.integrationsPage.whatsappTestDeliveryModeTemplate') : t('dashboard.integrationsPage.whatsappTestDeliveryModeText')}</div>
-                )}
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wide text-neutral-500 dark:text-neutral-500">
+                      {t('dashboard.integrationsPage.whatsappTestSentTo')}
+                    </div>
+                    <div className="mt-1 font-medium text-neutral-900 dark:text-white break-words">{whatsappTestResult.recipientPhone}</div>
+                  </div>
+                  {whatsappTestResult.deliveryMode && (
+                    <div>
+                      <div className="text-[11px] uppercase tracking-wide text-neutral-500 dark:text-neutral-500">
+                        {t('dashboard.integrationsPage.whatsappTestDeliveryMode')}
+                      </div>
+                      <div className="mt-1 font-medium text-neutral-900 dark:text-white">
+                        {whatsappTestResult.deliveryMode === 'template' ? t('dashboard.integrationsPage.whatsappTestDeliveryModeTemplate') : t('dashboard.integrationsPage.whatsappTestDeliveryModeText')}
+                      </div>
+                    </div>
+                  )}
+                </div>
                 {whatsappTestResult.templateInfo?.name && (
-                  <div>{t('dashboard.integrationsPage.whatsappTestTemplateUsed')}: {whatsappTestResult.templateInfo.name}{whatsappTestResult.templateInfo.language ? ` (${whatsappTestResult.templateInfo.language})` : ''}</div>
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wide text-neutral-500 dark:text-neutral-500">
+                      {t('dashboard.integrationsPage.whatsappTestTemplateUsed')}
+                    </div>
+                    <div className="mt-1 font-medium text-neutral-900 dark:text-white break-words">
+                      {whatsappTestResult.templateInfo.name}{whatsappTestResult.templateInfo.language ? ` (${whatsappTestResult.templateInfo.language})` : ''}
+                    </div>
+                  </div>
                 )}
                 {whatsappTestResult.messageId && (
-                  <div className="break-all">{t('dashboard.integrationsPage.whatsappTestMessageId')}: {whatsappTestResult.messageId}</div>
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wide text-neutral-500 dark:text-neutral-500">
+                      {t('dashboard.integrationsPage.whatsappTestMessageId')}
+                    </div>
+                    <div className="mt-1 break-all font-medium text-neutral-900 dark:text-white">{whatsappTestResult.messageId}</div>
+                  </div>
                 )}
               </div>
             )}
