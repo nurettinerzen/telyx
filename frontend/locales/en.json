@@ -1474,7 +1474,6 @@
       "whatsappEmbeddedSignupCancelled": "WhatsApp onboarding was cancelled.",
       "whatsappManualFallback": "Manual fallback",
       "whatsappTestPanelTitle": "In-app test message",
-      "whatsappTestPanelDesc": "This action sends the message directly from the Telyx dashboard through the Meta API. You can show this screen in the App Review video.",
       "whatsappPhoneNumberIdLabel": "Phone number ID",
       "whatsappBusinessAccountLabel": "WhatsApp Business account",
       "whatsappTestRecipientLabel": "Recipient number",

@@ -1474,7 +1474,6 @@
       "whatsappEmbeddedSignupCancelled": "WhatsApp onboarding işlemi iptal edildi.",
       "whatsappManualFallback": "Manuel yedek akış",
       "whatsappTestPanelTitle": "Uygulama içi test mesajı",
-      "whatsappTestPanelDesc": "Bu alan mesajı doğrudan Telyx panelinden Meta API üzerinden gönderir. App Review videosunda bu ekranı gösterebilirsiniz.",
       "whatsappPhoneNumberIdLabel": "Telefon numarası kimliği",
       "whatsappBusinessAccountLabel": "WhatsApp Business hesabı",
       "whatsappTestRecipientLabel": "Alıcı numara",

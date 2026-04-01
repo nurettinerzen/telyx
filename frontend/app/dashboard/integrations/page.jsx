@@ -787,9 +787,6 @@ const handleShopifyConnect = async () => {
               <h4 className="text-sm font-semibold text-neutral-900 dark:text-white">
                 {t('dashboard.integrationsPage.whatsappTestPanelTitle')}
               </h4>
-              <p className="text-xs text-neutral-600 dark:text-neutral-400">
-                {t('dashboard.integrationsPage.whatsappTestPanelDesc')}
-              </p>
             </div>
 
             <div className="grid grid-cols-1 gap-2 text-xs text-neutral-600 dark:text-neutral-400">

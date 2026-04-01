@@ -1459,7 +1459,7 @@ router.post('/whatsapp/send', requireOwner, async (req, res) => {
       })
     ]);
 
-    if (!business?.whatsappPhoneNumberId || !business?.whatsappAccessToken) {
+    if (!business?.whatsappPhoneNumberId) {
       return res.status(404).json({ error: 'WhatsApp not connected' });
     }
 
@@ -1470,8 +1470,14 @@ router.post('/whatsapp/send', requireOwner, async (req, res) => {
     const connectedNumber = credentials.displayPhoneNumber || null;
     const connectedWabaId = credentials.wabaId || null;
 
-    // Decrypt access token (supports legacy encrypted and plaintext values)
-    const accessToken = decryptPossiblyEncryptedValue(business.whatsappAccessToken, { allowPlaintext: true });
+    // Prefer business-scoped token, fall back to partner/system-user token for embedded signup connections.
+    const accessToken = business?.whatsappAccessToken
+      ? decryptPossiblyEncryptedValue(business.whatsappAccessToken, { allowPlaintext: true })
+      : getWhatsAppPartnerAccessToken();
+
+    if (!accessToken) {
+      return res.status(404).json({ error: 'WhatsApp access token not available' });
+    }
 
     // Send message via WhatsApp service
     const result = await whatsappService.sendMessage(
