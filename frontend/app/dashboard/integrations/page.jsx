@@ -146,6 +146,21 @@ const INTEGRATION_LOGOS = {
 
 const CARD_ICON_WRAPPER_CLASS = 'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-950/40';
 
+const LockedPlanBadge = ({ text }) => (
+  <div tabIndex={0} className="group relative inline-flex outline-none">
+    <Badge
+      variant="secondary"
+      className="cursor-help bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-400 text-xs focus-visible:ring-2 focus-visible:ring-neutral-300 dark:focus-visible:ring-neutral-600"
+    >
+      <Lock className="h-3 w-3 mr-1" />
+      Pro
+    </Badge>
+    <div className="pointer-events-none absolute left-0 top-full z-20 mt-2 w-56 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs text-neutral-700 opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
+      {text}
+    </div>
+  </div>
+);
+
 const IntegrationLogo = ({ type, className }) => {
   const logo = INTEGRATION_LOGOS[type];
   if (logo) {
@@ -962,10 +977,7 @@ const handleShopifyConnect = async () => {
               <div className="flex flex-wrap items-center gap-2">
                 <h3 className={`font-semibold ${disabled ? 'text-neutral-500 dark:text-neutral-400' : 'text-neutral-900 dark:text-white'}`}>{integration.name}</h3>
                 {isLocked && (
-                  <Badge variant="secondary" className="bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-400 text-xs">
-                    <Lock className="h-3 w-3 mr-1" />
-                    Pro
-                  </Badge>
+                  <LockedPlanBadge text={t('dashboard.integrationsPage.requiresProPlan')} />
                 )}
                 {disabled && !isLocked && (
                   <div className="group relative">
@@ -993,13 +1005,6 @@ const handleShopifyConnect = async () => {
           <div className="mb-3 px-2 py-1 bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300 text-xs rounded-md inline-flex items-center gap-1">
             <RefreshCw className="h-3 w-3" />
             {t('dashboard.integrationsPage.whatsappReconnectRequired')}
-          </div>
-        )}
-
-        {isLocked && (
-          <div className="mb-3 px-2 py-1 bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-400 text-xs rounded-md inline-flex items-center gap-1">
-            <Lock className="h-3 w-3" />
-            {t('dashboard.integrationsPage.requiresProPlan')}
           </div>
         )}
 
@@ -1344,10 +1349,7 @@ const handleShopifyConnect = async () => {
                         {t('dashboard.integrationsPage.customCrmWebhook')}
                       </h3>
                       {isCRMLocked && (
-                        <Badge variant="secondary" className="bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-400 text-xs">
-                          <Lock className="h-3 w-3 mr-1" />
-                          Pro
-                        </Badge>
+                        <LockedPlanBadge text={t('dashboard.integrationsPage.requiresProPlan')} />
                       )}
                     </div>
                   </div>
@@ -1358,13 +1360,6 @@ const handleShopifyConnect = async () => {
                   </Badge>
                 )}
               </div>
-
-              {isCRMLocked && (
-                <div className="mb-4 px-2 py-1 bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-400 text-xs rounded-md inline-flex items-center gap-1">
-                  <Lock className="h-3 w-3" />
-                  {t('dashboard.integrationsPage.requiresProPlan')}
-                </div>
-              )}
 
               <p className="min-h-10 text-sm text-neutral-600 dark:text-neutral-400 mb-4 line-clamp-2">
                 {t('dashboard.integrationsPage.sendDataFromSystem')}

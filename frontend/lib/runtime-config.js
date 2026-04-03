@@ -20,7 +20,30 @@ function normalizeUrl(value, fallback) {
   }
 }
 
-const appEnv = normalizeAppEnv(process.env.NEXT_PUBLIC_APP_ENV || process.env.NODE_ENV);
+function inferAppEnvFromUrl(value) {
+  const candidate = String(value || '').trim().toLowerCase();
+  if (!candidate) return '';
+
+  try {
+    const { hostname } = new URL(candidate);
+    if (/(^|\.)(beta|staging|stage|preview|preprod)(\.|$)/.test(hostname)) return 'beta';
+  } catch (_) {
+    // Ignore invalid URL hints and fall back to explicit env values.
+  }
+
+  return '';
+}
+
+const nodeEnvFallback = process.env.NODE_ENV === 'development'
+  ? 'development'
+  : process.env.NODE_ENV === 'test'
+    ? 'test'
+    : 'production';
+
+const inferredUrlEnv = inferAppEnvFromUrl(process.env.NEXT_PUBLIC_SITE_URL)
+  || inferAppEnvFromUrl(process.env.NEXT_PUBLIC_API_URL);
+
+const appEnv = normalizeAppEnv(process.env.NEXT_PUBLIC_APP_ENV || inferredUrlEnv || nodeEnvFallback);
 const isProductionApp = appEnv === 'production';
 const isBetaApp = appEnv === 'beta';
 
