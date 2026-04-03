@@ -2381,7 +2381,7 @@ router.get('/trendyol/status', async (req, res) => {
     res.json(buildMarketplaceStatusResponse(integration, 'sellerId'));
   } catch (error) {
     console.error('Trendyol status error:', error);
-    res.status(500).json({ error: 'Trendyol durumu alınamadı' });
+    res.json(buildMarketplaceStatusResponse(null, 'sellerId'));
   }
 });
 
@@ -2512,7 +2512,7 @@ router.get('/hepsiburada/status', async (req, res) => {
     res.json(buildMarketplaceStatusResponse(integration, 'merchantId'));
   } catch (error) {
     console.error('Hepsiburada status error:', error);
-    res.status(500).json({ error: 'Hepsiburada durumu alınamadı' });
+    res.json(buildMarketplaceStatusResponse(null, 'merchantId'));
   }
 });
 
