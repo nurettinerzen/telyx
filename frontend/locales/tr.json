@@ -1486,7 +1486,7 @@
       "whatsappTestSendButton": "Test mesajı gönder",
       "whatsappTestSending": "Mesaj gönderiliyor...",
       "whatsappTestFillAllFields": "Lütfen alıcı numarasını ve mesaj metnini girin.",
-      "whatsappTestAcceptedSuccess": "İstek Meta'ya iletildi. Teslimatı WhatsApp uygulamasından doğrulayın.",
+      "whatsappTestAcceptedSuccess": "Test mesajı Meta API tarafından kabul edildi. Bu durum WhatsApp teslimatının kesinleştiği anlamına gelmez.",
       "whatsappTestSendFailed": "Test mesajı gönderilemedi.",
       "whatsappTestAcceptedHint": "Bu sonuç yalnızca Meta'nın isteği kabul ettiğini gösterir. Teslimat durumu WhatsApp tarafındaki kurallara göre değişebilir.",
       "whatsappTestTemplateFallbackHint": "Gönderim için bağlı hesapta onaylı bir şablon kullanıldı.",

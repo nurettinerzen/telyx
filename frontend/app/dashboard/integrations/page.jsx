@@ -336,7 +336,7 @@ export default function IntegrationsPage() {
           templateInfo: response.data?.result?.templateInfo || null,
           sentAt: new Date().toISOString(),
         });
-        toast.success(t('dashboard.integrationsPage.whatsappTestAcceptedSuccess'));
+        toast.info(t('dashboard.integrationsPage.whatsappTestAcceptedSuccess'));
       } else {
         toast.error(t('dashboard.integrationsPage.whatsappTestSendFailed'));
       }
