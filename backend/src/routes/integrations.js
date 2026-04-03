@@ -1449,6 +1449,7 @@ router.get('/whatsapp/status', async (req, res) => {
 });
 
 router.post('/whatsapp/send', requireOwner, async (req, res) => {
+  const requestId = `wa_test_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   try {
     const recipientPhone = String(req.body?.recipientPhone || '').trim();
     const message = String(req.body?.message || '').trim();
@@ -1510,11 +1511,21 @@ router.post('/whatsapp/send', requireOwner, async (req, res) => {
     // The dashboard test endpoint must only attempt the exact text the user typed.
     // Silent template fallback makes the UI look successful while a different
     // payload is sent (or later fails delivery for template-specific reasons).
+    console.log('[WhatsApp Test Send] Attempting send', {
+      requestId,
+      businessId: req.businessId,
+      recipientPhone,
+      phoneNumberId: business.whatsappPhoneNumberId,
+      hasBusinessToken: Boolean(business?.whatsappAccessToken),
+      usingPartnerToken: !business?.whatsappAccessToken,
+    });
+
     const result = await whatsappService.sendMessage(
       accessToken,
       business.whatsappPhoneNumberId,
       recipientPhone,
-      message
+      message,
+      { timeoutMs: Number(process.env.WHATSAPP_TEST_SEND_TIMEOUT_MS || 15000) }
     );
 
     const deliveryMode = 'text';
@@ -1550,6 +1561,7 @@ router.post('/whatsapp/send', requireOwner, async (req, res) => {
     res.json({
       success: true,
       message: 'WhatsApp message accepted by Meta',
+      requestId,
       result: {
         messageId,
         recipientPhone,
@@ -1564,9 +1576,24 @@ router.post('/whatsapp/send', requireOwner, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('WhatsApp send error:', error);
-    res.status(500).json({
-      error: error?.response?.data?.error?.message || 'Failed to send WhatsApp message'
+    const upstreamMessage = error?.response?.data?.error?.message || error?.message || 'Failed to send WhatsApp message';
+    const isTimeout = error?.code === 'ECONNABORTED' || /timeout/i.test(String(error?.message || ''));
+    const isNetworkError = ['ETIMEDOUT', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN'].includes(String(error?.code || ''));
+    const statusCode = isTimeout ? 504 : isNetworkError ? 502 : 500;
+
+    console.error('[WhatsApp Test Send] Failed', {
+      requestId,
+      businessId: req.businessId,
+      code: error?.code,
+      status: error?.response?.status,
+      message: upstreamMessage,
+      response: error?.response?.data || null,
+    });
+
+    res.status(statusCode).json({
+      error: upstreamMessage,
+      requestId,
+      category: isTimeout ? 'META_TIMEOUT' : isNetworkError ? 'META_NETWORK_ERROR' : 'META_SEND_ERROR',
     });
   }
 });

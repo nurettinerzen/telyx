@@ -36,7 +36,8 @@ class WhatsAppService {
   /**
    * Send text message
    */
-  async sendMessage(accessToken, phoneNumberId, recipientPhone, message) {
+  async sendMessage(accessToken, phoneNumberId, recipientPhone, message, options = {}) {
+    const timeoutMs = Number(options.timeoutMs || process.env.WHATSAPP_SEND_TIMEOUT_MS || 15000);
     try {
       const response = await axios.post(
         `${WHATSAPP_API_URL}/${phoneNumberId}/messages`,
@@ -47,6 +48,7 @@ class WhatsAppService {
           text: { body: message }
         },
         {
+          timeout: timeoutMs,
           headers: {
             'Authorization': `Bearer ${accessToken}`,
             'Content-Type': 'application/json'
@@ -55,7 +57,13 @@ class WhatsAppService {
       );
       return response.data;
     } catch (error) {
-      console.error('WhatsApp send message error:', error.response?.data);
+      console.error('WhatsApp send message error:', {
+        timeoutMs,
+        code: error.code,
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+      });
       throw error;
     }
   }
