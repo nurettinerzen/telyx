@@ -4,6 +4,7 @@ import { authenticateToken } from '../middleware/auth.js';
 import { checkPermission, requireOwner } from '../middleware/permissions.js';
 import googleCalendarService from '../services/google-calendar.js';
 import hubspotService from '../services/hubspot.js';
+import iyzicoService from '../services/iyzico.js';
 import whatsappService from '../services/whatsapp.js';
 import { getFilteredIntegrations, getIntegrationPriority } from '../config/integrationMetadata.js';
 import { generateOAuthState, validateOAuthState } from '../middleware/oauthState.js';
@@ -142,6 +143,19 @@ function appendEmbeddedSignupTelemetry(sessionInfo, entry) {
 }
 
 router.use(authenticateToken);
+
+router.get('/iyzico/status', async (req, res) => {
+  try {
+    const status = await iyzicoService.getStatus(req.businessId);
+    res.json(status);
+  } catch (error) {
+    console.error('iyzico integration status error:', error);
+    res.status(500).json({
+      error: 'Durum alinamadi',
+      message: error.message
+    });
+  }
+});
 
 function buildMarketplaceIntegrationPayload({
   existingCredentials = {},

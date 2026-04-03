@@ -129,16 +129,16 @@ const INTEGRATION_LOGOS = {
   },
   TRENDYOL: {
     src: '/assets/integrations/trendyol.png',
-    width: 40,
-    height: 40,
-    className: 'h-10 w-10 rounded-lg object-cover shadow-sm border border-neutral-200 dark:border-neutral-700',
+    width: 32,
+    height: 32,
+    className: 'h-8 w-8 rounded-md object-cover shadow-sm border border-neutral-200 dark:border-neutral-700',
     unoptimized: true,
   },
   HEPSIBURADA: {
     src: '/assets/integrations/hepsiburada.png',
-    width: 40,
-    height: 40,
-    className: 'h-10 w-10 rounded-lg object-cover shadow-sm border border-neutral-200 dark:border-neutral-700',
+    width: 32,
+    height: 32,
+    className: 'h-8 w-8 rounded-md object-cover shadow-sm border border-neutral-200 dark:border-neutral-700',
     unoptimized: true,
   },
 };
@@ -934,10 +934,10 @@ const handleShopifyConnect = async () => {
     const isLocked = featureInfo.isLocked && !isEffectivelyConnected;
 
     return (
-      <div key={integration.type} className={`bg-white dark:bg-neutral-900 rounded-xl border p-6 transition-shadow ${disabled || isLocked ? 'opacity-70 bg-neutral-50 dark:bg-neutral-800' : 'hover:shadow-md'} border-neutral-200 dark:border-neutral-700`}>
+      <div key={integration.type} className={`flex h-full flex-col bg-white dark:bg-neutral-900 rounded-xl border p-6 transition-shadow ${disabled || isLocked ? 'opacity-70 bg-neutral-50 dark:bg-neutral-800' : 'hover:shadow-md'} border-neutral-200 dark:border-neutral-700`}>
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
-            <Icon className={isMarketplaceBeta ? 'h-10 w-10 rounded-lg object-cover shadow-sm border border-neutral-200 dark:border-neutral-700' : `h-6 w-6 ${isLocked ? 'text-neutral-400 dark:text-neutral-500' : 'text-neutral-600 dark:text-neutral-400'}`} />
+            <Icon className={isMarketplaceBeta ? 'h-8 w-8 rounded-md object-cover shadow-sm border border-neutral-200 dark:border-neutral-700' : `h-6 w-6 ${isLocked ? 'text-neutral-400 dark:text-neutral-500' : 'text-neutral-600 dark:text-neutral-400'}`} />
             <div>
               <div className="flex items-center gap-2">
                 <h3 className={`font-semibold ${disabled || isLocked ? 'text-neutral-500 dark:text-neutral-400' : 'text-neutral-900 dark:text-white'}`}>{integration.name}</h3>
@@ -983,7 +983,7 @@ const handleShopifyConnect = async () => {
           </div>
         )}
 
-        <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-4 line-clamp-2">{getCategoryDescription(integration.type)}</p>
+        <p className="min-h-10 text-sm text-neutral-600 dark:text-neutral-400 mb-4 line-clamp-2">{getCategoryDescription(integration.type)}</p>
 
         {(isTrendyol || isHepsiburada) && isEffectivelyConnected && (
           <div className="space-y-2 mb-4">
@@ -1186,7 +1186,7 @@ const handleShopifyConnect = async () => {
           </div>
         )}
 
-        <div className="flex gap-2">
+        <div className="mt-auto flex gap-2 pt-2">
           {isLocked ? (
             <Button
               size="sm"
@@ -1285,7 +1285,7 @@ const handleShopifyConnect = async () => {
             const isCrmConnected = !isCRMLocked && crmStatus?.hasWebhook && crmStatus?.isActive;
 
             return (
-            <div className={`bg-white dark:bg-neutral-900 rounded-xl border p-6 transition-shadow ${isCRMLocked ? 'opacity-70 bg-neutral-50 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700' : isCrmConnected ? 'border-neutral-400 dark:border-neutral-600 hover:shadow-md' : 'border-neutral-200 dark:border-neutral-700 hover:shadow-md'}`}>
+            <div className={`flex h-full flex-col bg-white dark:bg-neutral-900 rounded-xl border p-6 transition-shadow ${isCRMLocked ? 'opacity-70 bg-neutral-50 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700' : isCrmConnected ? 'border-neutral-400 dark:border-neutral-600 hover:shadow-md' : 'border-neutral-200 dark:border-neutral-700 hover:shadow-md'}`}>
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <IntegrationLogo type="CUSTOM" />
@@ -1317,10 +1317,11 @@ const handleShopifyConnect = async () => {
                 </div>
               )}
 
-              <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-4">
+              <p className="min-h-10 text-sm text-neutral-600 dark:text-neutral-400 mb-4">
                 {t('dashboard.integrationsPage.sendDataFromSystem')}
               </p>
 
+              <div className="mt-auto pt-2">
               {isCRMLocked ? (
                 <Button
                   size="sm"
@@ -1372,12 +1373,13 @@ const handleShopifyConnect = async () => {
                 {t('dashboard.integrationsPage.connect')}
               </Button>
               )}
+              </div>
             </div>
             );
           })()}
 
           {/* Gmail Card */}
-          <div className={`bg-white dark:bg-neutral-900 rounded-xl border p-6 hover:shadow-md transition-shadow ${emailStatus?.connected && emailStatus?.provider === 'GMAIL' ? 'border-neutral-400 dark:border-neutral-600' : 'border-neutral-200 dark:border-neutral-700'}`}>
+          <div className={`flex h-full flex-col bg-white dark:bg-neutral-900 rounded-xl border p-6 hover:shadow-md transition-shadow ${emailStatus?.connected && emailStatus?.provider === 'GMAIL' ? 'border-neutral-400 dark:border-neutral-600' : 'border-neutral-200 dark:border-neutral-700'}`}>
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-3">
                 <IntegrationLogo type="GMAIL" />
@@ -1391,7 +1393,8 @@ const handleShopifyConnect = async () => {
                 </Badge>
               )}
             </div>
-            <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-4">{t('dashboard.integrationsPage.gmailDesc')}</p>
+            <p className="min-h-10 text-sm text-neutral-600 dark:text-neutral-400 mb-4">{t('dashboard.integrationsPage.gmailDesc')}</p>
+            <div className="mt-auto pt-2">
             {emailStatus?.connected && emailStatus?.provider === 'GMAIL' ? (
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" className="flex-1" onClick={() => window.location.href = '/dashboard/email'}>
@@ -1408,10 +1411,11 @@ const handleShopifyConnect = async () => {
               </Button>
               )
             )}
+            </div>
           </div>
 
           {/* Outlook Card */}
-          <div className={`bg-white dark:bg-neutral-900 rounded-xl border p-6 hover:shadow-md transition-shadow ${emailStatus?.connected && emailStatus?.provider === 'OUTLOOK' ? 'border-neutral-400 dark:border-neutral-600' : 'border-neutral-200 dark:border-neutral-700'}`}>
+          <div className={`flex h-full flex-col bg-white dark:bg-neutral-900 rounded-xl border p-6 hover:shadow-md transition-shadow ${emailStatus?.connected && emailStatus?.provider === 'OUTLOOK' ? 'border-neutral-400 dark:border-neutral-600' : 'border-neutral-200 dark:border-neutral-700'}`}>
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-3">
                 <IntegrationLogo type="OUTLOOK" />
@@ -1425,7 +1429,8 @@ const handleShopifyConnect = async () => {
                 </Badge>
               )}
             </div>
-            <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-4">{t('dashboard.integrationsPage.outlookDesc')}</p>
+            <p className="min-h-10 text-sm text-neutral-600 dark:text-neutral-400 mb-4">{t('dashboard.integrationsPage.outlookDesc')}</p>
+            <div className="mt-auto pt-2">
             {emailStatus?.connected && emailStatus?.provider === 'OUTLOOK' ? (
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" className="flex-1" onClick={() => window.location.href = '/dashboard/email'}>
@@ -1442,6 +1447,7 @@ const handleShopifyConnect = async () => {
               </Button>
               )
             )}
+            </div>
           </div>
 
           {/* Other Integrations */}
