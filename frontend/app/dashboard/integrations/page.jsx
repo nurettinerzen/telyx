@@ -50,6 +50,8 @@ import {
   useShopifyStatus,
   useWebhookStatus,
   useIkasStatus,
+  useTrendyolStatus,
+  useHepsiburadaStatus,
   useConnectWhatsApp,
   useDisconnectWhatsApp,
   useConnectIyzico,
@@ -58,6 +60,12 @@ import {
   useDisconnectShopify,
   useConnectIkas,
   useDisconnectIkas,
+  useConnectTrendyol,
+  useDisconnectTrendyol,
+  useTestTrendyol,
+  useConnectHepsiburada,
+  useDisconnectHepsiburada,
+  useTestHepsiburada,
   useSetupWebhook,
   useDisableWebhook,
   useRegenerateWebhook,
@@ -71,22 +79,82 @@ import { useWhatsAppEmbeddedSignup } from '@/hooks/useWhatsAppEmbeddedSignup';
 
 // Integration logo paths
 const INTEGRATION_LOGOS = {
-  GOOGLE_CALENDAR: '/assets/integrations/googlecalendar.svg',
-  WHATSAPP: '/assets/integrations/whatsapp.svg',
-  SHOPIFY: '/assets/integrations/shopify.svg',
-  IKAS: '/assets/integrations/ikas.ico',
-  GMAIL: '/assets/integrations/gmail.svg',
-  OUTLOOK: '/assets/integrations/outlook.png',
-  CUSTOM: '/assets/integrations/crm.png',
-  WEBHOOK: '/assets/integrations/webhook.png',
+  GOOGLE_CALENDAR: {
+    src: '/assets/integrations/googlecalendar.svg',
+    width: 24,
+    height: 24,
+    className: 'h-6 w-6 object-contain',
+  },
+  WHATSAPP: {
+    src: '/assets/integrations/whatsapp.svg',
+    width: 24,
+    height: 24,
+    className: 'h-6 w-6 object-contain',
+  },
+  SHOPIFY: {
+    src: '/assets/integrations/shopify.svg',
+    width: 24,
+    height: 24,
+    className: 'h-6 w-6 object-contain',
+  },
+  IKAS: {
+    src: '/assets/integrations/ikas.ico',
+    width: 24,
+    height: 24,
+    className: 'h-6 w-6 object-contain',
+  },
+  GMAIL: {
+    src: '/assets/integrations/gmail.svg',
+    width: 24,
+    height: 24,
+    className: 'h-6 w-6 object-contain',
+  },
+  OUTLOOK: {
+    src: '/assets/integrations/outlook.png',
+    width: 24,
+    height: 24,
+    className: 'h-6 w-6 object-contain',
+  },
+  CUSTOM: {
+    src: '/assets/integrations/crm.png',
+    width: 24,
+    height: 24,
+    className: 'h-6 w-6 object-contain',
+  },
+  WEBHOOK: {
+    src: '/assets/integrations/webhook.png',
+    width: 24,
+    height: 24,
+    className: 'h-6 w-6 object-contain',
+  },
+  TRENDYOL: {
+    src: '/assets/integrations/trendyol.png',
+    width: 128,
+    height: 52,
+    className: 'h-7 w-auto object-contain',
+  },
+  HEPSIBURADA: {
+    src: '/assets/integrations/hepsiburada.png',
+    width: 164,
+    height: 28,
+    className: 'h-7 w-auto object-contain',
+  },
 };
 
-const IntegrationLogo = ({ type, className = 'h-6 w-6' }) => {
+const IntegrationLogo = ({ type, className }) => {
   const logo = INTEGRATION_LOGOS[type];
   if (logo) {
-    return <Image src={logo} alt={type} width={24} height={24} className={className} />;
+    return (
+      <Image
+        src={logo.src}
+        alt={type}
+        width={logo.width}
+        height={logo.height}
+        className={className || logo.className}
+      />
+    );
   }
-  return <Hash className={className} />;
+  return <Hash className={className || 'h-6 w-6'} />;
 };
 
 const INTEGRATION_ICONS = {
@@ -94,6 +162,8 @@ const INTEGRATION_ICONS = {
   WHATSAPP: ({ className }) => <IntegrationLogo type="WHATSAPP" className={className} />,
   SHOPIFY: ({ className }) => <IntegrationLogo type="SHOPIFY" className={className} />,
   IKAS: ({ className }) => <IntegrationLogo type="IKAS" className={className} />,
+  TRENDYOL: ({ className }) => <IntegrationLogo type="TRENDYOL" className={className} />,
+  HEPSIBURADA: ({ className }) => <IntegrationLogo type="HEPSIBURADA" className={className} />,
   CUSTOM: Hash
 };
 
@@ -101,7 +171,9 @@ const INTEGRATION_DOCS = {
   GOOGLE_CALENDAR: 'https://developers.google.com/calendar',
   WHATSAPP: 'https://developers.facebook.com/docs/whatsapp',
   SHOPIFY: 'https://shopify.dev',
-  IKAS: 'https://ikas.dev'
+  IKAS: 'https://ikas.dev',
+  TRENDYOL: 'https://developers.trendyol.com/docs/musteri-sorularini-cekme',
+  HEPSIBURADA: 'https://developers.hepsiburada.com/hepsiburada/reference/saticiya-sor'
 };
 
 export default function IntegrationsPage() {
@@ -121,6 +193,8 @@ export default function IntegrationsPage() {
   const { data: shopifyStatus } = useShopifyStatus();
   const { data: webhookStatus } = useWebhookStatus();
   const { data: ikasStatus } = useIkasStatus();
+  const { data: trendyolStatus } = useTrendyolStatus();
+  const { data: hepsiburadaStatus } = useHepsiburadaStatus();
   const { data: crmStatus } = useCrmWebhookStatus({ enabled: hasCrmEntitlement });
 
   const integrations = integrationsData?.integrations || [];
@@ -136,6 +210,12 @@ export default function IntegrationsPage() {
   const disconnectShopify = useDisconnectShopify();
   const connectIkas = useConnectIkas();
   const disconnectIkas = useDisconnectIkas();
+  const connectTrendyol = useConnectTrendyol();
+  const disconnectTrendyol = useDisconnectTrendyol();
+  const testTrendyol = useTestTrendyol();
+  const connectHepsiburada = useConnectHepsiburada();
+  const disconnectHepsiburada = useDisconnectHepsiburada();
+  const testHepsiburada = useTestHepsiburada();
   const setupWebhook = useSetupWebhook();
   const disableWebhook = useDisableWebhook();
   const regenerateWebhook = useRegenerateWebhook();
@@ -196,6 +276,22 @@ export default function IntegrationsPage() {
   const [ikasLoading, setIkasLoading] = useState(false);
   const [ikasForm, setIkasForm] = useState({ storeName: '', clientId: '', clientSecret: '' });
 
+  // Marketplace Q&A states
+  const [trendyolModalOpen, setTrendyolModalOpen] = useState(false);
+  const [trendyolLoading, setTrendyolLoading] = useState(false);
+  const [trendyolForm, setTrendyolForm] = useState({
+    sellerId: '',
+    apiKey: '',
+    apiSecret: '',
+  });
+  const [hepsiburadaModalOpen, setHepsiburadaModalOpen] = useState(false);
+  const [hepsiburadaLoading, setHepsiburadaLoading] = useState(false);
+  const [hepsiburadaForm, setHepsiburadaForm] = useState({
+    merchantId: '',
+    apiKey: '',
+    apiSecret: '',
+  });
+
   useEffect(() => {
     // Handle OAuth callback results
     if (typeof window !== 'undefined') {
@@ -223,7 +319,7 @@ export default function IntegrationsPage() {
         window.history.replaceState({}, '', window.location.pathname);
       }
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     setWhatsappTestForm((prev) => {
@@ -534,6 +630,48 @@ const handleShopifyConnect = async () => {
     }
   };
 
+  const handleTrendyolConnect = async () => {
+    if (!trendyolForm.sellerId || !trendyolForm.apiKey || !trendyolForm.apiSecret) {
+      toast.error('Seller ID, API key ve API secret gerekli');
+      return;
+    }
+
+    setTrendyolLoading(true);
+    try {
+      const response = await connectTrendyol.mutateAsync(trendyolForm);
+      if (response.data.success) {
+        toast.success('Trendyol bağlantısı başarılı');
+        setTrendyolModalOpen(false);
+        setTrendyolForm({ sellerId: '', apiKey: '', apiSecret: '' });
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Trendyol bağlantısı başarısız');
+    } finally {
+      setTrendyolLoading(false);
+    }
+  };
+
+  const handleHepsiburadaConnect = async () => {
+    if (!hepsiburadaForm.merchantId || !hepsiburadaForm.apiSecret) {
+      toast.error('Merchant ID ve servis anahtarı gerekli');
+      return;
+    }
+
+    setHepsiburadaLoading(true);
+    try {
+      const response = await connectHepsiburada.mutateAsync(hepsiburadaForm);
+      if (response.data.success) {
+        toast.success('Hepsiburada bağlantısı başarılı');
+        setHepsiburadaModalOpen(false);
+        setHepsiburadaForm({ merchantId: '', apiKey: '', apiSecret: '' });
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Hepsiburada bağlantısı başarısız');
+    } finally {
+      setHepsiburadaLoading(false);
+    }
+  };
+
   // Ideasoft handlers removed - platform no longer supported
 
   // Ticimax handlers removed - platform no longer supported
@@ -557,6 +695,8 @@ const handleShopifyConnect = async () => {
         return;
       }
       if (integration.type === 'IKAS') { setIkasModalOpen(true); return; }
+      if (integration.type === 'TRENDYOL') { setTrendyolModalOpen(true); return; }
+      if (integration.type === 'HEPSIBURADA') { setHepsiburadaModalOpen(true); return; }
       toast.info(`${integration.name} ${t('dashboard.integrationsPage.comingSoonIntegration')}`);
     } catch (error) {
       toast.error(t('dashboard.integrationsPage.connectFailed'));
@@ -578,6 +718,14 @@ const handleShopifyConnect = async () => {
       await disconnectIkas.mutateAsync();
       toast.success(t('dashboard.integrationsPage.ikasDisconnected'));
     }
+    else if (integration.type === 'TRENDYOL') {
+      await disconnectTrendyol.mutateAsync();
+      toast.success('Trendyol bağlantısı kesildi');
+    }
+    else if (integration.type === 'HEPSIBURADA') {
+      await disconnectHepsiburada.mutateAsync();
+      toast.success('Hepsiburada bağlantısı kesildi');
+    }
   } catch (error) {
     toast.error(t('dashboard.integrationsPage.disconnectFailed'));
   }
@@ -598,6 +746,18 @@ const handleShopifyConnect = async () => {
     if (integration.type === 'IKAS') {
       const response = await testIkas.mutateAsync();
       if (response.data.success) toast.success(t('dashboard.integrationsPage.ikasActive'));
+      else toast.error(t('dashboard.integrationsPage.testFailed'));
+      return;
+    }
+    if (integration.type === 'TRENDYOL') {
+      const response = await testTrendyol.mutateAsync();
+      if (response.data.success) toast.success('Trendyol bağlantısı aktif');
+      else toast.error(t('dashboard.integrationsPage.testFailed'));
+      return;
+    }
+    if (integration.type === 'HEPSIBURADA') {
+      const response = await testHepsiburada.mutateAsync();
+      if (response.data.success) toast.success('Hepsiburada bağlantısı aktif');
       else toast.error(t('dashboard.integrationsPage.testFailed'));
       return;
     }
@@ -643,6 +803,8 @@ const handleShopifyConnect = async () => {
       IYZICO: t('dashboard.integrationsPage.iyzicoConnect'),
       ZAPIER: t('dashboard.integrationsPage.zapierConnect'),
       IKAS: t('dashboard.integrationsPage.ikasConnect'),
+      TRENDYOL: 'Trendyol mağazanızdaki müşteri sorularını çekin, AI cevap taslağı oluşturun ve panelden onaylayın.',
+      HEPSIBURADA: 'Hepsiburada sorularını çekin, AI ile yanıt hazırlayın ve panelden onaylayarak gönderin.',
       IDEASOFT: t('dashboard.integrationsPage.ideasoftConnect'),
       TICIMAX: t('dashboard.integrationsPage.ticimaxConnect')
     };
@@ -688,6 +850,12 @@ const handleShopifyConnect = async () => {
       types: ['SHOPIFY', 'IKAS']
     },
     {
+      id: 'marketplace',
+      title: 'Pazaryeri Q&A',
+      icon: Package,
+      types: ['TRENDYOL', 'HEPSIBURADA']
+    },
+    {
       id: 'calendar',
       title: t('dashboard.integrationsPage.categoryCalendar'),
       icon: CalendarDays,
@@ -729,17 +897,28 @@ const handleShopifyConnect = async () => {
   const renderIntegrationCard = (integration) => {
     const Icon = getIntegrationIcon(integration.type);
     const isWhatsApp = integration.type === 'WHATSAPP';
+    const isTrendyol = integration.type === 'TRENDYOL';
+    const isHepsiburada = integration.type === 'HEPSIBURADA';
+    const isMarketplaceBeta = isTrendyol || isHepsiburada;
     const disabled = isEcommerceDisabled(integration.type);
+    const marketplaceStatus = isTrendyol
+      ? trendyolStatus
+      : (isHepsiburada ? hepsiburadaStatus : null);
     const whatsappConnected = isWhatsApp ? Boolean(whatsappStatus?.connected ?? integration.connected) : integration.connected;
     const whatsappNeedsReconnect = isWhatsApp ? Boolean(whatsappStatus?.needsReconnect) : false;
     const shouldShowWhatsappDetails = isWhatsApp && (whatsappConnected || whatsappNeedsReconnect);
     const isEffectivelyConnected = isWhatsApp
       ? (whatsappConnected || whatsappNeedsReconnect)
-      : integration.connected;
+      : (isTrendyol || isHepsiburada)
+        ? Boolean(marketplaceStatus?.connected ?? integration.connected)
+        : integration.connected;
     const whatsappNumberLabel = shouldShowWhatsappDetails
       ? (whatsappStatus?.displayPhoneNumber || whatsappStatus?.phoneNumberId || null)
       : null;
     const whatsappExpiryLabel = formatWhatsAppTimestamp(whatsappStatus?.tokenExpiresAt);
+    const marketplaceIdentifier = isTrendyol
+      ? marketplaceStatus?.sellerId
+      : marketplaceStatus?.merchantId;
     const whatsappActionLabel = whatsappEmbeddedSignupState === 'awaiting_completion'
       ? t('dashboard.integrationsPage.whatsappWaitingForMeta')
       : (whatsappNeedsReconnect ? t('dashboard.integrationsPage.whatsappReconnect') : t('dashboard.integrationsPage.connect'));
@@ -755,7 +934,7 @@ const handleShopifyConnect = async () => {
       <div key={integration.type} className={`bg-white dark:bg-neutral-900 rounded-xl border p-6 transition-shadow ${disabled || isLocked ? 'opacity-70 bg-neutral-50 dark:bg-neutral-800' : 'hover:shadow-md'} border-neutral-200 dark:border-neutral-700`}>
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
-            <Icon className={`h-6 w-6 ${isLocked ? 'text-neutral-400 dark:text-neutral-500' : 'text-neutral-600 dark:text-neutral-400'}`} />
+            <Icon className={isMarketplaceBeta ? 'h-7 w-auto object-contain' : `h-6 w-6 ${isLocked ? 'text-neutral-400 dark:text-neutral-500' : 'text-neutral-600 dark:text-neutral-400'}`} />
             <div>
               <div className="flex items-center gap-2">
                 <h3 className={`font-semibold ${disabled || isLocked ? 'text-neutral-500 dark:text-neutral-400' : 'text-neutral-900 dark:text-white'}`}>{integration.name}</h3>
@@ -776,7 +955,11 @@ const handleShopifyConnect = async () => {
               </div>
             </div>
           </div>
-          {whatsappConnected && (
+          {isMarketplaceBeta ? (
+            <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 text-xs border border-amber-200 dark:border-amber-800/40">
+              Beta
+            </Badge>
+          ) : isEffectivelyConnected && (
             <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-xs">
               {t('dashboard.integrationsPage.connected')}
             </Badge>
@@ -798,6 +981,28 @@ const handleShopifyConnect = async () => {
         )}
 
         <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-4 line-clamp-2">{getCategoryDescription(integration.type)}</p>
+
+        {(isTrendyol || isHepsiburada) && isEffectivelyConnected && (
+          <div className="space-y-2 mb-4">
+            <p className="text-xs text-emerald-700 dark:text-emerald-300 inline-flex items-center gap-1">
+              <CheckCircle2 className="h-3 w-3" />
+              Bağlantı aktif
+            </p>
+            {marketplaceIdentifier && (
+              <p className="text-xs text-neutral-700 dark:text-neutral-300">
+                {isTrendyol ? 'Seller ID' : 'Merchant ID'}: <span className="font-medium">{marketplaceIdentifier}</span>
+              </p>
+            )}
+            {marketplaceStatus?.lastSync && (
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                Son senkron: {formatWhatsAppTimestamp(marketplaceStatus.lastSync)}
+              </p>
+            )}
+            <p className="text-xs text-neutral-500 dark:text-neutral-400">
+              Soru paneli: <button className="underline" onClick={() => { window.location.href = '/dashboard/marketplace-qa'; }}>Pazaryeri Q&A</button>
+            </p>
+          </div>
+        )}
 
         {isWhatsApp && shouldShowWhatsappDetails && (
           <div className="space-y-2 mb-4">
@@ -1487,6 +1692,114 @@ const handleShopifyConnect = async () => {
             <Button variant="outline" onClick={() => setIkasModalOpen(false)} disabled={ikasLoading}>{t('common.cancel')}</Button>
             <Button onClick={handleIkasConnect} disabled={ikasLoading}>
               {ikasLoading ? <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />{t('dashboard.integrationsPage.connectingText')}</> : t('dashboard.integrationsPage.connectIkas')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={trendyolModalOpen} onOpenChange={setTrendyolModalOpen}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShoppingCart className="h-5 w-5 text-orange-600" />
+              Trendyol Q&A Bağlantısı
+            </DialogTitle>
+            <DialogDescription>
+              Seller ID ve API bilgilerinizi girin. Sistem bağlantıyı test edip soru senkronizasyonunu aktif eder.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Seller ID</Label>
+              <Input
+                type="text"
+                placeholder="123456"
+                value={trendyolForm.sellerId}
+                onChange={(event) => setTrendyolForm((prev) => ({ ...prev, sellerId: event.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>API Key</Label>
+              <Input
+                type="text"
+                placeholder="API key"
+                value={trendyolForm.apiKey}
+                onChange={(event) => setTrendyolForm((prev) => ({ ...prev, apiKey: event.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>API Secret</Label>
+              <Input
+                type="password"
+                placeholder="API secret"
+                value={trendyolForm.apiSecret}
+                onChange={(event) => setTrendyolForm((prev) => ({ ...prev, apiSecret: event.target.value }))}
+              />
+            </div>
+            <p className="text-xs text-neutral-500">
+              Soru taslaklari cekilir, AI yaniti olusturulur ve Pazaryeri Q&A ekraninda onaya dusurulur.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTrendyolModalOpen(false)} disabled={trendyolLoading}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={handleTrendyolConnect} disabled={trendyolLoading}>
+              {trendyolLoading ? <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />{t('dashboard.integrationsPage.connectingText')}</> : 'Trendyol Bağla'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={hepsiburadaModalOpen} onOpenChange={setHepsiburadaModalOpen}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5 text-red-600" />
+              Hepsiburada Q&A Bağlantısı
+            </DialogTitle>
+            <DialogDescription>
+              Merchant ID, varsa entegratör kullanıcı adı ve servis anahtarını girin. Sistem bağlantıyı test eder.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Merchant ID</Label>
+              <Input
+                type="text"
+                placeholder="merchant-guid"
+                value={hepsiburadaForm.merchantId}
+                onChange={(event) => setHepsiburadaForm((prev) => ({ ...prev, merchantId: event.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Eski Kullanici Adi / API Key (opsiyonel)</Label>
+              <Input
+                type="text"
+                placeholder="entegrator kullanici adi"
+                value={hepsiburadaForm.apiKey}
+                onChange={(event) => setHepsiburadaForm((prev) => ({ ...prev, apiKey: event.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Servis Anahtari / API Secret</Label>
+              <Input
+                type="password"
+                placeholder="servis anahtari"
+                value={hepsiburadaForm.apiSecret}
+                onChange={(event) => setHepsiburadaForm((prev) => ({ ...prev, apiSecret: event.target.value }))}
+              />
+            </div>
+            <p className="text-xs text-neutral-500">
+              Hepsiburada sorulari cekilir, AI yaniti olusturulur ve panelden onaylandiginda platforma gonderilir.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setHepsiburadaModalOpen(false)} disabled={hepsiburadaLoading}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={handleHepsiburadaConnect} disabled={hepsiburadaLoading}>
+              {hepsiburadaLoading ? <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />{t('dashboard.integrationsPage.connectingText')}</> : 'Hepsiburada Bağla'}
             </Button>
           </DialogFooter>
         </DialogContent>

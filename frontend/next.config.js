@@ -10,9 +10,30 @@ const normalizeAppEnv = (value) => {
   return 'development';
 };
 
+const toOrigin = (value) => {
+  if (!value) return null;
+
+  try {
+    return new URL(value).origin;
+  } catch {
+    return null;
+  }
+};
+
 const appEnv = normalizeAppEnv(process.env.NEXT_PUBLIC_APP_ENV || process.env.NODE_ENV);
 const isBetaApp = appEnv === 'beta';
 const frameAncestors = process.env.CSP_FRAME_ANCESTORS || "'none'";
+const connectSrcValues = new Set([
+  "'self'",
+  'https:',
+  'wss:',
+]);
+const apiOrigin = toOrigin(process.env.NEXT_PUBLIC_API_URL);
+
+if (apiOrigin) {
+  connectSrcValues.add(apiOrigin);
+}
+
 const contentSecurityPolicy = [
   "default-src 'self'",
   "base-uri 'self'",
@@ -23,7 +44,7 @@ const contentSecurityPolicy = [
   "img-src 'self' data: blob: https:",
   "media-src 'self' blob: https:",
   "font-src 'self' data: https:",
-  "connect-src 'self' https: wss:",
+  `connect-src ${Array.from(connectSrcValues).join(' ')}`,
   "frame-src 'self' https://accounts.google.com https://*.google.com https://*.iyzipay.com https://www.facebook.com https://web.facebook.com https://*.facebook.com",
   "form-action 'self' https:",
 ].join('; ');

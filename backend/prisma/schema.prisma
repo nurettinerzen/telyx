@@ -158,6 +158,7 @@ model Business {
   emailDrafts              EmailDraft[]
   emailEmbeddings          EmailEmbedding[]
   emailSnippets            EmailSnippet[]
+  marketplaceQuestions     MarketplaceQuestion[]
   webhookConfig            WebhookConfig?
   invitations              Invitation[]
   creditPurchases          CreditPurchase[]
@@ -516,6 +517,37 @@ model Integration {
   @@index([type])
 }
 
+model MarketplaceQuestion {
+  id              Int      @id @default(autoincrement())
+  businessId      Int
+  platform        String
+  externalId      String
+  productName     String?
+  productBarcode  String?
+  productUrl      String?
+  productImageUrl String?
+  customerName    String?
+  questionText    String   @db.Text
+  generatedAnswer String?  @db.Text
+  finalAnswer     String?  @db.Text
+  status          String   @default("PENDING")
+  answerMode      String   @default("MANUAL")
+  rejectionReason String?
+  platformStatus  String?
+  expiresAt       DateTime?
+  answeredAt      DateTime?
+  postedAt        DateTime?
+  errorMessage    String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  business        Business @relation(fields: [businessId], references: [id])
+
+  @@unique([businessId, platform, externalId])
+  @@index([businessId, status])
+  @@index([businessId, platform])
+  @@index([status])
+}
+
 model WhatsappEmbeddedSignupSession {
   id           String   @id @default(cuid())
   businessId   Int
@@ -821,6 +853,7 @@ enum IntegrationType {
   ARAS_KARGO
   MNG_KARGO
   TRENDYOL
+  HEPSIBURADA
   PARASUT
   IYZICO
   IKAS

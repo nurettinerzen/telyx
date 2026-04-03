@@ -72,6 +72,14 @@ export const NAVIGATION_ITEMS = {
     href: '/dashboard/email-snippets',
     group: 'operations',
   },
+  marketplaceQa: {
+    labelTr: 'Pazaryeri Q&A',
+    labelEn: 'Marketplace Q&A',
+    descriptionTr: 'Trendyol ve Hepsiburada sorularını AI taslaklarıyla yönetin.',
+    descriptionEn: 'Manage Trendyol and Hepsiburada questions with AI drafts.',
+    href: '/dashboard/marketplace-qa',
+    group: 'operations',
+  },
 
   // Monitoring
   analytics: {

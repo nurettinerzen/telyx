@@ -12,6 +12,14 @@ import { decryptTokenValue, decryptPossiblyEncryptedValue, encryptTokenValue, ge
 import { encryptGoogleTokenCredentials, decryptGoogleTokenCredentials } from '../utils/google-oauth-tokens.js';
 import { revokeGoogleOAuthToken } from '../utils/google-oauth-revoke.js';
 import {
+  DEFAULT_QA_SETTINGS,
+  buildMarketplaceCredentials,
+  decryptMarketplaceCredentials,
+  encryptMarketplaceCredentials,
+  maskCredentialValue,
+  normalizeQaSettings,
+} from '../services/marketplace/qaShared.js';
+import {
   buildWhatsAppConnectionCredentials,
   buildWhatsAppRefreshFailureCredentials,
   buildWhatsAppStatusResponse,
@@ -134,6 +142,40 @@ function appendEmbeddedSignupTelemetry(sessionInfo, entry) {
 }
 
 router.use(authenticateToken);
+
+function buildMarketplaceIntegrationPayload({
+  existingCredentials = {},
+  incomingCredentials = {},
+  fallbackLanguage = 'tr',
+  identifierField,
+}) {
+  const normalizedIncoming = buildMarketplaceCredentials(incomingCredentials, fallbackLanguage);
+  const normalizedExisting = buildMarketplaceCredentials(existingCredentials, fallbackLanguage);
+  const qaSettings = normalizeQaSettings(
+    normalizedIncoming.qaSettings || normalizedExisting.qaSettings || DEFAULT_QA_SETTINGS,
+    fallbackLanguage
+  );
+
+  return encryptMarketplaceCredentials({
+    ...normalizedExisting,
+    ...normalizedIncoming,
+    [identifierField]: normalizedIncoming[identifierField] || normalizedExisting[identifierField],
+    qaSettings,
+  }, fallbackLanguage);
+}
+
+function buildMarketplaceStatusResponse(integration, identifierField) {
+  const credentials = decryptMarketplaceCredentials(integration?.credentials || {});
+
+  return {
+    connected: Boolean(integration?.connected && integration?.isActive),
+    [identifierField]: credentials?.[identifierField] || null,
+    qaSettings: credentials?.qaSettings || DEFAULT_QA_SETTINGS,
+    lastSync: integration?.lastSync || null,
+    maskedApiKey: maskCredentialValue(credentials?.apiKey),
+    hasSecret: Boolean(credentials?.apiSecret),
+  };
+}
 
 /* ============================================================
    GET ALL INTEGRATIONS
@@ -2209,6 +2251,298 @@ router.post('/ikas/test', async (req, res) => {
   } catch (error) {
     console.error('ikas test error:', error);
     res.status(500).json({ success: false, error: 'Test başarısız' });
+  }
+});
+
+/* ============================================================
+   MARKETPLACE Q&A INTEGRATIONS
+============================================================ */
+
+router.post('/trendyol/connect', checkPermission('integrations:connect'), async (req, res) => {
+  try {
+    const { sellerId, apiKey, apiSecret, qaSettings } = req.body;
+
+    if (!sellerId || !apiKey || !apiSecret) {
+      return res.status(400).json({
+        error: 'sellerId, apiKey ve apiSecret gerekli'
+      });
+    }
+
+    const business = await prisma.business.findUnique({
+      where: { id: req.businessId },
+      select: { language: true }
+    });
+
+    const TrendyolQaService = (await import('../services/integrations/marketplace/trendyol-qa.service.js')).default;
+    const trendyolService = new TrendyolQaService();
+    const testResult = await trendyolService.testConnection({ sellerId, apiKey, apiSecret, qaSettings });
+
+    if (!testResult.success) {
+      return res.status(400).json({
+        error: testResult.message || 'Trendyol bağlantı testi başarısız'
+      });
+    }
+
+    const existingIntegration = await prisma.integration.findUnique({
+      where: {
+        businessId_type: {
+          businessId: req.businessId,
+          type: 'TRENDYOL'
+        }
+      }
+    });
+
+    const credentials = buildMarketplaceIntegrationPayload({
+      existingCredentials: existingIntegration?.credentials || {},
+      incomingCredentials: { sellerId, apiKey, apiSecret, qaSettings },
+      fallbackLanguage: business?.language || 'tr',
+      identifierField: 'sellerId'
+    });
+
+    const integration = await prisma.integration.upsert({
+      where: {
+        businessId_type: {
+          businessId: req.businessId,
+          type: 'TRENDYOL'
+        }
+      },
+      update: {
+        credentials,
+        connected: true,
+        isActive: true,
+        syncEnabled: true
+      },
+      create: {
+        businessId: req.businessId,
+        type: 'TRENDYOL',
+        credentials,
+        connected: true,
+        isActive: true,
+        syncEnabled: true
+      }
+    });
+
+    res.json({
+      success: true,
+      message: 'Trendyol bağlantısı başarılı',
+      status: buildMarketplaceStatusResponse(integration, 'sellerId')
+    });
+  } catch (error) {
+    console.error('Trendyol connect error:', error);
+    res.status(500).json({ error: error.message || 'Trendyol bağlantısı başarısız' });
+  }
+});
+
+router.post('/trendyol/disconnect', checkPermission('integrations:connect'), async (req, res) => {
+  try {
+    await prisma.integration.updateMany({
+      where: {
+        businessId: req.businessId,
+        type: 'TRENDYOL'
+      },
+      data: {
+        connected: false,
+        isActive: false
+      }
+    });
+
+    res.json({
+      success: true,
+      message: 'Trendyol bağlantısı kesildi'
+    });
+  } catch (error) {
+    console.error('Trendyol disconnect error:', error);
+    res.status(500).json({ error: 'Trendyol bağlantısı kesilemedi' });
+  }
+});
+
+router.get('/trendyol/status', async (req, res) => {
+  try {
+    const integration = await prisma.integration.findUnique({
+      where: {
+        businessId_type: {
+          businessId: req.businessId,
+          type: 'TRENDYOL'
+        }
+      },
+      select: {
+        connected: true,
+        isActive: true,
+        lastSync: true,
+        credentials: true
+      }
+    });
+
+    res.json(buildMarketplaceStatusResponse(integration, 'sellerId'));
+  } catch (error) {
+    console.error('Trendyol status error:', error);
+    res.status(500).json({ error: 'Trendyol durumu alınamadı' });
+  }
+});
+
+router.post('/trendyol/test', checkPermission('integrations:connect'), async (req, res) => {
+  try {
+    const TrendyolQaService = (await import('../services/integrations/marketplace/trendyol-qa.service.js')).default;
+    const trendyolService = new TrendyolQaService();
+    const credentials = await trendyolService.getCredentials(req.businessId);
+    const testResult = await trendyolService.testConnection(credentials);
+
+    if (!testResult.success) {
+      return res.status(400).json({ success: false, error: testResult.message });
+    }
+
+    res.json({
+      success: true,
+      message: 'Trendyol bağlantısı aktif',
+      details: testResult
+    });
+  } catch (error) {
+    console.error('Trendyol test error:', error);
+    res.status(500).json({ success: false, error: error.message || 'Trendyol test başarısız' });
+  }
+});
+
+router.post('/hepsiburada/connect', checkPermission('integrations:connect'), async (req, res) => {
+  try {
+    const { merchantId, apiKey, apiSecret, qaSettings } = req.body;
+
+    if (!merchantId || !apiSecret) {
+      return res.status(400).json({
+        error: 'merchantId ve apiSecret gerekli'
+      });
+    }
+
+    const business = await prisma.business.findUnique({
+      where: { id: req.businessId },
+      select: { language: true }
+    });
+
+    const HepsiburadaQaService = (await import('../services/integrations/marketplace/hepsiburada-qa.service.js')).default;
+    const hepsiburadaService = new HepsiburadaQaService();
+    const testResult = await hepsiburadaService.testConnection({ merchantId, apiKey, apiSecret, qaSettings });
+
+    if (!testResult.success) {
+      return res.status(400).json({
+        error: testResult.message || 'Hepsiburada bağlantı testi başarısız'
+      });
+    }
+
+    const existingIntegration = await prisma.integration.findUnique({
+      where: {
+        businessId_type: {
+          businessId: req.businessId,
+          type: 'HEPSIBURADA'
+        }
+      }
+    });
+
+    const credentials = buildMarketplaceIntegrationPayload({
+      existingCredentials: existingIntegration?.credentials || {},
+      incomingCredentials: { merchantId, apiKey, apiSecret, qaSettings },
+      fallbackLanguage: business?.language || 'tr',
+      identifierField: 'merchantId'
+    });
+
+    const integration = await prisma.integration.upsert({
+      where: {
+        businessId_type: {
+          businessId: req.businessId,
+          type: 'HEPSIBURADA'
+        }
+      },
+      update: {
+        credentials,
+        connected: true,
+        isActive: true,
+        syncEnabled: true
+      },
+      create: {
+        businessId: req.businessId,
+        type: 'HEPSIBURADA',
+        credentials,
+        connected: true,
+        isActive: true,
+        syncEnabled: true
+      }
+    });
+
+    res.json({
+      success: true,
+      message: 'Hepsiburada bağlantısı başarılı',
+      status: buildMarketplaceStatusResponse(integration, 'merchantId')
+    });
+  } catch (error) {
+    console.error('Hepsiburada connect error:', error);
+    res.status(500).json({ error: error.message || 'Hepsiburada bağlantısı başarısız' });
+  }
+});
+
+router.post('/hepsiburada/disconnect', checkPermission('integrations:connect'), async (req, res) => {
+  try {
+    await prisma.integration.updateMany({
+      where: {
+        businessId: req.businessId,
+        type: 'HEPSIBURADA'
+      },
+      data: {
+        connected: false,
+        isActive: false
+      }
+    });
+
+    res.json({
+      success: true,
+      message: 'Hepsiburada bağlantısı kesildi'
+    });
+  } catch (error) {
+    console.error('Hepsiburada disconnect error:', error);
+    res.status(500).json({ error: 'Hepsiburada bağlantısı kesilemedi' });
+  }
+});
+
+router.get('/hepsiburada/status', async (req, res) => {
+  try {
+    const integration = await prisma.integration.findUnique({
+      where: {
+        businessId_type: {
+          businessId: req.businessId,
+          type: 'HEPSIBURADA'
+        }
+      },
+      select: {
+        connected: true,
+        isActive: true,
+        lastSync: true,
+        credentials: true
+      }
+    });
+
+    res.json(buildMarketplaceStatusResponse(integration, 'merchantId'));
+  } catch (error) {
+    console.error('Hepsiburada status error:', error);
+    res.status(500).json({ error: 'Hepsiburada durumu alınamadı' });
+  }
+});
+
+router.post('/hepsiburada/test', checkPermission('integrations:connect'), async (req, res) => {
+  try {
+    const HepsiburadaQaService = (await import('../services/integrations/marketplace/hepsiburada-qa.service.js')).default;
+    const hepsiburadaService = new HepsiburadaQaService();
+    const credentials = await hepsiburadaService.getCredentials(req.businessId);
+    const testResult = await hepsiburadaService.testConnection(credentials);
+
+    if (!testResult.success) {
+      return res.status(400).json({ success: false, error: testResult.message });
+    }
+
+    res.json({
+      success: true,
+      message: 'Hepsiburada bağlantısı aktif',
+      details: testResult
+    });
+  } catch (error) {
+    console.error('Hepsiburada test error:', error);
+    res.status(500).json({ success: false, error: error.message || 'Hepsiburada test başarısız' });
   }
 });
 

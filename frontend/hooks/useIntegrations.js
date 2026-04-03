@@ -198,6 +198,36 @@ export function useIkasStatus() {
 }
 
 /**
+ * Hook to fetch Trendyol status
+ * @returns {object} Query result with Trendyol status
+ */
+export function useTrendyolStatus() {
+  return useQuery({
+    queryKey: ['integrations', 'trendyol', 'status'],
+    queryFn: async () => {
+      const response = await apiClient.get('/api/integrations/trendyol/status');
+      return response.data;
+    },
+    staleTime: 60000,
+  });
+}
+
+/**
+ * Hook to fetch Hepsiburada status
+ * @returns {object} Query result with Hepsiburada status
+ */
+export function useHepsiburadaStatus() {
+  return useQuery({
+    queryKey: ['integrations', 'hepsiburada', 'status'],
+    queryFn: async () => {
+      const response = await apiClient.get('/api/integrations/hepsiburada/status');
+      return response.data;
+    },
+    staleTime: 60000,
+  });
+}
+
+/**
  * Hook to connect WhatsApp
  * @returns {object} Mutation object
  */
@@ -359,6 +389,82 @@ export function useDisconnectIkas() {
 }
 
 /**
+ * Hook to connect Trendyol
+ * @returns {object} Mutation object
+ */
+export function useConnectTrendyol() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (formData) => {
+      return await apiClient.post('/api/integrations/trendyol/connect', formData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['integrations'] });
+      queryClient.invalidateQueries({ queryKey: ['integrations', 'trendyol', 'status'] });
+      queryClient.invalidateQueries({ queryKey: ['marketplace-qa'] });
+    },
+  });
+}
+
+/**
+ * Hook to disconnect Trendyol
+ * @returns {object} Mutation object
+ */
+export function useDisconnectTrendyol() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      return await apiClient.post('/api/integrations/trendyol/disconnect');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['integrations'] });
+      queryClient.invalidateQueries({ queryKey: ['integrations', 'trendyol', 'status'] });
+      queryClient.invalidateQueries({ queryKey: ['marketplace-qa'] });
+    },
+  });
+}
+
+/**
+ * Hook to connect Hepsiburada
+ * @returns {object} Mutation object
+ */
+export function useConnectHepsiburada() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (formData) => {
+      return await apiClient.post('/api/integrations/hepsiburada/connect', formData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['integrations'] });
+      queryClient.invalidateQueries({ queryKey: ['integrations', 'hepsiburada', 'status'] });
+      queryClient.invalidateQueries({ queryKey: ['marketplace-qa'] });
+    },
+  });
+}
+
+/**
+ * Hook to disconnect Hepsiburada
+ * @returns {object} Mutation object
+ */
+export function useDisconnectHepsiburada() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      return await apiClient.post('/api/integrations/hepsiburada/disconnect');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['integrations'] });
+      queryClient.invalidateQueries({ queryKey: ['integrations', 'hepsiburada', 'status'] });
+      queryClient.invalidateQueries({ queryKey: ['marketplace-qa'] });
+    },
+  });
+}
+
+/**
  * Hook to setup webhook
  * @returns {object} Mutation object
  */
@@ -448,6 +554,30 @@ export function useTestIkas() {
   return useMutation({
     mutationFn: async () => {
       return await apiClient.post('/api/integrations/ikas/test');
+    },
+  });
+}
+
+/**
+ * Hook to test Trendyol
+ * @returns {object} Mutation object
+ */
+export function useTestTrendyol() {
+  return useMutation({
+    mutationFn: async () => {
+      return await apiClient.post('/api/integrations/trendyol/test');
+    },
+  });
+}
+
+/**
+ * Hook to test Hepsiburada
+ * @returns {object} Mutation object
+ */
+export function useTestHepsiburada() {
+  return useMutation({
+    mutationFn: async () => {
+      return await apiClient.post('/api/integrations/hepsiburada/test');
     },
   });
 }

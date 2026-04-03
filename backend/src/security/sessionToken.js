@@ -1,8 +1,9 @@
 import jwt from 'jsonwebtoken';
 
-export const SESSION_COOKIE_NAME = '__Host-telyx_session';
 const SESSION_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const PROD_SESSION_COOKIE_NAME = '__Host-telyx_session';
+const DEV_SESSION_COOKIE_NAME = 'telyx_session';
 
 function getJwtSecret() {
   const secret = process.env.JWT_SECRET;
@@ -10,6 +11,14 @@ function getJwtSecret() {
     throw new Error('JWT_SECRET is not configured');
   }
   return secret;
+}
+
+function isProductionLikeCookieEnv() {
+  return process.env.NODE_ENV === 'production';
+}
+
+function getSessionCookieName() {
+  return isProductionLikeCookieEnv() ? PROD_SESSION_COOKIE_NAME : DEV_SESSION_COOKIE_NAME;
 }
 
 function normalizeCookieHeader(cookieHeader = '') {
@@ -32,7 +41,7 @@ export function extractSessionToken(req) {
   }
 
   const cookieMap = normalizeCookieHeader(req.headers?.cookie || '');
-  return cookieMap[SESSION_COOKIE_NAME] || null;
+  return cookieMap[getSessionCookieName()] || cookieMap[PROD_SESSION_COOKIE_NAME] || cookieMap[DEV_SESSION_COOKIE_NAME] || null;
 }
 
 export function buildSessionPayload(user, extra = {}) {
@@ -58,8 +67,8 @@ export function verifySessionToken(token) {
 }
 
 export function setSessionCookie(res, token) {
-  const isProduction = process.env.NODE_ENV === 'production';
-  res.cookie(SESSION_COOKIE_NAME, token, {
+  const isProduction = isProductionLikeCookieEnv();
+  res.cookie(getSessionCookieName(), token, {
     httpOnly: true,
     secure: isProduction,
     sameSite: isProduction ? 'strict' : 'lax',
@@ -69,13 +78,22 @@ export function setSessionCookie(res, token) {
 }
 
 export function clearSessionCookie(res) {
-  const isProduction = process.env.NODE_ENV === 'production';
-  res.clearCookie(SESSION_COOKIE_NAME, {
+  const isProduction = isProductionLikeCookieEnv();
+  const cookieOptions = {
     httpOnly: true,
     secure: isProduction,
     sameSite: isProduction ? 'strict' : 'lax',
     path: '/',
-  });
+  };
+
+  res.clearCookie(getSessionCookieName(), cookieOptions);
+
+  if (!isProduction) {
+    res.clearCookie(PROD_SESSION_COOKIE_NAME, {
+      ...cookieOptions,
+      secure: false,
+    });
+  }
 }
 
 export function issueSession(res, user, extraClaims = {}) {
@@ -85,7 +103,7 @@ export function issueSession(res, user, extraClaims = {}) {
 }
 
 export default {
-  SESSION_COOKIE_NAME,
+  SESSION_COOKIE_NAME: getSessionCookieName(),
   extractSessionToken,
   buildSessionPayload,
   signSessionToken,

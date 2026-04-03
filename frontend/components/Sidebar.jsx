@@ -39,6 +39,7 @@ import {
   History,
   AlertTriangle,
   BookMarked,
+  Package,
 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
@@ -63,6 +64,7 @@ import { getPlanDisplayName } from '@/lib/planConfig';
 import { TelyxLogoCompact } from './TelyxLogo';
 import { NAVIGATION_ITEMS } from '@/lib/navigationConfig';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useHepsiburadaStatus, useTrendyolStatus } from '@/hooks/useIntegrations';
 
 export default function Sidebar({ user, credits, business }) {
   const pathname = usePathname();
@@ -82,12 +84,15 @@ export default function Sidebar({ user, credits, business }) {
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [selectedFeatureId, setSelectedFeatureId] = useState(null);
   const { data: liveSubscription } = useSubscription();
+  const { data: trendyolStatus } = useTrendyolStatus();
+  const { data: hepsiburadaStatus } = useHepsiburadaStatus();
 
   // Get user's current plan and country
   // Only use actual plan from subscription - don't assume STARTER as default
   // This prevents flash where features appear/disappear as plan loads
   const userPlan = liveSubscription?.plan || user?.subscription?.plan || user?.plan || null;
   const userCountry = business?.country || user?.business?.country || 'TR';
+  const hasMarketplaceQaAccess = Boolean(trendyolStatus?.connected || hepsiburadaStatus?.connected);
 
   // Show skeleton until BOTH conditions are met:
   // 1. Component is mounted (hydration complete)
@@ -134,6 +139,7 @@ export default function Sidebar({ user, credits, business }) {
         { icon: Megaphone, label: t('dashboard.sidebar.campaigns'), href: NAVIGATION_ITEMS.campaigns.href, permission: 'campaigns:view', featureId: 'batch_calls' },
         { icon: Mail, label: t('dashboard.sidebar.email'), href: NAVIGATION_ITEMS.email.href, permission: 'campaigns:view' },
         { icon: Zap, label: t('dashboard.sidebar.quickReplies'), href: NAVIGATION_ITEMS.emailSnippets.href, permission: 'campaigns:view' },
+        ...(hasMarketplaceQaAccess ? [{ icon: Package, label: locale === 'tr' ? NAVIGATION_ITEMS.marketplaceQa.labelTr : NAVIGATION_ITEMS.marketplaceQa.labelEn, href: NAVIGATION_ITEMS.marketplaceQa.href, permission: 'campaigns:view' }] : []),
       ],
     },
     {

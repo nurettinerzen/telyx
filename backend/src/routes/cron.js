@@ -18,6 +18,7 @@ import { backfillAllBusinesses, backfillEmailEmbeddings } from '../core/email/ra
 import { cleanupExpiredLocks } from '../core/email/policies/idempotencyPolicy.js';
 import { cleanupOldEmbeddings } from '../core/email/rag/embeddingService.js';
 import { requireCronSecret } from '../middleware/cronAuth.js';
+import { processMarketplaceQuestions } from '../services/marketplace/qaWorker.js';
 
 const router = express.Router();
 
@@ -73,6 +74,10 @@ const JOB_CONFIG = {
   'red-alert-health': {
     maxDuration: 1 * 60 * 1000, // 1 minute
     cooldown: 5 * 60 * 1000     // 5 minutes (prevent spam)
+  },
+  'marketplace-qa': {
+    maxDuration: 10 * 60 * 1000, // 10 minutes
+    cooldown: 5 * 60 * 1000      // 5 minutes
   }
 };
 
@@ -452,6 +457,25 @@ router.post('/red-alert-health',
       success: true,
       message: `Health check completed: ${status}`,
       ...result,
+    });
+  })
+);
+
+/**
+ * POST /api/cron/marketplace-qa
+ * Pull unanswered marketplace questions, generate AI drafts and keep them ready for approval
+ * Should run: Every 5 minutes
+ */
+router.post('/marketplace-qa',
+  verifyCronSecret,
+  checkJobState('marketplace-qa'),
+  wrapJobHandler(async (_req, res) => {
+    console.log('🛒 Cron: Marketplace Q&A sync triggered');
+    const result = await processMarketplaceQuestions();
+    res.json({
+      success: true,
+      message: 'Marketplace Q&A sync completed',
+      result
     });
   })
 );
