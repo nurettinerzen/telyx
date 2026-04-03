@@ -20,6 +20,20 @@ const api = axios.create({
   },
 });
 
+function isPublicAuthPath(pathname = '') {
+  if (!pathname) return false;
+
+  const publicPaths = new Set([
+    '/login',
+    '/register',
+    '/signup',
+    '/forgot-password',
+    '/reset-password',
+  ]);
+
+  return publicPaths.has(pathname) || pathname.startsWith('/auth/');
+}
+
 // Response interceptor - Handle errors globally
 api.interceptors.response.use(
   (response) => response,
@@ -30,13 +44,13 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       // WhatsApp connect hatası Meta'dan geliyor, logout yapma
       const isWhatsAppConnect = error.config?.url?.includes('/whatsapp/connect');
-      // Login sayfasında zaten olabilir, o yüzden redirect yapma
-      const isLoginPage = typeof window !== 'undefined' && window.location.pathname === '/login';
+      const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+      const isPublicAuthPage = isPublicAuthPath(pathname);
       
-      if (!isWhatsAppConnect && !isLoginPage && typeof window !== 'undefined') {
+      if (!isWhatsAppConnect && !isPublicAuthPage && typeof window !== 'undefined') {
         window.location.href = '/login';
       }
-      // Login sayfasındaysa hiçbir şey yapma, hatayı döndür
+      // Public auth sayfalarındaysa hiçbir şey yapma, hatayı döndür
     } else if (error.response?.status === 403) {
       // Some locked-plan checks intentionally return 403 and should stay silent in UI.
       if (!error.config?.suppressExpected403) {
