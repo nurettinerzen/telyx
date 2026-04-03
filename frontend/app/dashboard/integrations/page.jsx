@@ -141,9 +141,28 @@ const INTEGRATION_LOGOS = {
   },
 };
 
+const MARKETPLACE_LOGO_TYPES = new Set(['TRENDYOL', 'HEPSIBURADA']);
+
 const IntegrationLogo = ({ type, className }) => {
   const logo = INTEGRATION_LOGOS[type];
   if (logo) {
+    if (MARKETPLACE_LOGO_TYPES.has(type)) {
+      return (
+        <span
+          className={className || 'relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-neutral-200 bg-white p-1 shadow-sm dark:border-neutral-700'}
+        >
+          <Image
+            src={logo.src}
+            alt={type}
+            fill
+            sizes="40px"
+            unoptimized
+            className="object-contain p-1"
+          />
+        </span>
+      );
+    }
+
     return (
       <Image
         src={logo.src}
@@ -934,7 +953,7 @@ const handleShopifyConnect = async () => {
       <div key={integration.type} className={`bg-white dark:bg-neutral-900 rounded-xl border p-6 transition-shadow ${disabled || isLocked ? 'opacity-70 bg-neutral-50 dark:bg-neutral-800' : 'hover:shadow-md'} border-neutral-200 dark:border-neutral-700`}>
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
-            <Icon className={isMarketplaceBeta ? 'h-7 w-auto object-contain' : `h-6 w-6 ${isLocked ? 'text-neutral-400 dark:text-neutral-500' : 'text-neutral-600 dark:text-neutral-400'}`} />
+            <Icon className={isMarketplaceBeta ? 'relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-neutral-200 bg-white p-1 shadow-sm dark:border-neutral-700' : `h-6 w-6 ${isLocked ? 'text-neutral-400 dark:text-neutral-500' : 'text-neutral-600 dark:text-neutral-400'}`} />
             <div>
               <div className="flex items-center gap-2">
                 <h3 className={`font-semibold ${disabled || isLocked ? 'text-neutral-500 dark:text-neutral-400' : 'text-neutral-900 dark:text-white'}`}>{integration.name}</h3>
