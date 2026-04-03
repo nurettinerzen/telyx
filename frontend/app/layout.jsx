@@ -7,6 +7,7 @@ import PublicSiteChatWidget from '@/components/PublicSiteChatWidget';
 import runtimeConfig from '@/lib/runtime-config';
 
 const metadataBase = runtimeConfig.siteUrl ? new URL(runtimeConfig.siteUrl) : undefined;
+const iconVersion = '20260413';
 
 export const metadata = {
   metadataBase,
@@ -27,13 +28,16 @@ export const metadata = {
       },
   icons: {
     icon: [
-      { url: '/favicon-light.png', media: '(prefers-color-scheme: light)' },
-      { url: '/favicon-dark.png', media: '(prefers-color-scheme: dark)' },
-      { url: '/favicon-v3.png' },
+      { url: `/favicon.ico?v=${iconVersion}`, sizes: 'any' },
+      { url: `/favicon-light.png?v=${iconVersion}`, media: '(prefers-color-scheme: light)', type: 'image/png' },
+      { url: `/favicon-dark.png?v=${iconVersion}`, media: '(prefers-color-scheme: dark)', type: 'image/png' },
+      { url: `/favicon-v3.png?v=${iconVersion}`, type: 'image/png' },
+      { url: `/icon.svg?v=${iconVersion}`, type: 'image/svg+xml' },
     ],
-    shortcut: ['/favicon-v3.png'],
+    shortcut: [{ url: `/favicon.ico?v=${iconVersion}` }],
     apple: [
-      { url: '/apple-icon-v3.png' },
+      { url: `/apple-touch-icon.png?v=${iconVersion}` },
+      { url: `/apple-icon-v3.png?v=${iconVersion}` },
     ],
   },
 };

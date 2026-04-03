@@ -5,7 +5,7 @@
 
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -89,21 +89,115 @@ function KnowledgeBaseContent() {
   // Form states
   const [docName, setDocName] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
+  const [isDragActive, setIsDragActive] = useState(false);
   const [faqForm, setFaqForm] = useState({ question: '', answer: '', category: '' });
+  const fileInputRef = useRef(null);
 
   // Content viewer modal states
   const [showContentModal, setShowContentModal] = useState(false);
   const [contentModalData, setContentModalData] = useState(null);
   const [loadingContent, setLoadingContent] = useState(false);
 
+  const allowedExtensions = ['pdf', 'docx', 'txt', 'csv'];
+  const maxUploadSizeBytes = 10 * 1024 * 1024;
+
+  const resetFilePicker = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const clearDocumentUploadState = () => {
+    setDocName('');
+    setSelectedFile(null);
+    setIsDragActive(false);
+    resetFilePicker();
+  };
+
+  const handleDocModalOpenChange = (nextOpen) => {
+    setShowDocModal(nextOpen);
+    if (!nextOpen) {
+      clearDocumentUploadState();
+    }
+  };
+
+  const getUploadValidationError = (file) => {
+    if (!file) {
+      return locale === 'tr' ? 'Dosya seçilemedi.' : 'Could not read the selected file.';
+    }
+
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    if (!extension || !allowedExtensions.includes(extension)) {
+      return locale === 'tr'
+        ? 'Yalnızca PDF, DOCX, TXT veya CSV dosyaları yükleyebilirsiniz.'
+        : 'Only PDF, DOCX, TXT, or CSV files can be uploaded.';
+    }
+
+    if (file.size > maxUploadSizeBytes) {
+      return locale === 'tr'
+        ? 'Dosya boyutu 10 MB sınırını aşıyor.'
+        : 'The file exceeds the 10 MB size limit.';
+    }
+
+    return null;
+  };
+
+  const applySelectedFile = (file) => {
+    const validationError = getUploadValidationError(file);
+    if (validationError) {
+      toast.error(validationError);
+      resetFilePicker();
+      return false;
+    }
+
+    setSelectedFile(file);
+    if (!docName) {
+      setDocName(file.name.replace(/\.[^/.]+$/, ''));
+    }
+
+    return true;
+  };
+
   const handleFileSelect = (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      setSelectedFile(file);
-      if (!docName) {
-        setDocName(file.name.replace(/\.[^/.]+$/, ''));
-      }
+      applySelectedFile(file);
     }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isDragActive) {
+      setIsDragActive(true);
+    }
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const nextTarget = e.relatedTarget;
+    if (nextTarget && e.currentTarget.contains(nextTarget)) {
+      return;
+    }
+    setIsDragActive(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragActive(false);
+
+    const droppedFiles = Array.from(e.dataTransfer?.files || []);
+    if (droppedFiles.length === 0) {
+      return;
+    }
+
+    if (droppedFiles.length > 1) {
+      toast.error(locale === 'tr' ? 'Lutfen tek seferde sadece bir dosya birakin.' : 'Please drop only one file at a time.');
+    }
+
+    applySelectedFile(droppedFiles[0]);
   };
 
   const handleSaveDocument = async () => {
@@ -128,8 +222,7 @@ function KnowledgeBaseContent() {
       await uploadDocument.mutateAsync(formData);
       toast.success(t('dashboard.knowledgeBasePage.documentUploadedSuccess'), { id: uploadToast });
       setShowDocModal(false);
-      setDocName('');
-      setSelectedFile(null);
+      clearDocumentUploadState();
     } catch (error) {
       toast.error(error.response?.data?.error || t('dashboard.knowledgeBasePage.uploadFailed'), { id: uploadToast });
     } finally {
@@ -410,7 +503,7 @@ function KnowledgeBaseContent() {
       </Tabs>
 
       {/* Document Upload Modal */}
-      <Dialog open={showDocModal} onOpenChange={setShowDocModal}>
+      <Dialog open={showDocModal} onOpenChange={handleDocModalOpenChange}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t('dashboard.knowledgeBasePage.addKnowledgeBase')}</DialogTitle>
@@ -429,12 +522,32 @@ function KnowledgeBaseContent() {
 
             <div>
               <Label>{t('dashboard.knowledgeBasePage.documentsLabel')}</Label>
-              <div className="mt-2 border-2 border-dashed border-neutral-200 rounded-lg p-8 text-center hover:border-primary-300 transition-colors cursor-pointer">
+              <div
+                className={`mt-2 border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
+                  isDragActive
+                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-950/20'
+                    : 'border-neutral-200 hover:border-primary-300'
+                }`}
+                onClick={() => fileInputRef.current?.click()}
+                onDragEnter={handleDragOver}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    fileInputRef.current?.click();
+                  }
+                }}
+              >
                 <input
                   type="file"
                   accept=".pdf,.docx,.txt,.csv"
                   className="hidden"
                   id="file-input"
+                  ref={fileInputRef}
                   onChange={handleFileSelect}
                 />
                 <label htmlFor="file-input" className="cursor-pointer">
@@ -451,10 +564,15 @@ function KnowledgeBaseContent() {
                   ) : (
                     <>
                       <p className="text-sm text-neutral-600 mb-1">
-                        {t('dashboard.knowledgeBasePage.clickToUpload')}
+                        {isDragActive
+                          ? (locale === 'tr' ? 'Dosyayi birakabilirsiniz' : 'Drop the file here')
+                          : t('dashboard.knowledgeBasePage.clickToUpload')}
                       </p>
                       <p className="text-xs text-neutral-500">
                         {t('dashboard.knowledgeBasePage.pdfDocxTxtCsv')}
+                      </p>
+                      <p className="text-xs text-neutral-400 mt-2">
+                        {locale === 'tr' ? 'Isterseniz dosyayi buraya surukleyip birakabilirsiniz' : 'You can also drag and drop a file here'}
                       </p>
                     </>
                   )}
@@ -465,11 +583,7 @@ function KnowledgeBaseContent() {
           <div className="flex justify-end gap-3 pt-4 border-t">
             <Button
               variant="outline"
-              onClick={() => {
-                setShowDocModal(false);
-                setDocName('');
-                setSelectedFile(null);
-              }}
+              onClick={() => handleDocModalOpenChange(false)}
             >
               {t('common.cancel')}
             </Button>
