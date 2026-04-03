@@ -892,15 +892,15 @@ const handleShopifyConnect = async () => {
     const isLocked = featureInfo.isLocked && !isEffectivelyConnected;
 
     return (
-      <div key={integration.type} className={`flex h-full flex-col bg-white dark:bg-neutral-900 rounded-xl border p-6 transition-shadow ${disabled || isLocked ? 'opacity-70 bg-neutral-50 dark:bg-neutral-800' : 'hover:shadow-md'} border-neutral-200 dark:border-neutral-700`}>
+      <div key={integration.type} className={`flex h-full flex-col rounded-xl border p-6 transition-shadow ${disabled || isLocked ? 'bg-neutral-50 dark:bg-neutral-800/70' : 'bg-white dark:bg-neutral-900 hover:shadow-md'} border-neutral-200 dark:border-neutral-700`}>
         <div className="flex items-start justify-between mb-4">
           <div className="flex min-h-10 items-center gap-3">
             <div className={CARD_ICON_WRAPPER_CLASS}>
-              <Icon className={isMarketplaceBeta ? 'h-7 w-7 rounded-md object-cover' : `h-6 w-6 ${isLocked ? 'text-neutral-400 dark:text-neutral-500' : 'text-neutral-600 dark:text-neutral-400'}`} />
+              <Icon className={isMarketplaceBeta ? 'h-7 w-7 rounded-md object-cover' : `h-6 w-6 ${disabled ? 'text-neutral-400 dark:text-neutral-500' : 'text-neutral-600 dark:text-neutral-400'}`} />
             </div>
             <div className="min-h-10 flex items-center">
               <div className="flex flex-wrap items-center gap-2">
-                <h3 className={`font-semibold ${disabled || isLocked ? 'text-neutral-500 dark:text-neutral-400' : 'text-neutral-900 dark:text-white'}`}>{integration.name}</h3>
+                <h3 className={`font-semibold ${disabled ? 'text-neutral-500 dark:text-neutral-400' : 'text-neutral-900 dark:text-white'}`}>{integration.name}</h3>
                 {isLocked && (
                   <Badge variant="secondary" className="bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-400 text-xs">
                     <Lock className="h-3 w-3 mr-1" />
@@ -1245,7 +1245,7 @@ const handleShopifyConnect = async () => {
             const isCrmConnected = !isCRMLocked && crmStatus?.hasWebhook && crmStatus?.isActive;
 
             return (
-            <div className={`flex h-full flex-col bg-white dark:bg-neutral-900 rounded-xl border p-6 transition-shadow ${isCRMLocked ? 'opacity-70 bg-neutral-50 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700' : isCrmConnected ? 'border-neutral-400 dark:border-neutral-600 hover:shadow-md' : 'border-neutral-200 dark:border-neutral-700 hover:shadow-md'}`}>
+            <div className={`flex h-full flex-col rounded-xl border p-6 transition-shadow ${isCRMLocked ? 'bg-neutral-50 dark:bg-neutral-800/70 border-neutral-200 dark:border-neutral-700' : isCrmConnected ? 'bg-white dark:bg-neutral-900 border-neutral-400 dark:border-neutral-600 hover:shadow-md' : 'bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-700 hover:shadow-md'}`}>
               <div className="flex items-start justify-between mb-4">
                 <div className="flex min-h-10 items-center gap-3">
                   <div className={CARD_ICON_WRAPPER_CLASS}>
@@ -1253,7 +1253,7 @@ const handleShopifyConnect = async () => {
                   </div>
                   <div className="min-h-10 flex items-center">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className={`font-semibold ${isCRMLocked ? 'text-neutral-500 dark:text-neutral-400' : 'text-neutral-900 dark:text-white'}`}>
+                      <h3 className="font-semibold text-neutral-900 dark:text-white">
                         {t('dashboard.integrationsPage.customCrmWebhook')}
                       </h3>
                       {isCRMLocked && (

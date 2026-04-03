@@ -14,10 +14,10 @@ import { revokeGoogleOAuthToken } from '../utils/google-oauth-revoke.js';
 import {
   DEFAULT_QA_SETTINGS,
   buildMarketplaceCredentials,
-  decryptMarketplaceCredentials,
   encryptMarketplaceCredentials,
   maskCredentialValue,
   normalizeQaSettings,
+  safeDecryptMarketplaceCredentials,
 } from '../services/marketplace/qaShared.js';
 import {
   buildWhatsAppConnectionCredentials,
@@ -165,15 +165,18 @@ function buildMarketplaceIntegrationPayload({
 }
 
 function buildMarketplaceStatusResponse(integration, identifierField) {
-  const credentials = decryptMarketplaceCredentials(integration?.credentials || {});
+  const rawCredentials = getIntegrationCredentials(integration);
+  const credentials = safeDecryptMarketplaceCredentials(rawCredentials);
 
   return {
     connected: Boolean(integration?.connected && integration?.isActive),
-    [identifierField]: credentials?.[identifierField] || null,
+    [identifierField]: credentials?.[identifierField] || rawCredentials?.[identifierField] || null,
     qaSettings: credentials?.qaSettings || DEFAULT_QA_SETTINGS,
     lastSync: integration?.lastSync || null,
-    maskedApiKey: maskCredentialValue(credentials?.apiKey),
-    hasSecret: Boolean(credentials?.apiSecret),
+    maskedApiKey: maskCredentialValue(
+      typeof credentials?.apiKey === 'string' ? credentials.apiKey : rawCredentials?.apiKey
+    ),
+    hasSecret: Boolean(credentials?.apiSecret || rawCredentials?.apiSecret),
   };
 }
 

@@ -73,6 +73,19 @@ export function decryptMarketplaceCredentials(rawCredentials = {}, fallbackLangu
   };
 }
 
+export function safeDecryptMarketplaceCredentials(rawCredentials = {}, fallbackLanguage = 'tr') {
+  const normalizedCredentials = rawCredentials && typeof rawCredentials === 'object' && !Array.isArray(rawCredentials)
+    ? rawCredentials
+    : {};
+
+  try {
+    return decryptMarketplaceCredentials(normalizedCredentials, fallbackLanguage);
+  } catch (error) {
+    console.warn('Marketplace credential decrypt fallback:', error.message);
+    return buildMarketplaceCredentials(normalizedCredentials, fallbackLanguage);
+  }
+}
+
 export function maskCredentialValue(value, { keepStart = 3, keepEnd = 2 } = {}) {
   if (!value || typeof value !== 'string') return null;
   if (value.length <= keepStart + keepEnd) return '*'.repeat(value.length);
@@ -127,4 +140,3 @@ export function truncateMarketplaceAnswer(text, maxLength = 2000) {
 export function getMarketplaceQaAutomationEnabled() {
   return process.env.MARKETPLACE_QA_ALLOW_AUTOMATIC_POST === 'true';
 }
-
