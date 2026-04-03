@@ -43,7 +43,8 @@
     "ops:backup-restore-drill": "node scripts/backup-restore-drill.js",
     "cleanup-assistants": "node scripts/cleanup-test-assistants.js",
     "cleanup-assistants:delete": "node scripts/cleanup-test-assistants.js --delete",
-    "guardrail-smoke": "node tests/smoke/guardrail-prod-smoke.js"
+    "guardrail-smoke": "node tests/smoke/guardrail-prod-smoke.js",
+    "stripe:bootstrap-catalog": "node scripts/bootstrap-stripe-catalog.mjs"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

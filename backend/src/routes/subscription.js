@@ -157,6 +157,28 @@ function hashValue(value) {
   return crypto.createHash('sha256').update(String(value), 'utf8').digest('hex').slice(0, 12);
 }
 
+function isMissingStripeSubscriptionError(error) {
+  const message = String(error?.message || '');
+  const code = String(error?.code || error?.raw?.code || '');
+  return code === 'resource_missing' || message.includes('No such subscription');
+}
+
+async function getStripeSubscriptionIfExists(subscriptionId) {
+  if (!subscriptionId || !getStripe()) {
+    return null;
+  }
+
+  try {
+    return await getStripe().subscriptions.retrieve(subscriptionId);
+  } catch (error) {
+    if (isMissingStripeSubscriptionError(error)) {
+      console.warn(`⚠️ Stripe subscription ${subscriptionId} was not found in the current Stripe account.`);
+      return null;
+    }
+    throw error;
+  }
+}
+
 async function resolvePlanFromPriceId(priceId) {
   const knownPlan = resolvePlanFromStripePriceId(priceId);
   if (knownPlan) {
@@ -2148,7 +2170,23 @@ router.post('/undo-scheduled-change', verifyBusinessAccess, async (req, res) => 
       return res.status(400).json({ error: 'Current plan price could not be resolved' });
     }
 
-    const stripeSubscription = await getStripe().subscriptions.retrieve(subscription.stripeSubscriptionId);
+    const stripeSubscription = await getStripeSubscriptionIfExists(subscription.stripeSubscriptionId);
+    if (!stripeSubscription) {
+      await prisma.subscription.update({
+        where: { businessId },
+        data: {
+          stripeSubscriptionId: null,
+          stripePriceId: null,
+          pendingPlanId: null,
+          cancelAtPeriodEnd: false
+        }
+      });
+
+      return res.json({
+        success: true,
+        message: 'Scheduled plan change reverted'
+      });
+    }
     const subscriptionItem = stripeSubscription?.items?.data?.[0];
 
     if (!subscriptionItem?.id) {
@@ -2313,10 +2351,27 @@ router.post('/upgrade', verifyBusinessAccess, async (req, res) => {
 
     // If already has subscription, update it (upgrade/downgrade)
     if (currentSubscription?.stripeSubscriptionId) {
-      const stripeSubscription = await getStripe().subscriptions.retrieve(currentSubscription.stripeSubscriptionId);
+      const stripeSubscription = await getStripeSubscriptionIfExists(currentSubscription.stripeSubscriptionId);
+
+      if (!stripeSubscription) {
+        console.warn(
+          `⚠️ Falling back to new checkout for business ${businessId}; ` +
+          `stored Stripe subscription ${currentSubscription.stripeSubscriptionId} is missing.`
+        );
+
+        await prisma.subscription.update({
+          where: { businessId },
+          data: {
+            stripeSubscriptionId: null,
+            stripePriceId: null,
+            pendingPlanId: null,
+            cancelAtPeriodEnd: false
+          }
+        });
+      }
 
       // CHECK: If subscription is canceled, reactivate it + change plan
-      if (stripeSubscription.cancel_at_period_end) {
+      if (stripeSubscription?.cancel_at_period_end) {
         // Reactivate subscription + change to new plan
         await getStripe().subscriptions.update(stripeSubscription.id, {
           cancel_at_period_end: false, // Undo cancellation
@@ -2355,87 +2410,89 @@ router.post('/upgrade', verifyBusinessAccess, async (req, res) => {
       }
 
       // Get current plan level
-      const planLevels = { STARTER: 1, PRO: 2, ENTERPRISE: 3 };
-      const currentLevel = planLevels[currentSubscription.plan] || 0;
-      const newLevel = planLevels[normalizedPlanId] || 0;
+      if (stripeSubscription) {
+        const planLevels = { STARTER: 1, PRO: 2, ENTERPRISE: 3 };
+        const currentLevel = planLevels[currentSubscription.plan] || 0;
+        const newLevel = planLevels[normalizedPlanId] || 0;
 
-      // Determine if upgrade or downgrade
-      const isUpgrade = newLevel > currentLevel;
+        // Determine if upgrade or downgrade
+        const isUpgrade = newLevel > currentLevel;
 
-      if (isUpgrade) {
-        // UPGRADE: Immediate with proration
-        await getStripe().subscriptions.update(stripeSubscription.id, {
-          items: [{
-            id: stripeSubscription.items.data[0].id,
-            price: priceId
-          }],
-          proration_behavior: 'always_invoice', // Invoice and attempt to collect the upgrade difference now
-          payment_behavior: 'error_if_incomplete',
-          metadata: {
-            planId: normalizedPlanId
-          }
-        });
-
-        // Update database
-        await prisma.subscription.update({
-          where: { businessId },
-          data: {
-            plan: normalizedPlanId,
-            minutesLimit: planConfig.minutesLimit,
-            callsLimit: planConfig.callsLimit,
-            assistantsLimit: planConfig.assistantsLimit,
-            phoneNumbersLimit: planConfig.phoneNumbersLimit
-          }
-        });
-
-        console.log(`✅ Upgraded subscription for business ${businessId}: ${currentSubscription.plan} → ${normalizedPlanId}`);
-
-        return res.json({
-          provider: 'stripe',
-          success: true,
-          message: 'Plan upgraded successfully',
-          type: 'upgrade'
-        });
-      } else {
-        // DOWNGRADE: Schedule for end of period
-        await prisma.subscription.update({
-          where: { businessId },
-          data: {
-            pendingPlanId: normalizedPlanId
-          }
-        });
-
-        try {
+        if (isUpgrade) {
+          // UPGRADE: Immediate with proration
           await getStripe().subscriptions.update(stripeSubscription.id, {
             items: [{
               id: stripeSubscription.items.data[0].id,
               price: priceId
             }],
-            proration_behavior: 'none', // No charge now
-            billing_cycle_anchor: 'unchanged', // Keep current billing cycle
+            proration_behavior: 'always_invoice', // Invoice and attempt to collect the upgrade difference now
+            payment_behavior: 'error_if_incomplete',
             metadata: {
-              pendingPlanId: normalizedPlanId
+              planId: normalizedPlanId
             }
           });
-        } catch (stripeUpdateError) {
+
+          // Update database
           await prisma.subscription.update({
             where: { businessId },
             data: {
-              pendingPlanId: currentSubscription.pendingPlanId || null
+              plan: normalizedPlanId,
+              minutesLimit: planConfig.minutesLimit,
+              callsLimit: planConfig.callsLimit,
+              assistantsLimit: planConfig.assistantsLimit,
+              phoneNumbersLimit: planConfig.phoneNumbersLimit
             }
           });
-          throw stripeUpdateError;
+
+          console.log(`✅ Upgraded subscription for business ${businessId}: ${currentSubscription.plan} → ${normalizedPlanId}`);
+
+          return res.json({
+            provider: 'stripe',
+            success: true,
+            message: 'Plan upgraded successfully',
+            type: 'upgrade'
+          });
+        } else {
+          // DOWNGRADE: Schedule for end of period
+          await prisma.subscription.update({
+            where: { businessId },
+            data: {
+              pendingPlanId: normalizedPlanId
+            }
+          });
+
+          try {
+            await getStripe().subscriptions.update(stripeSubscription.id, {
+              items: [{
+                id: stripeSubscription.items.data[0].id,
+                price: priceId
+              }],
+              proration_behavior: 'none', // No charge now
+              billing_cycle_anchor: 'unchanged', // Keep current billing cycle
+              metadata: {
+                pendingPlanId: normalizedPlanId
+              }
+            });
+          } catch (stripeUpdateError) {
+            await prisma.subscription.update({
+              where: { businessId },
+              data: {
+                pendingPlanId: currentSubscription.pendingPlanId || null
+              }
+            });
+            throw stripeUpdateError;
+          }
+
+          console.log(`⏰ Scheduled downgrade for business ${businessId}: ${currentSubscription.plan} → ${normalizedPlanId} (at period end)`);
+
+          return res.json({
+            provider: 'stripe',
+            success: true,
+            message: 'Plan will be downgraded at the end of current billing period',
+            type: 'downgrade',
+            effectiveDate: new Date(stripeSubscription.current_period_end * 1000)
+          });
         }
-
-        console.log(`⏰ Scheduled downgrade for business ${businessId}: ${currentSubscription.plan} → ${normalizedPlanId} (at period end)`);
-
-        return res.json({
-          provider: 'stripe',
-          success: true,
-          message: 'Plan will be downgraded at the end of current billing period',
-          type: 'downgrade',
-          effectiveDate: new Date(stripeSubscription.current_period_end * 1000)
-        });
       }
     }
 
