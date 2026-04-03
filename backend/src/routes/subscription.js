@@ -44,6 +44,7 @@ const LEGACY_SUBSCRIPTION_BASE_SELECT = {
   stripeCustomerId: true,
   stripeSubscriptionId: true,
   stripePriceId: true,
+  pendingPlanId: true,
   currentPeriodStart: true,
   currentPeriodEnd: true,
   cancelAtPeriodEnd: true,
@@ -108,6 +109,8 @@ const BILLING_V2_EXTENSION_SELECT = {
   writtenInteractionAddOnBalance: true,
   writtenOverageBilledAt: true
 };
+
+const LOCAL_MANAGED_CYCLE_MS = 30 * 24 * 60 * 60 * 1000;
 
 function isMissingBillingSchemaError(error) {
   const code = String(error?.code || '').toUpperCase();
@@ -278,10 +281,143 @@ async function ensureStripeCustomerForBusiness({
   return customer.id;
 }
 
+function buildPlanLimitUpdate(planId) {
+  const planConfig = PLAN_CONFIG[planId] || PLAN_CONFIG.STARTER;
+  return {
+    plan: planId,
+    status: 'ACTIVE',
+    cancelAtPeriodEnd: false,
+    pendingPlanId: null,
+    minutesLimit: planConfig.minutesLimit,
+    callsLimit: planConfig.callsLimit,
+    assistantsLimit: planConfig.assistantsLimit,
+    phoneNumbersLimit: planConfig.phoneNumbersLimit
+  };
+}
+
+async function reconcileLocallyManagedBillingCycle(subscription) {
+  if (!subscription?.id || !subscription?.currentPeriodEnd) {
+    return subscription;
+  }
+
+  const status = String(subscription.status || '').toUpperCase();
+  const plan = String(subscription.plan || '').toUpperCase();
+  const paymentProvider = String(subscription.paymentProvider || '').toLowerCase();
+
+  if (status !== 'ACTIVE') {
+    return subscription;
+  }
+
+  if (!['STARTER', 'PRO', 'ENTERPRISE', 'BASIC'].includes(plan)) {
+    return subscription;
+  }
+
+  const hasManagedProviderSubscription = Boolean(subscription.stripeSubscriptionId)
+    || paymentProvider === 'iyzico';
+
+  if (hasManagedProviderSubscription) {
+    return subscription;
+  }
+
+  if (plan === 'ENTERPRISE' && subscription.enterprisePaymentStatus && subscription.enterprisePaymentStatus !== 'paid') {
+    return subscription;
+  }
+
+  let workingStart = subscription.currentPeriodStart
+    ? new Date(subscription.currentPeriodStart)
+    : null;
+  let workingEnd = new Date(subscription.currentPeriodEnd);
+  const now = new Date();
+
+  if (Number.isNaN(workingEnd.getTime()) || workingEnd > now) {
+    return subscription;
+  }
+
+  const workingState = { ...subscription };
+  let lastUpdateData = null;
+
+  while (workingEnd <= now) {
+    const boundaryStart = new Date(workingEnd);
+    const normalizedPendingPlanId = String(workingState.pendingPlanId || '').trim().toUpperCase();
+
+    if (normalizedPendingPlanId === 'PAYG') {
+      const paygConfig = PLAN_CONFIG.PAYG;
+      lastUpdateData = {
+        plan: 'PAYG',
+        status: 'ACTIVE',
+        paymentProvider: 'stripe',
+        cancelAtPeriodEnd: false,
+        pendingPlanId: null,
+        stripeSubscriptionId: null,
+        stripePriceId: null,
+        iyzicoSubscriptionId: null,
+        iyzicoReferenceCode: null,
+        pendingSubscriptionToken: null,
+        minutesLimit: paygConfig.minutesLimit,
+        callsLimit: paygConfig.callsLimit,
+        assistantsLimit: paygConfig.assistantsLimit,
+        phoneNumbersLimit: paygConfig.phoneNumbersLimit,
+        includedMinutesUsed: 0,
+        overageMinutes: 0,
+        packageWarningAt80: false,
+        creditWarningAt80: false,
+        voiceAddOnMinutesBalance: 0,
+        writtenInteractionAddOnBalance: 0,
+        currentPeriodStart: boundaryStart,
+        currentPeriodEnd: null
+      };
+      break;
+    }
+
+    if (normalizedPendingPlanId && PLAN_CONFIG[normalizedPendingPlanId]) {
+      Object.assign(workingState, buildPlanLimitUpdate(normalizedPendingPlanId));
+    }
+
+    const nextEnd = new Date(boundaryStart.getTime() + LOCAL_MANAGED_CYCLE_MS);
+    workingStart = boundaryStart;
+    workingEnd = nextEnd;
+
+    Object.assign(workingState, {
+      currentPeriodStart: workingStart,
+      currentPeriodEnd: workingEnd,
+      includedMinutesUsed: 0,
+      overageMinutes: 0,
+      packageWarningAt80: false,
+      creditWarningAt80: false,
+      voiceAddOnMinutesBalance: 0,
+      writtenInteractionAddOnBalance: 0
+    });
+
+    lastUpdateData = {
+      ...buildPlanLimitUpdate(workingState.plan),
+      currentPeriodStart: workingStart,
+      currentPeriodEnd: workingEnd,
+      includedMinutesUsed: 0,
+      overageMinutes: 0,
+      packageWarningAt80: false,
+      creditWarningAt80: false,
+      voiceAddOnMinutesBalance: 0,
+      writtenInteractionAddOnBalance: 0
+    };
+  }
+
+  if (!lastUpdateData) {
+    return subscription;
+  }
+
+  const updated = await prisma.subscription.update({
+    where: { id: subscription.id },
+    data: lastUpdateData
+  });
+
+  return { ...subscription, ...updated };
+}
+
 async function switchBusinessToPayg({ businessId, force = false }) {
-  const currentSubscription = await prisma.subscription.findUnique({
+  let currentSubscription = await prisma.subscription.findUnique({
     where: { businessId }
   });
+  currentSubscription = await reconcileLocallyManagedBillingCycle(currentSubscription);
   const paygConfig = PLAN_CONFIG.PAYG;
 
   const immediateSwitchPlans = ['FREE', 'TRIAL', 'PAYG', null, undefined];
@@ -1638,7 +1774,8 @@ router.get('/current', verifyBusinessAccess, async (req, res) => {
   try {
     const { businessId } = req.user;
 
-    const subscription = await findSubscriptionWithBillingFallback(businessId);
+    let subscription = await findSubscriptionWithBillingFallback(businessId);
+    subscription = await reconcileLocallyManagedBillingCycle(subscription);
 
     if (!subscription) {
       const entitlements = buildPhoneEntitlements({
@@ -2322,7 +2459,45 @@ router.post('/upgrade', verifyBusinessAccess, async (req, res) => {
     }
 
     // ========== STRIPE CHECKOUT ==========
+    // Check if user already has an active subscription
+    let currentSubscription = await prisma.subscription.findUnique({
+      where: { businessId }
+    });
+    currentSubscription = await reconcileLocallyManagedBillingCycle(currentSubscription);
+
+    const frontendUrl = runtimeConfig.frontendUrl;
+
     const planConfig = PLAN_CONFIG[normalizedPlanId];
+
+    // Manual/local recurring subscriptions should not open immediate checkout on downgrade.
+    if (currentSubscription?.plan && !currentSubscription?.stripeSubscriptionId) {
+      const planLevels = { STARTER: 1, PRO: 2, ENTERPRISE: 3 };
+      const currentLevel = planLevels[currentSubscription.plan] || 0;
+      const newLevel = planLevels[normalizedPlanId] || 0;
+      const isDowngrade = newLevel > 0 && newLevel < currentLevel;
+
+      if (isDowngrade) {
+        const effectiveDate = currentSubscription.currentPeriodEnd
+          || currentSubscription.enterpriseEndDate
+          || new Date(Date.now() + LOCAL_MANAGED_CYCLE_MS);
+
+        await prisma.subscription.update({
+          where: { businessId },
+          data: {
+            pendingPlanId: normalizedPlanId,
+            cancelAtPeriodEnd: false
+          }
+        });
+
+        return res.json({
+          provider: 'stripe',
+          success: true,
+          message: 'Plan will be downgraded at the end of current billing period',
+          type: 'downgrade',
+          effectiveDate
+        });
+      }
+    }
 
     // Determine price ID based on country
     const priceId = resolveStripePriceIdForPlan(
@@ -2341,13 +2516,6 @@ router.post('/upgrade', verifyBusinessAccess, async (req, res) => {
       businessName: user.business.name,
       countryCode: user.business.country || 'TR'
     });
-
-    // Check if user already has an active subscription
-    const currentSubscription = await prisma.subscription.findUnique({
-      where: { businessId }
-    });
-
-    const frontendUrl = runtimeConfig.frontendUrl;
 
     // If already has subscription, update it (upgrade/downgrade)
     if (currentSubscription?.stripeSubscriptionId) {

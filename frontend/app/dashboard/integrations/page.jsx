@@ -811,9 +811,9 @@ const handleShopifyConnect = async () => {
       WOOCOMMERCE: t('dashboard.integrationsPage.woocommerceConnect'),
       ZAPIER: t('dashboard.integrationsPage.zapierConnect'),
       IKAS: t('dashboard.integrationsPage.ikasConnect'),
-      TRENDYOL: 'Trendyol mağazanızı bağlayın ve müşteri sorularını panelden yönetin.',
-      HEPSIBURADA: 'Hepsiburada mağazanızı bağlayın ve müşteri sorularını panelden yönetin.',
-      SIKAYETVAR: 'Şikayetvar hesabınızı bağlayın ve şikayetlere AI taslaklarıyla yanıt verin.',
+      TRENDYOL: t('dashboard.integrationsPage.trendyolConnect'),
+      HEPSIBURADA: t('dashboard.integrationsPage.hepsiburadaConnect'),
+      SIKAYETVAR: t('dashboard.integrationsPage.sikayetvarConnect'),
       IDEASOFT: t('dashboard.integrationsPage.ideasoftConnect'),
       TICIMAX: t('dashboard.integrationsPage.ticimaxConnect')
     };
@@ -1366,7 +1366,7 @@ const handleShopifyConnect = async () => {
                 </div>
               )}
 
-              <p className="min-h-10 text-sm text-neutral-600 dark:text-neutral-400 mb-4">
+              <p className="min-h-10 text-sm text-neutral-600 dark:text-neutral-400 mb-4 line-clamp-2">
                 {t('dashboard.integrationsPage.sendDataFromSystem')}
               </p>
 
@@ -1444,7 +1444,7 @@ const handleShopifyConnect = async () => {
                 </Badge>
               )}
             </div>
-            <p className="min-h-10 text-sm text-neutral-600 dark:text-neutral-400 mb-4">{t('dashboard.integrationsPage.gmailDesc')}</p>
+            <p className="min-h-10 text-sm text-neutral-600 dark:text-neutral-400 mb-4 line-clamp-2">{t('dashboard.integrationsPage.gmailDesc')}</p>
             <div className="mt-auto pt-2">
             {emailStatus?.connected && emailStatus?.provider === 'GMAIL' ? (
               <div className="flex gap-2">
@@ -1482,7 +1482,7 @@ const handleShopifyConnect = async () => {
                 </Badge>
               )}
             </div>
-            <p className="min-h-10 text-sm text-neutral-600 dark:text-neutral-400 mb-4">{t('dashboard.integrationsPage.outlookDesc')}</p>
+            <p className="min-h-10 text-sm text-neutral-600 dark:text-neutral-400 mb-4 line-clamp-2">{t('dashboard.integrationsPage.outlookDesc')}</p>
             <div className="mt-auto pt-2">
             {emailStatus?.connected && emailStatus?.provider === 'OUTLOOK' ? (
               <div className="flex gap-2">
