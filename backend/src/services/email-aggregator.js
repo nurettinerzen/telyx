@@ -3,11 +3,9 @@
  * Provides a unified interface for Gmail and Outlook
  */
 
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import gmailService from './gmail.js';
 import outlookService from './outlook.js';
-
-const prisma = new PrismaClient();
 
 class EmailAggregatorService {
   /**

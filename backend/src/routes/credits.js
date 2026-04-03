@@ -7,12 +7,11 @@
 // ============================================================================
 
 import express from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { getCreditUnitPrice, calculateCreditPrice, getRegionalPricing, getPlanConfig } from '../config/plans.js';
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 const CREDITS_SUBSCRIPTION_SELECT = {
   id: true,

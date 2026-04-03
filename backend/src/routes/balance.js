@@ -14,7 +14,7 @@
 // ============================================================================
 
 import express from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import { authenticateToken } from '../middleware/auth.js';
 import balanceService from '../services/balanceService.js';
 import stripeService from '../services/stripe.js';
@@ -34,7 +34,6 @@ import {
 import runtimeConfig from '../config/runtime.js';
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 const BALANCE_SUBSCRIPTION_SELECT = {
   id: true,

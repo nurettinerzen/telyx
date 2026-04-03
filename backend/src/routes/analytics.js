@@ -1,9 +1,8 @@
 import express from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // GET /api/analytics/overview?range=30d
 router.get('/overview', authenticateToken, async (req, res) => {

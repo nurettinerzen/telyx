@@ -11,7 +11,7 @@
 // - getSubscriptionDetails: Abonelik detayları
 // ============================================================================
 
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import {
   getPlanConfig,
   getIncludedMinutes,
@@ -20,8 +20,6 @@ import {
   getPricePerMinute
 } from '../config/plans.js';
 import { getEffectivePlanConfig } from './planConfig.js';
-
-const prisma = new PrismaClient();
 
 /**
  * Deneme başlat

@@ -11,9 +11,7 @@
  * - enterprise_plan_changed
  */
 
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '../prismaClient.js';
 
 /**
  * Create admin audit log entry

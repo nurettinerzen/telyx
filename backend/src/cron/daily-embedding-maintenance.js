@@ -13,11 +13,9 @@
  */
 
 import cron from 'node-cron';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import { generateEmbedding } from '../core/email/rag/embeddingService.js';
 import { createHash } from 'crypto';
-
-const prisma = new PrismaClient();
 
 // Configuration
 const EMBEDDING_TTL_DAYS = 180; // 6 months

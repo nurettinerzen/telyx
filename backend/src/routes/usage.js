@@ -10,13 +10,12 @@
 // ============================================================================
 
 import express from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import { authenticateToken } from '../middleware/auth.js';
 import usageService from '../services/usageService.js';
 import subscriptionService from '../services/subscriptionService.js';
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // All routes require authentication
 router.use(authenticateToken);

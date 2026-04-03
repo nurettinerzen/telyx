@@ -12,10 +12,9 @@ import express from 'express';
 import { authenticateToken } from '../middleware/auth.js';
 import { isAdmin, requireAdminMfa } from '../middleware/adminAuth.js';
 import { logSecurityEvent, EVENT_TYPE, SEVERITY } from '../middleware/securityEventLogger.js';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 const SAFE_TEST_MODE = process.env.SAFE_TEST_MODE === 'true';
 

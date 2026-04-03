@@ -3,9 +3,7 @@
  * Handles admin access control, audit logging, and data sanitization
  */
 
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '../prismaClient.js';
 
 const ADMIN_BOOTSTRAP_EMAILS = (process.env.ADMIN_BOOTSTRAP_EMAILS || '')
   .split(',')

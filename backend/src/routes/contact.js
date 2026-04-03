@@ -1,9 +1,8 @@
 import express from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import rateLimit from 'express-rate-limit';
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // Rate limiter: 3 submissions per minute per IP
 const contactRateLimiter = rateLimit({

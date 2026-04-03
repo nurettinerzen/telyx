@@ -7,7 +7,7 @@
 import express from 'express';
 import crypto from 'crypto';
 import axios from 'axios';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import { decrypt } from '../utils/encryption.js';
 import { webhookRateLimiter } from '../middleware/rateLimiter.js';
 import { getDateTimeContext } from '../utils/dateTime.js';
@@ -63,7 +63,6 @@ import {
 } from '../services/writtenUsageService.js';
 
 const router = express.Router();
-const prisma = new PrismaClient();
 const VERIFY_TOKEN_ENV_KEYS = [
   'WHATSAPP_VERIFY_TOKEN',
   'META_VERIFY_TOKEN',

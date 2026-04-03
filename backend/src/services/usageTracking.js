@@ -7,11 +7,9 @@
 // Now supports: Package minutes -> Credit minutes -> Overage
 // ============================================================================
 
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import emailService from './emailService.js';
 import { getEffectivePlanConfig } from './planConfig.js';
-
-const prisma = new PrismaClient();
 
 /**
  * Track call usage with credit system

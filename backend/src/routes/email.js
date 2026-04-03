@@ -5,7 +5,7 @@
 
 import express from 'express';
 import crypto from 'crypto';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { requireStarterOrAbove } from '../middleware/planGating.js';
 import gmailService from '../services/gmail.js';
@@ -27,7 +27,6 @@ import {
 } from '../services/writtenUsageService.js';
 
 const router = express.Router();
-const prisma = new PrismaClient();
 const EMAIL_OUTBOUND_TTL_MS = 5 * 60 * 1000;
 
 function buildEmailSendLockKey({ draftId = null, threadId = null, content = '', replyToId = null }) {

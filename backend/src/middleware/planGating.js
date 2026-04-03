@@ -11,9 +11,7 @@
  * 3. Upsell: Clear upgrade path when user tries to use features
  */
 
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '../prismaClient.js';
 
 /**
  * Plan hierarchy for comparison

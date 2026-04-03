@@ -5,9 +5,7 @@
  * Supports single-business, cohort, and global rollback.
  */
 
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '../../prismaClient.js';
 
 /**
  * Check if a feature is enabled for a business

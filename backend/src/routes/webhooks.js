@@ -6,7 +6,7 @@
 
 import express from 'express';
 import crypto from 'crypto';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import OpenAI from 'openai';
 import concurrentCallManager from '../services/concurrentCallManager.js';
 import { trackCallUsage } from '../services/usageTracking.js';
@@ -21,7 +21,6 @@ const openai = process.env.OPENAI_API_KEY
   : null;
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // ============================================================================
 // WEBHOOK SIGNATURE VERIFICATION

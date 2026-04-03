@@ -1,7 +1,7 @@
 import express from 'express';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { requireRecentAuth } from '../middleware/reauth.js';
 import { sendVerificationEmail, sendEmailChangeVerification, sendPasswordResetEmail, sendAdminMfaCodeEmail } from '../services/emailService.js';
@@ -18,7 +18,6 @@ const router = express.Router();
 
 // Strict rate limit middleware for brute-force sensitive endpoints (10 req/min)
 const strictRateLimit = authRateLimiter.middleware();
-const prisma = new PrismaClient();
 
 const FRONTEND_URL = process.env.FRONTEND_URL;
 const OOB_TOKEN_TTL_MS = 10 * 60 * 1000;

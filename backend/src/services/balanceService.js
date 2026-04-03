@@ -11,10 +11,8 @@
 // - getBalanceInMinutes: Bakiye dakika karşılığı
 // ============================================================================
 
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import { getPricePerMinute, calculateTLToMinutes } from '../config/plans.js';
-
-const prisma = new PrismaClient();
 
 const COUNTRY_BUSINESS_SELECT = {
   business: {

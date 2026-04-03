@@ -4,11 +4,9 @@
  * Same functionality as Gmail incremental builder but for Outlook
  */
 
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import { cleanEmailText, extractClosingPattern, detectLengthBucket } from './email-text-cleaner.js';
 import { classifyTone, classifyContactType } from './email-tone-classifier.js';
-
-const prisma = new PrismaClient();
 
 /**
  * Create a pair for a newly detected OUTBOUND message (Outlook)

@@ -8,13 +8,12 @@
 // ============================================================================
 
 import express from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import { authenticateToken } from '../middleware/auth.js';
 import webhookService from '../services/webhook.js';
 import { webhookRateLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // ============================================================================
 // PUBLIC ROUTES (NO AUTH) - Incoming webhooks

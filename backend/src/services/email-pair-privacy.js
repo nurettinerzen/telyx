@@ -10,9 +10,7 @@
  * CRITICAL: Raw inbound/outbound text contains PII
  */
 
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '../prismaClient.js';
 
 // Retention policy: 90 days for raw text
 const RAW_TEXT_RETENTION_DAYS = 90;

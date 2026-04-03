@@ -8,12 +8,10 @@
 // Also handles feature and channel access control
 // ============================================================================
 
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import { PLANS, hasFeature, hasChannel, getConcurrentLimit } from '../config/plans.js';
 import featureAccess from '../services/featureAccess.js';
 import concurrentCallManager from '../services/concurrentCallManager.js';
-
-const prisma = new PrismaClient();
 
 // Plan limits configuration - YENİ PAKET YAPISI
 const PLAN_LIMITS = {

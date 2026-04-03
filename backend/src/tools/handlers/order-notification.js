@@ -3,12 +3,10 @@
  * Sends order notification to business owner via SMS/WhatsApp
  */
 
-import { PrismaClient } from '@prisma/client';
+import prisma from '../../prismaClient.js';
 import netgsmService from '../../services/netgsm.js';
 import whatsappService from '../../services/whatsapp.js';
 import { ok, validationError, systemError } from '../toolResult.js';
-
-const prisma = new PrismaClient();
 
 /**
  * Format order notification message

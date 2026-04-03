@@ -7,9 +7,7 @@
 // ============================================================================
 
 import axios from 'axios';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '../prismaClient.js';
 
 /**
  * Check if business has Shopify integration

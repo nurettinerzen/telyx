@@ -1,11 +1,10 @@
 import express from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import { authenticateToken, verifyBusinessAccess, requireRole } from '../middleware/auth.js';
 import { isPhoneInboundEnabledForBusinessRecord } from '../services/phoneInboundGate.js';
 import { ASSISTANT_CHANNEL_CAPABILITIES, assistantHasCapability } from '../services/assistantChannels.js';
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 const BUSINESS_SUBSCRIPTION_SELECT = {
   id: true,

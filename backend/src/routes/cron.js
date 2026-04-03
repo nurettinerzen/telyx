@@ -12,6 +12,7 @@
  */
 
 import express from 'express';
+import prisma from '../prismaClient.js';
 import cronJobs from '../services/cronJobs.js';
 import { backfillAllBusinesses, backfillEmailEmbeddings } from '../core/email/rag/indexingHooks.js';
 import { cleanupExpiredLocks } from '../core/email/policies/idempotencyPolicy.js';
@@ -382,11 +383,7 @@ router.post('/red-alert-health',
   wrapJobHandler(async (req, res) => {
     console.log('🚨 Cron: Red Alert health check triggered');
 
-    const { PrismaClient } = await import('@prisma/client');
-    const prisma = new PrismaClient();
-
-    try {
-      const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
       // Get event counts
       const [criticalCount, highCount, totalCount] = await Promise.all([
@@ -451,14 +448,11 @@ router.post('/red-alert-health',
       //   });
       // }
 
-      res.json({
-        success: true,
-        message: `Health check completed: ${status}`,
-        ...result,
-      });
-    } finally {
-      await prisma.$disconnect();
-    }
+    res.json({
+      success: true,
+      message: `Health check completed: ${status}`,
+      ...result,
+    });
   })
 );
 

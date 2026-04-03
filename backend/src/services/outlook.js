@@ -4,10 +4,8 @@
  */
 
 import axios from 'axios';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import { convert } from 'html-to-text';
-
-const prisma = new PrismaClient();
 
 /**
  * Strip quoted reply content from email body

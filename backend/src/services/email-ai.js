@@ -35,13 +35,11 @@
  */
 
 import OpenAI from 'openai';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import { getDateTimeContext } from '../utils/dateTime.js';
 import { getActiveTools, executeTool } from '../tools/index.js';
 import { buildAssistantPrompt, getActiveTools as getPromptBuilderTools } from './promptBuilder.js';
 import { resolveChatAssistantForBusiness } from './assistantChannels.js';
-
-const prisma = new PrismaClient();
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY

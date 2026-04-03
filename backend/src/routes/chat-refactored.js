@@ -10,7 +10,7 @@
  */
 
 import express from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 // getDateTimeContext, buildAssistantPrompt: handled by orchestrator Step 2 (02_prepareContext.js)
 import { getActiveTools as getPromptBuilderTools } from '../services/promptBuilder.js';
 import { isFreePlanExpired } from '../middleware/checkPlanExpiry.js';
@@ -78,7 +78,6 @@ import {
 } from '../services/writtenUsageService.js';
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 function buildWrittenUsageErrorResponse(language = 'TR', error) {
   const isEnglish = String(language || '').toUpperCase() === 'EN';

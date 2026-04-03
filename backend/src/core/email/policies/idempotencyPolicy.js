@@ -16,10 +16,9 @@
  * - Server restarts during generation
  */
 
-import { PrismaClient, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import prisma from '../../../prismaClient.js';
 import crypto from 'crypto';
-
-const prisma = new PrismaClient();
 
 // Lock TTL: How long before a stale IN_PROGRESS lock is considered abandoned
 const LOCK_TTL_MS = 2 * 60 * 1000; // 2 minutes

@@ -8,10 +8,8 @@
 // ============================================================================
 
 import crypto from 'crypto';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import { safeCompareStrings } from '../security/constantTime.js';
-
-const prisma = new PrismaClient();
 
 /**
  * Generate a unique webhook secret

@@ -10,9 +10,7 @@
  * These metrics create a feedback loop for RAG/snippet quality.
  */
 
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '../../prismaClient.js';
 
 /**
  * Calculate Levenshtein distance (edit distance) between two strings

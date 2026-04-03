@@ -7,12 +7,10 @@
  */
 
 import cron from 'node-cron';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import emailAggregator from '../services/email-aggregator.js';
 import { createPairForOutbound } from '../services/email-pair-incremental.js';
 import { createOutlookPairForOutbound } from '../services/outlook-pair-incremental.js';
-
-const prisma = new PrismaClient();
 
 /**
  * Sync emails for a single business

@@ -8,11 +8,9 @@
 // P0 UPDATE: Integrated with global capacity gate (Redis)
 // ============================================================================
 
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import { PLANS, getConcurrentLimit } from '../config/plans.js';
 import globalCapacityManager from './globalCapacityManager.js';
-
-const prisma = new PrismaClient();
 
 /**
  * Concurrent Call Manager

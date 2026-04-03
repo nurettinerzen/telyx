@@ -12,10 +12,8 @@
  */
 
 import OpenAI from 'openai';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../../../prismaClient.js';
 import { generateEmbedding } from './embeddingService.js';
-
-const prisma = new PrismaClient();
 
 // Constants
 const DEFAULT_K = 5;

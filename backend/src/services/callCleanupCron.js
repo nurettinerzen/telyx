@@ -9,10 +9,8 @@
 // ============================================================================
 
 import cron from 'node-cron';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import globalCapacityManager from './globalCapacityManager.js';
-
-const prisma = new PrismaClient();
 
 /**
  * Reconcile stuck calls across all systems

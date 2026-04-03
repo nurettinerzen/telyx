@@ -6,10 +6,8 @@
 // Controls access to features and channels based on subscription plan
 // ============================================================================
 
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import { PLANS, hasFeature, hasChannel, getChannels, getPlanConfig } from '../config/plans.js';
-
-const prisma = new PrismaClient();
 
 /**
  * Feature Access Controller

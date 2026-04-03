@@ -1,10 +1,8 @@
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import { logAuthFailure, logCrossTenantAttempt } from './securityEventLogger.js';
 import { isPhoneInboundEnabledForBusinessRecord } from '../services/phoneInboundGate.js';
 import { extractSessionToken, verifySessionToken } from '../security/sessionToken.js';
 import { safeCompareStrings } from '../security/constantTime.js';
-
-const prisma = new PrismaClient();
 
 export const authenticateToken = async (req, res, next) => {
   try {

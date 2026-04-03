@@ -11,9 +11,7 @@
  * Returns: Top 3-5 most similar pairs for prompt context
  */
 
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '../prismaClient.js';
 
 /**
  * Retrieve similar email pairs for a new inbound message

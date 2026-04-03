@@ -8,9 +8,7 @@
 // ============================================================================
 
 import axios from 'axios';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '../prismaClient.js';
 
 // Shopify API version
 const API_VERSION = '2024-01';

@@ -3,15 +3,13 @@
  * Creates appointments in business's Google Calendar and sends notifications
  */
 
-import { PrismaClient } from '@prisma/client';
+import prisma from '../../prismaClient.js';
 import googleCalendarService from '../../services/google-calendar.js';
 import netgsmService from '../../services/netgsm.js';
 import axios from 'axios';
 import { ok, validationError, systemError } from '../toolResult.js';
 import { maskPhone } from '../../utils/pii-redaction.js';
 import { decryptGoogleTokenCredentials, encryptGoogleTokenCredentials } from '../../utils/google-oauth-tokens.js';
-
-const prisma = new PrismaClient();
 
 /**
  * Format appointment notification message for SMS/WhatsApp

@@ -13,9 +13,7 @@
  * - ENTERPRISE: Custom (default 10k msg/day, 10M tokens/month)
  */
 
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '../prismaClient.js';
 
 // Plan-based limits
 const RATE_LIMITS = {

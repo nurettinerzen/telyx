@@ -1,12 +1,11 @@
 import crypto from 'crypto';
-import { Prisma, PrismaClient } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import {
   getAddOnCatalog,
   getBillingPlanDefinition,
   isWrittenChannelEnabled
 } from '../config/billingCatalog.js';
-
-const prisma = new PrismaClient();
 const WRITTEN_ACTIVE_STATUSES = ['RESERVED', 'COMMITTED'];
 const WRITTEN_COMMITTED_STATUSES = ['COMMITTED'];
 export const WRITTEN_USAGE_BLOCK_ERROR_CODES = new Set([

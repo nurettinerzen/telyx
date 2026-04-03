@@ -4,12 +4,10 @@
  */
 
 import { google } from 'googleapis';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import { convert } from 'html-to-text';
 import { encryptGoogleTokenCredentials, decryptGoogleTokenCredentials } from '../utils/google-oauth-tokens.js';
 import { revokeGoogleOAuthToken } from '../utils/google-oauth-revoke.js';
-
-const prisma = new PrismaClient();
 
 /**
  * Strip quoted reply content from email body

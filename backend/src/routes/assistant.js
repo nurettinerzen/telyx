@@ -1,5 +1,5 @@
 import express from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { checkPermission } from '../middleware/permissions.js';
 import elevenLabsService, { buildAgentConfig } from '../services/elevenlabs.js';
@@ -56,7 +56,6 @@ function getElevenLabsLanguage(lang) {
   const normalized = lang?.toLowerCase() || 'tr';
   return ELEVENLABS_LANGUAGE_MAP[normalized] || normalized;
 }
-const prisma = new PrismaClient();
 const OUTBOUND_ONLY_V1_ERROR = {
   error: 'OUTBOUND_ONLY_V1',
   message: 'V1 sürümünde inbound call assistant kapalıdır. Sadece outbound kullanılabilir.'

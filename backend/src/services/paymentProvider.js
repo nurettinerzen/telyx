@@ -8,9 +8,7 @@
  * - US, EU, etc. -> Stripe (USD/EUR)
  */
 
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '../prismaClient.js';
 
 // Countries that should use iyzico (currently disabled, using Stripe globally)
 const IYZICO_COUNTRIES = [];

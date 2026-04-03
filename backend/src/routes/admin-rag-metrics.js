@@ -8,12 +8,11 @@
  */
 
 import express from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { isAdmin } from '../middleware/adminAuth.js';
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // CRITICAL: Apply auth + admin middleware to ALL routes
 router.use(authenticateToken);

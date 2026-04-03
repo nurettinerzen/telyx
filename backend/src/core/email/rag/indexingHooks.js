@@ -12,7 +12,7 @@
  * - Bounce/auto-reply/no-reply/newsletter emails
  */
 
-import { PrismaClient } from '@prisma/client';
+import prisma from '../../../prismaClient.js';
 import { indexEmailMessage, shouldIndexEmail } from './embeddingService.js';
 
 // Email quality filter patterns
@@ -164,8 +164,6 @@ function isNewsletterThread(thread) {
 
   return false;
 }
-
-const prisma = new PrismaClient();
 
 /**
  * Hook: Call after email is successfully sent

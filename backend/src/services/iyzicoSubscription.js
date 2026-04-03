@@ -6,11 +6,9 @@
  * Subscription API: https://docs.iyzico.com/urunler/abonelik
  */
 
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import crypto from 'crypto';
 import axios from 'axios';
-
-const prisma = new PrismaClient();
 
 // iyzico API endpoints
 const IYZICO_PRODUCTION_URL = 'https://api.iyzipay.com';

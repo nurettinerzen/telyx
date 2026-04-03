@@ -10,12 +10,10 @@
  */
 
 import axios from 'axios';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import { cleanEmailText, extractClosingPattern, detectLengthBucket } from './email-text-cleaner.js';
 import { classifyTone, classifyContactType } from './email-tone-classifier.js';
 import { withRetry, processBatches } from './gmail-rate-limiter.js'; // Same rate limiter
-
-const prisma = new PrismaClient();
 
 const GRAPH_API_BASE = 'https://graph.microsoft.com/v1.0';
 

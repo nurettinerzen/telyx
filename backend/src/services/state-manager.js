@@ -14,9 +14,7 @@
  * 4. One DB write per turn (not per micro-update)
  */
 
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '../prismaClient.js';
 
 // In-memory cache for active sessions
 const stateCache = new Map();

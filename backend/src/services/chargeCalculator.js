@@ -19,7 +19,7 @@
  * - STARTER/PRO/ENTERPRISE: balance is optional payment source
  */
 
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import {
   getPricePerMinute,
   getIncludedMinutes,
@@ -27,8 +27,6 @@ import {
 } from '../config/plans.js';
 import { getEffectivePlanConfig } from './planConfig.js';
 import { getBillingPlanDefinition } from '../config/billingCatalog.js';
-
-const prisma = new PrismaClient();
 
 /**
  * Calculate charge with PAYG balance priority

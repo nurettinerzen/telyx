@@ -9,9 +9,7 @@
  * - login_failed
  */
 
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '../prismaClient.js';
 
 /**
  * Log an audit event

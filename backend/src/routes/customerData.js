@@ -1,5 +1,5 @@
 import express from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { checkPermission } from '../middleware/permissions.js';
 import multer from 'multer';
@@ -13,7 +13,6 @@ import { validateUntrustedUpload } from '../security/uploadSecurity.js';
 import { auditSensitiveDataAccess } from '../middleware/sensitiveDataAudit.js';
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // ============================================================
 // 11LABS LANGUAGE CODE MAPPING (copied from assistant.js)

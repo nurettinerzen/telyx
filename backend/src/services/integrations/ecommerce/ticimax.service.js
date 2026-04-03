@@ -11,10 +11,8 @@
  * Note: Uses 'soap' npm package for SOAP communication
  */
 
-import { PrismaClient } from '@prisma/client';
+import prisma from '../../../prismaClient.js';
 import soap from 'soap';
-
-const prisma = new PrismaClient();
 
 class TicimaxService {
   constructor(credentials = null) {

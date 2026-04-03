@@ -1,5 +1,5 @@
 import express from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { checkPermission } from '../middleware/permissions.js';
 import multer from 'multer';
@@ -12,7 +12,6 @@ import { resolvePhoneOutboundAccessForBusinessId } from '../services/phoneOutbou
 import { validateUntrustedUpload } from '../security/uploadSecurity.js';
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // Configure multer for file uploads (5MB max)
 const storage = multer.memoryStorage();

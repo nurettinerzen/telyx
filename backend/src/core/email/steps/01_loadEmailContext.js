@@ -9,10 +9,8 @@
  * - Knowledge base items
  */
 
-import { PrismaClient } from '@prisma/client';
+import prisma from '../../../prismaClient.js';
 import { resolveChatAssistantForBusiness } from '../../../services/assistantChannels.js';
-
-const prisma = new PrismaClient();
 
 /**
  * Load email context for draft generation

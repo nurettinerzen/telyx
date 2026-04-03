@@ -8,12 +8,11 @@
 import express from 'express';
 import path from 'path';
 import fs from 'fs/promises';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import { verifySignedMediaToken } from '../utils/signedUrl.js';
 import rateLimit from 'express-rate-limit';
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // Rate limiter for media access
 const mediaAccessLimiter = rateLimit({

@@ -1,5 +1,5 @@
 import express from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
 import googleCalendarService from '../services/google-calendar.js';
 import { generateOAuthState, validateOAuthState } from '../middleware/oauthState.js';
@@ -8,7 +8,6 @@ import { encryptGoogleTokenCredentials, decryptGoogleTokenCredentials } from '..
 import { revokeGoogleOAuthToken } from '../utils/google-oauth-revoke.js';
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // ==================== BUSINESS HOURS ====================
 

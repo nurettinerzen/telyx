@@ -15,10 +15,8 @@
  * - PHONE: channelUserId = call/conversation ID
  */
 
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import { randomUUID } from 'crypto';
-
-const prisma = new PrismaClient();
 
 // Session inactivity TTL: 30 minutes (matches state-manager TTL)
 const SESSION_INACTIVITY_TTL_MS = 30 * 60 * 1000;

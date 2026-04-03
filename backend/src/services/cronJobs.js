@@ -9,10 +9,8 @@
  * 5. billOverageUsage: POSTPAID aşım faturalandırması (ay sonu - paket planları için)
  */
 
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import { getFixedOveragePrice } from '../config/plans.js';
-
-const prisma = new PrismaClient();
 
 // Email service import (if available)
 let emailService = null;

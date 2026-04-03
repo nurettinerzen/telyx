@@ -6,7 +6,7 @@
  */
 
 import express from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import { authenticateToken } from '../middleware/auth.js';
 import {
   isOperationalIncidentsEnabled,
@@ -21,7 +21,6 @@ import {
 import { logError, ERROR_CATEGORY, SEVERITY } from '../services/errorLogger.js';
 
 const router = express.Router();
-const prisma = new PrismaClient();
 const SECURITY_THREAT_TYPES = [
   'auth_failure',
   'cross_tenant_attempt',

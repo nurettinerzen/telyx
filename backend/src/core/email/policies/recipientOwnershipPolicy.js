@@ -13,9 +13,7 @@
  * 3. At send time: Orchestrator sets recipients, not LLM output
  */
 
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '../../../prismaClient.js';
 
 // Patterns that indicate automated/list emails (should not auto-reply)
 const NO_REPLY_PATTERNS = [

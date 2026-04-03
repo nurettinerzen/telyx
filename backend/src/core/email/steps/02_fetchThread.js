@@ -5,9 +5,7 @@
  * Uses database records (already synced from provider).
  */
 
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '../../../prismaClient.js';
 
 // How many messages to include for context
 const MAX_THREAD_MESSAGES = 20;

@@ -1,5 +1,5 @@
 import express from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
 import multer from 'multer';
 import csvParser from 'csv-parser';
@@ -7,7 +7,6 @@ import { Readable } from 'stream';
 import { validateUntrustedUpload } from '../security/uploadSecurity.js';
 
 const router = express.Router();
-const prisma = new PrismaClient();
 const upload = multer({ storage: multer.memoryStorage() });
 
 // Get all products

@@ -12,14 +12,12 @@
  * This aggregator automatically routes requests to the correct platform.
  */
 
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import shopifyService from './shopify.js';
 import woocommerceService from './woocommerce.js';
 import IkasService from './integrations/ecommerce/ikas.service.js';
 import IdeasoftService from './integrations/ecommerce/ideasoft.service.js';
 import TicimaxService from './integrations/ecommerce/ticimax.service.js';
-
-const prisma = new PrismaClient();
 
 // Supported platforms
 const PLATFORMS = {

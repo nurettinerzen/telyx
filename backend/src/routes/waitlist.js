@@ -1,10 +1,9 @@
 import express from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import rateLimit from 'express-rate-limit';
 import { sendWaitlistNotificationEmail } from '../services/emailService.js';
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // SECURITY: Rate limiter for email enumeration prevention
 // Limits email checks to 5 requests per minute per IP

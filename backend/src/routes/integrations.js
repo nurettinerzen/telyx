@@ -1,5 +1,5 @@
 import express from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { checkPermission, requireOwner } from '../middleware/permissions.js';
 import googleCalendarService from '../services/google-calendar.js';
@@ -30,7 +30,6 @@ import {
 import axios from 'axios';
 
 const router = express.Router();
-const prisma = new PrismaClient();
 const WHATSAPP_EMBEDDED_SIGNUP_SESSION_TTL_MS = 15 * 60 * 1000;
 
 function isPlainObject(value) {

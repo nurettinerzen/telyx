@@ -138,9 +138,6 @@ export async function initiateOutboundCallSafe(config) {
 
     if (elevenLabsCallId && elevenLabsCallId !== callId) {
       // Update ActiveCallSession with real 11Labs ID
-      const { PrismaClient } = await import('@prisma/client');
-      const prisma = new PrismaClient();
-
       try {
         await prisma.activeCallSession.updateMany({
           where: { callId: callId },
@@ -155,8 +152,6 @@ export async function initiateOutboundCallSafe(config) {
         callId = elevenLabsCallId;
       } catch (updateError) {
         console.error('⚠️ Failed to update callId:', updateError);
-      } finally {
-        await prisma.$disconnect();
       }
     }
 

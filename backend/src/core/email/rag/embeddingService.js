@@ -13,10 +13,8 @@
 
 import OpenAI from 'openai';
 import crypto from 'crypto';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../../../prismaClient.js';
 import { preventPIILeak } from '../policies/piiPreventionPolicy.js';
-
-const prisma = new PrismaClient();
 
 // OpenAI client - lazy init
 let openai = null;

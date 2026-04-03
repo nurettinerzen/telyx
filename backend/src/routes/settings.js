@@ -1,5 +1,5 @@
 import express from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import bcrypt from 'bcrypt';
 import { authenticateToken } from '../middleware/auth.js';
 import { requireRecentAuth } from '../middleware/reauth.js';
@@ -7,7 +7,6 @@ import { validatePasswordPolicy, passwordPolicyMessage } from '../security/passw
 import { issueSession } from '../security/sessionToken.js';
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 const SETTINGS_SUBSCRIPTION_SELECT = {
   id: true,

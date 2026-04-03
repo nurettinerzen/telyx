@@ -1,23 +1,11 @@
 /**
  * Database Configuration
  *
- * Centralized Prisma client export
- * Use this instead of creating new PrismaClient() instances
+ * Re-export the shared Prisma singleton so legacy imports continue
+ * to use the same connection pool.
  */
 
-import { PrismaClient } from '@prisma/client';
-
-// Single Prisma instance (connection pooling)
-const prisma = new PrismaClient({
-  log: process.env.NODE_ENV === 'development'
-    ? ['warn', 'error']
-    : ['error'],
-});
-
-// Graceful shutdown
-process.on('beforeExit', async () => {
-  await prisma.$disconnect();
-});
+import prisma from '../prismaClient.js';
 
 export default prisma;
 export { prisma };

@@ -19,7 +19,7 @@
 // Aşım dakikaları overageMinutes field'ında toplanır ve ay sonu faturalanır.
 // ============================================================================
 
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import {
   getPricePerMinute,
   getIncludedMinutes,
@@ -31,8 +31,6 @@ import {
 } from '../config/plans.js';
 import balanceService from './balanceService.js';
 import chargeCalculator from './chargeCalculator.js';
-
-const prisma = new PrismaClient();
 
 /**
  * Kullanım kaydı oluştur ve ücretlendir

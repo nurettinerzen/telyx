@@ -7,9 +7,7 @@
  * Base URL: https://{storeDomain}/api/
  */
 
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '../../../prismaClient.js';
 
 class IdeasoftService {
   constructor(credentials = null) {

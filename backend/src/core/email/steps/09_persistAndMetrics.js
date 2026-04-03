@@ -4,10 +4,8 @@
  * Saves the generated draft to database and emits metrics.
  */
 
-import { PrismaClient } from '@prisma/client';
+import prisma from '../../../prismaClient.js';
 import { ToolOutcome, normalizeOutcome } from '../../../tools/toolResult.js';
-
-const prisma = new PrismaClient();
 
 /**
  * Persist draft and metrics

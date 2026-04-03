@@ -8,9 +8,7 @@
 // ============================================================================
 
 import axios from 'axios';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '../prismaClient.js';
 
 // WooCommerce API version
 const API_VERSION = 'wc/v3';

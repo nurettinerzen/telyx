@@ -8,9 +8,7 @@
  * - Business-level enable/disable
  */
 
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '../../../prismaClient.js';
 
 // In-memory metrics buffer (flush to DB periodically)
 const metricsBuffer = [];

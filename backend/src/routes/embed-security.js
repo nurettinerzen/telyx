@@ -5,12 +5,11 @@
 
 import express from 'express';
 import crypto from 'crypto';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { checkPermission, requireOwner } from '../middleware/permissions.js';
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // All routes require authentication
 router.use(authenticateToken);

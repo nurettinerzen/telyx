@@ -1,4 +1,5 @@
 import express from 'express';
+import prisma from '../prismaClient.js';
 import elevenLabsService from '../services/elevenlabs.js';
 
 const router = express.Router();
@@ -55,9 +56,6 @@ router.post('/demo/request-call', async (req, res) => {
     // P0.2: Demo calls bypass capacity management (special business ID = 0)
     // But we still use safeCallInitiator for 429 handling
     // NOTE: Create a demo subscription if doesn't exist
-    const { PrismaClient } = await import('@prisma/client');
-    const prisma = new PrismaClient();
-
     const DEMO_BUSINESS_ID = 999999; // Reserved for demo calls
 
     // Ensure demo business exists
@@ -83,8 +81,6 @@ router.post('/demo/request-call', async (req, res) => {
         concurrentLimit: 999 // High limit for demos
       }
     });
-
-    await prisma.$disconnect();
 
     // P0.2: Use safeCallInitiator
     const { initiateOutboundCallSafe } = await import('../services/safeCallInitiator.js');

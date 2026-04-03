@@ -1,5 +1,5 @@
 import express from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import { authenticateToken } from '../middleware/auth.js';
 import multer from 'multer';
 import path from 'path';
@@ -23,7 +23,6 @@ const require = createRequire(import.meta.url);
 const mammoth = require('mammoth');
 
 const router = express.Router();
-const prisma = new PrismaClient();
 const KNOWLEDGE_UPLOAD_DIR = resolveUntrustedUploadDir('knowledge');
 
 // Configure multer for file uploads

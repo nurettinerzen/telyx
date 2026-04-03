@@ -5,9 +5,7 @@
  * Red Alert bu event'leri okuyarak spike detection yapar.
  */
 
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '../prismaClient.js';
 
 // ============================================================================
 // FLOOD PROTECTION: Dedupe Window

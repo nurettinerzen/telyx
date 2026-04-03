@@ -13,10 +13,8 @@
  * - suggestion: string (user-friendly hint)
  */
 
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import { normalize } from './slot-processor.js';
-
-const prisma = new PrismaClient();
 
 /**
  * Calculate similarity between two strings (0-1)

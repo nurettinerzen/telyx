@@ -6,7 +6,7 @@
 import express from 'express';
 import crypto from 'crypto';
 import bcrypt from 'bcrypt';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { checkPermission, requireOwner } from '../middleware/permissions.js';
 import rateLimit from 'express-rate-limit';
@@ -21,7 +21,6 @@ import { validatePasswordPolicy, passwordPolicyMessage } from '../security/passw
 import { issueSession } from '../security/sessionToken.js';
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // ============================================================================
 // RATE LIMITERS

@@ -3,12 +3,10 @@
  * Geri arama kaydı oluşturur.
  */
 
-import { PrismaClient } from '@prisma/client';
+import prisma from '../../prismaClient.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { ok, systemError, ToolOutcome } from '../toolResult.js';
 import crypto from 'crypto';
-
-const prisma = new PrismaClient();
 
 /**
  * Normalize topic for duplicate detection

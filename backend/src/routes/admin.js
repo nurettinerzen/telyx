@@ -4,7 +4,7 @@
  */
 
 import express from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import Stripe from 'stripe';
 import { authenticateToken } from '../middleware/auth.js';
 import {
@@ -26,7 +26,6 @@ import { buildSecurityConfigDigest, compareBaselineDigest } from '../security/co
 import runtimeConfig from '../config/runtime.js';
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // Initialize Stripe if key exists
 const stripe = process.env.STRIPE_SECRET_KEY

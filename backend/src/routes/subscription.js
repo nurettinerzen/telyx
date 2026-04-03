@@ -12,7 +12,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import express from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import { authenticateToken, verifyBusinessAccess } from '../middleware/auth.js';
 import Stripe from 'stripe';
 import crypto from 'crypto';
@@ -34,7 +34,6 @@ import {
 import runtimeConfig from '../config/runtime.js';
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 const LEGACY_SUBSCRIPTION_BASE_SELECT = {
   id: true,

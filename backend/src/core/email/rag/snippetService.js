@@ -11,11 +11,9 @@
  * 4. If required variables missing → skip or use verification template
  */
 
-import { PrismaClient } from '@prisma/client';
+import prisma from '../../../prismaClient.js';
 import { preventPIILeak } from '../policies/piiPreventionPolicy.js';
 import { stripRecipientMentions } from '../policies/recipientOwnershipPolicy.js';
-
-const prisma = new PrismaClient();
 
 // Built-in variables that can be derived from context
 const DERIVED_VARIABLES = {

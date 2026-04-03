@@ -12,12 +12,10 @@
  */
 
 import { google } from 'googleapis';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prismaClient.js';
 import { cleanEmailText, extractClosingPattern, detectLengthBucket } from './email-text-cleaner.js';
 import { classifyTone, classifyContactType } from './email-tone-classifier.js';
 import { withRetry, processBatches } from './gmail-rate-limiter.js';
-
-const prisma = new PrismaClient();
 
 /**
  * Build email pairs for a business
