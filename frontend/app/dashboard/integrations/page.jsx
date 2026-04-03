@@ -26,7 +26,7 @@ import {
   Puzzle, Check, ExternalLink, Star, Copy, CheckCircle2, CreditCard, Zap,
   MessageSquare, Target, Cloud, Calendar, CalendarDays, Smartphone,
   ShoppingCart, Utensils, Scissors, Stethoscope, Package, Mail, Hash,
-  Wallet, Eye, EyeOff, Inbox, RefreshCw, Lock, Info
+  Wallet, Inbox, RefreshCw, Lock, Info
 } from 'lucide-react';
 import { apiClient } from '@/lib/api';
 import { toast, toastHelpers } from '@/lib/toast';
@@ -45,7 +45,6 @@ import {
   useIntegrations,
   useUserPlan,
   useWhatsAppStatus,
-  useIyzicoStatus,
   useEmailStatus,
   useShopifyStatus,
   useWebhookStatus,
@@ -54,8 +53,6 @@ import {
   useHepsiburadaStatus,
   useConnectWhatsApp,
   useDisconnectWhatsApp,
-  useConnectIyzico,
-  useDisconnectIyzico,
   useDisconnectEmail,
   useDisconnectShopify,
   useConnectIkas,
@@ -193,7 +190,6 @@ export default function IntegrationsPage() {
   const crmFeatureInfo = getIntegrationFeatureInfo('CUSTOM', userPlan);
   const hasCrmEntitlement = !crmFeatureInfo.isLocked && !crmFeatureInfo.isHidden;
   const { data: whatsappStatus } = useWhatsAppStatus();
-  const { data: iyzicoStatus } = useIyzicoStatus();
   const { data: emailStatus } = useEmailStatus();
   const { data: shopifyStatus } = useShopifyStatus();
   const { data: webhookStatus } = useWebhookStatus();
@@ -209,8 +205,6 @@ export default function IntegrationsPage() {
   const connectWhatsApp = useConnectWhatsApp();
   const disconnectWhatsApp = useDisconnectWhatsApp();
   const refreshWhatsAppConnection = useRefreshWhatsAppConnection();
-  const connectIyzico = useConnectIyzico();
-  const disconnectIyzico = useDisconnectIyzico();
   const disconnectEmail = useDisconnectEmail();
   const disconnectShopify = useDisconnectShopify();
   const connectIkas = useConnectIkas();
@@ -256,12 +250,6 @@ export default function IntegrationsPage() {
       toast.error(error?.response?.data?.error || error?.message || t('dashboard.integrationsPage.whatsappConnectFailed'));
     },
   });
-
-  // iyzico state
-  const [iyzicoModalOpen, setIyzicoModalOpen] = useState(false);
-  const [iyzicoLoading, setIyzicoLoading] = useState(false);
-  const [iyzicoForm, setIyzicoForm] = useState({ apiKey: '', secretKey: '', environment: 'sandbox' });
-  const [showIyzicoSecret, setShowIyzicoSecret] = useState(false);
 
   // Email state
   const [emailLoading, setEmailLoading] = useState(false);
@@ -492,35 +480,6 @@ export default function IntegrationsPage() {
     return t(keyMap[normalized] || 'dashboard.integrationsPage.whatsappTestStatusUnknown');
   };
 
-
-  const handleIyzicoConnect = async () => {
-    if (!iyzicoForm.apiKey || !iyzicoForm.secretKey) {
-      toast.error(t('dashboard.integrationsPage.fillApiAndSecret'));
-      return;
-    }
-    setIyzicoLoading(true);
-    try {
-      const response = await connectIyzico.mutateAsync(iyzicoForm);
-      if (response.data.success) {
-        toast.success(t('dashboard.integrationsPage.iyzicoConnected'));
-        setIyzicoModalOpen(false);
-        setIyzicoForm({ apiKey: '', secretKey: '', environment: 'sandbox' });
-      }
-    } catch (error) {
-      toast.error(error.response?.data?.error || t('dashboard.integrationsPage.iyzicoConnectFailed'));
-    } finally {
-      setIyzicoLoading(false);
-    }
-  };
-
-  const handleIyzicoDisconnect = async () => {
-    if (!confirm(t('dashboard.integrationsPage.confirmDisconnectIyzico'))) return;
-    try {
-      await disconnectIyzico.mutateAsync();
-      toast.success(t('dashboard.integrationsPage.iyzicoDisconnected'));
-    } catch (error) { toast.error(t('dashboard.integrationsPage.disconnectFailed')); }
-  };
-
 const handleShopifyConnect = async () => {
   if (!shopifyForm.shopUrl) {
     toast.error(t('dashboard.integrationsPage.enterShopUrl'));
@@ -687,7 +646,6 @@ const handleShopifyConnect = async () => {
         await startEmbeddedSignup();
         return;
       }
-      if (integration.type === 'IYZICO') { setIyzicoModalOpen(true); return; }
       if (integration.type === 'SHOPIFY') { setShopifyModalOpen(true); return; }
       if (integration.type === 'ZAPIER') {
         if (!webhookStatus?.configured) await handleWebhookSetup();
@@ -712,7 +670,6 @@ const handleShopifyConnect = async () => {
   if (!confirm(t('dashboard.integrationsPage.confirmDisconnectIntegration'))) return;
   try {
     if (integration.type === 'WHATSAPP') await handleWhatsAppDisconnect();
-    else if (integration.type === 'IYZICO') await handleIyzicoDisconnect();
     else if (integration.type === 'SHOPIFY') await handleShopifyDisconnect();
     else if (integration.type === 'ZAPIER') await handleWebhookDisable();
     else if (integration.type === 'GOOGLE_CALENDAR') {
@@ -805,7 +762,6 @@ const handleShopifyConnect = async () => {
       NETGSM_SMS: t('dashboard.integrationsPage.netgsmDesc'),
       SHOPIFY: t('dashboard.integrationsPage.shopifyConnect'),
       WOOCOMMERCE: t('dashboard.integrationsPage.woocommerceConnect'),
-      IYZICO: t('dashboard.integrationsPage.iyzicoConnect'),
       ZAPIER: t('dashboard.integrationsPage.zapierConnect'),
       IKAS: t('dashboard.integrationsPage.ikasConnect'),
       TRENDYOL: 'Trendyol mağazanızı bağlayın ve müşteri sorularını panelden yönetin.',
@@ -1506,42 +1462,6 @@ const handleShopifyConnect = async () => {
           </DialogContent>
         </Dialog>
       )}
-
-      {/* iyzico Modal */}
-      <Dialog open={iyzicoModalOpen} onOpenChange={setIyzicoModalOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{t('dashboard.integrationsPage.iyzicoModalTitle')}</DialogTitle>
-            <DialogDescription>{t('dashboard.integrationsPage.iyzicoModalDesc')}</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>{t('dashboard.integrationsPage.apiKeyLabel')}</Label>
-              <Input type="text" placeholder={t('dashboard.integrationsPage.apiKeyPlaceholder')} value={iyzicoForm.apiKey} onChange={(e) => setIyzicoForm({ ...iyzicoForm, apiKey: e.target.value })} />
-            </div>
-            <div className="space-y-2">
-              <Label>{t('dashboard.integrationsPage.secretKeyLabel')}</Label>
-              <div className="relative">
-                <Input type={showIyzicoSecret ? 'text' : 'password'} placeholder={t('dashboard.integrationsPage.secretKeyPlaceholder')} value={iyzicoForm.secretKey} onChange={(e) => setIyzicoForm({ ...iyzicoForm, secretKey: e.target.value })} className="pr-10" />
-                <button type="button" onClick={() => setShowIyzicoSecret(!showIyzicoSecret)} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500">
-                  {showIyzicoSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>{t('dashboard.integrationsPage.environmentLabel')}</Label>
-              <select className="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm" value={iyzicoForm.environment} onChange={(e) => setIyzicoForm({ ...iyzicoForm, environment: e.target.value })}>
-                <option value="sandbox">{t('dashboard.integrationsPage.sandboxTesting')}</option>
-                <option value="production">{t('dashboard.integrationsPage.productionLive')}</option>
-              </select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIyzicoModalOpen(false)} disabled={iyzicoLoading}>{t('common.cancel')}</Button>
-            <Button onClick={handleIyzicoConnect} disabled={iyzicoLoading}>{iyzicoLoading ? t('dashboard.integrationsPage.connectingText') : t('dashboard.integrationsPage.connectIyzico')}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Shopify Modal */}
       <Dialog open={shopifyModalOpen} onOpenChange={(open) => { setShopifyModalOpen(open); if (!open) setShopifyLoading(false); }}>

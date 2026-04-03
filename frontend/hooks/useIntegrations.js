@@ -73,21 +73,6 @@ export function useWhatsAppStatus(options = {}) {
 }
 
 /**
- * Hook to fetch iyzico status
- * @returns {object} Query result with iyzico status
- */
-export function useIyzicoStatus() {
-  return useQuery({
-    queryKey: ['integrations', 'iyzico', 'status'],
-    queryFn: async () => {
-      const response = await apiClient.get('/api/iyzico/status');
-      return response.data;
-    },
-    staleTime: 60000,
-  });
-}
-
-/**
  * Hook to fetch email status
  * @returns {object} Query result with email status
  */
@@ -277,42 +262,6 @@ export function useRefreshWhatsAppConnection() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['integrations'] });
       queryClient.invalidateQueries({ queryKey: ['integrations', 'whatsapp', 'status'] });
-    },
-  });
-}
-
-/**
- * Hook to connect iyzico
- * @returns {object} Mutation object
- */
-export function useConnectIyzico() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (formData) => {
-      return await apiClient.post('/api/iyzico/connect', formData);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['integrations'] });
-      queryClient.invalidateQueries({ queryKey: ['integrations', 'iyzico', 'status'] });
-    },
-  });
-}
-
-/**
- * Hook to disconnect iyzico
- * @returns {object} Mutation object
- */
-export function useDisconnectIyzico() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async () => {
-      return await apiClient.post('/api/iyzico/disconnect');
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['integrations'] });
-      queryClient.invalidateQueries({ queryKey: ['integrations', 'iyzico', 'status'] });
     },
   });
 }
