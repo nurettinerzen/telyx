@@ -159,6 +159,7 @@ model Business {
   emailEmbeddings          EmailEmbedding[]
   emailSnippets            EmailSnippet[]
   marketplaceQuestions     MarketplaceQuestion[]
+  complaintThreads         ComplaintThread[]
   webhookConfig            WebhookConfig?
   invitations              Invitation[]
   creditPurchases          CreditPurchase[]
@@ -548,6 +549,41 @@ model MarketplaceQuestion {
   @@index([status])
 }
 
+model ComplaintThread {
+  id              Int      @id @default(autoincrement())
+  businessId      Int
+  platform        String
+  externalId      String
+  externalAnswerId String?
+  title           String
+  complaintText   String   @db.Text
+  generatedReply  String?  @db.Text
+  finalReply      String?  @db.Text
+  status          String   @default("PENDING")
+  approvalMode    String   @default("MANUAL")
+  customerName    String?
+  customerEmail   String?
+  customerPhone   String?
+  customerCity    String?
+  complaintUrl    String?
+  platformStatus  String?
+  sourceCreatedAt DateTime?
+  answeredAt      DateTime?
+  postedAt        DateTime?
+  closedAt        DateTime?
+  published       Boolean?
+  errorMessage    String?
+  rawPayload      Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  business        Business @relation(fields: [businessId], references: [id])
+
+  @@unique([businessId, platform, externalId])
+  @@index([businessId, status])
+  @@index([businessId, platform])
+  @@index([status])
+}
+
 model WhatsappEmbeddedSignupSession {
   id           String   @id @default(cuid())
   businessId   Int
@@ -854,6 +890,7 @@ enum IntegrationType {
   MNG_KARGO
   TRENDYOL
   HEPSIBURADA
+  SIKAYETVAR
   PARASUT
   IYZICO
   IKAS

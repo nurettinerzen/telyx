@@ -99,6 +99,20 @@ export const INTEGRATION_METADATA = {
     region: 'TR'
   },
 
+  SIKAYETVAR: {
+    relevantFor: ['ECOMMERCE', 'SERVICE', 'OTHER'],
+    priority: {
+      ECOMMERCE: 'OPTIONAL',
+      SERVICE: 'RECOMMENDED',
+      OTHER: 'OPTIONAL'
+    },
+    name: 'Şikayetvar',
+    description: 'Şikayetvar şikayet yönetimi entegrasyonu',
+    category: 'complaints',
+    authType: 'api_key',
+    region: 'TR'
+  },
+
   // Note: Gmail and Outlook are handled separately in frontend (not in this metadata)
   // Note: Custom CRM/ERP is also handled separately in frontend integration cards
 };

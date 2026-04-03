@@ -20,6 +20,13 @@ import {
   safeDecryptMarketplaceCredentials,
 } from '../services/marketplace/qaShared.js';
 import {
+  DEFAULT_SIKAYETVAR_SETTINGS,
+  buildSikayetvarCredentials,
+  buildSikayetvarStatusResponse,
+  encryptSikayetvarCredentials,
+  normalizeSikayetvarSettings,
+} from '../services/complaints/sikayetvarShared.js';
+import {
   buildWhatsAppConnectionCredentials,
   buildWhatsAppRefreshFailureCredentials,
   buildWhatsAppStatusResponse,
@@ -178,6 +185,25 @@ function buildMarketplaceStatusResponse(integration, identifierField) {
     ),
     hasSecret: Boolean(credentials?.apiSecret || rawCredentials?.apiSecret),
   };
+}
+
+function buildSikayetvarIntegrationPayload({
+  existingCredentials = {},
+  incomingCredentials = {},
+  fallbackLanguage = 'tr',
+}) {
+  const normalizedIncoming = buildSikayetvarCredentials(incomingCredentials, fallbackLanguage);
+  const normalizedExisting = buildSikayetvarCredentials(existingCredentials, fallbackLanguage);
+  const complaintSettings = normalizeSikayetvarSettings(
+    normalizedIncoming.complaintSettings || normalizedExisting.complaintSettings || DEFAULT_SIKAYETVAR_SETTINGS,
+    fallbackLanguage
+  );
+
+  return encryptSikayetvarCredentials({
+    ...normalizedExisting,
+    ...normalizedIncoming,
+    complaintSettings,
+  }, fallbackLanguage);
 }
 
 async function findIntegrationStatusRecord(prismaClient, businessId, type) {
@@ -2535,6 +2561,135 @@ router.post('/hepsiburada/test', checkPermission('integrations:connect'), async 
   } catch (error) {
     console.error('Hepsiburada test error:', error);
     res.status(500).json({ success: false, error: error.message || 'Hepsiburada test başarısız' });
+  }
+});
+
+router.post('/sikayetvar/connect', checkPermission('integrations:connect'), async (req, res) => {
+  try {
+    const { apiKey, complaintSettings } = req.body;
+
+    if (!apiKey) {
+      return res.status(400).json({ error: 'Sikayetvar API token gerekli' });
+    }
+
+    const business = await prisma.business.findUnique({
+      where: { id: req.businessId },
+      select: { language: true },
+    });
+
+    const SikayetvarService = (await import('../services/integrations/complaints/sikayetvar.service.js')).default;
+    const sikayetvarService = new SikayetvarService();
+    const testResult = await sikayetvarService.testConnection({ apiKey, complaintSettings });
+
+    if (!testResult.success) {
+      return res.status(400).json({
+        error: testResult.message || 'Sikayetvar bağlantı testi başarısız',
+      });
+    }
+
+    const existingIntegration = await prisma.integration.findFirst({
+      where: {
+        businessId: req.businessId,
+        type: 'SIKAYETVAR',
+      },
+    });
+
+    const credentials = buildSikayetvarIntegrationPayload({
+      existingCredentials: existingIntegration?.credentials || {},
+      incomingCredentials: {
+        apiKey,
+        companyId: testResult.companyId,
+        companyName: testResult.companyName,
+        companyUrl: testResult.companyUrl,
+        complaintSettings,
+      },
+      fallbackLanguage: business?.language || 'tr',
+    });
+
+    const integration = existingIntegration
+      ? await prisma.integration.update({
+          where: { id: existingIntegration.id },
+          data: {
+            credentials,
+            connected: true,
+            isActive: true,
+            syncEnabled: true,
+          },
+        })
+      : await prisma.integration.create({
+          data: {
+            businessId: req.businessId,
+            type: 'SIKAYETVAR',
+            credentials,
+            connected: true,
+            isActive: true,
+            syncEnabled: true,
+          },
+        });
+
+    res.json({
+      success: true,
+      message: 'Sikayetvar bağlantısı başarılı',
+      status: buildSikayetvarStatusResponse(integration),
+    });
+  } catch (error) {
+    console.error('Sikayetvar connect error:', error);
+    res.status(500).json({ error: error.message || 'Sikayetvar bağlantısı başarısız' });
+  }
+});
+
+router.post('/sikayetvar/disconnect', checkPermission('integrations:connect'), async (req, res) => {
+  try {
+    await prisma.integration.updateMany({
+      where: {
+        businessId: req.businessId,
+        type: 'SIKAYETVAR',
+      },
+      data: {
+        connected: false,
+        isActive: false,
+      },
+    });
+
+    res.json({
+      success: true,
+      message: 'Sikayetvar bağlantısı kesildi',
+    });
+  } catch (error) {
+    console.error('Sikayetvar disconnect error:', error);
+    res.status(500).json({ error: 'Sikayetvar bağlantısı kesilemedi' });
+  }
+});
+
+router.get('/sikayetvar/status', async (req, res) => {
+  try {
+    const integration = await findIntegrationStatusRecord(prisma, req.businessId, 'SIKAYETVAR');
+    res.json(buildSikayetvarStatusResponse(integration));
+  } catch (error) {
+    console.error('Sikayetvar status error:', error);
+    res.json(buildSikayetvarStatusResponse(null));
+  }
+});
+
+router.post('/sikayetvar/test', checkPermission('integrations:connect'), async (req, res) => {
+  try {
+    const SikayetvarService = (await import('../services/integrations/complaints/sikayetvar.service.js')).default;
+    const sikayetvarService = new SikayetvarService();
+    const credentials = await sikayetvarService.getCredentials(req.businessId);
+    const testResult = await sikayetvarService.testConnection(credentials);
+
+    if (!testResult.success) {
+      return res.status(400).json({ success: false, error: testResult.message });
+    }
+
+    res.json({
+      success: true,
+      message: 'Sikayetvar bağlantısı aktif',
+      details: testResult,
+    });
+  } catch (error) {
+    console.error('Sikayetvar test error:', error);
+    res.status(500).json({ success: false, error: error.message || 'Sikayetvar test başarısız' });
   }
 });
 

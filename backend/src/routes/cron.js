@@ -19,6 +19,7 @@ import { cleanupExpiredLocks } from '../core/email/policies/idempotencyPolicy.js
 import { cleanupOldEmbeddings } from '../core/email/rag/embeddingService.js';
 import { requireCronSecret } from '../middleware/cronAuth.js';
 import { processMarketplaceQuestions } from '../services/marketplace/qaWorker.js';
+import { processComplaintThreads } from '../services/complaints/complaintWorker.js';
 
 const router = express.Router();
 
@@ -76,6 +77,10 @@ const JOB_CONFIG = {
     cooldown: 5 * 60 * 1000     // 5 minutes (prevent spam)
   },
   'marketplace-qa': {
+    maxDuration: 10 * 60 * 1000, // 10 minutes
+    cooldown: 5 * 60 * 1000      // 5 minutes
+  },
+  'complaints-sync': {
     maxDuration: 10 * 60 * 1000, // 10 minutes
     cooldown: 5 * 60 * 1000      // 5 minutes
   }
@@ -475,6 +480,25 @@ router.post('/marketplace-qa',
     res.json({
       success: true,
       message: 'Marketplace Q&A sync completed',
+      result
+    });
+  })
+);
+
+/**
+ * POST /api/cron/complaints-sync
+ * Pull Sikayetvar complaints, generate AI drafts and keep them ready for manual approval
+ * Should run: Every 5 minutes
+ */
+router.post('/complaints-sync',
+  verifyCronSecret,
+  checkJobState('complaints-sync'),
+  wrapJobHandler(async (_req, res) => {
+    console.log('📝 Cron: Complaints sync triggered');
+    const result = await processComplaintThreads();
+    res.json({
+      success: true,
+      message: 'Complaints sync completed',
       result
     });
   })

@@ -26,7 +26,7 @@ import {
   Puzzle, Check, ExternalLink, Star, Copy, CheckCircle2, CreditCard, Zap,
   MessageSquare, Target, Cloud, Calendar, CalendarDays, Smartphone,
   ShoppingCart, Utensils, Scissors, Stethoscope, Package, Mail, Hash,
-  Wallet, Inbox, RefreshCw, Lock, Info
+  Wallet, Inbox, RefreshCw, Lock, Info, AlertTriangle
 } from 'lucide-react';
 import { apiClient } from '@/lib/api';
 import { toast, toastHelpers } from '@/lib/toast';
@@ -51,6 +51,7 @@ import {
   useIkasStatus,
   useTrendyolStatus,
   useHepsiburadaStatus,
+  useSikayetvarStatus,
   useConnectWhatsApp,
   useDisconnectWhatsApp,
   useDisconnectEmail,
@@ -63,6 +64,9 @@ import {
   useConnectHepsiburada,
   useDisconnectHepsiburada,
   useTestHepsiburada,
+  useConnectSikayetvar,
+  useDisconnectSikayetvar,
+  useTestSikayetvar,
   useSetupWebhook,
   useDisableWebhook,
   useRegenerateWebhook,
@@ -166,6 +170,7 @@ const INTEGRATION_ICONS = {
   IKAS: ({ className }) => <IntegrationLogo type="IKAS" className={className} />,
   TRENDYOL: ({ className }) => <IntegrationLogo type="TRENDYOL" className={className} />,
   HEPSIBURADA: ({ className }) => <IntegrationLogo type="HEPSIBURADA" className={className} />,
+  SIKAYETVAR: AlertTriangle,
   CUSTOM: Hash
 };
 
@@ -175,7 +180,8 @@ const INTEGRATION_DOCS = {
   SHOPIFY: 'https://shopify.dev',
   IKAS: 'https://ikas.dev',
   TRENDYOL: 'https://developers.trendyol.com/docs/musteri-sorularini-cekme',
-  HEPSIBURADA: 'https://developers.hepsiburada.com/hepsiburada/reference/saticiya-sor'
+  HEPSIBURADA: 'https://developers.hepsiburada.com/hepsiburada/reference/saticiya-sor',
+  SIKAYETVAR: 'https://doc.sikayetplus.com/'
 };
 
 export default function IntegrationsPage() {
@@ -196,6 +202,7 @@ export default function IntegrationsPage() {
   const { data: ikasStatus } = useIkasStatus();
   const { data: trendyolStatus } = useTrendyolStatus();
   const { data: hepsiburadaStatus } = useHepsiburadaStatus();
+  const { data: sikayetvarStatus } = useSikayetvarStatus();
   const { data: crmStatus } = useCrmWebhookStatus({ enabled: hasCrmEntitlement });
 
   const integrations = integrationsData?.integrations || [];
@@ -215,6 +222,9 @@ export default function IntegrationsPage() {
   const connectHepsiburada = useConnectHepsiburada();
   const disconnectHepsiburada = useDisconnectHepsiburada();
   const testHepsiburada = useTestHepsiburada();
+  const connectSikayetvar = useConnectSikayetvar();
+  const disconnectSikayetvar = useDisconnectSikayetvar();
+  const testSikayetvar = useTestSikayetvar();
   const setupWebhook = useSetupWebhook();
   const disableWebhook = useDisableWebhook();
   const regenerateWebhook = useRegenerateWebhook();
@@ -283,6 +293,11 @@ export default function IntegrationsPage() {
     merchantId: '',
     apiKey: '',
     apiSecret: '',
+  });
+  const [sikayetvarModalOpen, setSikayetvarModalOpen] = useState(false);
+  const [sikayetvarLoading, setSikayetvarLoading] = useState(false);
+  const [sikayetvarForm, setSikayetvarForm] = useState({
+    apiKey: '',
   });
 
   useEffect(() => {
@@ -636,6 +651,27 @@ const handleShopifyConnect = async () => {
     }
   };
 
+  const handleSikayetvarConnect = async () => {
+    if (!sikayetvarForm.apiKey) {
+      toast.error('Şikayetvar API token gerekli');
+      return;
+    }
+
+    setSikayetvarLoading(true);
+    try {
+      const response = await connectSikayetvar.mutateAsync(sikayetvarForm);
+      if (response.data.success) {
+        toast.success('Şikayetvar bağlantısı başarılı');
+        setSikayetvarModalOpen(false);
+        setSikayetvarForm({ apiKey: '' });
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Şikayetvar bağlantısı başarısız');
+    } finally {
+      setSikayetvarLoading(false);
+    }
+  };
+
   // Ideasoft handlers removed - platform no longer supported
 
   // Ticimax handlers removed - platform no longer supported
@@ -660,6 +696,7 @@ const handleShopifyConnect = async () => {
       if (integration.type === 'IKAS') { setIkasModalOpen(true); return; }
       if (integration.type === 'TRENDYOL') { setTrendyolModalOpen(true); return; }
       if (integration.type === 'HEPSIBURADA') { setHepsiburadaModalOpen(true); return; }
+      if (integration.type === 'SIKAYETVAR') { setSikayetvarModalOpen(true); return; }
       toast.info(`${integration.name} ${t('dashboard.integrationsPage.comingSoonIntegration')}`);
     } catch (error) {
       toast.error(t('dashboard.integrationsPage.connectFailed'));
@@ -687,6 +724,10 @@ const handleShopifyConnect = async () => {
     else if (integration.type === 'HEPSIBURADA') {
       await disconnectHepsiburada.mutateAsync();
       toast.success('Hepsiburada bağlantısı kesildi');
+    }
+    else if (integration.type === 'SIKAYETVAR') {
+      await disconnectSikayetvar.mutateAsync();
+      toast.success('Şikayetvar bağlantısı kesildi');
     }
   } catch (error) {
     toast.error(t('dashboard.integrationsPage.disconnectFailed'));
@@ -720,6 +761,12 @@ const handleShopifyConnect = async () => {
     if (integration.type === 'HEPSIBURADA') {
       const response = await testHepsiburada.mutateAsync();
       if (response.data.success) toast.success('Hepsiburada bağlantısı aktif');
+      else toast.error(t('dashboard.integrationsPage.testFailed'));
+      return;
+    }
+    if (integration.type === 'SIKAYETVAR') {
+      const response = await testSikayetvar.mutateAsync();
+      if (response.data.success) toast.success('Şikayetvar bağlantısı aktif');
       else toast.error(t('dashboard.integrationsPage.testFailed'));
       return;
     }
@@ -766,6 +813,7 @@ const handleShopifyConnect = async () => {
       IKAS: t('dashboard.integrationsPage.ikasConnect'),
       TRENDYOL: 'Trendyol mağazanızı bağlayın ve müşteri sorularını panelden yönetin.',
       HEPSIBURADA: 'Hepsiburada mağazanızı bağlayın ve müşteri sorularını panelden yönetin.',
+      SIKAYETVAR: 'Şikayetvar hesabınızı bağlayın ve şikayetlere AI taslaklarıyla yanıt verin.',
       IDEASOFT: t('dashboard.integrationsPage.ideasoftConnect'),
       TICIMAX: t('dashboard.integrationsPage.ticimaxConnect')
     };
@@ -817,6 +865,12 @@ const handleShopifyConnect = async () => {
       types: ['TRENDYOL', 'HEPSIBURADA']
     },
     {
+      id: 'complaints',
+      title: 'Şikayet Yönetimi',
+      icon: AlertTriangle,
+      types: ['SIKAYETVAR']
+    },
+    {
       id: 'calendar',
       title: t('dashboard.integrationsPage.categoryCalendar'),
       icon: CalendarDays,
@@ -860,11 +914,14 @@ const handleShopifyConnect = async () => {
     const isWhatsApp = integration.type === 'WHATSAPP';
     const isTrendyol = integration.type === 'TRENDYOL';
     const isHepsiburada = integration.type === 'HEPSIBURADA';
-    const isMarketplaceBeta = isTrendyol || isHepsiburada;
+    const isSikayetvar = integration.type === 'SIKAYETVAR';
+    const isMarketplaceBeta = isTrendyol || isHepsiburada || isSikayetvar;
+    const isMarketplaceImageIcon = isTrendyol || isHepsiburada;
     const disabled = isEcommerceDisabled(integration.type);
     const marketplaceStatus = isTrendyol
       ? trendyolStatus
       : (isHepsiburada ? hepsiburadaStatus : null);
+    const complaintStatus = isSikayetvar ? sikayetvarStatus : null;
     const whatsappConnected = isWhatsApp ? Boolean(whatsappStatus?.connected ?? integration.connected) : integration.connected;
     const whatsappNeedsReconnect = isWhatsApp ? Boolean(whatsappStatus?.needsReconnect) : false;
     const shouldShowWhatsappDetails = isWhatsApp && (whatsappConnected || whatsappNeedsReconnect);
@@ -872,6 +929,8 @@ const handleShopifyConnect = async () => {
       ? (whatsappConnected || whatsappNeedsReconnect)
       : (isTrendyol || isHepsiburada)
         ? Boolean(marketplaceStatus?.connected ?? integration.connected)
+        : isSikayetvar
+          ? Boolean(complaintStatus?.connected ?? integration.connected)
         : integration.connected;
     const whatsappNumberLabel = shouldShowWhatsappDetails
       ? (whatsappStatus?.displayPhoneNumber || whatsappStatus?.phoneNumberId || null)
@@ -880,6 +939,7 @@ const handleShopifyConnect = async () => {
     const marketplaceIdentifier = isTrendyol
       ? marketplaceStatus?.sellerId
       : marketplaceStatus?.merchantId;
+    const complaintIdentifier = complaintStatus?.companyName || complaintStatus?.companyId;
     const whatsappActionLabel = whatsappEmbeddedSignupState === 'awaiting_completion'
       ? t('dashboard.integrationsPage.whatsappWaitingForMeta')
       : (whatsappNeedsReconnect ? t('dashboard.integrationsPage.whatsappReconnect') : t('dashboard.integrationsPage.connect'));
@@ -896,7 +956,7 @@ const handleShopifyConnect = async () => {
         <div className="flex items-start justify-between mb-4">
           <div className="flex min-h-10 items-center gap-3">
             <div className={CARD_ICON_WRAPPER_CLASS}>
-              <Icon className={isMarketplaceBeta ? 'h-7 w-7 rounded-md object-cover' : `h-6 w-6 ${disabled ? 'text-neutral-400 dark:text-neutral-500' : 'text-neutral-600 dark:text-neutral-400'}`} />
+              <Icon className={isMarketplaceImageIcon ? 'h-7 w-7 rounded-md object-cover' : `h-6 w-6 ${disabled ? 'text-neutral-400 dark:text-neutral-500' : 'text-neutral-600 dark:text-neutral-400'}`} />
             </div>
             <div className="min-h-10 flex items-center">
               <div className="flex flex-wrap items-center gap-2">
@@ -963,6 +1023,33 @@ const handleShopifyConnect = async () => {
             )}
             <p className="text-xs text-neutral-500 dark:text-neutral-400">
               Soru paneli: <button className="underline" onClick={() => { window.location.href = '/dashboard/marketplace-qa'; }}>Pazaryeri Q&A</button>
+            </p>
+          </div>
+        )}
+
+        {isSikayetvar && isEffectivelyConnected && (
+          <div className="space-y-2 mb-4">
+            <p className="text-xs text-emerald-700 dark:text-emerald-300 inline-flex items-center gap-1">
+              <CheckCircle2 className="h-3 w-3" />
+              Bağlantı aktif
+            </p>
+            {complaintIdentifier && (
+              <p className="text-xs text-neutral-700 dark:text-neutral-300">
+                Şirket: <span className="font-medium">{complaintIdentifier}</span>
+              </p>
+            )}
+            {complaintStatus?.companyUrl && (
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                Kurumsal sayfa: <span className="font-medium">{complaintStatus.companyUrl}</span>
+              </p>
+            )}
+            {complaintStatus?.lastSync && (
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                Son senkron: {formatWhatsAppTimestamp(complaintStatus.lastSync)}
+              </p>
+            )}
+            <p className="text-xs text-neutral-500 dark:text-neutral-400">
+              Şikayet paneli: <button className="underline" onClick={() => { window.location.href = '/dashboard/complaints'; }}>Şikayet Yönetimi</button>
             </p>
           </div>
         )}
@@ -1739,6 +1826,42 @@ const handleShopifyConnect = async () => {
             </Button>
             <Button onClick={handleHepsiburadaConnect} disabled={hepsiburadaLoading}>
               {hepsiburadaLoading ? <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />{t('dashboard.integrationsPage.connectingText')}</> : 'Hepsiburada Bağla'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={sikayetvarModalOpen} onOpenChange={setSikayetvarModalOpen}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-600" />
+              Şikayetvar Bağlantısı
+            </DialogTitle>
+            <DialogDescription>
+              Kurumsal üyelik tokenınızı girin. Sistem bağlantıyı test eder, açık şikayetleri çeker ve AI taslaklarını manuel onaya hazırlar.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>X-Auth-Key / API Token</Label>
+              <Input
+                type="password"
+                placeholder="Şikayetvar API token"
+                value={sikayetvarForm.apiKey}
+                onChange={(event) => setSikayetvarForm((prev) => ({ ...prev, apiKey: event.target.value }))}
+              />
+            </div>
+            <p className="text-xs text-neutral-500">
+              Sistem açık şikayetleri çeker, empatik AI cevap taslakları üretir ve yalnızca sizin onayınızdan sonra platforma gönderir.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSikayetvarModalOpen(false)} disabled={sikayetvarLoading}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={handleSikayetvarConnect} disabled={sikayetvarLoading}>
+              {sikayetvarLoading ? <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />{t('dashboard.integrationsPage.connectingText')}</> : 'Şikayetvar Bağla'}
             </Button>
           </DialogFooter>
         </DialogContent>

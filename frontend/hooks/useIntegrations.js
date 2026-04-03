@@ -213,6 +213,21 @@ export function useHepsiburadaStatus() {
 }
 
 /**
+ * Hook to fetch Sikayetvar status
+ * @returns {object} Query result with Sikayetvar status
+ */
+export function useSikayetvarStatus() {
+  return useQuery({
+    queryKey: ['integrations', 'sikayetvar', 'status'],
+    queryFn: async () => {
+      const response = await apiClient.get('/api/integrations/sikayetvar/status');
+      return response.data;
+    },
+    staleTime: 60000,
+  });
+}
+
+/**
  * Hook to connect WhatsApp
  * @returns {object} Mutation object
  */
@@ -414,6 +429,44 @@ export function useDisconnectHepsiburada() {
 }
 
 /**
+ * Hook to connect Sikayetvar
+ * @returns {object} Mutation object
+ */
+export function useConnectSikayetvar() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (formData) => {
+      return await apiClient.post('/api/integrations/sikayetvar/connect', formData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['integrations'] });
+      queryClient.invalidateQueries({ queryKey: ['integrations', 'sikayetvar', 'status'] });
+      queryClient.invalidateQueries({ queryKey: ['complaints'] });
+    },
+  });
+}
+
+/**
+ * Hook to disconnect Sikayetvar
+ * @returns {object} Mutation object
+ */
+export function useDisconnectSikayetvar() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      return await apiClient.post('/api/integrations/sikayetvar/disconnect');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['integrations'] });
+      queryClient.invalidateQueries({ queryKey: ['integrations', 'sikayetvar', 'status'] });
+      queryClient.invalidateQueries({ queryKey: ['complaints'] });
+    },
+  });
+}
+
+/**
  * Hook to setup webhook
  * @returns {object} Mutation object
  */
@@ -527,6 +580,18 @@ export function useTestHepsiburada() {
   return useMutation({
     mutationFn: async () => {
       return await apiClient.post('/api/integrations/hepsiburada/test');
+    },
+  });
+}
+
+/**
+ * Hook to test Sikayetvar
+ * @returns {object} Mutation object
+ */
+export function useTestSikayetvar() {
+  return useMutation({
+    mutationFn: async () => {
+      return await apiClient.post('/api/integrations/sikayetvar/test');
     },
   });
 }

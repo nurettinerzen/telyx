@@ -64,7 +64,7 @@ import { getPlanDisplayName } from '@/lib/planConfig';
 import { TelyxLogoCompact } from './TelyxLogo';
 import { NAVIGATION_ITEMS } from '@/lib/navigationConfig';
 import { useSubscription } from '@/hooks/useSubscription';
-import { useHepsiburadaStatus, useTrendyolStatus } from '@/hooks/useIntegrations';
+import { useHepsiburadaStatus, useSikayetvarStatus, useTrendyolStatus } from '@/hooks/useIntegrations';
 
 export default function Sidebar({ user, credits, business }) {
   const pathname = usePathname();
@@ -86,6 +86,7 @@ export default function Sidebar({ user, credits, business }) {
   const { data: liveSubscription } = useSubscription();
   const { data: trendyolStatus } = useTrendyolStatus();
   const { data: hepsiburadaStatus } = useHepsiburadaStatus();
+  const { data: sikayetvarStatus } = useSikayetvarStatus();
 
   // Get user's current plan and country
   // Only use actual plan from subscription - don't assume STARTER as default
@@ -93,6 +94,7 @@ export default function Sidebar({ user, credits, business }) {
   const userPlan = liveSubscription?.plan || user?.subscription?.plan || user?.plan || null;
   const userCountry = business?.country || user?.business?.country || 'TR';
   const hasMarketplaceQaAccess = Boolean(trendyolStatus?.connected || hepsiburadaStatus?.connected);
+  const hasComplaintAccess = Boolean(sikayetvarStatus?.connected);
 
   // Show skeleton until BOTH conditions are met:
   // 1. Component is mounted (hydration complete)
@@ -140,6 +142,7 @@ export default function Sidebar({ user, credits, business }) {
         { icon: Mail, label: t('dashboard.sidebar.email'), href: NAVIGATION_ITEMS.email.href, permission: 'campaigns:view' },
         { icon: Zap, label: t('dashboard.sidebar.quickReplies'), href: NAVIGATION_ITEMS.emailSnippets.href, permission: 'campaigns:view' },
         ...(hasMarketplaceQaAccess ? [{ icon: Package, label: locale === 'tr' ? NAVIGATION_ITEMS.marketplaceQa.labelTr : NAVIGATION_ITEMS.marketplaceQa.labelEn, href: NAVIGATION_ITEMS.marketplaceQa.href, permission: 'campaigns:view' }] : []),
+        ...(hasComplaintAccess ? [{ icon: AlertTriangle, label: locale === 'tr' ? NAVIGATION_ITEMS.complaints.labelTr : NAVIGATION_ITEMS.complaints.labelEn, href: NAVIGATION_ITEMS.complaints.href, permission: 'campaigns:view' }] : []),
       ],
     },
     {
