@@ -56,7 +56,7 @@ export function useUserPlan() {
  * Hook to fetch WhatsApp status
  * @returns {object} Query result with WhatsApp status
  */
-export function useWhatsAppStatus() {
+export function useWhatsAppStatus(options = {}) {
   return useQuery({
     queryKey: ['integrations', 'whatsapp', 'status'],
     queryFn: async () => {
@@ -64,6 +64,11 @@ export function useWhatsAppStatus() {
       return response.data;
     },
     staleTime: 60000, // 1 minute
+    refetchInterval: (query) => {
+      const status = String(query?.state?.data?.lastTestSend?.status || '').toLowerCase();
+      return ['accepted', 'sent'].includes(status) ? 5000 : false;
+    },
+    ...options,
   });
 }
 

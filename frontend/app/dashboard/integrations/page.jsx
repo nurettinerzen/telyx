@@ -6,6 +6,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -107,6 +108,7 @@ export default function IntegrationsPage() {
   const { t, locale } = useLanguage();
   const { can, user } = usePermissions();
   const pageHelp = getPageHelp('integrations', locale);
+  const queryClient = useQueryClient();
 
   // React Query hooks
   const { data: integrationsData, isLoading: loading } = useIntegrations();
@@ -236,6 +238,28 @@ export default function IntegrationsPage() {
     });
   }, [locale, t]);
 
+  useEffect(() => {
+    const persistedLastTestSend = whatsappStatus?.lastTestSend;
+    if (!persistedLastTestSend) {
+      return;
+    }
+
+    setWhatsappTestResult((prev) => {
+      if (!prev) {
+        return persistedLastTestSend;
+      }
+
+      if (!prev.messageId || prev.messageId === persistedLastTestSend.messageId) {
+        return {
+          ...prev,
+          ...persistedLastTestSend,
+        };
+      }
+
+      return prev;
+    });
+  }, [whatsappStatus?.lastTestSend]);
+
   // Handler functions
   const handleGmailConnect = async () => {
     try {
@@ -327,6 +351,10 @@ export default function IntegrationsPage() {
       });
 
       if (response.data?.success) {
+        const nextTestResult = response.data?.result?.testMessageStatus || {
+          status: 'accepted',
+          acceptedAt: new Date().toISOString(),
+        };
         setWhatsappTestResult({
           recipientPhone: response.data?.result?.recipientPhone || whatsappTestForm.recipientPhone.trim(),
           connectedNumber: response.data?.result?.connectedNumber || whatsappStatus?.displayPhoneNumber || null,
@@ -335,7 +363,9 @@ export default function IntegrationsPage() {
           deliveryMode: response.data?.result?.deliveryMode || 'text',
           templateInfo: response.data?.result?.templateInfo || null,
           sentAt: new Date().toISOString(),
+          ...nextTestResult,
         });
+        queryClient.invalidateQueries({ queryKey: ['integrations', 'whatsapp', 'status'] });
         toast.info(t('dashboard.integrationsPage.whatsappTestAcceptedSuccess'));
       } else {
         toast.error(t('dashboard.integrationsPage.whatsappTestSendFailed'));
@@ -346,6 +376,19 @@ export default function IntegrationsPage() {
     } finally {
       setWhatsappTestSending(false);
     }
+  };
+
+  const getWhatsAppTestStatusLabel = (status) => {
+    const normalized = String(status || '').toLowerCase();
+    const keyMap = {
+      accepted: 'dashboard.integrationsPage.whatsappTestStatusAccepted',
+      sent: 'dashboard.integrationsPage.whatsappTestStatusSent',
+      delivered: 'dashboard.integrationsPage.whatsappTestStatusDelivered',
+      read: 'dashboard.integrationsPage.whatsappTestStatusRead',
+      failed: 'dashboard.integrationsPage.whatsappTestStatusFailed',
+    };
+
+    return t(keyMap[normalized] || 'dashboard.integrationsPage.whatsappTestStatusUnknown');
   };
 
 
@@ -888,6 +931,14 @@ const handleShopifyConnect = async () => {
                       </div>
                     </div>
                   )}
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wide text-neutral-500 dark:text-neutral-500">
+                      {t('dashboard.integrationsPage.whatsappTestDeliveryStatus')}
+                    </div>
+                    <div className="mt-1 font-medium text-neutral-900 dark:text-white">
+                      {getWhatsAppTestStatusLabel(whatsappTestResult.status)}
+                    </div>
+                  </div>
                 </div>
                 {whatsappTestResult.templateInfo?.name && (
                   <div>
@@ -905,6 +956,21 @@ const handleShopifyConnect = async () => {
                       {t('dashboard.integrationsPage.whatsappTestMessageId')}
                     </div>
                     <div className="mt-1 break-all font-medium text-neutral-900 dark:text-white">{whatsappTestResult.messageId}</div>
+                  </div>
+                )}
+                {whatsappTestResult.lastStatusAt && (
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wide text-neutral-500 dark:text-neutral-500">
+                      {t('dashboard.integrationsPage.whatsappTestLastStatusAt')}
+                    </div>
+                    <div className="mt-1 font-medium text-neutral-900 dark:text-white">
+                      {formatWhatsAppTimestamp(whatsappTestResult.lastStatusAt)}
+                    </div>
+                  </div>
+                )}
+                {whatsappTestResult.lastError?.message && (
+                  <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
+                    {whatsappTestResult.lastError.message}
                   </div>
                 )}
               </div>

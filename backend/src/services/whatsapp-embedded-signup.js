@@ -388,6 +388,9 @@ export function buildWhatsAppStatusResponse({ business, integration, manualFallb
   const credentials = rawCredentials && typeof rawCredentials === 'object' && !Array.isArray(rawCredentials)
     ? rawCredentials
     : {};
+  const lastTestSend = credentials.lastTestSend && typeof credentials.lastTestSend === 'object' && !Array.isArray(credentials.lastTestSend)
+    ? credentials.lastTestSend
+    : null;
   const hasPersistedIntegrationState = Boolean(
     integration ||
     credentials.phoneNumberId ||
@@ -435,6 +438,22 @@ export function buildWhatsAppStatusResponse({ business, integration, manualFallb
     lastConnectedAt: credentials.lastConnectedAt || null,
     lastValidatedAt: credentials?.tokenMetadata?.lastValidatedAt || null,
     hasPersistedIntegrationState,
+    lastTestSend: lastTestSend
+      ? {
+          messageId: lastTestSend.messageId || null,
+          recipientPhone: lastTestSend.recipientPhone || null,
+          connectedNumber: lastTestSend.connectedNumber || null,
+          phoneNumberId: lastTestSend.phoneNumberId || null,
+          wabaId: lastTestSend.wabaId || null,
+          deliveryMode: lastTestSend.deliveryMode || 'text',
+          templateInfo: lastTestSend.templateInfo || null,
+          status: lastTestSend.status || 'accepted',
+          acceptedAt: toIsoDate(lastTestSend.acceptedAt),
+          lastStatusAt: toIsoDate(lastTestSend.lastStatusAt),
+          statusTimestamp: toIsoDate(lastTestSend.statusTimestamp),
+          lastError: lastTestSend.lastError || null,
+        }
+      : null,
   };
 }
 

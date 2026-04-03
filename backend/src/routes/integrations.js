@@ -90,6 +90,34 @@ function getIntegrationCredentials(integration) {
   return integration.credentials;
 }
 
+function buildWhatsAppTestSendState({
+  existing = {},
+  messageId = null,
+  recipientPhone = null,
+  connectedNumber = null,
+  phoneNumberId = null,
+  wabaId = null,
+  deliveryMode = 'text',
+  templateInfo = null,
+}) {
+  const nowIso = new Date().toISOString();
+
+  return {
+    ...(isPlainObject(existing) ? existing : {}),
+    messageId,
+    recipientPhone,
+    connectedNumber,
+    phoneNumberId,
+    wabaId,
+    deliveryMode,
+    templateInfo,
+    status: 'accepted',
+    acceptedAt: nowIso,
+    lastStatusAt: nowIso,
+    lastError: null,
+  };
+}
+
 function appendEmbeddedSignupTelemetry(sessionInfo, entry) {
   const normalizedInfo = isPlainObject(sessionInfo) ? sessionInfo : {};
   const existingTelemetry = Array.isArray(normalizedInfo.telemetry) ? normalizedInfo.telemetry : [];
@@ -1454,6 +1482,7 @@ router.post('/whatsapp/send', requireOwner, async (req, res) => {
           }
         },
         select: {
+          id: true,
           credentials: true
         }
       })
@@ -1494,6 +1523,31 @@ router.post('/whatsapp/send', requireOwner, async (req, res) => {
 
     const messageId = result?.messages?.[0]?.id || result?.messages?.[0]?.message_status || null;
 
+    const nextTestSendState = buildWhatsAppTestSendState({
+      existing: credentials.lastTestSend,
+      messageId,
+      recipientPhone,
+      connectedNumber,
+      phoneNumberId: business.whatsappPhoneNumberId,
+      wabaId: connectedWabaId,
+      deliveryMode,
+      templateInfo,
+    });
+
+    if (integration?.id) {
+      await prisma.integration.update({
+        where: { id: integration.id },
+        data: {
+          credentials: {
+            ...credentials,
+            lastTestSend: nextTestSendState,
+          },
+          connected: true,
+          isActive: true,
+        }
+      });
+    }
+
     res.json({
       success: true,
       message: 'WhatsApp message accepted by Meta',
@@ -1506,6 +1560,7 @@ router.post('/whatsapp/send', requireOwner, async (req, res) => {
         acceptedByMeta: true,
         deliveryMode,
         templateInfo,
+        testMessageStatus: nextTestSendState,
         raw: result
       }
     });

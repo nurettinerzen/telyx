@@ -84,6 +84,101 @@ const WRITTEN_LIMIT_MESSAGE = {
   EN: 'You have reached your written support limit. Upgrade your plan or purchase an add-on to continue.'
 };
 
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function getIntegrationCredentials(integration) {
+  if (!integration || !isPlainObject(integration.credentials)) {
+    return {};
+  }
+
+  return integration.credentials;
+}
+
+async function persistWhatsAppDeliveryStatus({ businessId, phoneNumberId, statuses = [] }) {
+  if (!businessId || !Array.isArray(statuses) || statuses.length === 0) {
+    return;
+  }
+
+  const integration = await prisma.integration.findUnique({
+    where: {
+      businessId_type: {
+        businessId,
+        type: 'WHATSAPP',
+      }
+    },
+    select: {
+      id: true,
+      credentials: true,
+    }
+  });
+
+  if (!integration?.id) {
+    return;
+  }
+
+  const credentials = getIntegrationCredentials(integration);
+  const currentTestSend = isPlainObject(credentials.lastTestSend) ? credentials.lastTestSend : null;
+
+  if (!currentTestSend?.messageId) {
+    return;
+  }
+
+  let nextTestSend = currentTestSend;
+  let changed = false;
+
+  for (const statusEntry of statuses) {
+    const webhookMessageId = statusEntry?.id || null;
+    if (!webhookMessageId || webhookMessageId !== currentTestSend.messageId) {
+      continue;
+    }
+
+    const normalizedStatus = String(statusEntry?.status || '').trim().toLowerCase() || 'unknown';
+    const errorEntry = Array.isArray(statusEntry?.errors) ? statusEntry.errors[0] : null;
+    const rawTimestamp = statusEntry?.timestamp ? Number(statusEntry.timestamp) : null;
+    const statusTimestamp = Number.isFinite(rawTimestamp) ? new Date(rawTimestamp * 1000).toISOString() : null;
+    const lastStatusAt = new Date().toISOString();
+
+    nextTestSend = {
+      ...currentTestSend,
+      phoneNumberId: phoneNumberId || currentTestSend.phoneNumberId || null,
+      status: normalizedStatus,
+      statusTimestamp,
+      lastStatusAt,
+      lastError: normalizedStatus === 'failed'
+        ? {
+            message: errorEntry?.message || statusEntry?.errors?.[0]?.title || 'WhatsApp delivery failed',
+            code: errorEntry?.code || null,
+            details: errorEntry?.error_data || null,
+          }
+        : null,
+    };
+    changed = true;
+  }
+
+  if (!changed) {
+    return;
+  }
+
+  await prisma.integration.update({
+    where: { id: integration.id },
+    data: {
+      credentials: {
+        ...credentials,
+        lastTestSend: nextTestSend,
+      }
+    }
+  });
+
+  console.log('📬 [WhatsApp Delivery Status] Updated last test send status', {
+    businessId,
+    phoneNumberId,
+    messageId: nextTestSend.messageId,
+    status: nextTestSend.status,
+  });
+}
+
 // Cleanup old processed messages every minute
 setInterval(() => {
   const now = Date.now();
@@ -398,6 +493,21 @@ router.post('/webhook', webhookRateLimiter.middleware(), async (req, res) => {
         console.log(`🚫 WhatsApp blocked - FREE plan expired for business ${business.id}`);
         // Silently ignore the message - don't respond
         return res.sendStatus(200);
+      }
+
+      if (Array.isArray(value?.statuses) && value.statuses.length > 0) {
+        await persistWhatsAppDeliveryStatus({
+          businessId: business.id,
+          phoneNumberId,
+          statuses: value.statuses,
+        }).catch((error) => {
+          console.error('❌ Failed to persist WhatsApp delivery status:', {
+            requestId: req.requestId || null,
+            businessId: business.id,
+            phoneNumberId,
+            error: error.message,
+          });
+        });
       }
 
       // Process incoming messages
