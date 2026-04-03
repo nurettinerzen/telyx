@@ -180,6 +180,21 @@ function buildMarketplaceStatusResponse(integration, identifierField) {
   };
 }
 
+async function findIntegrationStatusRecord(prismaClient, businessId, type) {
+  const records = await prismaClient.integration.findMany({
+    where: { businessId },
+    select: {
+      type: true,
+      connected: true,
+      isActive: true,
+      lastSync: true,
+      credentials: true,
+    },
+  });
+
+  return records.find((record) => String(record.type) === type) || null;
+}
+
 /* ============================================================
    GET ALL INTEGRATIONS
 ============================================================ */
@@ -2361,20 +2376,7 @@ router.post('/trendyol/disconnect', checkPermission('integrations:connect'), asy
 
 router.get('/trendyol/status', async (req, res) => {
   try {
-    const integration = await prisma.integration.findUnique({
-      where: {
-        businessId_type: {
-          businessId: req.businessId,
-          type: 'TRENDYOL'
-        }
-      },
-      select: {
-        connected: true,
-        isActive: true,
-        lastSync: true,
-        credentials: true
-      }
-    });
+    const integration = await findIntegrationStatusRecord(prisma, req.businessId, 'TRENDYOL');
 
     res.json(buildMarketplaceStatusResponse(integration, 'sellerId'));
   } catch (error) {
@@ -2505,20 +2507,7 @@ router.post('/hepsiburada/disconnect', checkPermission('integrations:connect'), 
 
 router.get('/hepsiburada/status', async (req, res) => {
   try {
-    const integration = await prisma.integration.findUnique({
-      where: {
-        businessId_type: {
-          businessId: req.businessId,
-          type: 'HEPSIBURADA'
-        }
-      },
-      select: {
-        connected: true,
-        isActive: true,
-        lastSync: true,
-        credentials: true
-      }
-    });
+    const integration = await findIntegrationStatusRecord(prisma, req.businessId, 'HEPSIBURADA');
 
     res.json(buildMarketplaceStatusResponse(integration, 'merchantId'));
   } catch (error) {
