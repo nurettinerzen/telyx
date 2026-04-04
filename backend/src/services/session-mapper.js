@@ -31,6 +31,46 @@ function getCacheKey(businessId, channel, channelUserId) {
   return `${businessId}:${channel}:${channelUserId}`;
 }
 
+async function touchSessionMapping(businessId, channel, channelUserId) {
+  try {
+    await prisma.sessionMapping.update({
+      where: {
+        businessId_channel_channelUserId: {
+          businessId,
+          channel,
+          channelUserId,
+        }
+      },
+      data: {
+        updatedAt: new Date(),
+      }
+    });
+  } catch (error) {
+    if (error?.code !== 'P2025') {
+      console.error('[SessionMapper] Failed to touch mapping:', error);
+    }
+  }
+}
+
+async function closeStaleSessionArtifacts(sessionId) {
+  if (!sessionId) return;
+
+  try {
+    await prisma.chatLog.updateMany({
+      where: {
+        sessionId,
+        status: 'active',
+      },
+      data: {
+        status: 'ended',
+        updatedAt: new Date(),
+      }
+    });
+  } catch (error) {
+    console.error('[SessionMapper] Failed to close stale session artifacts:', error);
+  }
+}
+
 /**
  * Get or create a session ID for a channel user
  *
@@ -54,6 +94,7 @@ export async function getOrCreateSession(businessId, channel, channelUserId) {
     } else {
       // Update last activity timestamp
       cached.lastActivity = now;
+      await touchSessionMapping(businessId, channel, channelUserId);
       console.log(`[SessionMapper] Cache hit: ${cacheKey} → ${cached.sessionId}`);
       return cached.sessionId;
     }
@@ -76,6 +117,7 @@ export async function getOrCreateSession(businessId, channel, channelUserId) {
     const updatedAt = existing.updatedAt ? new Date(existing.updatedAt).getTime() : 0;
     if (now - updatedAt > SESSION_INACTIVITY_TTL_MS) {
       console.log(`[SessionMapper] DB session expired (idle ${Math.round((now - updatedAt) / 60000)}min), rotating: ${cacheKey}`);
+      await closeStaleSessionArtifacts(existing.sessionId);
       // Delete old mapping, fall through to create new session
       await prisma.sessionMapping.delete({
         where: {
@@ -87,6 +129,7 @@ export async function getOrCreateSession(businessId, channel, channelUserId) {
       // Fall through to create new session below
     } else {
       console.log(`[SessionMapper] DB hit: ${cacheKey} → ${existing.sessionId}`);
+      await touchSessionMapping(businessId, channel, channelUserId);
       mappingCache.set(cacheKey, { sessionId: existing.sessionId, lastActivity: now });
       return existing.sessionId;
     }

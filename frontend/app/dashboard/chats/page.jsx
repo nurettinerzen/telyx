@@ -123,9 +123,35 @@ export default function ChatsPage() {
     });
   }, [chats]);
 
+  const inboxChats = useMemo(() => {
+    const latestActiveWhatsAppByPhone = new Map();
+
+    for (const chat of chats) {
+      if (chat?.channel !== 'WHATSAPP' || chat?.status !== 'active' || !chat?.customerPhone) {
+        continue;
+      }
+
+      const existing = latestActiveWhatsAppByPhone.get(chat.customerPhone);
+      const chatTimestamp = new Date(chat.updatedAt || chat.createdAt || 0).getTime();
+      const existingTimestamp = existing ? new Date(existing.updatedAt || existing.createdAt || 0).getTime() : -1;
+
+      if (!existing || chatTimestamp > existingTimestamp) {
+        latestActiveWhatsAppByPhone.set(chat.customerPhone, chat);
+      }
+    }
+
+    return sortedChats.filter((chat) => {
+      if (chat?.channel !== 'WHATSAPP' || chat?.status !== 'active' || !chat?.customerPhone) {
+        return true;
+      }
+
+      return latestActiveWhatsAppByPhone.get(chat.customerPhone)?.id === chat.id;
+    });
+  }, [chats, sortedChats]);
+
   const pendingLiveHandoffs = useMemo(() => {
-    return sortedChats.filter((chat) => chat?.channel === 'WHATSAPP' && chat?.handoff?.mode === 'REQUESTED');
-  }, [sortedChats]);
+    return inboxChats.filter((chat) => chat?.channel === 'WHATSAPP' && chat?.handoff?.mode === 'REQUESTED');
+  }, [inboxChats]);
 
   const loadChatDetails = async (chatId, { openModal = false, silent = false } = {}) => {
     try {
@@ -589,7 +615,7 @@ export default function ChatsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedChats.map((chat) => (
+              {inboxChats.map((chat) => (
                 <TableRow key={chat.id}>
                   <TableCell>
                     <span className="text-sm text-gray-900 dark:text-white">

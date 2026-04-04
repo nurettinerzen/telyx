@@ -53,6 +53,56 @@ async function enrichChatLogsWithHandoff(chatLogs, businessId, viewerUserId) {
   }));
 }
 
+async function hydrateWhatsAppPhonesForChatLogs(chatLogs, businessId) {
+  if (!Array.isArray(chatLogs) || chatLogs.length === 0) {
+    return chatLogs;
+  }
+
+  const missingPhoneLogs = chatLogs.filter((log) => (
+    log?.channel === 'WHATSAPP' &&
+    !log?.customerPhone &&
+    log?.sessionId
+  ));
+
+  if (missingPhoneLogs.length === 0) {
+    return chatLogs;
+  }
+
+  const mappings = await prisma.sessionMapping.findMany({
+    where: {
+      businessId,
+      channel: 'WHATSAPP',
+      sessionId: { in: missingPhoneLogs.map((log) => log.sessionId) },
+    },
+    select: {
+      sessionId: true,
+      channelUserId: true,
+    }
+  });
+
+  const phoneBySessionId = new Map(
+    mappings
+      .filter((entry) => entry?.sessionId && entry?.channelUserId)
+      .map((entry) => [entry.sessionId, entry.channelUserId])
+  );
+
+  await Promise.all(
+    missingPhoneLogs.map((log) => {
+      const customerPhone = phoneBySessionId.get(log.sessionId);
+      if (!customerPhone) return Promise.resolve();
+      return prisma.chatLog.update({
+        where: { id: log.id },
+        data: { customerPhone },
+      }).catch(() => null);
+    })
+  );
+
+  return chatLogs.map((log) => ({
+    ...log,
+    customerPhone: log.customerPhone || phoneBySessionId.get(log.sessionId) || null,
+  }));
+}
+
 async function getOwnedChatLog(id, businessId) {
   return prisma.chatLog.findFirst({
     where: {
@@ -210,7 +260,8 @@ router.get('/', authenticateToken, async (req, res) => {
       return processed;
     });
 
-    const enrichedLogs = await enrichChatLogsWithHandoff(processedLogs, req.businessId, req.userId);
+    const hydratedLogs = await hydrateWhatsAppPhonesForChatLogs(processedLogs, req.businessId);
+    const enrichedLogs = await enrichChatLogsWithHandoff(hydratedLogs, req.businessId, req.userId);
 
     res.json({
       chatLogs: enrichedLogs,
