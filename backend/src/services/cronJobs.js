@@ -45,7 +45,7 @@ export async function resetIncludedMinutes() {
     // These have period_end in the past but still have usage
     const subscriptionsToCheck = await prisma.subscription.findMany({
       where: {
-        status: { in: ['ACTIVE', 'active'] },
+        status: 'ACTIVE',
         plan: { in: ['STARTER', 'PRO', 'ENTERPRISE', 'BASIC'] },
         stripeSubscriptionId: { not: null },  // Only Stripe subs (iyzico handled separately)
         currentPeriodEnd: { lte: now }
@@ -137,7 +137,7 @@ export async function checkLowBalance() {
     // SADECE PAYG kullanıcıları için düşük bakiye kontrolü (prepaid model)
     const lowBalanceSubscriptions = await prisma.subscription.findMany({
       where: {
-        status: { in: ['ACTIVE', 'active'] },
+        status: 'ACTIVE',
         plan: 'PAYG', // Sadece PAYG
         balance: { lt: 100 }, // Less than 100 TL
         // Don't warn if already warned in last 24 hours
@@ -207,7 +207,7 @@ export async function processAutoReload() {
     // Find subscriptions with auto-reload enabled and balance below threshold
     const autoReloadSubscriptions = await prisma.subscription.findMany({
       where: {
-        status: { in: ['ACTIVE', 'active'] },
+        status: 'ACTIVE',
         plan: 'PAYG',
         autoReloadEnabled: true,
         autoReloadThreshold: { gt: 0 },
@@ -278,7 +278,7 @@ export async function checkTrialExpired() {
     // Find TRIAL subscriptions where trial has expired
     const expiredTrials = await prisma.subscription.findMany({
       where: {
-        status: { in: ['ACTIVE', 'active'] },
+        status: 'ACTIVE',
         plan: 'TRIAL',
         OR: [
           // Phone trial expired (15 minutes used)
@@ -306,7 +306,7 @@ export async function checkTrialExpired() {
       const ownerEmail = subscription.business?.users?.[0]?.email;
 
       // Mark trial as expired if not already
-      if (['ACTIVE', 'active'].includes(subscription.status)) {
+      if (subscription.status === 'ACTIVE') {
         await prisma.subscription.update({
           where: { id: subscription.id },
           data: {
@@ -393,7 +393,7 @@ export async function billOverageUsage() {
     // These are STARTER/PRO/ENTERPRISE plans whose billing period has ended
     const subscriptionsWithOverage = await prisma.subscription.findMany({
       where: {
-        status: { in: ['ACTIVE', 'active'] },
+        status: 'ACTIVE',
         plan: { in: ['STARTER', 'PRO', 'ENTERPRISE', 'BASIC'] },
         overageMinutes: { gt: 0 },
         currentPeriodEnd: { lte: now },
@@ -409,7 +409,6 @@ export async function billOverageUsage() {
             id: true,
             name: true,
             country: true,
-            stripeCustomerId: true,
             users: {
               where: { role: 'OWNER' },
               select: { email: true, name: true }
@@ -434,13 +433,13 @@ export async function billOverageUsage() {
 
         // Check if has payment method (Stripe customer) and create invoice
         let stripeInvoiceResult = null;
-        if (subscription.business?.stripeCustomerId) {
+        if (subscription.stripeCustomerId) {
           try {
             const stripeService = (await import('./stripe.js')).default;
             const currency = country === 'TR' ? 'TRY' : country === 'BR' ? 'BRL' : 'USD';
 
             stripeInvoiceResult = await stripeService.createOverageInvoice({
-              customerId: subscription.business.stripeCustomerId,
+              customerId: subscription.stripeCustomerId,
               overageMinutes: subscription.overageMinutes,
               overageRate,
               totalAmount: overageAmount,
