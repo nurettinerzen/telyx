@@ -279,14 +279,14 @@ export default function SubscriptionPage() {
       } else if (response.data?.type === 'reactivate') {
         // Reactivated canceled subscription with new plan
         const effectiveDate = response.data.effectiveDate
-          ? formatDate(response.data.effectiveDate, 'short')
+          ? formatDate(response.data.effectiveDate, 'short', locale)
           : t('dashboard.subscriptionPage.nextPeriod');
         toast.success(t('dashboard.subscriptionPage.reactivateSuccess').replace('{date}', effectiveDate).replace('{planName}', planName));
         await refreshBillingState();
       } else if (response.data?.type === 'downgrade') {
         // Scheduled downgrade (end of period)
         const effectiveDate = response.data.effectiveDate
-          ? formatDate(response.data.effectiveDate, 'short')
+          ? formatDate(response.data.effectiveDate, 'short', locale)
           : null;
         toast.success(
           effectiveDate
@@ -324,7 +324,7 @@ export default function SubscriptionPage() {
 
       if (response.data?.success) {
         const cancelDate = response.data.cancelAt
-          ? formatDate(response.data.cancelAt, 'long')
+          ? formatDate(response.data.cancelAt, 'long', locale)
           : null;
         toast.success(
           cancelDate
@@ -516,7 +516,7 @@ export default function SubscriptionPage() {
                     <div className="flex items-center gap-1.5 text-sm">
                       <span className="font-medium text-neutral-500 dark:text-neutral-500">{t('dashboard.subscriptionPage.nextBilling')}:</span>
                       <span className="font-medium text-neutral-900 dark:text-white">
-                        {formatDate(subscription.currentPeriodEnd || subscription.nextBillingDate, 'short')}
+                        {formatDate(subscription.currentPeriodEnd || subscription.nextBillingDate, 'short', locale)}
                       </span>
                     </div>
                   </>
@@ -527,7 +527,7 @@ export default function SubscriptionPage() {
                     <div className="flex items-center gap-1.5 text-sm">
                       <span className="font-medium text-neutral-500 dark:text-neutral-500">{t('dashboard.subscriptionPage.subscriptionEndDate')}:</span>
                       <span className="font-medium text-orange-600 dark:text-orange-400">
-                        {formatDate(subscription.currentPeriodEnd, 'short')}
+                        {formatDate(subscription.currentPeriodEnd, 'short', locale)}
                       </span>
                     </div>
                   </>
@@ -566,7 +566,7 @@ export default function SubscriptionPage() {
                     <strong>{t('dashboard.subscriptionPage.subscriptionCanceled')}</strong>
                     {' '}
                     {subscription.currentPeriodEnd && (
-                      <>{t('dashboard.subscriptionPage.planEndsOnDate').replace('{date}', formatDate(subscription.currentPeriodEnd, 'short'))}</>
+                      <>{t('dashboard.subscriptionPage.planEndsOnDate').replace('{date}', formatDate(subscription.currentPeriodEnd, 'short', locale))}</>
                     )}
                     {!subscription.currentPeriodEnd && <>{t('dashboard.subscriptionPage.planEndsAtPeriodEnd')}</>}
                   </div>
@@ -601,7 +601,7 @@ export default function SubscriptionPage() {
                   {' '}
                   {subscription.currentPeriodEnd
                     ? t('dashboard.subscriptionPage.pendingPlanChangeDesc')
-                      .replace('{date}', formatDate(subscription.currentPeriodEnd, 'short'))
+                      .replace('{date}', formatDate(subscription.currentPeriodEnd, 'short', locale))
                       .replace('{planName}', pendingPlanName)
                     : t('dashboard.subscriptionPage.pendingPlanChangeNoDate')
                       .replace('{planName}', pendingPlanName)}

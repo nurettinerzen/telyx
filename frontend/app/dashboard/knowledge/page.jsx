@@ -343,7 +343,7 @@ function KnowledgeBaseContent() {
                         ) : '-'}
                       </td>
                       <td className="px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400">
-                        {formatDate(doc.uploadedAt, 'short')}
+                        {formatDate(doc.uploadedAt, 'short', locale)}
                       </td>
                       <td className="px-4 py-3">
                         {can('knowledge:delete') && (

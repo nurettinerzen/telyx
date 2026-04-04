@@ -623,7 +623,7 @@ export default function BatchCallsPage() {
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <span className="text-sm text-neutral-600 dark:text-neutral-400">
-                        {formatDate(batch.createdAt, 'short')}
+                        {formatDate(batch.createdAt, 'short', locale)}
                       </span>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-center">
@@ -1070,7 +1070,7 @@ export default function BatchCallsPage() {
                       <p className="font-medium text-neutral-900 dark:text-white">
                         {formData.startImmediately
                           ? t('dashboard.batchCallsPage.startImmediatelyOption')
-                          : formatDate(formData.scheduledAt, 'long')
+                          : formatDate(formData.scheduledAt, 'long', locale)
                         }
                       </p>
                     </div>

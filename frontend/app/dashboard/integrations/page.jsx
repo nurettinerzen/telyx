@@ -201,6 +201,62 @@ const INTEGRATION_DOCS = {
 
 export default function IntegrationsPage() {
   const { t, locale } = useLanguage();
+  const isTr = locale === 'tr';
+  const marketplaceCopy = {
+    beta: 'Beta',
+    marketplaceCategory: isTr ? 'Pazaryeri Q&A' : 'Marketplace Q&A',
+    complaintsCategory: isTr ? 'Şikayet Yönetimi' : 'Complaint Management',
+    crmCategory: 'CRM',
+    connectionActive: isTr ? 'Bağlantı aktif' : 'Connection active',
+    sellerId: 'Seller ID',
+    merchantId: 'Merchant ID',
+    apiKey: 'API Key',
+    apiSecret: 'API Secret',
+    company: isTr ? 'Şirket' : 'Company',
+    companyPage: isTr ? 'Kurumsal sayfa' : 'Company page',
+    lastSync: isTr ? 'Son senkron' : 'Last sync',
+    marketplacePanel: isTr ? 'Soru paneli' : 'Question panel',
+    marketplacePanelCta: isTr ? 'Pazaryeri Q&A' : 'Marketplace Q&A',
+    complaintsPanel: isTr ? 'Şikayet paneli' : 'Complaint panel',
+    complaintsPanelCta: isTr ? 'Şikayet Yönetimi' : 'Complaint Management',
+    requiredTrendyolFields: isTr ? 'Seller ID, API key ve API secret gerekli' : 'Seller ID, API key, and API secret are required',
+    trendyolConnectSuccess: isTr ? 'Trendyol bağlantısı başarılı' : 'Trendyol connected successfully',
+    trendyolConnectError: isTr ? 'Trendyol bağlantısı başarısız' : 'Failed to connect Trendyol',
+    requiredHepsiburadaFields: isTr ? 'Merchant ID ve servis anahtarı gerekli' : 'Merchant ID and service key are required',
+    hepsiburadaConnectSuccess: isTr ? 'Hepsiburada bağlantısı başarılı' : 'Hepsiburada connected successfully',
+    hepsiburadaConnectError: isTr ? 'Hepsiburada bağlantısı başarısız' : 'Failed to connect Hepsiburada',
+    requiredSikayetvarFields: isTr ? 'Şikayetvar API token gerekli' : 'Sikayetvar API token is required',
+    sikayetvarConnectSuccess: isTr ? 'Şikayetvar bağlantısı başarılı' : 'Sikayetvar connected successfully',
+    sikayetvarConnectError: isTr ? 'Şikayetvar bağlantısı başarısız' : 'Failed to connect Sikayetvar',
+    trendyolDisconnected: isTr ? 'Trendyol bağlantısı kesildi' : 'Trendyol disconnected',
+    hepsiburadaDisconnected: isTr ? 'Hepsiburada bağlantısı kesildi' : 'Hepsiburada disconnected',
+    sikayetvarDisconnected: isTr ? 'Şikayetvar bağlantısı kesildi' : 'Sikayetvar disconnected',
+    trendyolActive: isTr ? 'Trendyol bağlantısı aktif' : 'Trendyol connection is active',
+    hepsiburadaActive: isTr ? 'Hepsiburada bağlantısı aktif' : 'Hepsiburada connection is active',
+    sikayetvarActive: isTr ? 'Şikayetvar bağlantısı aktif' : 'Sikayetvar connection is active',
+    trendyolModalTitle: isTr ? 'Trendyol Q&A Bağlantısı' : 'Trendyol Q&A Connection',
+    trendyolModalDescription: isTr ? 'Seller ID ve API bilgilerinizi girin. Sistem bağlantıyı test edip soru senkronizasyonunu aktif eder.' : 'Enter your Seller ID and API credentials. The system will test the connection and enable question sync.',
+    trendyolHelper: isTr ? 'Soru taslakları çekilir, AI yanıtı oluşturulur ve Pazaryeri Q&A ekranında onaya düşer.' : 'Question drafts are pulled, AI replies are generated, and they appear in Marketplace Q&A for approval.',
+    trendyolConnectButton: isTr ? 'Trendyol Bağla' : 'Connect Trendyol',
+    sellerIdPlaceholder: isTr ? 'satıcı kimliği' : 'seller identifier',
+    apiKeyPlaceholder: isTr ? 'API anahtarı' : 'API key',
+    apiSecretPlaceholder: isTr ? 'API gizli anahtarı' : 'API secret',
+    hepsiburadaModalTitle: isTr ? 'Hepsiburada Q&A Bağlantısı' : 'Hepsiburada Q&A Connection',
+    hepsiburadaModalDescription: isTr ? 'Merchant ID, varsa entegratör kullanıcı adı ve servis anahtarını girin. Sistem bağlantıyı test eder.' : 'Enter the Merchant ID, optional integrator username, and service key. The system will test the connection.',
+    hepsiburadaLegacyApiKey: isTr ? 'Eski Kullanıcı Adı / API Key (opsiyonel)' : 'Legacy Username / API Key (optional)',
+    hepsiburadaServiceKey: isTr ? 'Servis Anahtarı / API Secret' : 'Service Key / API Secret',
+    hepsiburadaLegacyPlaceholder: isTr ? 'entegratör kullanıcı adı' : 'integrator username',
+    hepsiburadaSecretPlaceholder: isTr ? 'servis anahtarı' : 'service key',
+    merchantIdPlaceholder: isTr ? 'mağaza kimliği' : 'merchant identifier',
+    hepsiburadaHelper: isTr ? 'Hepsiburada soruları çekilir, AI yanıtı oluşturulur ve panelden onaylandığında platforma gönderilir.' : 'Hepsiburada questions are pulled, AI replies are generated, and posted after approval from the panel.',
+    hepsiburadaConnectButton: isTr ? 'Hepsiburada Bağla' : 'Connect Hepsiburada',
+    sikayetvarModalTitle: isTr ? 'Şikayetvar Bağlantısı' : 'Sikayetvar Connection',
+    sikayetvarModalDescription: isTr ? 'Kurumsal üyelik tokenınızı girin. Sistem bağlantıyı test eder, açık şikayetleri çeker ve AI taslaklarını manuel onaya hazırlar.' : 'Enter your corporate membership token. The system will test the connection, pull open complaints, and prepare AI drafts for manual approval.',
+    sikayetvarTokenLabel: isTr ? 'X-Auth-Key / API Token' : 'X-Auth-Key / API Token',
+    sikayetvarTokenPlaceholder: isTr ? 'Şikayetvar API token' : 'Sikayetvar API token',
+    sikayetvarHelper: isTr ? 'Sistem açık şikayetleri çeker, empatik AI cevap taslakları üretir ve yalnızca sizin onayınızdan sonra platforma gönderir.' : 'The system pulls open complaints, creates empathetic AI drafts, and sends them only after your approval.',
+    sikayetvarConnectButton: isTr ? 'Şikayetvar Bağla' : 'Connect Sikayetvar',
+  };
   const { can, user } = usePermissions();
   const pageHelp = getPageHelp('integrations', locale);
   const queryClient = useQueryClient();
@@ -626,7 +682,7 @@ const handleShopifyConnect = async () => {
 
   const handleTrendyolConnect = async () => {
     if (!trendyolForm.sellerId || !trendyolForm.apiKey || !trendyolForm.apiSecret) {
-      toast.error('Seller ID, API key ve API secret gerekli');
+      toast.error(marketplaceCopy.requiredTrendyolFields);
       return;
     }
 
@@ -634,12 +690,12 @@ const handleShopifyConnect = async () => {
     try {
       const response = await connectTrendyol.mutateAsync(trendyolForm);
       if (response.data.success) {
-        toast.success('Trendyol bağlantısı başarılı');
+        toast.success(marketplaceCopy.trendyolConnectSuccess);
         setTrendyolModalOpen(false);
         setTrendyolForm({ sellerId: '', apiKey: '', apiSecret: '' });
       }
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Trendyol bağlantısı başarısız');
+      toast.error(error.response?.data?.error || marketplaceCopy.trendyolConnectError);
     } finally {
       setTrendyolLoading(false);
     }
@@ -647,7 +703,7 @@ const handleShopifyConnect = async () => {
 
   const handleHepsiburadaConnect = async () => {
     if (!hepsiburadaForm.merchantId || !hepsiburadaForm.apiSecret) {
-      toast.error('Merchant ID ve servis anahtarı gerekli');
+      toast.error(marketplaceCopy.requiredHepsiburadaFields);
       return;
     }
 
@@ -655,12 +711,12 @@ const handleShopifyConnect = async () => {
     try {
       const response = await connectHepsiburada.mutateAsync(hepsiburadaForm);
       if (response.data.success) {
-        toast.success('Hepsiburada bağlantısı başarılı');
+        toast.success(marketplaceCopy.hepsiburadaConnectSuccess);
         setHepsiburadaModalOpen(false);
         setHepsiburadaForm({ merchantId: '', apiKey: '', apiSecret: '' });
       }
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Hepsiburada bağlantısı başarısız');
+      toast.error(error.response?.data?.error || marketplaceCopy.hepsiburadaConnectError);
     } finally {
       setHepsiburadaLoading(false);
     }
@@ -668,7 +724,7 @@ const handleShopifyConnect = async () => {
 
   const handleSikayetvarConnect = async () => {
     if (!sikayetvarForm.apiKey) {
-      toast.error('Şikayetvar API token gerekli');
+      toast.error(marketplaceCopy.requiredSikayetvarFields);
       return;
     }
 
@@ -676,12 +732,12 @@ const handleShopifyConnect = async () => {
     try {
       const response = await connectSikayetvar.mutateAsync(sikayetvarForm);
       if (response.data.success) {
-        toast.success('Şikayetvar bağlantısı başarılı');
+        toast.success(marketplaceCopy.sikayetvarConnectSuccess);
         setSikayetvarModalOpen(false);
         setSikayetvarForm({ apiKey: '' });
       }
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Şikayetvar bağlantısı başarısız');
+      toast.error(error.response?.data?.error || marketplaceCopy.sikayetvarConnectError);
     } finally {
       setSikayetvarLoading(false);
     }
@@ -734,15 +790,15 @@ const handleShopifyConnect = async () => {
     }
     else if (integration.type === 'TRENDYOL') {
       await disconnectTrendyol.mutateAsync();
-      toast.success('Trendyol bağlantısı kesildi');
+      toast.success(marketplaceCopy.trendyolDisconnected);
     }
     else if (integration.type === 'HEPSIBURADA') {
       await disconnectHepsiburada.mutateAsync();
-      toast.success('Hepsiburada bağlantısı kesildi');
+      toast.success(marketplaceCopy.hepsiburadaDisconnected);
     }
     else if (integration.type === 'SIKAYETVAR') {
       await disconnectSikayetvar.mutateAsync();
-      toast.success('Şikayetvar bağlantısı kesildi');
+      toast.success(marketplaceCopy.sikayetvarDisconnected);
     }
   } catch (error) {
     toast.error(t('dashboard.integrationsPage.disconnectFailed'));
@@ -769,19 +825,19 @@ const handleShopifyConnect = async () => {
     }
     if (integration.type === 'TRENDYOL') {
       const response = await testTrendyol.mutateAsync();
-      if (response.data.success) toast.success('Trendyol bağlantısı aktif');
+      if (response.data.success) toast.success(marketplaceCopy.trendyolActive);
       else toast.error(t('dashboard.integrationsPage.testFailed'));
       return;
     }
     if (integration.type === 'HEPSIBURADA') {
       const response = await testHepsiburada.mutateAsync();
-      if (response.data.success) toast.success('Hepsiburada bağlantısı aktif');
+      if (response.data.success) toast.success(marketplaceCopy.hepsiburadaActive);
       else toast.error(t('dashboard.integrationsPage.testFailed'));
       return;
     }
     if (integration.type === 'SIKAYETVAR') {
       const response = await testSikayetvar.mutateAsync();
-      if (response.data.success) toast.success('Şikayetvar bağlantısı aktif');
+      if (response.data.success) toast.success(marketplaceCopy.sikayetvarActive);
       else toast.error(t('dashboard.integrationsPage.testFailed'));
       return;
     }
@@ -875,13 +931,13 @@ const handleShopifyConnect = async () => {
     },
     {
       id: 'marketplace',
-      title: 'Pazaryeri Q&A',
+      title: marketplaceCopy.marketplaceCategory,
       icon: Package,
       types: ['TRENDYOL', 'HEPSIBURADA']
     },
     {
       id: 'complaints',
-      title: 'Şikayet Yönetimi',
+      title: marketplaceCopy.complaintsCategory,
       icon: AlertTriangle,
       types: ['SIKAYETVAR']
     },
@@ -899,7 +955,7 @@ const handleShopifyConnect = async () => {
     },
     {
       id: 'crm',
-      title: 'CRM',
+      title: marketplaceCopy.crmCategory,
       icon: Hash,
       types: ['CUSTOM']
     },
@@ -992,7 +1048,7 @@ const handleShopifyConnect = async () => {
           </div>
           {isMarketplaceBeta ? (
             <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 text-xs border border-amber-200 dark:border-amber-800/40">
-              Beta
+              {marketplaceCopy.beta}
             </Badge>
           ) : isEffectivelyConnected && (
             <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-xs">
@@ -1014,20 +1070,20 @@ const handleShopifyConnect = async () => {
           <div className="space-y-2 mb-4">
             <p className="text-xs text-emerald-700 dark:text-emerald-300 inline-flex items-center gap-1">
               <CheckCircle2 className="h-3 w-3" />
-              Bağlantı aktif
+              {marketplaceCopy.connectionActive}
             </p>
             {marketplaceIdentifier && (
               <p className="text-xs text-neutral-700 dark:text-neutral-300">
-                {isTrendyol ? 'Seller ID' : 'Merchant ID'}: <span className="font-medium">{marketplaceIdentifier}</span>
+                {isTrendyol ? marketplaceCopy.sellerId : marketplaceCopy.merchantId}: <span className="font-medium">{marketplaceIdentifier}</span>
               </p>
             )}
             {marketplaceStatus?.lastSync && (
               <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                Son senkron: {formatWhatsAppTimestamp(marketplaceStatus.lastSync)}
+                {marketplaceCopy.lastSync}: {formatWhatsAppTimestamp(marketplaceStatus.lastSync)}
               </p>
             )}
             <p className="text-xs text-neutral-500 dark:text-neutral-400">
-              Soru paneli: <button className="underline" onClick={() => { window.location.href = '/dashboard/marketplace-qa'; }}>Pazaryeri Q&A</button>
+              {marketplaceCopy.marketplacePanel}: <button className="underline" onClick={() => { window.location.href = '/dashboard/marketplace-qa'; }}>{marketplaceCopy.marketplacePanelCta}</button>
             </p>
           </div>
         )}
@@ -1036,25 +1092,25 @@ const handleShopifyConnect = async () => {
           <div className="space-y-2 mb-4">
             <p className="text-xs text-emerald-700 dark:text-emerald-300 inline-flex items-center gap-1">
               <CheckCircle2 className="h-3 w-3" />
-              Bağlantı aktif
+              {marketplaceCopy.connectionActive}
             </p>
             {complaintIdentifier && (
               <p className="text-xs text-neutral-700 dark:text-neutral-300">
-                Şirket: <span className="font-medium">{complaintIdentifier}</span>
+                {marketplaceCopy.company}: <span className="font-medium">{complaintIdentifier}</span>
               </p>
             )}
             {complaintStatus?.companyUrl && (
               <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                Kurumsal sayfa: <span className="font-medium">{complaintStatus.companyUrl}</span>
+                {marketplaceCopy.companyPage}: <span className="font-medium">{complaintStatus.companyUrl}</span>
               </p>
             )}
             {complaintStatus?.lastSync && (
               <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                Son senkron: {formatWhatsAppTimestamp(complaintStatus.lastSync)}
+                {marketplaceCopy.lastSync}: {formatWhatsAppTimestamp(complaintStatus.lastSync)}
               </p>
             )}
             <p className="text-xs text-neutral-500 dark:text-neutral-400">
-              Şikayet paneli: <button className="underline" onClick={() => { window.location.href = '/dashboard/complaints'; }}>Şikayet Yönetimi</button>
+              {marketplaceCopy.complaintsPanel}: <button className="underline" onClick={() => { window.location.href = '/dashboard/complaints'; }}>{marketplaceCopy.complaintsPanelCta}</button>
             </p>
           </div>
         )}
@@ -1397,7 +1453,7 @@ const handleShopifyConnect = async () => {
                       if (!confirm(t('dashboard.integrationsPage.confirmDisconnectIntegration'))) return;
                       try {
                         await apiClient.patch('/api/crm/webhook/toggle');
-                        toast.success(t('dashboard.integrationsPage.crmDisconnected') || 'CRM bağlantısı kesildi');
+                        toast.success(t('dashboard.integrationsPage.crmDisconnected'));
                         window.location.reload();
                       } catch (error) {
                         toast.error(t('dashboard.integrationsPage.disconnectFailed'));
@@ -1723,42 +1779,42 @@ const handleShopifyConnect = async () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ShoppingCart className="h-5 w-5 text-orange-600" />
-              Trendyol Q&A Bağlantısı
+              {marketplaceCopy.trendyolModalTitle}
             </DialogTitle>
             <DialogDescription>
-              Seller ID ve API bilgilerinizi girin. Sistem bağlantıyı test edip soru senkronizasyonunu aktif eder.
+              {marketplaceCopy.trendyolModalDescription}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Seller ID</Label>
+              <Label>{marketplaceCopy.sellerId}</Label>
               <Input
                 type="text"
-                placeholder="123456"
+                placeholder={marketplaceCopy.sellerIdPlaceholder}
                 value={trendyolForm.sellerId}
                 onChange={(event) => setTrendyolForm((prev) => ({ ...prev, sellerId: event.target.value }))}
               />
             </div>
             <div className="space-y-2">
-              <Label>API Key</Label>
+              <Label>{marketplaceCopy.apiKey}</Label>
               <Input
                 type="text"
-                placeholder="API key"
+                placeholder={marketplaceCopy.apiKeyPlaceholder}
                 value={trendyolForm.apiKey}
                 onChange={(event) => setTrendyolForm((prev) => ({ ...prev, apiKey: event.target.value }))}
               />
             </div>
             <div className="space-y-2">
-              <Label>API Secret</Label>
+              <Label>{marketplaceCopy.apiSecret}</Label>
               <Input
                 type="password"
-                placeholder="API secret"
+                placeholder={marketplaceCopy.apiSecretPlaceholder}
                 value={trendyolForm.apiSecret}
                 onChange={(event) => setTrendyolForm((prev) => ({ ...prev, apiSecret: event.target.value }))}
               />
             </div>
             <p className="text-xs text-neutral-500">
-              Soru taslaklari cekilir, AI yaniti olusturulur ve Pazaryeri Q&A ekraninda onaya dusurulur.
+              {marketplaceCopy.trendyolHelper}
             </p>
           </div>
           <DialogFooter>
@@ -1766,7 +1822,7 @@ const handleShopifyConnect = async () => {
               {t('common.cancel')}
             </Button>
             <Button onClick={handleTrendyolConnect} disabled={trendyolLoading}>
-              {trendyolLoading ? <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />{t('dashboard.integrationsPage.connectingText')}</> : 'Trendyol Bağla'}
+              {trendyolLoading ? <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />{t('dashboard.integrationsPage.connectingText')}</> : marketplaceCopy.trendyolConnectButton}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1777,42 +1833,42 @@ const handleShopifyConnect = async () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Package className="h-5 w-5 text-red-600" />
-              Hepsiburada Q&A Bağlantısı
+              {marketplaceCopy.hepsiburadaModalTitle}
             </DialogTitle>
             <DialogDescription>
-              Merchant ID, varsa entegratör kullanıcı adı ve servis anahtarını girin. Sistem bağlantıyı test eder.
+              {marketplaceCopy.hepsiburadaModalDescription}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Merchant ID</Label>
+              <Label>{marketplaceCopy.merchantId}</Label>
               <Input
                 type="text"
-                placeholder="merchant-guid"
+                placeholder={marketplaceCopy.merchantIdPlaceholder}
                 value={hepsiburadaForm.merchantId}
                 onChange={(event) => setHepsiburadaForm((prev) => ({ ...prev, merchantId: event.target.value }))}
               />
             </div>
             <div className="space-y-2">
-              <Label>Eski Kullanici Adi / API Key (opsiyonel)</Label>
+              <Label>{marketplaceCopy.hepsiburadaLegacyApiKey}</Label>
               <Input
                 type="text"
-                placeholder="entegrator kullanici adi"
+                placeholder={marketplaceCopy.hepsiburadaLegacyPlaceholder}
                 value={hepsiburadaForm.apiKey}
                 onChange={(event) => setHepsiburadaForm((prev) => ({ ...prev, apiKey: event.target.value }))}
               />
             </div>
             <div className="space-y-2">
-              <Label>Servis Anahtari / API Secret</Label>
+              <Label>{marketplaceCopy.hepsiburadaServiceKey}</Label>
               <Input
                 type="password"
-                placeholder="servis anahtari"
+                placeholder={marketplaceCopy.hepsiburadaSecretPlaceholder}
                 value={hepsiburadaForm.apiSecret}
                 onChange={(event) => setHepsiburadaForm((prev) => ({ ...prev, apiSecret: event.target.value }))}
               />
             </div>
             <p className="text-xs text-neutral-500">
-              Hepsiburada sorulari cekilir, AI yaniti olusturulur ve panelden onaylandiginda platforma gonderilir.
+              {marketplaceCopy.hepsiburadaHelper}
             </p>
           </div>
           <DialogFooter>
@@ -1820,7 +1876,7 @@ const handleShopifyConnect = async () => {
               {t('common.cancel')}
             </Button>
             <Button onClick={handleHepsiburadaConnect} disabled={hepsiburadaLoading}>
-              {hepsiburadaLoading ? <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />{t('dashboard.integrationsPage.connectingText')}</> : 'Hepsiburada Bağla'}
+              {hepsiburadaLoading ? <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />{t('dashboard.integrationsPage.connectingText')}</> : marketplaceCopy.hepsiburadaConnectButton}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1831,24 +1887,24 @@ const handleShopifyConnect = async () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-amber-600" />
-              Şikayetvar Bağlantısı
+              {marketplaceCopy.sikayetvarModalTitle}
             </DialogTitle>
             <DialogDescription>
-              Kurumsal üyelik tokenınızı girin. Sistem bağlantıyı test eder, açık şikayetleri çeker ve AI taslaklarını manuel onaya hazırlar.
+              {marketplaceCopy.sikayetvarModalDescription}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>X-Auth-Key / API Token</Label>
+              <Label>{marketplaceCopy.sikayetvarTokenLabel}</Label>
               <Input
                 type="password"
-                placeholder="Şikayetvar API token"
+                placeholder={marketplaceCopy.sikayetvarTokenPlaceholder}
                 value={sikayetvarForm.apiKey}
                 onChange={(event) => setSikayetvarForm((prev) => ({ ...prev, apiKey: event.target.value }))}
               />
             </div>
             <p className="text-xs text-neutral-500">
-              Sistem açık şikayetleri çeker, empatik AI cevap taslakları üretir ve yalnızca sizin onayınızdan sonra platforma gönderir.
+              {marketplaceCopy.sikayetvarHelper}
             </p>
           </div>
           <DialogFooter>
@@ -1856,7 +1912,7 @@ const handleShopifyConnect = async () => {
               {t('common.cancel')}
             </Button>
             <Button onClick={handleSikayetvarConnect} disabled={sikayetvarLoading}>
-              {sikayetvarLoading ? <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />{t('dashboard.integrationsPage.connectingText')}</> : 'Şikayetvar Bağla'}
+              {sikayetvarLoading ? <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />{t('dashboard.integrationsPage.connectingText')}</> : marketplaceCopy.sikayetvarConnectButton}
             </Button>
           </DialogFooter>
         </DialogContent>

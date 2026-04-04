@@ -628,7 +628,7 @@ export default function AssistantsPage() {
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <span className="text-sm text-neutral-600 dark:text-neutral-400">
-                        {formatDate(assistant.createdAt, 'short')}
+                        {formatDate(assistant.createdAt, 'short', locale)}
                       </span>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-center">

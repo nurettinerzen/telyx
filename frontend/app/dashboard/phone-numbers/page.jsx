@@ -246,7 +246,7 @@ export default function PhoneNumbersPage() {
                 />
                 <Metric
                   label={isTR ? 'Eklenme' : 'Added'}
-                  value={formatDate(number.createdAt, 'short')}
+                  value={formatDate(number.createdAt, 'short', locale)}
                 />
                 <Metric
                   label={isTR ? 'Eşzamanlı Çağrı' : 'Concurrent Calls'}

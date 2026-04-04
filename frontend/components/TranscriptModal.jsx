@@ -34,8 +34,10 @@ import {
 import { formatDate, formatDuration } from '@/lib/utils';
 import { apiClient } from '@/lib/api';
 import { toast } from 'sonner';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function TranscriptModal({ callId, isOpen, onClose }) {
+  const { locale } = useLanguage();
   const [call, setCall] = useState(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -139,7 +141,7 @@ export default function TranscriptModal({ callId, isOpen, onClose }) {
 
     if (call.transcript && Array.isArray(call.transcript)) {
       // Format structured transcript
-      transcriptText = `Arama Transkripti - ${formatDate(call.createdAt, 'long')}\n`;
+      transcriptText = `Arama Transkripti - ${formatDate(call.createdAt, 'long', locale)}\n`;
       transcriptText += `Telefon: ${call.phoneNumber || call.callerId || 'Bilinmiyor'}\n`;
       transcriptText += `Süre: ${formatDuration(call.duration)}\n`;
       transcriptText += `\n${'='.repeat(60)}\n\n`;
@@ -161,7 +163,7 @@ export default function TranscriptModal({ callId, isOpen, onClose }) {
         } else if (msg.timestamp) {
           const date = new Date(msg.timestamp);
           if (!isNaN(date.getTime())) {
-            timeStr = date.toLocaleTimeString();
+            timeStr = date.toLocaleTimeString(locale === 'tr' ? 'tr-TR' : 'en-US');
           }
         }
 
@@ -216,7 +218,7 @@ export default function TranscriptModal({ callId, isOpen, onClose }) {
             Arama Detayları ve Transkript
           </DialogTitle>
           <DialogDescription>
-            {call?.phoneNumber || call?.callerId || 'Bilinmiyor'} • {formatDate(call?.createdAt, 'long')}
+            {call?.phoneNumber || call?.callerId || 'Bilinmiyor'} • {formatDate(call?.createdAt, 'long', locale)}
           </DialogDescription>
         </DialogHeader>
 
@@ -502,7 +504,7 @@ export default function TranscriptModal({ callId, isOpen, onClose }) {
                 <div>
                   <p className="text-xs text-neutral-500 dark:text-neutral-400">Tarih ve Saat</p>
                   <p className="text-sm font-medium text-neutral-900 dark:text-white">
-                    {formatDate(call.createdAt, 'long')}
+                    {formatDate(call.createdAt, 'long', locale)}
                   </p>
                 </div>
               </div>

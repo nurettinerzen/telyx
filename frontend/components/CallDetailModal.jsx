@@ -24,8 +24,10 @@ import {
   Download,
 } from 'lucide-react';
 import { formatDate, formatDuration, formatCurrency } from '@/lib/utils';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function CallDetailModal({ call, isOpen, onClose }) {
+  const { locale } = useLanguage();
   if (!call) return null;
 
   const statusColors = {
@@ -98,7 +100,7 @@ export default function CallDetailModal({ call, isOpen, onClose }) {
               <div>
                 <p className="text-xs text-neutral-500 mb-1">Date & Time</p>
                 <p className="text-sm font-medium text-neutral-900">
-                  {formatDate(call.createdAt, 'long')}
+                  {formatDate(call.createdAt, 'long', locale)}
                 </p>
               </div>
             </div>

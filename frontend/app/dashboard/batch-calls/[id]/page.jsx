@@ -188,7 +188,7 @@ export default function BatchCallDetailPage() {
                 {t(statusConfig.labelKey)}
               </Badge>
               <span className="text-sm text-neutral-500 dark:text-neutral-400">
-                {formatDate(batchCall.createdAt, 'long')}
+                {formatDate(batchCall.createdAt, 'long', locale)}
               </span>
             </div>
           </div>
