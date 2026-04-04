@@ -67,17 +67,6 @@ export default function DashboardLayout({ children }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 🔥 YENİ: Ayrı useEffect - Sidebar scroll position'ını koru
-  useEffect(() => {
-    const sidebar = document.querySelector('[data-sidebar-nav]');
-    if (sidebar) {
-      const scrollPos = sessionStorage.getItem('sidebar-scroll');
-      if (scrollPos) {
-        sidebar.scrollTop = parseInt(scrollPos);
-      }
-    }
-  }, [pathname]);
-
   const loadUserData = async (showLoading = true) => {
     if (showLoading) {
       setLoading(true);

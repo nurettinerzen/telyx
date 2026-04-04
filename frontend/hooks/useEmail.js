@@ -22,7 +22,7 @@ export function useEmailStatus() {
  * @param {string|null} search - Optional search query
  * @returns {object} Query result with threads
  */
-export function useEmailThreads(status = null, search = null) {
+export function useEmailThreads(status = null, search = null, enabled = true) {
   return useQuery({
     queryKey: ['email', 'threads', status, search],
     queryFn: async () => {
@@ -36,6 +36,7 @@ export function useEmailThreads(status = null, search = null) {
       const response = await apiClient.get('/api/email/threads', { params });
       return response.data.threads || [];
     },
+    enabled,
     staleTime: 30000, // 30 seconds
   });
 }

@@ -227,9 +227,6 @@ export default function Sidebar({ user, credits, business }) {
       {/* Navigation */}
       <nav
         data-sidebar-nav
-        onScroll={(e) => {
-          sessionStorage.setItem('sidebar-scroll', e.target.scrollTop);
-        }}
         className="flex-1 min-h-0 overflow-y-auto py-2 px-3"
       >
         {[...NAVIGATION, ...ADMIN_NAVIGATION].map((section) => {

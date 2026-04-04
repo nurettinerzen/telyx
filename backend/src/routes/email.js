@@ -7,7 +7,7 @@ import express from 'express';
 import crypto from 'crypto';
 import prisma from '../prismaClient.js';
 import { authenticateToken } from '../middleware/auth.js';
-import { requireStarterOrAbove } from '../middleware/planGating.js';
+import { planMeetsRequirement, requireStarterOrAbove } from '../middleware/planGating.js';
 import gmailService from '../services/gmail.js';
 import outlookService from '../services/outlook.js';
 import emailAggregator from '../services/email-aggregator.js';
@@ -518,7 +518,26 @@ router.post('/disconnect', authenticateToken, async (req, res) => {
 router.get('/status', authenticateToken, async (req, res) => {
   try {
     const status = await emailAggregator.getStatus(req.businessId);
-    res.json(status);
+    const subscription = await prisma.subscription.findUnique({
+      where: { businessId: req.businessId },
+      select: { plan: true, status: true }
+    });
+
+    const isSubscriptionActive = ['ACTIVE', 'TRIAL'].includes(subscription?.status);
+    const hasInboxAccess = Boolean(
+      status.connected
+      && subscription
+      && isSubscriptionActive
+      && planMeetsRequirement(subscription.plan, 'STARTER')
+    );
+
+    res.json({
+      ...status,
+      hasInboxAccess,
+      currentPlan: subscription?.plan || null,
+      requiredPlan: 'STARTER',
+      subscriptionStatus: subscription?.status || null,
+    });
   } catch (error) {
     console.error('Status error:', error);
     res.status(500).json({ error: 'Failed to get email status' });

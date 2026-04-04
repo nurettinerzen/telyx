@@ -159,11 +159,16 @@ export default function EmailDashboardPage() {
   const [statusFilter, setStatusFilter] = useState(null);
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const { data: threads = [], isLoading: threadsLoading, refetch: refetchThreads } = useEmailThreads(statusFilter, debouncedSearch || null);
+  const canLoadThreads = Boolean(emailStatus?.connected && emailStatus?.hasInboxAccess);
+  const { data: threads = [], isLoading: threadsLoading } = useEmailThreads(
+    statusFilter,
+    debouncedSearch || null,
+    canLoadThreads
+  );
   const { data: stats } = useEmailStats();
   const [selectedThreadId, setSelectedThreadId] = useState(null);
   const { data: selectedThread } = useEmailThread(selectedThreadId, !!selectedThreadId);
-  const loading = statusLoading || threadsLoading;
+  const loading = statusLoading || (canLoadThreads && threadsLoading);
 
   // ─── UI State ────────────────────────────────────────────
   const [activeFolder, setActiveFolder] = useState('inbox'); // 'inbox' | 'sent'
@@ -514,6 +519,27 @@ export default function EmailDashboardPage() {
           </p>
           <Button onClick={() => window.location.href = '/dashboard/integrations'}>
             {locale === 'tr' ? 'Entegrasyonlara Git' : 'Go to Integrations'}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!loading && emailStatus?.connected && emailStatus?.hasInboxAccess === false) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-64px)]">
+        <div className="text-center max-w-md">
+          <ShieldAlert className="h-16 w-16 mx-auto text-neutral-400 dark:text-neutral-600 mb-4" />
+          <h2 className="text-xl font-semibold text-neutral-900 dark:text-white mb-2">
+            {locale === 'tr' ? 'Starter plan gerekli' : 'Starter plan required'}
+          </h2>
+          <p className="text-neutral-500 dark:text-neutral-400 mb-6">
+            {locale === 'tr'
+              ? 'Email inbox ekranını kullanmak için en az Starter plan gerekli. Entegrasyon bağlı kalsa da thread listesi bu planda açılamaz.'
+              : 'The email inbox requires at least the Starter plan. Your integration can stay connected, but thread access is locked on this plan.'}
+          </p>
+          <Button onClick={() => { window.location.href = '/dashboard/subscription'; }}>
+            {locale === 'tr' ? 'Planları Gör' : 'View Plans'}
           </Button>
         </div>
       </div>
