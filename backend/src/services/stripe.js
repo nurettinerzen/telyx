@@ -49,6 +49,124 @@ class StripeService {
     );
   }
 
+  toMinorUnitAmount(amount) {
+    return Math.round(Number(amount || 0) * 100);
+  }
+
+  async rememberCustomerPaymentMethod({ customerId, paymentIntentId }) {
+    if (!customerId || !paymentIntentId) {
+      return null;
+    }
+
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId, {
+      expand: ['payment_method']
+    });
+
+    const paymentMethod = paymentIntent?.payment_method;
+    const paymentMethodId = typeof paymentMethod === 'string'
+      ? paymentMethod
+      : paymentMethod?.id;
+
+    if (!paymentMethodId) {
+      return null;
+    }
+
+    const attachedCustomerId = typeof paymentMethod === 'object'
+      ? paymentMethod.customer
+      : null;
+
+    if (!attachedCustomerId) {
+      await stripe.paymentMethods.attach(paymentMethodId, { customer: customerId });
+    } else if (String(attachedCustomerId) !== String(customerId)) {
+      throw new Error(`Payment method ${paymentMethodId} belongs to a different Stripe customer`);
+    }
+
+    const customer = await stripe.customers.retrieve(customerId, {
+      expand: ['invoice_settings.default_payment_method']
+    });
+    const currentDefault = customer?.invoice_settings?.default_payment_method;
+    const currentDefaultId = typeof currentDefault === 'string'
+      ? currentDefault
+      : currentDefault?.id;
+
+    if (currentDefaultId !== paymentMethodId) {
+      await stripe.customers.update(customerId, {
+        invoice_settings: {
+          default_payment_method: paymentMethodId
+        }
+      });
+    }
+
+    return paymentMethodId;
+  }
+
+  async getReusablePaymentMethod(customerId) {
+    if (!customerId) {
+      return null;
+    }
+
+    const customer = await stripe.customers.retrieve(customerId, {
+      expand: ['invoice_settings.default_payment_method']
+    });
+
+    const defaultPaymentMethod = customer?.invoice_settings?.default_payment_method;
+    let paymentMethodId = typeof defaultPaymentMethod === 'string'
+      ? defaultPaymentMethod
+      : defaultPaymentMethod?.id;
+
+    if (!paymentMethodId) {
+      const paymentMethods = await stripe.paymentMethods.list({
+        customer: customerId,
+        type: 'card',
+        limit: 1
+      });
+      paymentMethodId = paymentMethods.data[0]?.id || null;
+
+      if (paymentMethodId) {
+        await stripe.customers.update(customerId, {
+          invoice_settings: {
+            default_payment_method: paymentMethodId
+          }
+        });
+      }
+    }
+
+    return paymentMethodId;
+  }
+
+  async chargeCustomer({
+    customerId,
+    amount,
+    currency = 'TRY',
+    description,
+    metadata = {},
+    idempotencyKey
+  }) {
+    const paymentMethodId = await this.getReusablePaymentMethod(customerId);
+
+    if (!paymentMethodId) {
+      throw new Error('No reusable payment method saved for this customer');
+    }
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: this.toMinorUnitAmount(amount),
+      currency: String(currency || 'TRY').toLowerCase(),
+      customer: customerId,
+      payment_method: paymentMethodId,
+      confirm: true,
+      off_session: true,
+      description,
+      metadata: this.normalizeMetadata(metadata)
+    }, idempotencyKey ? { idempotencyKey } : undefined);
+
+    return {
+      success: paymentIntent.status === 'succeeded',
+      paymentIntentId: paymentIntent.id,
+      paymentMethodId,
+      status: paymentIntent.status
+    };
+  }
+
   /**
    * Create a customer with regional metadata
    * @param {string} email - Customer email
@@ -239,6 +357,18 @@ class StripeService {
   }) {
     try {
       const paymentMethods = this.getPaymentMethodsForCountry(countryCode);
+      const sessionMetadata = {
+        businessId,
+        type: 'credit_purchase',
+        minutes: minutes.toString(),
+        country: countryCode
+      };
+      const paymentIntentData = paymentMethods.includes('card')
+        ? {
+          setup_future_usage: 'off_session',
+          metadata: this.normalizeMetadata(sessionMetadata)
+        }
+        : undefined;
 
       const session = await stripe.checkout.sessions.create({
         mode: 'payment',
@@ -251,18 +381,14 @@ class StripeService {
               name: `TELYX.AI ${countryCode === 'TR' ? 'Kredi' : countryCode === 'BR' ? 'Créditos' : 'Credits'}`,
               description: `${minutes} ${countryCode === 'TR' ? 'dakika konuşma kredisi' : countryCode === 'BR' ? 'minutos de crédito' : 'minutes of credit'}`
             },
-            unit_amount: Math.round(amount * 100)
+            unit_amount: this.toMinorUnitAmount(amount)
           },
           quantity: 1
         }],
         success_url: successUrl,
         cancel_url: cancelUrl,
-        metadata: {
-          businessId,
-          type: 'credit_purchase',
-          minutes: minutes.toString(),
-          country: countryCode
-        },
+        metadata: sessionMetadata,
+        payment_intent_data: paymentIntentData,
         locale: this.resolveCheckoutLocale(checkoutLocale, countryCode)
       });
 
@@ -301,6 +427,22 @@ class StripeService {
       const unitLabel = addOnKind === 'VOICE'
         ? (countryCode === 'TR' ? 'dakika' : 'minutes')
         : (countryCode === 'TR' ? 'etkileşim' : 'interactions');
+      const sessionMetadata = {
+        type: 'addon_purchase',
+        addonKind: addOnKind,
+        packageId,
+        quantity: String(quantity),
+        unitPrice: String(unitPrice),
+        businessId: String(businessId),
+        subscriptionId: String(subscriptionId),
+        country: countryCode
+      };
+      const paymentIntentData = paymentMethods.includes('card')
+        ? {
+          setup_future_usage: 'off_session',
+          metadata: this.normalizeMetadata(sessionMetadata)
+        }
+        : undefined;
 
       return await stripe.checkout.sessions.create({
         mode: 'payment',
@@ -313,22 +455,14 @@ class StripeService {
               name: `TELYX.AI ${noun}`,
               description: `${quantity} ${unitLabel} - mevcut fatura donemi icin`
             },
-            unit_amount: Math.round(amount * 100)
+            unit_amount: this.toMinorUnitAmount(amount)
           },
           quantity: 1
         }],
         success_url: successUrl,
         cancel_url: cancelUrl,
-        metadata: {
-          type: 'addon_purchase',
-          addonKind: addOnKind,
-          packageId,
-          quantity: String(quantity),
-          unitPrice: String(unitPrice),
-          businessId: String(businessId),
-          subscriptionId: String(subscriptionId),
-          country: countryCode
-        },
+        metadata: sessionMetadata,
+        payment_intent_data: paymentIntentData,
         locale: this.resolveCheckoutLocale(checkoutLocale, countryCode)
       });
     } catch (error) {

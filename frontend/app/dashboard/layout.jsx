@@ -40,9 +40,12 @@ export default function DashboardLayout({ children }) {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const initialLoadDone = useRef(false);
 
-  const isPaymentReturnFlow = () => {
+  const shouldBypassEmailVerification = () => {
     if (typeof window === 'undefined') return false;
-    if (window.location.pathname !== '/dashboard/subscription') return false;
+
+    if (window.location.pathname === '/dashboard/subscription') {
+      return true;
+    }
 
     const params = new URLSearchParams(window.location.search || '');
     return Boolean(
@@ -97,7 +100,7 @@ export default function DashboardLayout({ children }) {
       // Email verification check - redirect to pending page if not verified
       // Skip check for invited team members (they were invited via email, so implicitly verified)
       const isInvitedMember = userData.acceptedAt || (userData.role && userData.role !== 'OWNER');
-      if (!userData.emailVerified && !isInvitedMember && !isPaymentReturnFlow()) {
+      if (!userData.emailVerified && !isInvitedMember && !shouldBypassEmailVerification()) {
         router.push('/auth/email-pending');
         return;
       }
