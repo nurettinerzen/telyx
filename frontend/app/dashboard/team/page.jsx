@@ -194,7 +194,7 @@ export default function TeamPage() {
 
   const formatDate = (dateString) => {
     if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('tr-TR', {
+    return new Date(dateString).toLocaleDateString(locale === 'tr' ? 'tr-TR' : 'en-US', {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
@@ -265,7 +265,7 @@ export default function TeamPage() {
               <Shield className="h-7 w-7 text-neutral-600 dark:text-neutral-400" />
               <div>
                 <p className="text-sm text-neutral-600">{t('dashboard.teamPage.stats.yourRole')}</p>
-                <p className="text-2xl font-bold">{getRoleDisplayName(user?.role)}</p>
+                <p className="text-2xl font-bold">{getRoleDisplayName(user?.role, locale)}</p>
               </div>
             </div>
           </CardContent>
@@ -344,7 +344,7 @@ export default function TeamPage() {
                             </Select>
                           ) : (
                             <Badge className={getRoleBadgeColor(member.role)}>
-                              {getRoleDisplayName(member.role)}
+                              {getRoleDisplayName(member.role, locale)}
                             </Badge>
                           )}
                         </TableCell>
@@ -431,7 +431,7 @@ export default function TeamPage() {
                           </TableCell>
                           <TableCell>
                             <Badge className={getRoleBadgeColor(invite.role)}>
-                              {getRoleDisplayName(invite.role)}
+                              {getRoleDisplayName(invite.role, locale)}
                             </Badge>
                           </TableCell>
                           <TableCell>{formatDate(invite.createdAt)}</TableCell>

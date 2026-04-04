@@ -31,7 +31,7 @@ const PLAN_HIERARCHY = {
  * @param {string} requiredPlan - Minimum required plan
  * @returns {boolean}
  */
-function planMeetsRequirement(currentPlan, requiredPlan) {
+export function planMeetsRequirement(currentPlan, requiredPlan) {
   const currentLevel = PLAN_HIERARCHY[currentPlan] || 0;
   const requiredLevel = PLAN_HIERARCHY[requiredPlan] || 0;
   return currentLevel >= requiredLevel;

@@ -182,11 +182,12 @@ export function usePermissions() {
  * @param {string} role - Role code
  * @returns {string} Display name
  */
-export function getRoleDisplayName(role) {
+export function getRoleDisplayName(role, locale = 'tr') {
+  const isTr = locale === 'tr';
   const names = {
-    OWNER: 'İşletme Sahibi',
-    MANAGER: 'Yönetici',
-    STAFF: 'Personel'
+    OWNER: isTr ? 'İşletme Sahibi' : 'Business Owner',
+    MANAGER: isTr ? 'Yönetici' : 'Manager',
+    STAFF: isTr ? 'Personel' : 'Staff'
   };
   return names[role] || role;
 }
