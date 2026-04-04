@@ -4,7 +4,7 @@
  * Clean, minimal design with grouped sections
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTheme } from 'next-themes';
@@ -74,11 +74,42 @@ export default function Sidebar({ user, credits, business }) {
   const [mounted, setMounted] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState([]);
+  const navRef = useRef(null);
+  const sidebarScrollRef = useRef(0);
 
   // Prevent hydration mismatch for theme
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    const savedScroll = sessionStorage.getItem('sidebar-scroll');
+    if (!savedScroll) return;
+
+    const nextScroll = Number.parseInt(savedScroll, 10);
+    if (Number.isNaN(nextScroll)) return;
+
+    sidebarScrollRef.current = nextScroll;
+
+    requestAnimationFrame(() => {
+      if (navRef.current) {
+        navRef.current.scrollTop = nextScroll;
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    const restoreScroll = sidebarScrollRef.current;
+    const frame = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (navRef.current) {
+          navRef.current.scrollTop = restoreScroll;
+        }
+      });
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [pathname]);
 
   // Upgrade modal state
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
@@ -227,6 +258,11 @@ export default function Sidebar({ user, credits, business }) {
       {/* Navigation */}
       <nav
         data-sidebar-nav
+        ref={navRef}
+        onScroll={(event) => {
+          sidebarScrollRef.current = event.currentTarget.scrollTop;
+          sessionStorage.setItem('sidebar-scroll', String(event.currentTarget.scrollTop));
+        }}
         className="flex-1 min-h-0 overflow-y-auto py-2 px-3"
       >
         {[...NAVIGATION, ...ADMIN_NAVIGATION].map((section) => {
@@ -289,7 +325,10 @@ export default function Sidebar({ user, credits, business }) {
                       <Link
                         key={item.href}
                         href={item.href}
-                        onClick={() => setIsMobileOpen(false)}
+                        onClick={(event) => {
+                          event.currentTarget.blur();
+                          setIsMobileOpen(false);
+                        }}
                         className={cn(
                           'flex items-center gap-2.5 px-3 py-1 rounded-md text-[13px] font-medium transition-all',
                           isActive

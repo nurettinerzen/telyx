@@ -917,10 +917,10 @@ export default function SubscriptionPage() {
                   {getPlanFeatures().map((feature, i) => (
                     <li
                       key={i}
-                      className="flex items-center gap-2 text-sm"
+                      className="flex items-start gap-2 text-[13px] leading-snug"
                     >
-                      <Check className="h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0" />
-                      <span className="text-neutral-700 dark:text-neutral-300 truncate">
+                      <Check className="mt-0.5 h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0" />
+                      <span className="break-words text-neutral-700 dark:text-neutral-300 line-clamp-2">
                         {feature.text}
                       </span>
                     </li>
