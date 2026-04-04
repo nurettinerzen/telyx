@@ -1951,7 +1951,7 @@ router.post('/addons/checkout', verifyBusinessAccess, async (req, res) => {
       stripeCustomerId,
       countryCode: country,
       currency: country === 'TR' ? 'TRY' : country === 'BR' ? 'BRL' : 'USD',
-      successUrl: `${frontendUrl}/dashboard/subscription?addon=success&addon_kind=${normalizedKind}`,
+      successUrl: `${frontendUrl}/dashboard/subscription?addon=success&addon_kind=${normalizedKind}&session_id={CHECKOUT_SESSION_ID}`,
       cancelUrl: `${frontendUrl}/dashboard/subscription?addon=cancel&addon_kind=${normalizedKind}`,
       businessId: businessId.toString(),
       subscriptionId: subscription.id.toString(),
@@ -1971,6 +1971,51 @@ router.post('/addons/checkout', verifyBusinessAccess, async (req, res) => {
   } catch (error) {
     console.error('Create add-on checkout error:', error);
     res.status(500).json({ error: error.message || 'Failed to create add-on checkout' });
+  }
+});
+
+router.get('/verify-addon-session', verifyBusinessAccess, async (req, res) => {
+  try {
+    const { businessId } = req.user;
+    const sessionId = String(req.query?.session_id || '').trim();
+
+    if (!sessionId) {
+      return res.status(400).json({ error: 'Session ID required' });
+    }
+
+    const session = await getStripe().checkout.sessions.retrieve(sessionId);
+
+    if (session.payment_status !== 'paid') {
+      return res.status(400).json({ error: 'Payment not completed' });
+    }
+
+    if (session.metadata?.type !== 'addon_purchase') {
+      return res.status(400).json({ error: 'Session is not an add-on purchase' });
+    }
+
+    const metadataBusinessId = parseInt(String(session.metadata?.businessId || ''), 10);
+    if (!metadataBusinessId || metadataBusinessId !== businessId) {
+      return res.status(403).json({ error: 'Add-on session does not belong to this business' });
+    }
+
+    await recordCompletedAddOnPurchase(session);
+
+    const subscription = await prisma.subscription.findUnique({
+      where: { businessId },
+      select: {
+        writtenInteractionAddOnBalance: true,
+        voiceAddOnMinutesBalance: true
+      }
+    });
+
+    return res.json({
+      success: true,
+      writtenAddOnRemaining: Number(subscription?.writtenInteractionAddOnBalance || 0),
+      voiceAddOnRemaining: Number(subscription?.voiceAddOnMinutesBalance || 0)
+    });
+  } catch (error) {
+    console.error('❌ Verify add-on session error:', error);
+    return res.status(500).json({ error: error.message || 'Add-on verification failed' });
   }
 });
 

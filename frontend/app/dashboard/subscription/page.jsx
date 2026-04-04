@@ -213,13 +213,25 @@ export default function SubscriptionPage() {
       }
 
       if (addonStatus === 'success') {
-        toast.success(
-          locale === 'tr'
-            ? `${addonKind === 'VOICE' ? 'Ses dakikası' : 'Yazılı etkileşim'} ek paketi satın alındı`
-            : `${addonKind === 'VOICE' ? 'Voice minute' : 'Written interaction'} add-on purchase completed`
-        );
-        await refreshBillingState();
-        window.history.replaceState({}, '', window.location.pathname);
+        try {
+          if (session_id) {
+            await apiClient.get(`/api/subscription/verify-addon-session?session_id=${session_id}`);
+          }
+          toast.success(
+            locale === 'tr'
+              ? `${addonKind === 'VOICE' ? 'Ses dakikası' : 'Yazılı etkileşim'} ek paketi satın alındı`
+              : `${addonKind === 'VOICE' ? 'Voice minute' : 'Written interaction'} add-on purchase completed`
+          );
+          await refreshBillingState();
+        } catch (error) {
+          console.error('Add-on verification error:', error);
+          toast.error(
+            error.response?.data?.error
+            || (locale === 'tr' ? 'Ek paket doğrulanamadı' : 'Add-on purchase could not be verified')
+          );
+        } finally {
+          window.history.replaceState({}, '', window.location.pathname);
+        }
         return;
       }
 
