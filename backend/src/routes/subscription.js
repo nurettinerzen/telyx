@@ -915,6 +915,17 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
             ? parseInt(session.metadata.businessId, 10)
             : null;
 
+          if (paymentIntentId && session.customer) {
+            try {
+              await stripeService.rememberCustomerPaymentMethod({
+                customerId: String(session.customer),
+                paymentIntentId
+              });
+            } catch (paymentMethodError) {
+              console.warn('⚠️ Failed to persist Stripe payment method from top-up webhook:', paymentMethodError.message);
+            }
+          }
+
           const existingTopup = paymentIntentId
             ? await prisma.balanceTransaction.findFirst({
               where: {
@@ -950,6 +961,17 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
         }
 
         if (session.metadata?.type === 'addon_purchase') {
+          const paymentIntentId = session.payment_intent ? String(session.payment_intent) : null;
+          if (paymentIntentId && session.customer) {
+            try {
+              await stripeService.rememberCustomerPaymentMethod({
+                customerId: String(session.customer),
+                paymentIntentId
+              });
+            } catch (paymentMethodError) {
+              console.warn('⚠️ Failed to persist Stripe payment method from add-on webhook:', paymentMethodError.message);
+            }
+          }
           await recordCompletedAddOnPurchase(session);
           console.log(`✅ Add-on purchase applied: ${session.metadata?.addonKind || 'UNKNOWN'} for session ${session.id}`);
           break;
@@ -1993,6 +2015,18 @@ router.get('/verify-addon-session', verifyBusinessAccess, async (req, res) => {
 
     if (session.metadata?.type !== 'addon_purchase') {
       return res.status(400).json({ error: 'Session is not an add-on purchase' });
+    }
+
+    const paymentIntentId = session.payment_intent ? String(session.payment_intent) : null;
+    if (paymentIntentId && session.customer) {
+      try {
+        await stripeService.rememberCustomerPaymentMethod({
+          customerId: String(session.customer),
+          paymentIntentId
+        });
+      } catch (paymentMethodError) {
+        console.warn('⚠️ Failed to persist Stripe payment method for add-on session:', paymentMethodError.message);
+      }
     }
 
     const metadataBusinessId = parseInt(String(session.metadata?.businessId || ''), 10);

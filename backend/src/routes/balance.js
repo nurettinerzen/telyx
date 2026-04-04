@@ -293,6 +293,17 @@ router.get('/verify-topup-session', async (req, res) => {
 
     const paymentIntentId = session.payment_intent ? String(session.payment_intent) : null;
 
+    if (paymentIntentId && session.customer) {
+      try {
+        await stripeService.rememberCustomerPaymentMethod({
+          customerId: String(session.customer),
+          paymentIntentId
+        });
+      } catch (paymentMethodError) {
+        console.warn('⚠️ Failed to persist Stripe payment method for top-up session:', paymentMethodError.message);
+      }
+    }
+
     const existingTopup = paymentIntentId
       ? await prisma.balanceTransaction.findFirst({
         where: {

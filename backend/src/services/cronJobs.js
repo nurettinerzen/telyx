@@ -10,7 +10,7 @@
  */
 
 import prisma from '../prismaClient.js';
-import { getFixedOveragePrice } from '../config/plans.js';
+import { calculateTLToMinutes, getFixedOveragePrice } from '../config/plans.js';
 
 // Email service import (if available)
 let emailService = null;
@@ -208,20 +208,25 @@ export async function processAutoReload() {
     const autoReloadSubscriptions = await prisma.subscription.findMany({
       where: {
         status: { in: ['ACTIVE', 'active'] },
+        plan: 'PAYG',
         autoReloadEnabled: true,
         autoReloadThreshold: { gt: 0 },
         autoReloadAmount: { gt: 0 }
       },
       include: {
         business: {
-          select: { id: true, name: true, stripeCustomerId: true }
+          select: { id: true, name: true, country: true }
         }
       }
     });
 
     // Filter those below threshold
     const needReload = autoReloadSubscriptions.filter(
-      sub => sub.balance < sub.autoReloadThreshold
+      (sub) => calculateTLToMinutes(
+        Number(sub.balance || 0),
+        sub.plan,
+        sub.business?.country || 'TR'
+      ) < Number(sub.autoReloadThreshold || 0)
     );
 
     console.log(`📊 Found ${needReload.length} subscriptions needing auto-reload`);
@@ -229,8 +234,7 @@ export async function processAutoReload() {
     let reloadedCount = 0;
     for (const subscription of needReload) {
       try {
-        // Check if has payment method
-        if (!subscription.business?.stripeCustomerId) {
+        if (!subscription.stripeCustomerId && !subscription.iyzicoCardToken) {
           console.log(`⚠️ No payment method for ${subscription.business?.name}, skipping`);
           continue;
         }
@@ -243,9 +247,10 @@ export async function processAutoReload() {
 
         if (result.success) {
           reloadedCount++;
-          console.log(`✅ Auto-reloaded ${subscription.autoReloadAmount} TL for ${subscription.business?.name}`);
+          console.log(`✅ Auto-reloaded ${result.amount ?? subscription.autoReloadAmount} for ${subscription.business?.name}`);
         } else {
-          console.log(`⚠️ Auto-reload failed for ${subscription.business?.name}: ${result.error}`);
+          const reason = result.error || result.reason || 'unknown';
+          console.log(`⚠️ Auto-reload failed for ${subscription.business?.name}: ${reason}`);
         }
       } catch (err) {
         console.error(`❌ Auto-reload error for ${subscription.id}:`, err.message);

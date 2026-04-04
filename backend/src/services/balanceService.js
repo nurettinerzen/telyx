@@ -13,6 +13,7 @@
 
 import prisma from '../prismaClient.js';
 import { getPricePerMinute, calculateTLToMinutes } from '../config/plans.js';
+import stripeService from './stripe.js';
 
 const COUNTRY_BUSINESS_SELECT = {
   business: {
@@ -33,8 +34,23 @@ const OWNER_EMAIL_BUSINESS_SELECT = {
   }
 };
 
+const AUTO_RELOAD_BUSINESS_SELECT = {
+  business: {
+    select: {
+      country: true,
+      name: true,
+      users: {
+        where: { role: 'OWNER' },
+        take: 1,
+        select: { email: true }
+      }
+    }
+  }
+};
+
 const BASE_BALANCE_SUBSCRIPTION_SELECT = {
   id: true,
+  businessId: true,
   plan: true,
   balance: true,
   autoReloadEnabled: true,
@@ -240,13 +256,13 @@ export async function checkAutoReload(subscriptionId) {
  */
 export async function processAutoReload(subscriptionId, amountTL) {
   try {
-    console.log(`🔄 Processing auto reload: Subscription ${subscriptionId}, Amount: ${amountTL} TL`);
+    console.log(`🔄 Processing auto reload: Subscription ${subscriptionId}`);
 
     const subscription = await prisma.subscription.findUnique({
       where: { id: subscriptionId },
       select: {
         ...BASE_BALANCE_SUBSCRIPTION_SELECT,
-        ...OWNER_EMAIL_BUSINESS_SELECT
+        ...AUTO_RELOAD_BUSINESS_SELECT
       }
     });
 
@@ -254,9 +270,56 @@ export async function processAutoReload(subscriptionId, amountTL) {
       throw new Error('Subscription not found');
     }
 
-    // Try to charge from saved card
-    let paymentSuccess = false;
-    let paymentInfo = {};
+    const country = subscription.business?.country || 'TR';
+    const pricePerMinute = getPricePerMinute(subscription.plan, country);
+    const balanceMinutes = pricePerMinute > 0
+      ? calculateTLToMinutes(subscription.balance || 0, subscription.plan, country)
+      : 0;
+
+    if (!subscription.autoReloadEnabled) {
+      return { success: false, skipped: true, reason: 'AUTO_RELOAD_DISABLED' };
+    }
+
+    if (balanceMinutes >= Number(subscription.autoReloadThreshold || 0)) {
+      return {
+        success: false,
+        skipped: true,
+        reason: 'THRESHOLD_NOT_REACHED',
+        balanceMinutes
+      };
+    }
+
+    const resolvedAmount = Number(amountTL) > 0
+      ? Number(amountTL)
+      : Number(subscription.autoReloadAmount || 0) * pricePerMinute;
+
+    if (!resolvedAmount || resolvedAmount <= 0) {
+      return { success: false, error: 'Invalid auto reload amount' };
+    }
+
+    const recentAutoReload = await prisma.balanceTransaction.findFirst({
+      where: {
+        subscriptionId,
+        type: 'TOPUP',
+        description: {
+          contains: 'Otomatik bakiye yükleme'
+        },
+        createdAt: {
+          gte: new Date(Date.now() - 5 * 60 * 1000)
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    if (recentAutoReload) {
+      console.log(`ℹ️ Skipping duplicate auto reload for subscription ${subscriptionId}`);
+      return {
+        success: true,
+        skipped: true,
+        reason: 'RECENT_AUTO_RELOAD',
+        balance: Number(subscription.balance || 0)
+      };
+    }
 
     // Check if we have a saved card token for iyzico
     if (subscription.iyzicoCardToken) {
@@ -274,43 +337,65 @@ export async function processAutoReload(subscriptionId, amountTL) {
     }
 
     // Check if we have Stripe customer ID
-    if (!paymentSuccess && subscription.stripeCustomerId) {
+    if (subscription.stripeCustomerId) {
       try {
-        // TODO: Implement Stripe card charge
-        // const stripeService = (await import('./stripe.js')).default;
-        // const result = await stripeService.chargeCustomer(subscription.stripeCustomerId, amountTL);
-        // paymentInfo.stripePaymentIntentId = result.paymentIntentId;
-        // paymentSuccess = true;
+        const chargeResult = await stripeService.chargeCustomer({
+          customerId: subscription.stripeCustomerId,
+          amount: resolvedAmount,
+          currency: country === 'TR' ? 'TRY' : country === 'BR' ? 'BRL' : 'USD',
+          description: 'Telyx automatic wallet reload',
+          metadata: {
+            type: 'auto_reload',
+            subscriptionId,
+            businessId: subscription.businessId,
+            country
+          },
+          idempotencyKey: `auto-reload:${subscriptionId}:${Math.floor(Date.now() / (5 * 60 * 1000))}`
+        });
 
-        console.log('⚠️ Stripe auto-charge not implemented yet');
+        const topUpResult = await topUp(
+          subscriptionId,
+          resolvedAmount,
+          { stripePaymentIntentId: chargeResult.paymentIntentId },
+          'Otomatik bakiye yükleme'
+        );
+
+        console.log(`✅ Auto reload success: ${resolvedAmount} (${country})`);
+        return {
+          success: true,
+          amount: resolvedAmount,
+          balance: topUpResult.balance,
+          paymentIntentId: chargeResult.paymentIntentId
+        };
       } catch (chargeError) {
         console.error('❌ Stripe charge failed:', chargeError);
       }
     }
 
-    if (paymentSuccess) {
-      // Add balance
-      await topUp(subscriptionId, amountTL, paymentInfo, 'Otomatik bakiye yükleme');
-      console.log(`✅ Auto reload success: ${amountTL} TL`);
-    } else {
-      // Send notification email about failed auto reload
-      const ownerEmail = subscription.business?.users?.[0]?.email;
-      if (ownerEmail) {
-        try {
-          const emailService = (await import('./emailService.js')).default;
-          await emailService.sendAutoReloadFailedEmail(
-            ownerEmail,
-            subscription.business.name,
-            amountTL
-          );
-        } catch (emailError) {
-          console.error('❌ Failed to send auto reload failed email:', emailError);
-        }
+    // Send notification email about failed auto reload
+    const ownerEmail = subscription.business?.users?.[0]?.email;
+    if (ownerEmail) {
+      try {
+        const emailService = (await import('./emailService.js')).default;
+        await emailService.sendAutoReloadFailedEmail(
+          ownerEmail,
+          subscription.business.name,
+          resolvedAmount
+        );
+      } catch (emailError) {
+        console.error('❌ Failed to send auto reload failed email:', emailError);
       }
     }
+
+    return {
+      success: false,
+      error: subscription.stripeCustomerId
+        ? 'Automatic reload charge failed'
+        : 'No reusable payment method saved for auto reload'
+    };
   } catch (error) {
     console.error('❌ Process auto reload error:', error);
-    throw error;
+    return { success: false, error: error.message };
   }
 }
 
