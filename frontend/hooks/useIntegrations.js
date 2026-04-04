@@ -64,6 +64,8 @@ export function useWhatsAppStatus(options = {}) {
       return response.data;
     },
     staleTime: 60000, // 1 minute
+    retry: false,
+    refetchOnWindowFocus: false,
     refetchInterval: (query) => {
       const status = String(query?.state?.data?.lastTestSend?.status || '').toLowerCase();
       return ['accepted', 'sent'].includes(status) ? 5000 : false;
@@ -76,7 +78,7 @@ export function useWhatsAppStatus(options = {}) {
  * Hook to fetch email status
  * @returns {object} Query result with email status
  */
-export function useEmailStatus() {
+export function useEmailStatus(options = {}) {
   return useQuery({
     queryKey: ['integrations', 'email', 'status'],
     queryFn: async () => {
@@ -84,6 +86,9 @@ export function useEmailStatus() {
       return response.data;
     },
     staleTime: 60000,
+    retry: false,
+    refetchOnWindowFocus: false,
+    ...options,
   });
 }
 
@@ -91,7 +96,7 @@ export function useEmailStatus() {
  * Hook to fetch Shopify status
  * @returns {object} Query result with Shopify status
  */
-export function useShopifyStatus() {
+export function useShopifyStatus(options = {}) {
   return useQuery({
     queryKey: ['integrations', 'shopify', 'status'],
     queryFn: async () => {
@@ -99,6 +104,9 @@ export function useShopifyStatus() {
       return response.data;
     },
     staleTime: 60000,
+    retry: false,
+    refetchOnWindowFocus: false,
+    ...options,
   });
 }
 
@@ -106,7 +114,7 @@ export function useShopifyStatus() {
  * Hook to fetch webhook status
  * @returns {object} Query result with webhook status
  */
-export function useWebhookStatus() {
+export function useWebhookStatus(options = {}) {
   return useQuery({
     queryKey: ['integrations', 'webhook', 'status'],
     queryFn: async () => {
@@ -114,6 +122,9 @@ export function useWebhookStatus() {
       return response.data;
     },
     staleTime: 60000,
+    retry: false,
+    refetchOnWindowFocus: false,
+    ...options,
   });
 }
 
@@ -164,6 +175,8 @@ export function useCrmWebhookStatus({ enabled = true } = {}) {
       }
     },
     staleTime: 60000,
+    retry: false,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -171,7 +184,7 @@ export function useCrmWebhookStatus({ enabled = true } = {}) {
  * Hook to fetch ikas status
  * @returns {object} Query result with ikas status
  */
-export function useIkasStatus() {
+export function useIkasStatus(options = {}) {
   return useQuery({
     queryKey: ['integrations', 'ikas', 'status'],
     queryFn: async () => {
@@ -179,6 +192,9 @@ export function useIkasStatus() {
       return response.data;
     },
     staleTime: 60000,
+    retry: false,
+    refetchOnWindowFocus: false,
+    ...options,
   });
 }
 
@@ -186,7 +202,7 @@ export function useIkasStatus() {
  * Hook to fetch Trendyol status
  * @returns {object} Query result with Trendyol status
  */
-export function useTrendyolStatus() {
+export function useTrendyolStatus(options = {}) {
   return useQuery({
     queryKey: ['integrations', 'trendyol', 'status'],
     queryFn: async () => {
@@ -194,6 +210,9 @@ export function useTrendyolStatus() {
       return response.data;
     },
     staleTime: 60000,
+    retry: false,
+    refetchOnWindowFocus: false,
+    ...options,
   });
 }
 
@@ -201,7 +220,7 @@ export function useTrendyolStatus() {
  * Hook to fetch Hepsiburada status
  * @returns {object} Query result with Hepsiburada status
  */
-export function useHepsiburadaStatus() {
+export function useHepsiburadaStatus(options = {}) {
   return useQuery({
     queryKey: ['integrations', 'hepsiburada', 'status'],
     queryFn: async () => {
@@ -209,6 +228,9 @@ export function useHepsiburadaStatus() {
       return response.data;
     },
     staleTime: 60000,
+    retry: false,
+    refetchOnWindowFocus: false,
+    ...options,
   });
 }
 
@@ -216,7 +238,7 @@ export function useHepsiburadaStatus() {
  * Hook to fetch Sikayetvar status
  * @returns {object} Query result with Sikayetvar status
  */
-export function useSikayetvarStatus() {
+export function useSikayetvarStatus(options = {}) {
   return useQuery({
     queryKey: ['integrations', 'sikayetvar', 'status'],
     queryFn: async () => {
@@ -224,6 +246,9 @@ export function useSikayetvarStatus() {
       return response.data;
     },
     staleTime: 60000,
+    retry: false,
+    refetchOnWindowFocus: false,
+    ...options,
   });
 }
 

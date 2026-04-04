@@ -260,24 +260,50 @@ export default function IntegrationsPage() {
   const { can, user } = usePermissions();
   const pageHelp = getPageHelp('integrations', locale);
   const queryClient = useQueryClient();
+  const [shopifyModalOpen, setShopifyModalOpen] = useState(false);
+  const [webhookModalOpen, setWebhookModalOpen] = useState(false);
+  const [ikasModalOpen, setIkasModalOpen] = useState(false);
+  const [trendyolModalOpen, setTrendyolModalOpen] = useState(false);
+  const [hepsiburadaModalOpen, setHepsiburadaModalOpen] = useState(false);
+  const [sikayetvarModalOpen, setSikayetvarModalOpen] = useState(false);
 
   // React Query hooks
   const { data: integrationsData, isLoading: loading } = useIntegrations();
   const { data: userPlan } = useUserPlan();
-  const crmFeatureInfo = getIntegrationFeatureInfo('CUSTOM', userPlan);
-  const hasCrmEntitlement = !crmFeatureInfo.isLocked && !crmFeatureInfo.isHidden;
-  const { data: whatsappStatus } = useWhatsAppStatus();
-  const { data: emailStatus } = useEmailStatus();
-  const { data: shopifyStatus } = useShopifyStatus();
-  const { data: webhookStatus } = useWebhookStatus();
-  const { data: ikasStatus } = useIkasStatus();
-  const { data: trendyolStatus } = useTrendyolStatus();
-  const { data: hepsiburadaStatus } = useHepsiburadaStatus();
-  const { data: sikayetvarStatus } = useSikayetvarStatus();
-  const { data: crmStatus } = useCrmWebhookStatus({ enabled: hasCrmEntitlement });
-
   const integrations = integrationsData?.integrations || [];
   const businessType = integrationsData?.businessType || 'OTHER';
+  const integrationsLoaded = Array.isArray(integrationsData?.integrations);
+  const hasIntegrationType = (type) => integrations.some((integration) => integration.type === type);
+  const isIntegrationConnected = (type) => integrations.some((integration) => integration.type === type && integration.connected);
+  const crmFeatureInfo = getIntegrationFeatureInfo('CUSTOM', userPlan);
+  const hasCrmEntitlement = !crmFeatureInfo.isLocked && !crmFeatureInfo.isHidden;
+  const { data: whatsappStatus } = useWhatsAppStatus({
+    enabled: integrationsLoaded && hasIntegrationType('WHATSAPP'),
+  });
+  const { data: emailStatus } = useEmailStatus({
+    enabled: integrationsLoaded,
+  });
+  const { data: shopifyStatus } = useShopifyStatus({
+    enabled: integrationsLoaded && hasIntegrationType('SHOPIFY') && (isIntegrationConnected('SHOPIFY') || shopifyModalOpen),
+  });
+  const { data: webhookStatus } = useWebhookStatus({
+    enabled: integrationsLoaded && hasIntegrationType('ZAPIER') && (isIntegrationConnected('ZAPIER') || webhookModalOpen),
+  });
+  const { data: ikasStatus } = useIkasStatus({
+    enabled: integrationsLoaded && hasIntegrationType('IKAS') && (isIntegrationConnected('IKAS') || ikasModalOpen),
+  });
+  const { data: trendyolStatus } = useTrendyolStatus({
+    enabled: integrationsLoaded && hasIntegrationType('TRENDYOL') && (isIntegrationConnected('TRENDYOL') || trendyolModalOpen),
+  });
+  const { data: hepsiburadaStatus } = useHepsiburadaStatus({
+    enabled: integrationsLoaded && hasIntegrationType('HEPSIBURADA') && (isIntegrationConnected('HEPSIBURADA') || hepsiburadaModalOpen),
+  });
+  const { data: sikayetvarStatus } = useSikayetvarStatus({
+    enabled: integrationsLoaded && hasIntegrationType('SIKAYETVAR') && (isIntegrationConnected('SIKAYETVAR') || sikayetvarModalOpen),
+  });
+  const { data: crmStatus } = useCrmWebhookStatus({
+    enabled: integrationsLoaded && businessType === 'ECOMMERCE' && hasCrmEntitlement,
+  });
 
   // Mutations
   const connectWhatsApp = useConnectWhatsApp();
@@ -336,36 +362,30 @@ export default function IntegrationsPage() {
   const [emailLoading, setEmailLoading] = useState(false);
 
   // Shopify state
-  const [shopifyModalOpen, setShopifyModalOpen] = useState(false);
   const [shopifyLoading, setShopifyLoading] = useState(false);
   const [shopifyForm, setShopifyForm] = useState({ shopUrl: '' });
 
   // Webhook state
-  const [webhookModalOpen, setWebhookModalOpen] = useState(false);
   const [webhookLoading, setWebhookLoading] = useState(false);
   const [copiedField, setCopiedField] = useState(null);
 
   // ikas state
-  const [ikasModalOpen, setIkasModalOpen] = useState(false);
   const [ikasLoading, setIkasLoading] = useState(false);
   const [ikasForm, setIkasForm] = useState({ storeName: '', clientId: '', clientSecret: '' });
 
   // Marketplace Q&A states
-  const [trendyolModalOpen, setTrendyolModalOpen] = useState(false);
   const [trendyolLoading, setTrendyolLoading] = useState(false);
   const [trendyolForm, setTrendyolForm] = useState({
     sellerId: '',
     apiKey: '',
     apiSecret: '',
   });
-  const [hepsiburadaModalOpen, setHepsiburadaModalOpen] = useState(false);
   const [hepsiburadaLoading, setHepsiburadaLoading] = useState(false);
   const [hepsiburadaForm, setHepsiburadaForm] = useState({
     merchantId: '',
     apiKey: '',
     apiSecret: '',
   });
-  const [sikayetvarModalOpen, setSikayetvarModalOpen] = useState(false);
   const [sikayetvarLoading, setSikayetvarLoading] = useState(false);
   const [sikayetvarForm, setSikayetvarForm] = useState({
     apiKey: '',
