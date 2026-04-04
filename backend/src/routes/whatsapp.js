@@ -61,6 +61,14 @@ import {
   releaseWrittenInteraction,
   reserveWrittenInteraction
 } from '../services/writtenUsageService.js';
+import {
+  appendChatLogMessages,
+  buildSystemEventMessage,
+  getNormalizedHandoffState,
+  HANDOFF_MODE,
+  requestHumanHandoff,
+  shouldTriggerHumanHandoff,
+} from '../services/liveHandoff.js';
 
 const router = express.Router();
 const VERIFY_TOKEN_ENV_KEYS = [
@@ -85,6 +93,12 @@ const WRITTEN_LIMIT_MESSAGE = {
 
 function isPlainObject(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function getLiveHandoffAcknowledgement(language = 'TR') {
+  return String(language || 'TR').toUpperCase() === 'EN'
+    ? 'A teammate will take over this WhatsApp conversation shortly. Please stay in this thread.'
+    : 'Bir temsilcimiz bu WhatsApp yazışmasını birazdan devralacak. Lütfen bu konuşmada kalın.';
 }
 
 function getIntegrationCredentials(integration) {
@@ -603,6 +617,65 @@ async function processWhatsAppMessage(business, from, messageBody, messageId, tr
       }
 
       return; // EXIT - Do not process message
+    }
+
+    const state = await getState(sessionId);
+    const handoff = getNormalizedHandoffState(state);
+    const userTranscriptMessage = {
+      role: 'user',
+      content: messageBody,
+      timestamp: new Date().toISOString(),
+    };
+
+    if (shouldTriggerHumanHandoff(messageBody) && handoff.mode === HANDOFF_MODE.AI) {
+      await requestHumanHandoff({
+        sessionId,
+        businessId: business.id,
+        requestedBy: 'customer',
+        requestedReason: 'customer_requested_live_support',
+        currentState: state,
+      });
+
+      await appendChatLogMessages({
+        sessionId,
+        businessId: business.id,
+        channel: 'WHATSAPP',
+        assistantId: business.assistants?.[0]?.id || null,
+        customerPhone: from,
+        messages: [
+          userTranscriptMessage,
+          buildSystemEventMessage(
+            'Customer requested live support.',
+            {
+              type: 'handoff_requested',
+              requestedBy: 'customer',
+              inboundMessageId: messageId,
+            }
+          )
+        ]
+      });
+
+      await sendWhatsAppMessage(business, from, getLiveHandoffAcknowledgement(language), {
+        inboundMessageId: `${messageId}:handoff`,
+        skipUsageMetering: true,
+      });
+
+      console.log(`🤝 [WhatsApp] Live handoff requested for session ${sessionId}`);
+      return;
+    }
+
+    if (handoff.mode === HANDOFF_MODE.REQUESTED || handoff.mode === HANDOFF_MODE.ACTIVE) {
+      await appendChatLogMessages({
+        sessionId,
+        businessId: business.id,
+        channel: 'WHATSAPP',
+        assistantId: business.assistants?.[0]?.id || null,
+        customerPhone: from,
+        messages: [userTranscriptMessage]
+      });
+
+      console.log(`🤝 [WhatsApp] Human handoff active (${handoff.mode}) — AI response suppressed for ${sessionId}`);
+      return;
     }
 
     // ===== SESSION OK - DELEGATE TO CORE ORCHESTRATOR =====

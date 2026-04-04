@@ -6,8 +6,78 @@
 import express from 'express';
 import prisma from '../prismaClient.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { sendWhatsAppMessage } from '../services/whatsapp-sender.js';
+import {
+  appendChatLogMessages,
+  buildHandoffView,
+  buildSystemEventMessage,
+  claimHumanHandoff,
+  getNormalizedHandoffState,
+  noteHumanReply,
+  requestHumanHandoff,
+  returnConversationToAi,
+} from '../services/liveHandoff.js';
 
 const router = express.Router();
+
+function getActorName(user = {}) {
+  return user?.name || user?.email || 'Team member';
+}
+
+function getReplyText(req) {
+  return String(req.body?.message || req.body?.text || '').trim();
+}
+
+async function enrichChatLogsWithHandoff(chatLogs, businessId, viewerUserId) {
+  if (!Array.isArray(chatLogs) || chatLogs.length === 0) {
+    return [];
+  }
+
+  const sessionIds = chatLogs.map((log) => log.sessionId).filter(Boolean);
+  const states = await prisma.conversationState.findMany({
+    where: {
+      businessId,
+      sessionId: { in: sessionIds },
+    },
+    select: {
+      sessionId: true,
+      state: true,
+    }
+  });
+
+  const stateMap = new Map(states.map((entry) => [entry.sessionId, entry.state]));
+
+  return chatLogs.map((log) => ({
+    ...log,
+    handoff: buildHandoffView(stateMap.get(log.sessionId), viewerUserId),
+  }));
+}
+
+async function getOwnedChatLog(id, businessId) {
+  return prisma.chatLog.findFirst({
+    where: {
+      id,
+      businessId,
+    },
+    include: {
+      assistant: {
+        select: { name: true }
+      }
+    }
+  });
+}
+
+async function getBusinessForWhatsAppReply(businessId) {
+  return prisma.business.findUnique({
+    where: { id: businessId },
+    select: {
+      id: true,
+      name: true,
+      whatsappPhoneNumberId: true,
+      whatsappAccessToken: true,
+    }
+  });
+}
 
 // GET /api/chat-logs - Get all chat logs for business
 router.get('/', authenticateToken, async (req, res) => {
@@ -109,8 +179,10 @@ router.get('/', authenticateToken, async (req, res) => {
       return processed;
     });
 
+    const enrichedLogs = await enrichChatLogsWithHandoff(processedLogs, req.businessId, req.userId);
+
     res.json({
-      chatLogs: processedLogs,
+      chatLogs: enrichedLogs,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -193,17 +265,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const chatLog = await prisma.chatLog.findFirst({
-      where: {
-        id,
-        businessId: req.businessId
-      },
-      include: {
-        assistant: {
-          select: { name: true }
-        }
-      }
-    });
+    const chatLog = await getOwnedChatLog(id, req.businessId);
 
     if (!chatLog) {
       return res.status(404).json({ error: 'Chat log not found' });
@@ -226,10 +288,244 @@ router.get('/:id', authenticateToken, async (req, res) => {
       }
     }
 
-    res.json(chatLog);
+    res.json({
+      ...chatLog,
+      handoff: buildHandoffView(
+        (
+          await prisma.conversationState.findUnique({
+            where: { sessionId: chatLog.sessionId },
+            select: { state: true }
+          })
+        )?.state,
+        req.userId
+      )
+    });
   } catch (error) {
     console.error('Get chat log error:', error);
     res.status(500).json({ error: 'Failed to fetch chat log' });
+  }
+});
+
+router.post('/:id/handoff/request', authenticateToken, async (req, res) => {
+  try {
+    const chatLog = await getOwnedChatLog(req.params.id, req.businessId);
+
+    if (!chatLog) {
+      return res.status(404).json({ error: 'Chat log not found' });
+    }
+
+    if (chatLog.channel !== 'WHATSAPP') {
+      return res.status(400).json({ error: 'Live handoff is currently available only for WhatsApp conversations' });
+    }
+
+    const state = await requestHumanHandoff({
+      sessionId: chatLog.sessionId,
+      businessId: req.businessId,
+      requestedBy: 'operator',
+      requestedReason: req.body?.reason || 'operator_requested_live_handoff',
+    });
+
+    await appendChatLogMessages({
+      sessionId: chatLog.sessionId,
+      businessId: req.businessId,
+      channel: chatLog.channel,
+      assistantId: chatLog.assistantId || null,
+      customerPhone: chatLog.customerPhone || null,
+      messages: [
+        buildSystemEventMessage(
+          `${getActorName(req.user)} requested live takeover.`,
+          {
+            type: 'handoff_requested',
+            actorUserId: req.userId,
+            actorName: getActorName(req.user),
+            requestedBy: 'operator',
+          }
+        )
+      ]
+    });
+
+    res.json({
+      success: true,
+      handoff: buildHandoffView({ humanHandoff: state }, req.userId),
+    });
+  } catch (error) {
+    console.error('Request handoff error:', error);
+    res.status(error.statusCode || 500).json({ error: error.message || 'Failed to request live handoff' });
+  }
+});
+
+router.post('/:id/handoff/claim', authenticateToken, async (req, res) => {
+  try {
+    const chatLog = await getOwnedChatLog(req.params.id, req.businessId);
+
+    if (!chatLog) {
+      return res.status(404).json({ error: 'Chat log not found' });
+    }
+
+    if (chatLog.channel !== 'WHATSAPP') {
+      return res.status(400).json({ error: 'Live handoff is currently available only for WhatsApp conversations' });
+    }
+
+    const state = await claimHumanHandoff({
+      sessionId: chatLog.sessionId,
+      businessId: req.businessId,
+      userId: req.userId,
+      userName: getActorName(req.user),
+    });
+
+    await appendChatLogMessages({
+      sessionId: chatLog.sessionId,
+      businessId: req.businessId,
+      channel: chatLog.channel,
+      assistantId: chatLog.assistantId || null,
+      customerPhone: chatLog.customerPhone || null,
+      messages: [
+        buildSystemEventMessage(
+          `${getActorName(req.user)} claimed this conversation.`,
+          {
+            type: 'handoff_claimed',
+            actorUserId: req.userId,
+            actorName: getActorName(req.user),
+          }
+        )
+      ]
+    });
+
+    res.json({
+      success: true,
+      handoff: buildHandoffView({ humanHandoff: state }, req.userId),
+    });
+  } catch (error) {
+    console.error('Claim handoff error:', error);
+    res.status(error.statusCode || 500).json({ error: error.message || 'Failed to claim conversation' });
+  }
+});
+
+router.post('/:id/handoff/release', authenticateToken, async (req, res) => {
+  try {
+    const chatLog = await getOwnedChatLog(req.params.id, req.businessId);
+
+    if (!chatLog) {
+      return res.status(404).json({ error: 'Chat log not found' });
+    }
+
+    if (chatLog.channel !== 'WHATSAPP') {
+      return res.status(400).json({ error: 'Live handoff is currently available only for WhatsApp conversations' });
+    }
+
+    const state = await returnConversationToAi({
+      sessionId: chatLog.sessionId,
+      businessId: req.businessId,
+      userId: req.userId,
+    });
+
+    await appendChatLogMessages({
+      sessionId: chatLog.sessionId,
+      businessId: req.businessId,
+      channel: chatLog.channel,
+      assistantId: chatLog.assistantId || null,
+      customerPhone: chatLog.customerPhone || null,
+      messages: [
+        buildSystemEventMessage(
+          `${getActorName(req.user)} returned this conversation to AI.`,
+          {
+            type: 'handoff_released',
+            actorUserId: req.userId,
+            actorName: getActorName(req.user),
+          }
+        )
+      ]
+    });
+
+    res.json({
+      success: true,
+      handoff: buildHandoffView({ humanHandoff: state }, req.userId),
+    });
+  } catch (error) {
+    console.error('Release handoff error:', error);
+    res.status(error.statusCode || 500).json({ error: error.message || 'Failed to return conversation to AI' });
+  }
+});
+
+router.post('/:id/handoff/reply', authenticateToken, async (req, res) => {
+  try {
+    const chatLog = await getOwnedChatLog(req.params.id, req.businessId);
+
+    if (!chatLog) {
+      return res.status(404).json({ error: 'Chat log not found' });
+    }
+
+    if (chatLog.channel !== 'WHATSAPP') {
+      return res.status(400).json({ error: 'Live handoff is currently available only for WhatsApp conversations' });
+    }
+
+    if (!chatLog.customerPhone) {
+      return res.status(400).json({ error: 'This WhatsApp conversation does not have a customer phone number' });
+    }
+
+    const message = getReplyText(req);
+    if (!message) {
+      return res.status(422).json({ error: 'Reply message is required' });
+    }
+
+    const business = await getBusinessForWhatsAppReply(req.businessId);
+    if (!business) {
+      return res.status(404).json({ error: 'Business not found' });
+    }
+
+    await noteHumanReply({
+      sessionId: chatLog.sessionId,
+      businessId: req.businessId,
+      userId: req.userId,
+      userName: getActorName(req.user),
+    });
+
+    const sendResult = await sendWhatsAppMessage(business, chatLog.customerPhone, message);
+    if (!sendResult?.success) {
+      return res.status(502).json({ error: sendResult?.error || 'Failed to send WhatsApp reply' });
+    }
+
+    await appendChatLogMessages({
+      sessionId: chatLog.sessionId,
+      businessId: req.businessId,
+      channel: chatLog.channel,
+      assistantId: chatLog.assistantId || null,
+      customerPhone: chatLog.customerPhone || null,
+      messages: [
+        {
+          role: 'human_agent',
+          content: message,
+          metadata: {
+            actorUserId: req.userId,
+            actorName: getActorName(req.user),
+            channel: 'WHATSAPP',
+            source: 'live_handoff',
+          }
+        }
+      ]
+    });
+
+    const refreshed = await getOwnedChatLog(req.params.id, req.businessId);
+    res.json({
+      success: true,
+      chatLog: {
+        ...refreshed,
+        handoff: buildHandoffView(
+          {
+            humanHandoff: {
+              ...getNormalizedHandoffState((await prisma.conversationState.findUnique({
+                where: { sessionId: chatLog.sessionId },
+                select: { state: true }
+              }))?.state),
+            }
+          },
+          req.userId
+        )
+      }
+    });
+  } catch (error) {
+    console.error('Live handoff reply error:', error);
+    res.status(error.statusCode || 500).json({ error: error.message || 'Failed to send live handoff reply' });
   }
 });
 
