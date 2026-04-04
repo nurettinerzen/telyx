@@ -188,9 +188,21 @@ export default function SubscriptionPage() {
       const addonKind = params.get('addon_kind');
 
       if (walletTopup === 'success') {
-        toast.success(locale === 'tr' ? 'Bakiye yükleme tamamlandı' : 'Balance top-up completed');
-        await refreshBillingState();
-        window.history.replaceState({}, '', window.location.pathname);
+        try {
+          if (session_id) {
+            await apiClient.get(`/api/balance/verify-topup-session?session_id=${session_id}`);
+          }
+          toast.success(locale === 'tr' ? 'Bakiye yükleme tamamlandı' : 'Balance top-up completed');
+          await refreshBillingState();
+        } catch (error) {
+          console.error('Top-up verification error:', error);
+          toast.error(
+            error.response?.data?.error
+            || (locale === 'tr' ? 'Bakiye yükleme doğrulanamadı' : 'Balance top-up could not be verified')
+          );
+        } finally {
+          window.history.replaceState({}, '', window.location.pathname);
+        }
         return;
       }
 

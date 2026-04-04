@@ -241,7 +241,7 @@ router.post('/topup', async (req, res) => {
       amount,
       currency: country === 'TR' ? 'TRY' : country === 'BR' ? 'BRL' : 'USD',
       countryCode: country,
-      successUrl: `${frontendUrl}/dashboard/subscription?wallet_topup=success`,
+      successUrl: `${frontendUrl}/dashboard/subscription?wallet_topup=success&session_id={CHECKOUT_SESSION_ID}`,
       cancelUrl: `${frontendUrl}/dashboard/subscription?wallet_topup=cancel`,
       businessId: businessId.toString()
     });
@@ -259,6 +259,87 @@ router.post('/topup', async (req, res) => {
   } catch (error) {
     console.error('❌ Balance topup error:', error);
     res.status(500).json({ error: error.message || 'Bakiye yükleme hatası' });
+  }
+});
+
+// ============================================================================
+// GET /api/balance/verify-topup-session - Stripe topup success redirect verification
+// ============================================================================
+router.get('/verify-topup-session', async (req, res) => {
+  try {
+    const { businessId } = req.user;
+    const sessionId = String(req.query?.session_id || '').trim();
+
+    if (!sessionId) {
+      return res.status(400).json({ error: 'Session ID required' });
+    }
+
+    const session = await stripeService.getStripeClient().checkout.sessions.retrieve(sessionId);
+
+    if (session.payment_status !== 'paid') {
+      return res.status(400).json({ error: 'Payment not completed' });
+    }
+
+    if (session.metadata?.type !== 'credit_purchase') {
+      return res.status(400).json({ error: 'Session is not a credit purchase' });
+    }
+
+    const metadataBusinessId = parseInt(String(session.metadata?.businessId || ''), 10);
+    if (!metadataBusinessId || metadataBusinessId !== businessId) {
+      return res.status(403).json({ error: 'Top-up session does not belong to this business' });
+    }
+
+    const paymentIntentId = session.payment_intent ? String(session.payment_intent) : null;
+
+    const existingTopup = paymentIntentId
+      ? await prisma.balanceTransaction.findFirst({
+        where: {
+          type: 'TOPUP',
+          stripePaymentIntentId: paymentIntentId
+        }
+      })
+      : null;
+
+    if (!existingTopup) {
+      const subscription = await prisma.subscription.findUnique({
+        where: { businessId },
+        select: { id: true }
+      });
+
+      if (!subscription) {
+        return res.status(404).json({ error: 'Subscription not found' });
+      }
+
+      const amountPaid = Number.isFinite(session.amount_total) ? session.amount_total / 100 : 0;
+      const minutes = session.metadata?.minutes || '0';
+
+      await balanceService.topUp(
+        subscription.id,
+        amountPaid,
+        { stripePaymentIntentId: paymentIntentId },
+        `${minutes} dakika bakiye yüklendi`
+      );
+    }
+
+    const refreshedSubscription = await prisma.subscription.findUnique({
+      where: { businessId },
+      select: {
+        balance: true,
+        plan: true,
+        business: {
+          select: { country: true }
+        }
+      }
+    });
+
+    return res.json({
+      success: true,
+      balance: Number(refreshedSubscription?.balance || 0),
+      plan: refreshedSubscription?.plan || null
+    });
+  } catch (error) {
+    console.error('❌ Verify top-up session error:', error);
+    return res.status(500).json({ error: error.message || 'Top-up verification failed' });
   }
 });
 
@@ -552,7 +633,7 @@ router.post('/create-checkout', async (req, res) => {
         amount: amountTL,
         currency: country === 'TR' ? 'TRY' : country === 'BR' ? 'BRL' : 'USD',
         countryCode: country,
-        successUrl: `${frontendUrl}/dashboard/subscription?wallet_topup=success`,
+        successUrl: `${frontendUrl}/dashboard/subscription?wallet_topup=success&session_id={CHECKOUT_SESSION_ID}`,
         cancelUrl: `${frontendUrl}/dashboard/subscription?wallet_topup=cancel`,
         businessId: businessId.toString()
       });
