@@ -255,7 +255,7 @@ export default function SubscriptionPage() {
     const currentPlanId = LEGACY_PLAN_MAP[subscription?.plan] || subscription?.plan || 'FREE';
     const currentLevel = PLAN_HIERARCHY[currentPlanId] ?? 0;
     const nextLevel = PLAN_HIERARCHY[planId] ?? 0;
-    const requiresConfirmation = planId === 'PAYG' || nextLevel <= currentLevel;
+    const requiresConfirmation = nextLevel < currentLevel;
 
     if (requiresConfirmation && !confirm(`${t('dashboard.subscriptionPage.upgradeConfirmMsg')} ${planName}`)) {
       return;
