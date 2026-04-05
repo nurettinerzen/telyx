@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -62,6 +63,20 @@ function getConversationRecency(chat) {
   return new Date(chat?.updatedAt || chat?.createdAt || 0).getTime();
 }
 
+const PHONE_PLACEHOLDER_VALUES = new Set(['none', 'null', 'undefined', 'unknown', 'bilinmiyor', 'n/a', 'na', '-']);
+
+function hasMeaningfulPhone(value) {
+  if (value === undefined || value === null) return false;
+  const raw = String(value).trim();
+  if (!raw) return false;
+  if (PHONE_PLACEHOLDER_VALUES.has(raw.toLowerCase())) return false;
+  return raw.replace(/\D/g, '').length >= 10;
+}
+
+function formatPhone(value, fallback = '—') {
+  return hasMeaningfulPhone(value) ? String(value).trim() : fallback;
+}
+
 function dedupeWhatsAppConversations(chats = []) {
   const preferredByKey = new Map();
 
@@ -96,7 +111,15 @@ function dedupeWhatsAppConversations(chats = []) {
   return chats.filter((chat) => keptIds.has(chat.id));
 }
 
-function getHandoffBadge(mode, assignedUserName, t) {
+function getHandoffBadge(mode, assignedUserName, t, status = 'active') {
+  if (status !== 'active') {
+    return (
+      <Badge variant="outline" className="border-neutral-200 bg-neutral-50 text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900/40 dark:text-neutral-300">
+        {t.completedShort}
+      </Badge>
+    );
+  }
+
   if (mode === 'REQUESTED') {
     return (
       <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
@@ -124,6 +147,7 @@ function getHandoffBadge(mode, assignedUserName, t) {
 }
 
 function getCompactStatusLabel(chat, t) {
+  if (chat?.status !== 'active') return t.completedShort;
   if (chat?.handoff?.currentUserIsAssignee) return t.liveOwnedShort;
   if (chat?.handoff?.mode === 'REQUESTED') return t.liveRequestedShort;
   if (chat?.handoff?.mode === 'ACTIVE') return t.liveActiveShort;
@@ -131,6 +155,10 @@ function getCompactStatusLabel(chat, t) {
 }
 
 function getCompactStatusClasses(chat) {
+  if (chat?.status !== 'active') {
+    return 'border-neutral-200 bg-neutral-50 text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900/40 dark:text-neutral-300';
+  }
+
   if (chat?.handoff?.currentUserIsAssignee) {
     return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300';
   }
@@ -147,136 +175,83 @@ function getCompactStatusClasses(chat) {
 }
 
 export default function WhatsAppInboxPage() {
-  const { locale } = useLanguage();
+  const { locale, t: translate } = useLanguage();
+  const searchParams = useSearchParams();
+  const requestedChatId = searchParams.get('chatId');
   const liveHandoffEnabled = process.env.NEXT_PUBLIC_WHATSAPP_LIVE_HANDOFF_V2 === 'true';
 
-  const t = locale === 'tr'
-    ? {
-        title: 'WhatsApp Inbox',
-        subtitle: 'Canlı devralma ve manuel yanıt akışı.',
-        refresh: 'Yenile',
-        refreshing: 'Yenileniyor...',
-        searchPlaceholder: 'Telefon numarası veya oturum ara...',
-        all: 'Tümü',
-        waiting: 'Bekleyen',
-        live: 'Canlı',
-        ai: 'AI',
-        noConversations: 'Henüz WhatsApp konuşması yok',
-        noConversationsDesc: 'WhatsApp konuşmaları burada sıralanacak.',
-        pendingQueue: 'Temsilci bekleyen konuşmalar',
-        pendingQueueDesc: 'Müşteri gerçek bir kişi istediğinde burada en üste taşınır.',
-        pendingShort: 'Bekleyen',
-        customer: 'Müşteri',
-        assistant: 'Asistan',
-        session: 'Oturum',
-        messageCount: 'Mesaj',
-        updatedAt: 'Son aktivite',
-        createdAt: 'Başlangıç',
-        liveRequested: 'Canlı destek istendi',
-        liveActive: 'Canlı temsilci aktif',
-        liveByName: '{name} canlı yanıt veriyor',
-        aiManaged: 'Konuşmayı AI yönetiyor',
-        takeOver: 'Konuşmayı devral',
-        claiming: 'Devralınıyor...',
-        returnToAi: "AI'a geri ver",
-        returning: 'Geri veriliyor...',
-        replyPlaceholder: 'Müşteriye gönderilecek mesajı yazın...',
-        sendReply: 'Mesajı gönder',
-        sendingReply: 'Gönderiliyor...',
-        liveReplySent: 'Canlı yanıt gönderildi',
-        liveReplyFailed: 'Canlı yanıt gönderilemedi',
-        claimed: 'Konuşma devralındı',
-        claimFailed: 'Konuşma devralınamadı',
-        returned: "Konuşma AI'a geri verildi",
-        returnFailed: "Konuşma AI'a geri verilemedi",
-        noMessages: 'Bu konuşmada henüz mesaj yok',
-        customerPanel: 'Müşteri paneli',
-        customerData: 'Müşteri özeti',
-        noCustomerData: 'Bu numarayla eşleşen müşteri kaydı bulunamadı.',
-        tags: 'Etiketler',
-        notes: 'Notlar',
-        contact: 'İrtibat',
-        company: 'Şirket',
-        customFields: 'Özel alanlar',
-        conversation: 'Konuşma',
-        youOwnThis: 'Bu konuşma sende. AI yanıtları duraklatıldı.',
-        claimedByOther: 'Bu konuşma başka bir ekip üyesinde aktif.',
-        aiDescription: 'İstersen manuel olarak devralabilir, iş bitince AI’a geri verebilirsin.',
-        stillWaiting: 'Bu konuşma canlı temsilci bekliyor.',
-        liveRequestedShort: 'Canlı bekliyor',
-        liveActiveShort: 'Canlı aktif',
-        liveOwnedShort: 'Sende',
-        aiManagedShort: 'AI',
-        details: 'Detaylar',
-        noCustomerDataShort: 'Eşleşen müşteri kaydı yok',
-        threadEmpty: 'Soldan bir WhatsApp konuşması seçin.',
-        loadingThread: 'Konuşma yükleniyor...',
-        loadFailed: 'WhatsApp konuşmaları yüklenemedi',
-        detailFailed: 'Konuşma detayları yüklenemedi',
-      }
-    : {
-        title: 'WhatsApp Inbox',
-        subtitle: 'Live takeover and manual replies.',
-        refresh: 'Refresh',
-        refreshing: 'Refreshing...',
-        searchPlaceholder: 'Search by phone or session...',
-        all: 'All',
-        waiting: 'Waiting',
-        live: 'Live',
-        ai: 'AI',
-        noConversations: 'No WhatsApp conversations yet',
-        noConversationsDesc: 'Incoming WhatsApp threads will appear here.',
-        pendingQueue: 'Waiting for teammate',
-        pendingQueueDesc: 'Threads move here when the customer asks for a real person.',
-        pendingShort: 'Waiting',
-        customer: 'Customer',
-        assistant: 'Assistant',
-        session: 'Session',
-        messageCount: 'Messages',
-        updatedAt: 'Last activity',
-        createdAt: 'Started',
-        liveRequested: 'Live support requested',
-        liveActive: 'Live teammate active',
-        liveByName: '{name} is replying live',
-        aiManaged: 'AI is handling this conversation',
-        takeOver: 'Take over conversation',
-        claiming: 'Claiming...',
-        returnToAi: 'Return to AI',
-        returning: 'Returning...',
-        replyPlaceholder: 'Write the message that should be sent to the customer...',
-        sendReply: 'Send message',
-        sendingReply: 'Sending...',
-        liveReplySent: 'Live reply sent',
-        liveReplyFailed: 'Failed to send live reply',
-        claimed: 'Conversation claimed',
-        claimFailed: 'Failed to claim conversation',
-        returned: 'Conversation returned to AI',
-        returnFailed: 'Failed to return conversation to AI',
-        noMessages: 'No messages in this conversation yet',
-        customerPanel: 'Customer panel',
-        customerData: 'Customer summary',
-        noCustomerData: 'No customer record matched this phone number.',
-        tags: 'Tags',
-        notes: 'Notes',
-        contact: 'Contact',
-        company: 'Company',
-        customFields: 'Custom fields',
-        conversation: 'Conversation',
-        youOwnThis: 'You own this conversation. AI replies are paused.',
-        claimedByOther: 'Another teammate is actively handling this conversation.',
-        aiDescription: 'You can take over manually and hand it back to AI when finished.',
-        stillWaiting: 'This conversation is waiting for a live teammate.',
-        liveRequestedShort: 'Waiting',
-        liveActiveShort: 'Live',
-        liveOwnedShort: 'Yours',
-        aiManagedShort: 'AI',
-        details: 'Details',
-        noCustomerDataShort: 'No matched record',
-        threadEmpty: 'Select a WhatsApp conversation from the left.',
-        loadingThread: 'Loading conversation...',
-        loadFailed: 'Failed to load WhatsApp conversations',
-        detailFailed: 'Failed to load conversation details',
-      };
+  const t = {
+    title: translate('dashboard.whatsappInboxPage.title'),
+    subtitle: translate('dashboard.whatsappInboxPage.subtitle'),
+    refresh: translate('dashboard.whatsappInboxPage.refresh'),
+    refreshing: translate('dashboard.whatsappInboxPage.refreshing'),
+    searchPlaceholder: translate('dashboard.whatsappInboxPage.searchPlaceholder'),
+    all: translate('dashboard.whatsappInboxPage.all'),
+    waiting: translate('dashboard.whatsappInboxPage.waiting'),
+    live: translate('dashboard.whatsappInboxPage.live'),
+    ai: translate('dashboard.whatsappInboxPage.ai'),
+    noConversations: translate('dashboard.whatsappInboxPage.noConversations'),
+    noConversationsDesc: translate('dashboard.whatsappInboxPage.noConversationsDesc'),
+    pendingQueue: translate('dashboard.whatsappInboxPage.pendingQueue'),
+    pendingQueueDesc: translate('dashboard.whatsappInboxPage.pendingQueueDesc'),
+    pendingShort: translate('dashboard.whatsappInboxPage.pendingShort'),
+    customer: translate('dashboard.whatsappInboxPage.customer'),
+    assistant: translate('dashboard.whatsappInboxPage.assistant'),
+    session: translate('dashboard.whatsappInboxPage.session'),
+    messageCount: translate('dashboard.whatsappInboxPage.messageCount'),
+    updatedAt: translate('dashboard.whatsappInboxPage.updatedAt'),
+    createdAt: translate('dashboard.whatsappInboxPage.createdAt'),
+    liveRequested: translate('dashboard.whatsappInboxPage.liveRequested'),
+    liveActive: translate('dashboard.whatsappInboxPage.liveActive'),
+    liveByName: translate('dashboard.whatsappInboxPage.liveByName'),
+    aiManaged: translate('dashboard.whatsappInboxPage.aiManaged'),
+    takeOver: translate('dashboard.whatsappInboxPage.takeOver'),
+    takeOverShort: translate('dashboard.whatsappInboxPage.takeOverShort'),
+    claiming: translate('dashboard.whatsappInboxPage.claiming'),
+    returnToAi: translate('dashboard.whatsappInboxPage.returnToAi'),
+    backToAiShort: translate('dashboard.whatsappInboxPage.backToAiShort'),
+    returning: translate('dashboard.whatsappInboxPage.returning'),
+    replyPlaceholder: translate('dashboard.whatsappInboxPage.replyPlaceholder'),
+    sendReply: translate('dashboard.whatsappInboxPage.sendReply'),
+    sendingReply: translate('dashboard.whatsappInboxPage.sendingReply'),
+    liveReplySent: translate('dashboard.whatsappInboxPage.liveReplySent'),
+    liveReplyFailed: translate('dashboard.whatsappInboxPage.liveReplyFailed'),
+    claimed: translate('dashboard.whatsappInboxPage.claimed'),
+    claimFailed: translate('dashboard.whatsappInboxPage.claimFailed'),
+    returned: translate('dashboard.whatsappInboxPage.returned'),
+    returnFailed: translate('dashboard.whatsappInboxPage.returnFailed'),
+    noMessages: translate('dashboard.whatsappInboxPage.noMessages'),
+    customerPanel: translate('dashboard.whatsappInboxPage.customerPanel'),
+    customerData: translate('dashboard.whatsappInboxPage.customerData'),
+    noCustomerData: translate('dashboard.whatsappInboxPage.noCustomerData'),
+    tags: translate('dashboard.whatsappInboxPage.tags'),
+    notes: translate('dashboard.whatsappInboxPage.notes'),
+    contact: translate('dashboard.whatsappInboxPage.contact'),
+    company: translate('dashboard.whatsappInboxPage.company'),
+    customFields: translate('dashboard.whatsappInboxPage.customFields'),
+    conversation: translate('dashboard.whatsappInboxPage.conversation'),
+    youOwnThis: translate('dashboard.whatsappInboxPage.youOwnThis'),
+    claimedByOther: translate('dashboard.whatsappInboxPage.claimedByOther'),
+    aiDescription: translate('dashboard.whatsappInboxPage.aiDescription'),
+    stillWaiting: translate('dashboard.whatsappInboxPage.stillWaiting'),
+    liveRequestedShort: translate('dashboard.whatsappInboxPage.liveRequestedShort'),
+    liveActiveShort: translate('dashboard.whatsappInboxPage.liveActiveShort'),
+    liveOwnedShort: translate('dashboard.whatsappInboxPage.liveOwnedShort'),
+    aiManagedShort: translate('dashboard.whatsappInboxPage.aiManagedShort'),
+    completedShort: translate('dashboard.whatsappInboxPage.completedShort'),
+    details: translate('dashboard.whatsappInboxPage.details'),
+    noCustomerDataShort: translate('dashboard.whatsappInboxPage.noCustomerDataShort'),
+    noPhoneAvailable: translate('dashboard.whatsappInboxPage.noPhoneAvailable'),
+    threadEmpty: translate('dashboard.whatsappInboxPage.threadEmpty'),
+    loadingThread: translate('dashboard.whatsappInboxPage.loadingThread'),
+    loadFailed: translate('dashboard.whatsappInboxPage.loadFailed'),
+    detailFailed: translate('dashboard.whatsappInboxPage.detailFailed'),
+    systemLabel: translate('dashboard.whatsappInboxPage.systemLabel'),
+    aiLabel: translate('dashboard.whatsappInboxPage.aiLabel'),
+    featureDisabledTitle: translate('dashboard.whatsappInboxPage.featureDisabledTitle'),
+    featureDisabledDescription: translate('dashboard.whatsappInboxPage.featureDisabledDescription'),
+    completedDescription: translate('dashboard.whatsappInboxPage.completedDescription'),
+  };
 
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -292,6 +267,7 @@ export default function WhatsAppInboxPage() {
   const [customerData, setCustomerData] = useState(null);
   const [customerLoading, setCustomerLoading] = useState(false);
   const threadScrollRef = useRef(null);
+  const requestedChatIdHandledRef = useRef(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchInput.trim()), 300);
@@ -328,6 +304,9 @@ export default function WhatsAppInboxPage() {
 
       setConversations(rows);
       setSelectedChatId((prev) => {
+        if (requestedChatId && requestedChatIdHandledRef.current !== requestedChatId && rows.some((row) => row.id === requestedChatId)) {
+          return requestedChatId;
+        }
         if (prev && rows.some((row) => row.id === prev)) return prev;
         return rows[0]?.id || null;
       });
@@ -369,6 +348,22 @@ export default function WhatsAppInboxPage() {
   }, [selectedChatId]);
 
   useEffect(() => {
+    if (!requestedChatId) {
+      requestedChatIdHandledRef.current = null;
+      return;
+    }
+
+    if (!requestedChatId || conversations.length === 0) return;
+    if (requestedChatIdHandledRef.current === requestedChatId) return;
+    if (conversations.some((chat) => chat.id === requestedChatId)) {
+      requestedChatIdHandledRef.current = requestedChatId;
+      if (selectedChatId !== requestedChatId) {
+        setSelectedChatId(requestedChatId);
+      }
+    }
+  }, [requestedChatId, conversations, selectedChatId]);
+
+  useEffect(() => {
     const interval = setInterval(() => {
       if (document.visibilityState === 'visible') {
         loadConversations({ silent: true });
@@ -391,7 +386,7 @@ export default function WhatsAppInboxPage() {
   }, [selectedChatId]);
 
   useEffect(() => {
-    if (!selectedChat?.customerPhone) {
+    if (!hasMeaningfulPhone(selectedChat?.customerPhone)) {
       setCustomerData(null);
       return;
     }
@@ -399,7 +394,7 @@ export default function WhatsAppInboxPage() {
     let cancelled = false;
     setCustomerLoading(true);
 
-    apiClient.customerData.lookup(selectedChat.customerPhone)
+    apiClient.customerData.lookup(formatPhone(selectedChat.customerPhone, ''))
       .then((response) => {
         if (!cancelled) {
           setCustomerData(response.data?.customer || null);
@@ -553,7 +548,7 @@ export default function WhatsAppInboxPage() {
             <div className="flex items-center gap-2">
               <Phone className="h-3.5 w-3.5 text-neutral-400" />
               <p className="truncate text-sm font-semibold text-neutral-900 dark:text-white">
-                {chat.customerPhone || chat.sessionId?.slice(0, 10)}
+                {formatPhone(chat.customerPhone, chat.sessionId?.slice(0, 10) || '—')}
               </p>
             </div>
             <p className="mt-1 line-clamp-2 text-xs text-neutral-500 dark:text-neutral-400">
@@ -566,7 +561,7 @@ export default function WhatsAppInboxPage() {
         </div>
 
         <div className="mt-3 flex items-center justify-between gap-2">
-          {getHandoffBadge(chat?.handoff?.mode, chat?.handoff?.assignedUserName, t)}
+          {getHandoffBadge(chat?.handoff?.mode, chat?.handoff?.assignedUserName, t, chat?.status)}
           <span className="inline-flex items-center gap-1 text-[11px] text-neutral-500 dark:text-neutral-400">
             <Hash className="h-3 w-3" />
             {chat.messageCount || 0}
@@ -594,8 +589,8 @@ export default function WhatsAppInboxPage() {
       : isHuman
         ? (message?.metadata?.actorName || t.liveActive)
         : isSystem
-          ? 'System'
-          : 'AI';
+          ? t.systemLabel
+          : t.aiLabel;
 
     return (
       <div key={`${getMessageTimestamp(message) || 'msg'}-${index}`} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
@@ -619,10 +614,8 @@ export default function WhatsAppInboxPage() {
           <div className="w-full max-w-xl rounded-2xl border border-dashed border-neutral-300 bg-white p-8 dark:border-neutral-800 dark:bg-neutral-950">
             <EmptyState
               icon={AlertCircle}
-              title={locale === 'tr' ? 'WhatsApp live handoff beta için kapalı' : 'WhatsApp live handoff is disabled for this environment'}
-              description={locale === 'tr'
-                ? 'Bu panel yalnızca beta testinde açılacak şekilde feature flag arkasına alındı.'
-                : 'This workspace is protected behind a feature flag and should only be enabled for beta testing.'}
+              title={t.featureDisabledTitle}
+              description={t.featureDisabledDescription}
             />
           </div>
         </div>
@@ -713,7 +706,7 @@ export default function WhatsAppInboxPage() {
                   <div className="flex items-center gap-2">
                     <Phone className="h-4 w-4 text-neutral-400" />
                     <h2 className="truncate text-lg font-semibold text-neutral-900 dark:text-white">
-                      {selectedChat.customerPhone || selectedChat.sessionId}
+                      {formatPhone(selectedChat.customerPhone, selectedChat.sessionId)}
                     </h2>
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
@@ -732,10 +725,10 @@ export default function WhatsAppInboxPage() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  {!selectedChat?.handoff?.currentUserIsAssignee && (
+                  {selectedChat?.status === 'active' && !selectedChat?.handoff?.currentUserIsAssignee && (
                     <Button
                       onClick={handleClaimConversation}
-                      disabled={handoffAction === 'claim' || (selectedChat?.handoff?.mode === 'ACTIVE' && !selectedChat?.handoff?.canClaim)}
+                      disabled={handoffAction === 'claim' || selectedChat?.status !== 'active' || !selectedChat?.handoff?.canClaim}
                     >
                       {handoffAction === 'claim' ? (
                         <>
@@ -745,13 +738,13 @@ export default function WhatsAppInboxPage() {
                       ) : (
                         <>
                           <Headphones className="mr-2 h-4 w-4" />
-                          {locale === 'tr' ? 'Devral' : 'Take over'}
+                          {t.takeOverShort}
                         </>
                       )}
                     </Button>
                   )}
 
-                  {selectedChat?.handoff?.canReturnToAi && (
+                  {selectedChat?.status === 'active' && selectedChat?.handoff?.canReturnToAi && (
                     <Button variant="outline" onClick={handleReturnToAi} disabled={handoffAction === 'release'}>
                       {handoffAction === 'release' ? (
                         <>
@@ -761,7 +754,7 @@ export default function WhatsAppInboxPage() {
                       ) : (
                         <>
                           <Bot className="mr-2 h-4 w-4" />
-                          {locale === 'tr' ? "AI'a ver" : 'Back to AI'}
+                          {t.backToAiShort}
                         </>
                       )}
                     </Button>
@@ -794,7 +787,7 @@ export default function WhatsAppInboxPage() {
                 </div>
 
                 <div className="border-t border-neutral-200 px-5 py-4 dark:border-neutral-800">
-                  {selectedChat?.handoff?.canReply ? (
+                  {selectedChat?.status === 'active' && selectedChat?.handoff?.canReply ? (
                     <form className="space-y-3" onSubmit={handleReplySubmit}>
                       <Textarea
                         value={replyDraft}
@@ -823,7 +816,9 @@ export default function WhatsAppInboxPage() {
                     </form>
                   ) : (
                     <div className="text-xs text-neutral-500 dark:text-neutral-400">
-                      {selectedChat?.handoff?.mode === 'AI'
+                      {selectedChat?.status !== 'active'
+                        ? t.completedDescription
+                        : selectedChat?.handoff?.mode === 'AI'
                         ? t.aiDescription
                         : selectedChat?.handoff?.mode === 'REQUESTED'
                           ? t.stillWaiting
@@ -852,12 +847,12 @@ export default function WhatsAppInboxPage() {
                         <div className="mt-4 space-y-4 text-sm">
                           <div>
                             <div className="text-lg font-semibold text-neutral-900 dark:text-white">
-                              {customerData?.companyName || customerData?.contactName || selectedChat.customerPhone || '—'}
+                              {customerData?.companyName || customerData?.contactName || formatPhone(selectedChat.customerPhone)}
                             </div>
                             <div className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
                               {customerData?.contactName && customerData?.companyName
                                 ? customerData.contactName
-                                : selectedChat.customerPhone || t.noCustomerDataShort}
+                                : formatPhone(selectedChat.customerPhone, t.noPhoneAvailable)}
                             </div>
                           </div>
 

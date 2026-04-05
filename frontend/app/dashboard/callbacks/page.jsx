@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCallbacks, useCallbackStats, useCallbackDetail, useUpdateCallback, useRetryCallback } from '@/hooks/useCallbacks';
 import {
@@ -56,14 +56,28 @@ const PRIORITY_CONFIG = {
   LOW: { tKey: 'dashboard.callbacksPage.priorityLow', color: 'text-neutral-700 dark:text-neutral-400', dot: 'bg-green-500' }
 };
 
+const PHONE_PLACEHOLDER_VALUES = new Set(['none', 'null', 'undefined', 'unknown', 'bilinmiyor', 'n/a', 'na', '-']);
+
+function hasMeaningfulPhone(value) {
+  if (value === undefined || value === null) return false;
+  const raw = String(value).trim();
+  if (!raw) return false;
+  if (PHONE_PLACEHOLDER_VALUES.has(raw.toLowerCase())) return false;
+  return raw.replace(/\D/g, '').length >= 10;
+}
+
+function formatPhone(value, fallback = '—') {
+  return hasMeaningfulPhone(value) ? String(value).trim() : fallback;
+}
+
 export default function CallbacksPage() {
   const { t, locale } = useLanguage();
   const pageHelp = getPageHelp('callbacks', locale);
   const router = useRouter();
 
   // React Query hooks
-  const { data: callbacksData, isLoading: callbacksLoading } = useCallbacks();
-  const { data: statsData } = useCallbackStats();
+  const { data: callbacksData, isLoading: callbacksLoading, refetch: refetchCallbacks } = useCallbacks();
+  const { data: statsData, refetch: refetchStats } = useCallbackStats();
   const updateCallback = useUpdateCallback();
   const retryCallback = useRetryCallback();
 
@@ -83,6 +97,13 @@ export default function CallbacksPage() {
   const { data: detailData, isLoading: detailLoading } = useCallbackDetail(
     selectedCallback?.id
   );
+  const activeCallback = detailData || selectedCallback;
+
+  useEffect(() => {
+    if (!detailData) return;
+    setNotes(detailData.notes || '');
+    setCallbackNotes(detailData.callbackNotes || '');
+  }, [detailData]);
 
   const updateStatus = async (id, status) => {
     try {
@@ -129,7 +150,7 @@ export default function CallbacksPage() {
       const query = searchQuery.toLowerCase();
       return (
         cb.customerName?.toLowerCase().includes(query) ||
-        cb.customerPhone?.includes(query) ||
+        (hasMeaningfulPhone(cb.customerPhone) && cb.customerPhone.includes(query)) ||
         cb.topic?.toLowerCase().includes(query)
       );
     }
@@ -150,7 +171,7 @@ export default function CallbacksPage() {
           quickSteps: pageHelp.quickSteps,
         }}
         actions={
-          <Button onClick={() => { fetchCallbacks(); fetchStats(); }} variant="outline" size="sm">
+          <Button onClick={() => { refetchCallbacks(); refetchStats(); }} variant="outline" size="sm">
             <RefreshCw className="h-4 w-4 mr-2" />
             {t('dashboard.callbacksPage.refresh')}
           </Button>
@@ -260,7 +281,7 @@ export default function CallbacksPage() {
                         <div className="flex items-center gap-3">
                           <div>
                             <div className="text-sm font-medium text-neutral-900 dark:text-white">{callback.customerName}</div>
-                            <div className="text-xs text-neutral-500">{callback.customerPhone}</div>
+                            <div className="text-xs text-neutral-500">{formatPhone(callback.customerPhone)}</div>
                           </div>
                         </div>
                       </td>
@@ -348,7 +369,7 @@ export default function CallbacksPage() {
           <DialogHeader>
             <DialogTitle>{t('dashboard.callbacksPage.details')}</DialogTitle>
             <DialogDescription>
-              {selectedCallback?.customerName} - {selectedCallback?.customerPhone}
+              {activeCallback?.customerName} - {formatPhone(activeCallback?.customerPhone)}
             </DialogDescription>
           </DialogHeader>
 
@@ -356,7 +377,7 @@ export default function CallbacksPage() {
             {/* Topic */}
             <div>
               <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">{t('dashboard.callbacksPage.topic')}</label>
-              <p className="mt-1 text-neutral-900 dark:text-white">{selectedCallback?.topic}</p>
+              <p className="mt-1 text-neutral-900 dark:text-white">{activeCallback?.topic}</p>
             </div>
 
             {/* Status & Priority */}
@@ -364,31 +385,31 @@ export default function CallbacksPage() {
               <div>
                 <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">{t('dashboard.callbacksPage.status')}</label>
                 <div className="mt-1">
-                  <span className={`px-2 py-1 rounded text-xs font-medium ${STATUS_CONFIG[selectedCallback?.status]?.color}`}>
-                    {STATUS_CONFIG[selectedCallback?.status]?.tKey ? t(STATUS_CONFIG[selectedCallback?.status].tKey) : selectedCallback?.status}
+                  <span className={`px-2 py-1 rounded text-xs font-medium ${STATUS_CONFIG[activeCallback?.status]?.color}`}>
+                    {STATUS_CONFIG[activeCallback?.status]?.tKey ? t(STATUS_CONFIG[activeCallback?.status].tKey) : activeCallback?.status}
                   </span>
                 </div>
               </div>
               <div>
                 <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">{t('dashboard.callbacksPage.priority')}</label>
                 <div className="mt-1">
-                  <span className={`px-2 py-1 rounded text-xs font-medium ${PRIORITY_CONFIG[selectedCallback?.priority]?.color}`}>
-                    {PRIORITY_CONFIG[selectedCallback?.priority]?.tKey ? t(PRIORITY_CONFIG[selectedCallback?.priority].tKey) : selectedCallback?.priority}
+                  <span className={`px-2 py-1 rounded text-xs font-medium ${PRIORITY_CONFIG[activeCallback?.priority]?.color}`}>
+                    {PRIORITY_CONFIG[activeCallback?.priority]?.tKey ? t(PRIORITY_CONFIG[activeCallback?.priority].tKey) : activeCallback?.priority}
                   </span>
                 </div>
               </div>
             </div>
 
             {/* Assistant */}
-            {selectedCallback?.assistant && (
+            {activeCallback?.assistant && (
               <div>
                 <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">{t('dashboard.callbacksPage.assistant')}</label>
-                <p className="mt-1 text-neutral-900 dark:text-white">{selectedCallback.assistant.name}</p>
+                <p className="mt-1 text-neutral-900 dark:text-white">{activeCallback.assistant.name}</p>
               </div>
             )}
 
             {/* Chat History — link to chat detail page */}
-            {detailLoading && selectedCallback?.id && (
+            {detailLoading && activeCallback?.id && (
               <div className="text-sm text-neutral-400 italic py-2">{t('common.loading')}</div>
             )}
             {!detailLoading && detailData?.chatTranscript && (
@@ -399,7 +420,11 @@ export default function CallbacksPage() {
                 <Button
                   variant="outline"
                   className="mt-2 w-full justify-between"
-                  onClick={() => router.push(`/dashboard/chats?chatId=${detailData.chatTranscript.id}`)}
+                  onClick={() => router.push(
+                    detailData.chatTranscript.channel === 'WHATSAPP'
+                      ? `/dashboard/whatsapp?chatId=${detailData.chatTranscript.id}`
+                      : `/dashboard/chats?chatId=${detailData.chatTranscript.id}`
+                  )}
                 >
                   <span className="flex items-center gap-2">
                     <MessageSquare className="h-4 w-4" />

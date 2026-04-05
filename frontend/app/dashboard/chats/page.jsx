@@ -5,7 +5,8 @@
 
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -93,8 +94,23 @@ function generatePageNumbers(currentPage, totalPages) {
   return pages;
 }
 
+const PHONE_PLACEHOLDER_VALUES = new Set(['none', 'null', 'undefined', 'unknown', 'bilinmiyor', 'n/a', 'na', '-']);
+
+function hasMeaningfulPhone(value) {
+  if (value === undefined || value === null) return false;
+  const raw = String(value).trim();
+  if (!raw) return false;
+  if (PHONE_PLACEHOLDER_VALUES.has(raw.toLowerCase())) return false;
+  return raw.replace(/\D/g, '').length >= 10;
+}
+
+function formatPhone(value, fallback = '—') {
+  return hasMeaningfulPhone(value) ? String(value).trim() : fallback;
+}
+
 export default function ChatsPage() {
   const { t, locale } = useLanguage();
+  const searchParams = useSearchParams();
   const [chats, setChats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
@@ -107,6 +123,8 @@ export default function ChatsPage() {
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 0 });
   const [liveReply, setLiveReply] = useState('');
   const [handoffAction, setHandoffAction] = useState(null);
+  const requestedChatId = searchParams.get('chatId');
+  const requestedChatIdHandledRef = useRef(null);
 
   const handoffPriority = (chat) => {
     const mode = chat?.handoff?.mode;
@@ -232,6 +250,24 @@ export default function ChatsPage() {
 
     return () => clearInterval(interval);
   }, [showChatModal, selectedChat?.id, selectedChat?.channel]);
+
+  useEffect(() => {
+    if (!requestedChatId) {
+      requestedChatIdHandledRef.current = null;
+      return;
+    }
+
+    if (!requestedChatId || loading || isInitialLoad) {
+      return;
+    }
+
+    if (requestedChatIdHandledRef.current === requestedChatId) {
+      return;
+    }
+
+    requestedChatIdHandledRef.current = requestedChatId;
+    loadChatDetails(requestedChatId, { openModal: true, silent: true });
+  }, [requestedChatId, loading, isInitialLoad, selectedChat?.id, showChatModal]);
 
   const loadChats = async () => {
     setLoading(true);
@@ -406,7 +442,15 @@ export default function ChatsPage() {
     );
   };
 
-  const getHandoffBadge = (handoff) => {
+  const getHandoffBadge = (handoff, status = 'active') => {
+    if (status !== 'active') {
+      return (
+        <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300">
+          {t('dashboard.chatsPage.completed')}
+        </Badge>
+      );
+    }
+
     const mode = handoff?.mode || 'AI';
 
     if (mode === 'REQUESTED') {
@@ -585,7 +629,7 @@ export default function ChatsPage() {
                   className="border-amber-200 bg-white/80 text-amber-800 hover:bg-white dark:border-amber-900/40 dark:bg-transparent dark:text-amber-200"
                   onClick={() => handleViewChat(chat.id)}
                 >
-                  {chat.customerPhone || chat.sessionId.slice(0, 8)}
+                  {formatPhone(chat.customerPhone, chat.sessionId.slice(0, 8))}
                 </Button>
               ))}
             </div>
@@ -623,7 +667,12 @@ export default function ChatsPage() {
                     </span>
                   </TableCell>
                   <TableCell>
-                    {getChannelBadge(chat.channel)}
+                    <div className="space-y-1">
+                      {getChannelBadge(chat.channel)}
+                      {chat.channel === 'WHATSAPP' && hasMeaningfulPhone(chat.customerPhone) && (
+                        <div className="text-xs text-gray-500 dark:text-gray-400">{formatPhone(chat.customerPhone)}</div>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <span className="text-sm font-medium text-gray-900 dark:text-white flex items-center gap-1">
@@ -634,7 +683,7 @@ export default function ChatsPage() {
                   <TableCell>
                     <div className="space-y-2">
                       {getStatusIndicator(chat.status)}
-                      {getHandoffBadge(chat.handoff)}
+                      {getHandoffBadge(chat.handoff, chat.status)}
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
@@ -743,9 +792,15 @@ export default function ChatsPage() {
                   <p className="font-medium">{selectedChat.assistant?.name || '-'}</p>
                 </div>
                 {selectedChat.channel === 'WHATSAPP' && (
+                  <div>
+                    <span className="text-gray-500">{t('dashboard.callbacksPage.customer')}</span>
+                    <p className="font-medium">{formatPhone(selectedChat.customerPhone)}</p>
+                  </div>
+                )}
+                {selectedChat.channel === 'WHATSAPP' && (
                   <div className="col-span-2">
                     <span className="text-gray-500">{t('dashboard.chatsPage.liveMode')}</span>
-                    <div className="mt-2">{getHandoffBadge(selectedChat.handoff)}</div>
+                    <div className="mt-2">{getHandoffBadge(selectedChat.handoff, selectedChat.status)}</div>
                   </div>
                 )}
               </div>
@@ -758,7 +813,9 @@ export default function ChatsPage() {
                         {t('dashboard.chatsPage.liveHandoffPanelTitle')}
                       </h4>
                       <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                        {selectedChat.handoff?.mode === 'REQUESTED'
+                        {selectedChat.status !== 'active'
+                          ? t('dashboard.chatsPage.completed')
+                          : selectedChat.handoff?.mode === 'REQUESTED'
                           ? t('dashboard.chatsPage.liveHandoffWaitingDescription')
                           : selectedChat.handoff?.mode === 'ACTIVE'
                             ? (selectedChat.handoff?.currentUserIsAssignee
@@ -768,11 +825,11 @@ export default function ChatsPage() {
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {!selectedChat.handoff?.currentUserIsAssignee && (
+                      {selectedChat.status === 'active' && selectedChat.handoff?.canClaim && (
                         <Button
                           size="sm"
                           onClick={handleClaimConversation}
-                          disabled={handoffAction === 'claim' || (selectedChat.handoff?.mode === 'ACTIVE' && !selectedChat.handoff?.canClaim)}
+                          disabled={handoffAction === 'claim'}
                         >
                           {handoffAction === 'claim' ? (
                             <>
@@ -790,7 +847,7 @@ export default function ChatsPage() {
                         </Button>
                       )}
 
-                      {selectedChat.handoff?.canReturnToAi && (
+                      {selectedChat.status === 'active' && selectedChat.handoff?.canReturnToAi && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -813,7 +870,7 @@ export default function ChatsPage() {
                     </div>
                   </div>
 
-                  {selectedChat.handoff?.canReply && (
+                  {selectedChat.status === 'active' && selectedChat.handoff?.canReply && (
                     <div className="mt-4 space-y-3">
                       <Textarea
                         value={liveReply}

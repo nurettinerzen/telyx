@@ -158,10 +158,35 @@ const PLACEHOLDER_NAMES = new Set([
   'na'
 ]);
 
+const PLACEHOLDER_PHONES = new Set([
+  'none',
+  'null',
+  'undefined',
+  'unknown',
+  'bilinmiyor',
+  'n/a',
+  'na',
+  '-'
+]);
+
 function isPlaceholderName(name) {
   if (!name) return true;
   const normalized = String(name).trim().toLowerCase();
   return !normalized || PLACEHOLDER_NAMES.has(normalized);
+}
+
+function normalizeCallbackPhone(value) {
+  if (value === undefined || value === null) return null;
+
+  const raw = String(value).trim();
+  if (!raw) return null;
+  if (PLACEHOLDER_PHONES.has(raw.toLowerCase())) return null;
+
+  const compact = raw.replace(/[^\d+]/g, '');
+  const digits = compact.replace(/\D/g, '');
+  if (digits.length < 10 || digits.length > 13) return null;
+
+  return compact.startsWith('+') ? `+${digits}` : digits;
 }
 
 function buildCallbackValidationError(language, missingFields) {
@@ -200,6 +225,14 @@ export default {
     try {
       let { customerName, customerPhone, topic, priority = 'NORMAL' } = args;
       const language = business.language || 'TR';
+      customerPhone =
+        normalizeCallbackPhone(customerPhone) ||
+        normalizeCallbackPhone(context?.extractedSlots?.phone) ||
+        normalizeCallbackPhone(context?.channelUserId) ||
+        normalizeCallbackPhone(context?.from) ||
+        normalizeCallbackPhone(context?.phone) ||
+        normalizeCallbackPhone(context?.callerPhone) ||
+        normalizeCallbackPhone(context?.phoneNumber);
 
       // Deterministic contract: callback cannot proceed without real name + phone.
       const missing = [];
