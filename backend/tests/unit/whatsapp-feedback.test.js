@@ -7,6 +7,7 @@ const {
   getWhatsAppNegativeFeedbackReasonPrompt,
   getWhatsAppFeedbackPrompt,
   getWhatsAppFeedbackThankYouMessage,
+  isClosingWhatsAppFeedbackMessage,
   isMeaningfulWhatsAppFeedbackMessage,
   markWhatsAppFeedbackPromptSent,
   markWhatsAppFeedbackReasonPromptSent,
@@ -32,23 +33,27 @@ describe('whatsappFeedback service', () => {
     });
   });
 
-  it('prompts only after enough assistant turns, context, and only once', () => {
+  it('prompts after the first meaningful tool-backed result and once more on closing if unanswered', () => {
     const base = registerUserMessageForWhatsAppFeedback({}, 'Siparişim nerede?');
     const oneTurn = registerAssistantReplyForWhatsAppFeedback(base, { traceId: 'trace_1' });
-    expect(shouldPromptWhatsAppFeedback({ state: oneTurn })).toBe(false);
+    expect(shouldPromptWhatsAppFeedback({ state: oneTurn, trigger: 'meaningful_result' })).toBe(true);
 
-    const twoTurns = registerAssistantReplyForWhatsAppFeedback(oneTurn, { traceId: 'trace_2' });
-    expect(shouldPromptWhatsAppFeedback({ state: twoTurns })).toBe(true);
-
-    const threeTurns = registerAssistantReplyForWhatsAppFeedback(twoTurns, { traceId: 'trace_3' });
-    expect(shouldPromptWhatsAppFeedback({ state: threeTurns })).toBe(true);
-
-    const prompted = markWhatsAppFeedbackPromptSent(twoTurns, {
-      traceId: 'trace_2',
-      promptMessageId: 'feedback-prompt:sess_1:2',
+    const prompted = markWhatsAppFeedbackPromptSent(oneTurn, {
+      traceId: 'trace_1',
+      promptMessageId: 'feedback-prompt:sess_1:1',
+      trigger: 'meaningful_result',
       now: '2026-04-05T12:00:00.000Z',
     });
-    expect(shouldPromptWhatsAppFeedback({ state: prompted })).toBe(false);
+    expect(shouldPromptWhatsAppFeedback({ state: prompted, trigger: 'meaningful_result' })).toBe(false);
+    expect(shouldPromptWhatsAppFeedback({ state: prompted, trigger: 'closing' })).toBe(true);
+
+    const promptedTwice = markWhatsAppFeedbackPromptSent(prompted, {
+      traceId: 'trace_2',
+      promptMessageId: 'feedback-prompt:sess_1:2',
+      trigger: 'closing',
+      now: '2026-04-05T12:01:00.000Z',
+    });
+    expect(shouldPromptWhatsAppFeedback({ state: promptedTwice, trigger: 'closing' })).toBe(false);
   });
 
   it('does not prompt while a live handoff or callback flow is active', () => {
@@ -123,5 +128,11 @@ describe('whatsappFeedback service', () => {
     expect(isMeaningfulWhatsAppFeedbackMessage('selam')).toBe(false);
     expect(isMeaningfulWhatsAppFeedbackMessage('nasılsın')).toBe(false);
     expect(isMeaningfulWhatsAppFeedbackMessage('siparişim nerede')).toBe(true);
+  });
+
+  it('detects natural closing messages for final feedback reminder', () => {
+    expect(isClosingWhatsAppFeedbackMessage('tamam teşekkürler')).toBe(true);
+    expect(isClosingWhatsAppFeedbackMessage('iyi günler')).toBe(true);
+    expect(isClosingWhatsAppFeedbackMessage('siparişim nerede')).toBe(false);
   });
 });

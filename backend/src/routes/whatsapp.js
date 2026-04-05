@@ -89,6 +89,7 @@ import {
   getWhatsAppNegativeFeedbackReasonPrompt,
   getWhatsAppFeedbackPrompt,
   getWhatsAppFeedbackThankYouMessage,
+  isClosingWhatsAppFeedbackMessage,
   isWhatsAppFeedbackEnabled,
   markWhatsAppFeedbackPromptSent,
   markWhatsAppFeedbackReasonPromptSent,
@@ -1302,11 +1303,16 @@ async function processWhatsAppMessage(business, from, messageBody, messageId, tr
         whatsappFeedback: feedbackStateEnvelope.whatsappFeedback,
       });
 
+      const feedbackTrigger = Array.isArray(result.toolsCalled) && result.toolsCalled.length > 0
+        ? 'meaningful_result'
+        : (isClosingWhatsAppFeedbackMessage(messageBody) ? 'closing' : null);
+
       if (shouldPromptWhatsAppFeedback({
         state: feedbackStateEnvelope,
         handoffMode: getNormalizedHandoffState(feedbackStateEnvelope).mode,
         supportRoutingPending: getSupportRoutingState(feedbackStateEnvelope).pendingChoice,
         callbackPending: feedbackStateEnvelope?.callbackFlow?.pending === true,
+        trigger: feedbackTrigger,
       })) {
         const feedbackPrompt = getWhatsAppFeedbackPrompt(language);
         const promptMessageId = `feedback-prompt:${sessionId}:${feedbackStateEnvelope.whatsappFeedback.assistantTurns}`;
@@ -1324,6 +1330,7 @@ async function processWhatsAppMessage(business, from, messageBody, messageId, tr
           const promptedState = markWhatsAppFeedbackPromptSent(feedbackStateEnvelope, {
             traceId: result.traceId || queuedTrace?.traceId || null,
             promptMessageId,
+            trigger: feedbackTrigger,
           });
 
           await updateState(sessionId, {
