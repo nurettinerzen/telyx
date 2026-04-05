@@ -250,7 +250,6 @@ export default function WhatsAppInboxPage() {
     recentSessions: translate('dashboard.whatsappInboxPage.recentSessions'),
     recentSessionsHint: translate('dashboard.whatsappInboxPage.recentSessionsHint'),
     noRecentSessions: translate('dashboard.whatsappInboxPage.noRecentSessions'),
-    currentSession: translate('dashboard.whatsappInboxPage.currentSession'),
     threadEmpty: translate('dashboard.whatsappInboxPage.threadEmpty'),
     loadingThread: translate('dashboard.whatsappInboxPage.loadingThread'),
     loadFailed: translate('dashboard.whatsappInboxPage.loadFailed'),
@@ -945,47 +944,44 @@ export default function WhatsAppInboxPage() {
                             </div>
 
                             <div className="mt-3 space-y-2">
-                              {relatedSessionsLoading ? (
-                                [1, 2, 3].map((row) => (
-                                  <div key={row} className="h-14 animate-pulse rounded-xl bg-neutral-100 dark:bg-neutral-800" />
-                                ))
-                              ) : relatedSessions.length === 0 ? (
-                                <div className="rounded-xl border border-dashed border-neutral-200 px-3 py-3 text-xs text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
-                                  {t.noRecentSessions}
-                                </div>
-                              ) : (
-                                relatedSessions.map((chat) => {
-                                  const isCurrent = chat.id === selectedChat?.id;
+                              {(() => {
+                                const otherSessions = relatedSessions.filter((chat) => chat.id !== selectedChat?.id);
+
+                                if (relatedSessionsLoading) {
+                                  return [1, 2, 3].map((row) => (
+                                    <div key={row} className="h-14 animate-pulse rounded-xl bg-neutral-100 dark:bg-neutral-800" />
+                                  ));
+                                }
+
+                                if (otherSessions.length === 0) {
                                   return (
-                                    <button
-                                      key={chat.id}
-                                      type="button"
-                                      onClick={() => setSelectedChatId(chat.id)}
-                                      className={`w-full rounded-xl border px-3 py-2 text-left transition ${
-                                        isCurrent
-                                          ? 'border-emerald-300 bg-emerald-50/70 dark:border-emerald-800 dark:bg-emerald-950/20'
-                                          : 'border-neutral-200 bg-white hover:border-neutral-300 dark:border-neutral-800 dark:bg-neutral-950 dark:hover:border-neutral-700'
-                                      }`}
-                                    >
-                                      <div className="flex items-center justify-between gap-2">
-                                        <div className="truncate text-xs font-medium text-neutral-900 dark:text-white">
-                                          {formatDateTime(chat.updatedAt || chat.createdAt, locale)}
-                                        </div>
-                                        {isCurrent ? (
-                                          <Badge variant="outline" className="text-[10px]">{t.currentSession}</Badge>
-                                        ) : (
-                                          <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${getCompactStatusClasses(chat)}`}>
-                                            {getCompactStatusLabel(chat, t)}
-                                          </span>
-                                        )}
-                                      </div>
-                                      <div className="mt-1 line-clamp-2 text-xs text-neutral-500 dark:text-neutral-400">
-                                        {buildInboxPreview(chat.messages) || '—'}
-                                      </div>
-                                    </button>
+                                    <div className="rounded-xl border border-dashed border-neutral-200 px-3 py-3 text-xs text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
+                                      {t.noRecentSessions}
+                                    </div>
                                   );
-                                })
-                              )}
+                                }
+
+                                return otherSessions.map((chat) => (
+                                  <button
+                                    key={chat.id}
+                                    type="button"
+                                    onClick={() => setSelectedChatId(chat.id)}
+                                    className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-left transition hover:border-neutral-300 dark:border-neutral-800 dark:bg-neutral-950 dark:hover:border-neutral-700"
+                                  >
+                                    <div className="flex items-center justify-between gap-2">
+                                      <div className="truncate text-xs font-medium text-neutral-900 dark:text-white">
+                                        {formatDateTime(chat.updatedAt || chat.createdAt, locale)}
+                                      </div>
+                                      <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${getCompactStatusClasses(chat)}`}>
+                                        {getCompactStatusLabel(chat, t)}
+                                      </span>
+                                    </div>
+                                    <div className="mt-1 line-clamp-2 text-xs text-neutral-500 dark:text-neutral-400">
+                                      {buildInboxPreview(chat.messages) || '—'}
+                                    </div>
+                                  </button>
+                                ));
+                              })()}
                             </div>
                           </div>
                         </div>
