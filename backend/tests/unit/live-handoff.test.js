@@ -40,6 +40,8 @@ describe('liveHandoff service', () => {
     expect(shouldTriggerHumanHandoff('Canli destek almak istiyorum')).toBe(true);
     expect(shouldTriggerHumanHandoff('yetkili biriyle görüşmek istiyorum')).toBe(true);
     expect(shouldTriggerHumanHandoff('yetkili biriyle gorusmek istiyorum')).toBe(true);
+    expect(shouldTriggerHumanHandoff('yetkili biriyle görüşebilir miyim')).toBe(true);
+    expect(shouldTriggerHumanHandoff('yetkili biriyle gorusebilir miyim')).toBe(true);
     expect(shouldTriggerHumanHandoff('temsilciye bağlar mısın')).toBe(true);
     expect(shouldTriggerHumanHandoff('temsilciye baglar misin')).toBe(true);
     expect(shouldTriggerHumanHandoff('I want to talk to a human agent')).toBe(true);

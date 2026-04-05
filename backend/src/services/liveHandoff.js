@@ -8,8 +8,8 @@ export const HANDOFF_MODE = Object.freeze({
 });
 
 const HUMAN_HANDOFF_PATTERNS = [
-  /\byetkili\s+biri(?:yle)?\s+g[öo]r[üu][sş](?:mek|mek\s+istiyorum|elim)?\b/i,
-  /\bm[üu]şteri\s+temsilcisi(?:yle)?\s+g[öo]r[üu][sş](?:mek|mek\s+istiyorum|elim)?\b/i,
+  /\byetkili\s+biri(?:yle)?\s+g[öo]r[üu](?:ş|s|se|şe|use|üşe)(?:mek|mek\s+istiyorum|ebil(?:ir)?(?:\s+m[ıi]y[ıi]m)?|elim)?\b/i,
+  /\bm[üu]şteri\s+temsilcisi(?:yle)?\s+g[öo]r[üu](?:ş|s|se|şe|use|üşe)(?:mek|mek\s+istiyorum|ebil(?:ir)?(?:\s+m[ıi]y[ıi]m)?|elim)?\b/i,
   /\bcanli\s+(bir\s+)?(destek|temsilci|yetkili|insan)\b/i,
   /\bcanl[ıi]\s+(bir\s+)?(destek|temsilci|yetkili|insan)\b/i,
   /\bmusteri\s+temsilcisi\b/i,
