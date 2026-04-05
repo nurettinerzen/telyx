@@ -215,6 +215,29 @@ export function formatCurrency(amount, currency = 'USD') {
 }
 
 /**
+ * Format technical conversation/session ids into a short UI-friendly token.
+ * Examples:
+ * - conv_0981e97f-5f78-4eb4-860f-ca084c768dbf -> #C768DBF
+ * - chat_171234567_abcd1234 -> #ABCD1234
+ */
+export function formatSessionHandle(sessionId, fallback = '—') {
+  if (!sessionId) return fallback;
+
+  const raw = String(sessionId).trim();
+  if (!raw) return fallback;
+
+  const withoutPrefix = raw.replace(/^(conv_|chat_|whatsapp_|session_)/i, '');
+  const chunks = withoutPrefix.split(/[^a-zA-Z0-9]+/).filter(Boolean);
+  const preferredChunk = chunks.length > 0 ? chunks[chunks.length - 1] : withoutPrefix;
+  const cleaned = preferredChunk.replace(/[^a-zA-Z0-9]/g, '');
+
+  if (!cleaned) return fallback;
+
+  const shortToken = cleaned.slice(-8).toUpperCase();
+  return `#${shortToken}`;
+}
+
+/**
  * Format large numbers with K, M, B suffixes
  * @param {number} num - Number to format
  */

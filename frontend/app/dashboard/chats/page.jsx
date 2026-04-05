@@ -53,6 +53,7 @@ import { apiClient } from '@/lib/api';
 import { toast } from 'sonner';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { formatSessionHandle } from '@/lib/utils';
 
 // Simple cache for chats data
 const chatsCache = {
@@ -643,7 +644,7 @@ export default function ChatsPage() {
                   className="border-amber-200 bg-white/80 text-amber-800 hover:bg-white dark:border-amber-900/40 dark:bg-transparent dark:text-amber-200"
                   onClick={() => handleViewChat(chat.id)}
                 >
-                  {formatPhone(chat.customerPhone, chat.sessionId.slice(0, 8))}
+                  {formatPhone(chat.customerPhone, formatSessionHandle(chat.sessionId))}
                 </Button>
               ))}
             </div>
@@ -811,7 +812,7 @@ export default function ChatsPage() {
                     <p className="font-medium">
                       {selectedChat.channel === 'WHATSAPP'
                         ? formatPhone(selectedChat.customerPhone)
-                        : selectedChat.sessionId}
+                        : formatSessionHandle(selectedChat.sessionId)}
                     </p>
                   </div>
                 )}

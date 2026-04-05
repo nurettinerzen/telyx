@@ -10,6 +10,7 @@ import EmptyState from '@/components/EmptyState';
 import { apiClient } from '@/lib/api';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { toast } from 'sonner';
+import { formatSessionHandle } from '@/lib/utils';
 import {
   AlertCircle,
   Bot,
@@ -611,7 +612,7 @@ export default function WhatsAppInboxPage() {
             <div className="flex items-center gap-2">
               <Phone className="h-3.5 w-3.5 text-neutral-400" />
               <p className="truncate text-sm font-semibold text-neutral-900 dark:text-white">
-                {formatPhone(chat.customerPhone, chat.sessionId?.slice(0, 10) || '—')}
+                {formatPhone(chat.customerPhone, formatSessionHandle(chat.sessionId))}
               </p>
             </div>
             <p className="mt-1 line-clamp-2 text-xs text-neutral-500 dark:text-neutral-400">
@@ -770,7 +771,7 @@ export default function WhatsAppInboxPage() {
                   <div className="flex items-center gap-2">
                     <Phone className="h-4 w-4 text-neutral-400" />
                     <h2 className="truncate text-lg font-semibold text-neutral-900 dark:text-white">
-                      {formatPhone(selectedChat.customerPhone, selectedChat.sessionId)}
+                      {formatPhone(selectedChat.customerPhone, formatSessionHandle(selectedChat.sessionId))}
                     </h2>
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">

@@ -7,7 +7,7 @@ import { apiClient } from '@/lib/api';
 import { Toaster } from 'sonner';
 import { OnboardingModal } from '@/components/OnboardingModal';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { formatDate } from '@/lib/utils';
+import { formatDate, formatSessionHandle } from '@/lib/utils';
 import { getPlanDisplayName } from '@/lib/planConfig';
 
 // Avoid storing user/session data in browser storage.
@@ -370,7 +370,7 @@ export default function DashboardLayout({ children }) {
                 </h3>
                 <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-300">
                   {liveSupportAlert.channel === 'CHAT'
-                    ? t('dashboard.chatHistoryPage.globalAlertDescription').replace('{session}', liveSupportAlert.sessionId || 'chat')
+                    ? t('dashboard.chatHistoryPage.globalAlertDescription').replace('{session}', formatSessionHandle(liveSupportAlert.sessionId, 'chat'))
                     : t('dashboard.whatsappInboxPage.globalAlertDescription').replace('{phone}', liveSupportAlert.customerPhone || 'WhatsApp')}
                 </p>
                 <div className="mt-4 flex items-center justify-end gap-2">
