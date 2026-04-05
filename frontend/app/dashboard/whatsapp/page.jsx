@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -291,6 +291,7 @@ export default function WhatsAppInboxPage() {
   const [handoffAction, setHandoffAction] = useState(null);
   const [customerData, setCustomerData] = useState(null);
   const [customerLoading, setCustomerLoading] = useState(false);
+  const threadScrollRef = useRef(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchInput.trim()), 300);
@@ -415,6 +416,18 @@ export default function WhatsAppInboxPage() {
       cancelled = true;
     };
   }, [selectedChat?.customerPhone]);
+
+  useEffect(() => {
+    if (!selectedChat) return;
+
+    const frame = requestAnimationFrame(() => {
+      if (threadScrollRef.current) {
+        threadScrollRef.current.scrollTop = threadScrollRef.current.scrollHeight;
+      }
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [selectedChat?.id, selectedChat?.messages?.length, selectedChat?.updatedAt]);
 
   const filteredConversations = useMemo(() => {
     return conversations.filter((chat) => {
@@ -768,7 +781,7 @@ export default function WhatsAppInboxPage() {
 
             <div className="flex min-h-0 flex-1">
               <div className="flex min-w-0 flex-1 flex-col">
-                <div className="flex-1 space-y-4 overflow-y-auto px-5 py-5">
+                <div ref={threadScrollRef} className="flex-1 space-y-4 overflow-y-auto px-5 py-5">
                   {detailLoading && !selectedChat?.messages?.length ? (
                     <div className="flex h-full items-center justify-center text-sm text-neutral-500">{t.loadingThread}</div>
                   ) : selectedChat?.messages?.length ? (
