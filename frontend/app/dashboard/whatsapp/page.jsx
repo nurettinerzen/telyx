@@ -123,6 +123,29 @@ function getHandoffBadge(mode, assignedUserName, t) {
   );
 }
 
+function getCompactStatusLabel(chat, t) {
+  if (chat?.handoff?.currentUserIsAssignee) return t.liveOwnedShort;
+  if (chat?.handoff?.mode === 'REQUESTED') return t.liveRequestedShort;
+  if (chat?.handoff?.mode === 'ACTIVE') return t.liveActiveShort;
+  return t.aiManagedShort;
+}
+
+function getCompactStatusClasses(chat) {
+  if (chat?.handoff?.currentUserIsAssignee) {
+    return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300';
+  }
+
+  if (chat?.handoff?.mode === 'REQUESTED') {
+    return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300';
+  }
+
+  if (chat?.handoff?.mode === 'ACTIVE') {
+    return 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-300';
+  }
+
+  return 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300';
+}
+
 export default function WhatsAppInboxPage() {
   const { locale } = useLanguage();
   const liveHandoffEnabled = process.env.NEXT_PUBLIC_WHATSAPP_LIVE_HANDOFF_V2 === 'true';
@@ -130,7 +153,7 @@ export default function WhatsAppInboxPage() {
   const t = locale === 'tr'
     ? {
         title: 'WhatsApp Inbox',
-        subtitle: 'Canlı devralma, temsilci yanıtları ve müşteri bağlamı tek ekranda.',
+        subtitle: 'Canlı devralma ve manuel yanıt akışı.',
         refresh: 'Yenile',
         refreshing: 'Yenileniyor...',
         searchPlaceholder: 'Telefon numarası veya oturum ara...',
@@ -142,6 +165,7 @@ export default function WhatsAppInboxPage() {
         noConversationsDesc: 'WhatsApp konuşmaları burada sıralanacak.',
         pendingQueue: 'Temsilci bekleyen konuşmalar',
         pendingQueueDesc: 'Müşteri gerçek bir kişi istediğinde burada en üste taşınır.',
+        pendingShort: 'Bekleyen',
         customer: 'Müşteri',
         assistant: 'Asistan',
         session: 'Oturum',
@@ -179,6 +203,12 @@ export default function WhatsAppInboxPage() {
         claimedByOther: 'Bu konuşma başka bir ekip üyesinde aktif.',
         aiDescription: 'İstersen manuel olarak devralabilir, iş bitince AI’a geri verebilirsin.',
         stillWaiting: 'Bu konuşma canlı temsilci bekliyor.',
+        liveRequestedShort: 'Canlı bekliyor',
+        liveActiveShort: 'Canlı aktif',
+        liveOwnedShort: 'Sende',
+        aiManagedShort: 'AI',
+        details: 'Detaylar',
+        noCustomerDataShort: 'Eşleşen müşteri kaydı yok',
         threadEmpty: 'Soldan bir WhatsApp konuşması seçin.',
         loadingThread: 'Konuşma yükleniyor...',
         loadFailed: 'WhatsApp konuşmaları yüklenemedi',
@@ -186,7 +216,7 @@ export default function WhatsAppInboxPage() {
       }
     : {
         title: 'WhatsApp Inbox',
-        subtitle: 'Live takeover, teammate replies, and customer context in one workspace.',
+        subtitle: 'Live takeover and manual replies.',
         refresh: 'Refresh',
         refreshing: 'Refreshing...',
         searchPlaceholder: 'Search by phone or session...',
@@ -198,6 +228,7 @@ export default function WhatsAppInboxPage() {
         noConversationsDesc: 'Incoming WhatsApp threads will appear here.',
         pendingQueue: 'Waiting for teammate',
         pendingQueueDesc: 'Threads move here when the customer asks for a real person.',
+        pendingShort: 'Waiting',
         customer: 'Customer',
         assistant: 'Assistant',
         session: 'Session',
@@ -235,6 +266,12 @@ export default function WhatsAppInboxPage() {
         claimedByOther: 'Another teammate is actively handling this conversation.',
         aiDescription: 'You can take over manually and hand it back to AI when finished.',
         stillWaiting: 'This conversation is waiting for a live teammate.',
+        liveRequestedShort: 'Waiting',
+        liveActiveShort: 'Live',
+        liveOwnedShort: 'Yours',
+        aiManagedShort: 'AI',
+        details: 'Details',
+        noCustomerDataShort: 'No matched record',
         threadEmpty: 'Select a WhatsApp conversation from the left.',
         loadingThread: 'Loading conversation...',
         loadFailed: 'Failed to load WhatsApp conversations',
@@ -553,7 +590,7 @@ export default function WhatsAppInboxPage() {
 
   return (
     <div className="fixed inset-0 z-10 flex bg-white dark:bg-neutral-950 lg:left-60">
-      <div className="flex w-[360px] min-w-[360px] flex-col border-r border-neutral-200 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900">
+      <div className="flex w-[340px] min-w-[340px] flex-col border-r border-neutral-200 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900">
         <div className="border-b border-neutral-200 p-4 dark:border-neutral-800">
           <div className="mb-3 flex items-start justify-between gap-3">
             <div>
@@ -561,19 +598,18 @@ export default function WhatsAppInboxPage() {
                 <MessageSquare className="h-5 w-5 text-green-600" />
                 <h1 className="text-lg font-bold text-neutral-900 dark:text-white">{t.title}</h1>
               </div>
-              <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">{t.subtitle}</p>
             </div>
             <Button variant="ghost" size="sm" onClick={handleRefresh} disabled={listLoading || detailLoading}>
               <RefreshCw className={`h-4 w-4 ${listLoading || detailLoading ? 'animate-spin' : ''}`} />
             </Button>
           </div>
 
-          <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/20">
+          <div className="mb-3 flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 dark:border-amber-900 dark:bg-amber-950/20">
             <div className="flex items-center gap-2 text-sm font-medium text-amber-800 dark:text-amber-200">
               <Headphones className="h-4 w-4" />
-              {t.pendingQueue}: {pendingCount}
+              {t.pendingShort}
             </div>
-            <p className="mt-1 text-xs text-amber-700/80 dark:text-amber-200/80">{t.pendingQueueDesc}</p>
+            <span className="text-sm font-semibold text-amber-800 dark:text-amber-200">{pendingCount}</span>
           </div>
 
           <div className="relative mb-3">
@@ -638,13 +674,15 @@ export default function WhatsAppInboxPage() {
                       {selectedChat.customerPhone || selectedChat.sessionId}
                     </h2>
                   </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    {getHandoffBadge(selectedChat?.handoff?.mode, selectedChat?.handoff?.assignedUserName, t)}
-                    <Badge variant="outline" className="gap-1">
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
+                    <span className={`inline-flex items-center rounded-full border px-2.5 py-1 font-medium ${getCompactStatusClasses(selectedChat)}`}>
+                      {getCompactStatusLabel(selectedChat, t)}
+                    </span>
+                    <Badge variant="outline" className="gap-1 text-[11px]">
                       <Hash className="h-3 w-3" />
                       {selectedChat.messageCount || selectedChat.messages?.length || 0}
                     </Badge>
-                    <Badge variant="outline" className="gap-1">
+                    <Badge variant="outline" className="gap-1 text-[11px]">
                       <Clock3 className="h-3 w-3" />
                       {formatDateTime(selectedChat.updatedAt || selectedChat.createdAt, locale)}
                     </Badge>
@@ -665,7 +703,7 @@ export default function WhatsAppInboxPage() {
                       ) : (
                         <>
                           <Headphones className="mr-2 h-4 w-4" />
-                          {t.takeOver}
+                          {locale === 'tr' ? 'Devral' : 'Take over'}
                         </>
                       )}
                     </Button>
@@ -681,7 +719,7 @@ export default function WhatsAppInboxPage() {
                       ) : (
                         <>
                           <Bot className="mr-2 h-4 w-4" />
-                          {t.returnToAi}
+                          {locale === 'tr' ? "AI'a ver" : 'Back to AI'}
                         </>
                       )}
                     </Button>
@@ -696,16 +734,6 @@ export default function WhatsAppInboxPage() {
                     {sidebarOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
                   </Button>
                 </div>
-              </div>
-
-              <div className="mt-3 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
-                {selectedChat?.handoff?.currentUserIsAssignee
-                  ? t.youOwnThis
-                  : selectedChat?.handoff?.mode === 'ACTIVE'
-                    ? t.claimedByOther
-                    : selectedChat?.handoff?.mode === 'REQUESTED'
-                      ? t.stillWaiting
-                      : t.aiDescription}
               </div>
             </div>
 
@@ -749,7 +777,7 @@ export default function WhatsAppInboxPage() {
                       </div>
                     </div>
                   ) : (
-                    <div className="rounded-xl border border-dashed border-neutral-300 bg-neutral-50 px-4 py-4 text-sm text-neutral-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">
+                    <div className="text-xs text-neutral-500 dark:text-neutral-400">
                       {selectedChat?.handoff?.mode === 'AI'
                         ? t.aiDescription
                         : selectedChat?.handoff?.mode === 'REQUESTED'
@@ -761,46 +789,12 @@ export default function WhatsAppInboxPage() {
               </div>
 
               {sidebarOpen && (
-                <aside className="w-[320px] min-w-[320px] border-l border-neutral-200 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900">
-                  <div className="space-y-4 p-4">
+                <aside className="w-[280px] min-w-[280px] border-l border-neutral-200 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900">
+                  <div className="p-4">
                     <div className="rounded-2xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950">
                       <div className="flex items-center gap-2">
                         <UserCircle2 className="h-4 w-4 text-neutral-400" />
-                        <h3 className="font-medium text-neutral-900 dark:text-white">{t.customerData}</h3>
-                      </div>
-
-                      <div className="mt-4 space-y-3 text-sm">
-                        <div>
-                          <div className="text-xs uppercase tracking-wide text-neutral-400">{t.contact}</div>
-                          <div className="mt-1 font-medium text-neutral-900 dark:text-white">{selectedChat.customerPhone || '—'}</div>
-                        </div>
-
-                        <div>
-                          <div className="text-xs uppercase tracking-wide text-neutral-400">{t.assistant}</div>
-                          <div className="mt-1 text-neutral-700 dark:text-neutral-300">{selectedChat.assistant?.name || '—'}</div>
-                        </div>
-
-                        <div>
-                          <div className="text-xs uppercase tracking-wide text-neutral-400">{t.session}</div>
-                          <div className="mt-1 break-all font-mono text-xs text-neutral-700 dark:text-neutral-300">{selectedChat.sessionId}</div>
-                        </div>
-
-                        <div>
-                          <div className="text-xs uppercase tracking-wide text-neutral-400">{t.createdAt}</div>
-                          <div className="mt-1 text-neutral-700 dark:text-neutral-300">{formatDateTime(selectedChat.createdAt, locale)}</div>
-                        </div>
-
-                        <div>
-                          <div className="text-xs uppercase tracking-wide text-neutral-400">{t.updatedAt}</div>
-                          <div className="mt-1 text-neutral-700 dark:text-neutral-300">{formatDateTime(selectedChat.updatedAt, locale)}</div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="rounded-2xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950">
-                      <div className="flex items-center gap-2">
-                        <AlertCircle className="h-4 w-4 text-neutral-400" />
-                        <h3 className="font-medium text-neutral-900 dark:text-white">{t.customer}</h3>
+                        <h3 className="font-medium text-neutral-900 dark:text-white">{t.details}</h3>
                       </div>
 
                       {customerLoading ? (
@@ -809,56 +803,49 @@ export default function WhatsAppInboxPage() {
                             <div key={row} className="h-4 animate-pulse rounded bg-neutral-200 dark:bg-neutral-800" />
                           ))}
                         </div>
-                      ) : customerData ? (
+                      ) : (
                         <div className="mt-4 space-y-4 text-sm">
                           <div>
-                            <div className="text-xs uppercase tracking-wide text-neutral-400">{t.company}</div>
-                            <div className="mt-1 font-medium text-neutral-900 dark:text-white">
-                              {customerData.companyName || customerData.contactName || selectedChat.customerPhone}
+                            <div className="text-lg font-semibold text-neutral-900 dark:text-white">
+                              {customerData?.companyName || customerData?.contactName || selectedChat.customerPhone || '—'}
+                            </div>
+                            <div className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                              {customerData?.contactName && customerData?.companyName
+                                ? customerData.contactName
+                                : selectedChat.customerPhone || t.noCustomerDataShort}
                             </div>
                           </div>
 
-                          {customerData.contactName && (
+                          <div className="grid grid-cols-1 gap-3">
                             <div>
-                              <div className="text-xs uppercase tracking-wide text-neutral-400">{t.contact}</div>
-                              <div className="mt-1 text-neutral-700 dark:text-neutral-300">{customerData.contactName}</div>
+                              <div className="text-[11px] uppercase tracking-wide text-neutral-400">{t.assistant}</div>
+                              <div className="mt-1 text-neutral-700 dark:text-neutral-300">{selectedChat.assistant?.name || '—'}</div>
+                            </div>
+
+                            <div>
+                              <div className="text-[11px] uppercase tracking-wide text-neutral-400">{t.updatedAt}</div>
+                              <div className="mt-1 text-neutral-700 dark:text-neutral-300">{formatDateTime(selectedChat.updatedAt, locale)}</div>
+                            </div>
+                          </div>
+
+                          {Array.isArray(customerData?.tags) && customerData.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                              {customerData.tags.slice(0, 4).map((tag) => (
+                                <Badge key={tag} variant="secondary">{tag}</Badge>
+                              ))}
                             </div>
                           )}
 
-                          {Array.isArray(customerData.tags) && customerData.tags.length > 0 && (
-                            <div>
-                              <div className="text-xs uppercase tracking-wide text-neutral-400">{t.tags}</div>
-                              <div className="mt-2 flex flex-wrap gap-2">
-                                {customerData.tags.map((tag) => (
-                                  <Badge key={tag} variant="secondary">{tag}</Badge>
-                                ))}
-                              </div>
+                          {customerData?.notes && (
+                            <div className="rounded-lg bg-neutral-50 px-3 py-2 text-xs text-neutral-600 dark:bg-neutral-900 dark:text-neutral-300">
+                              {customerData.notes}
                             </div>
                           )}
 
-                          {customerData.notes && (
-                            <div>
-                              <div className="text-xs uppercase tracking-wide text-neutral-400">{t.notes}</div>
-                              <div className="mt-1 whitespace-pre-wrap text-neutral-700 dark:text-neutral-300">{customerData.notes}</div>
-                            </div>
-                          )}
-
-                          {customerData.customFields && Object.keys(customerData.customFields).length > 0 && (
-                            <div>
-                              <div className="text-xs uppercase tracking-wide text-neutral-400">{t.customFields}</div>
-                              <div className="mt-2 space-y-2">
-                                {Object.entries(customerData.customFields).slice(0, 8).map(([key, value]) => (
-                                  <div key={key} className="rounded-lg border border-neutral-200 px-3 py-2 dark:border-neutral-800">
-                                    <div className="text-[11px] uppercase tracking-wide text-neutral-400">{key}</div>
-                                    <div className="mt-1 break-words text-neutral-700 dark:text-neutral-300">{String(value)}</div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
+                          {!customerData && (
+                            <div className="text-xs text-neutral-500 dark:text-neutral-400">{t.noCustomerDataShort}</div>
                           )}
                         </div>
-                      ) : (
-                        <div className="mt-4 text-sm text-neutral-500 dark:text-neutral-400">{t.noCustomerData}</div>
                       )}
                     </div>
                   </div>
