@@ -12,13 +12,13 @@ import {
   buildHandoffView,
   buildSystemEventMessage,
   claimHumanHandoff,
-  getNormalizedHandoffState,
   noteHumanReply,
   requestHumanHandoff,
   returnConversationToAi,
 } from '../services/liveHandoff.js';
 
 const router = express.Router();
+const ACTIVE_CHAT_WINDOW_MS = 30 * 60 * 1000;
 
 function getActorName(user = {}) {
   return user?.name || user?.email || 'Team member';
@@ -26,6 +26,32 @@ function getActorName(user = {}) {
 
 function getReplyText(req) {
   return String(req.body?.message || req.body?.text || '').trim();
+}
+
+function normalizeChatLogStatus(chatLog) {
+  if (!chatLog) return chatLog;
+
+  const lastActivity = new Date(chatLog.updatedAt || chatLog.createdAt || 0).getTime();
+  const staleThreshold = Date.now() - ACTIVE_CHAT_WINDOW_MS;
+
+  if (chatLog.status === 'active' && Number.isFinite(lastActivity) && lastActivity < staleThreshold) {
+    return {
+      ...chatLog,
+      status: 'ended',
+    };
+  }
+
+  return chatLog;
+}
+
+function buildChatLogHandoffView(chatLog, state, viewerUserId) {
+  const normalizedChatLog = normalizeChatLogStatus(chatLog);
+
+  if (!normalizedChatLog || normalizedChatLog.status !== 'active') {
+    return buildHandoffView(undefined, viewerUserId);
+  }
+
+  return buildHandoffView(state, viewerUserId);
 }
 
 async function enrichChatLogsWithHandoff(chatLogs, businessId, viewerUserId) {
@@ -49,7 +75,7 @@ async function enrichChatLogsWithHandoff(chatLogs, businessId, viewerUserId) {
 
   return chatLogs.map((log) => ({
     ...log,
-    handoff: buildHandoffView(stateMap.get(log.sessionId), viewerUserId),
+    handoff: buildChatLogHandoffView(log, stateMap.get(log.sessionId), viewerUserId),
   }));
 }
 
@@ -173,7 +199,7 @@ router.get('/', authenticateToken, async (req, res) => {
     // Status filter (server-side)
     // Most chats in DB have status='active' but are actually stale (idle >30min).
     // We use updatedAt to distinguish truly active vs stale-active (=ended).
-    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+    const thirtyMinutesAgo = new Date(Date.now() - ACTIVE_CHAT_WINDOW_MS);
     // Use AND array to safely combine multiple OR conditions (status + search)
     const andConditions = [];
 
@@ -245,12 +271,7 @@ router.get('/', authenticateToken, async (req, res) => {
     // Auto-mark old "active" chats as "ended" for display
     // Also compute messageCount from messages array if it's 0
     const processedLogs = chatLogs.map(log => {
-      const processed = { ...log };
-
-      // Fix stale active → ended (for display only)
-      if (processed.status === 'active' && new Date(processed.updatedAt) < thirtyMinutesAgo) {
-        processed.status = 'ended';
-      }
+      const processed = normalizeChatLogStatus({ ...log });
 
       // Fix messageCount: derive from messages array if stored count is 0
       if ((!processed.messageCount || processed.messageCount === 0) && Array.isArray(processed.messages)) {
@@ -373,17 +394,15 @@ router.get('/:id', authenticateToken, async (req, res) => {
       }
     }
 
+    const normalizedChatLog = normalizeChatLogStatus(chatLog);
+    const conversationState = await prisma.conversationState.findUnique({
+      where: { sessionId: normalizedChatLog.sessionId },
+      select: { state: true }
+    });
+
     res.json({
-      ...chatLog,
-      handoff: buildHandoffView(
-        (
-          await prisma.conversationState.findUnique({
-            where: { sessionId: chatLog.sessionId },
-            select: { state: true }
-          })
-        )?.state,
-        req.userId
-      )
+      ...normalizedChatLog,
+      handoff: buildChatLogHandoffView(normalizedChatLog, conversationState?.state, req.userId)
     });
   } catch (error) {
     console.error('Get chat log error:', error);
@@ -603,19 +622,19 @@ router.post('/:id/handoff/reply', authenticateToken, async (req, res) => {
     });
 
     const refreshed = await getOwnedChatLog(req.params.id, req.businessId);
+    const normalizedRefreshed = normalizeChatLogStatus(refreshed);
+    const refreshedState = (await prisma.conversationState.findUnique({
+      where: { sessionId: chatLog.sessionId },
+      select: { state: true }
+    }))?.state;
+
     res.json({
       success: true,
       chatLog: {
-        ...refreshed,
-        handoff: buildHandoffView(
-          {
-            humanHandoff: {
-              ...getNormalizedHandoffState((await prisma.conversationState.findUnique({
-                where: { sessionId: chatLog.sessionId },
-                select: { state: true }
-              }))?.state),
-            }
-          },
+        ...normalizedRefreshed,
+        handoff: buildChatLogHandoffView(
+          normalizedRefreshed,
+          refreshedState,
           req.userId
         )
       }

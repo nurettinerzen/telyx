@@ -58,25 +58,42 @@ function getHandoffPriority(chat) {
   return 2;
 }
 
-function dedupeActiveWhatsAppConversations(chats = []) {
-  const latestActiveByPhone = new Map();
+function getConversationRecency(chat) {
+  return new Date(chat?.updatedAt || chat?.createdAt || 0).getTime();
+}
+
+function dedupeWhatsAppConversations(chats = []) {
+  const preferredByKey = new Map();
 
   for (const chat of chats) {
-    if (chat?.channel !== 'WHATSAPP' || chat?.status !== 'active' || !chat?.customerPhone) continue;
+    if (chat?.channel !== 'WHATSAPP') continue;
 
-    const existing = latestActiveByPhone.get(chat.customerPhone);
-    const currentTs = new Date(chat.updatedAt || chat.createdAt || 0).getTime();
-    const existingTs = existing ? new Date(existing.updatedAt || existing.createdAt || 0).getTime() : -1;
+    const conversationKey = chat.customerPhone || chat.sessionId || chat.id;
+    const existing = preferredByKey.get(conversationKey);
 
-    if (!existing || currentTs > existingTs) {
-      latestActiveByPhone.set(chat.customerPhone, chat);
+    if (!existing) {
+      preferredByKey.set(conversationKey, chat);
+      continue;
+    }
+
+    const currentIsActive = chat?.status === 'active';
+    const existingIsActive = existing?.status === 'active';
+
+    if (currentIsActive !== existingIsActive) {
+      preferredByKey.set(conversationKey, currentIsActive ? chat : existing);
+      continue;
+    }
+
+    const currentTs = getConversationRecency(chat);
+    const existingTs = getConversationRecency(existing);
+
+    if (currentTs >= existingTs) {
+      preferredByKey.set(conversationKey, chat);
     }
   }
 
-  return chats.filter((chat) => {
-    if (chat?.channel !== 'WHATSAPP' || chat?.status !== 'active' || !chat?.customerPhone) return true;
-    return latestActiveByPhone.get(chat.customerPhone)?.id === chat.id;
-  });
+  const keptIds = new Set(Array.from(preferredByKey.values()).map((chat) => chat.id));
+  return chats.filter((chat) => keptIds.has(chat.id));
 }
 
 function getHandoffBadge(mode, assignedUserName, t) {
@@ -255,7 +272,7 @@ export default function WhatsAppInboxPage() {
         }
       });
 
-      const rows = dedupeActiveWhatsAppConversations(response.data?.chatLogs || []);
+      const rows = dedupeWhatsAppConversations(response.data?.chatLogs || []);
       rows.sort((left, right) => {
         const priorityDiff = getHandoffPriority(left) - getHandoffPriority(right);
         if (priorityDiff !== 0) return priorityDiff;

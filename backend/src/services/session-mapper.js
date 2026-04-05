@@ -17,6 +17,8 @@
 
 import prisma from '../prismaClient.js';
 import { randomUUID } from 'crypto';
+import { updateState } from './state-manager.js';
+import { HANDOFF_MODE, getNormalizedHandoffState } from './liveHandoff.js';
 
 // Session inactivity TTL: 30 minutes (matches state-manager TTL)
 const SESSION_INACTIVITY_TTL_MS = 30 * 60 * 1000;
@@ -64,6 +66,39 @@ async function closeStaleSessionArtifacts(sessionId) {
       data: {
         status: 'ended',
         updatedAt: new Date(),
+      }
+    });
+
+    const stateRecord = await prisma.conversationState.findUnique({
+      where: { sessionId },
+      select: {
+        businessId: true,
+        state: true,
+      }
+    });
+
+    if (!stateRecord?.state) {
+      return;
+    }
+
+    const currentHandoff = getNormalizedHandoffState(stateRecord.state);
+    if (currentHandoff.mode === HANDOFF_MODE.AI && !currentHandoff.assignedUserId && !currentHandoff.assignedUserName) {
+      return;
+    }
+
+    await updateState(sessionId, {
+      businessId: stateRecord.businessId || stateRecord.state.businessId || 0,
+      messageCount: stateRecord.state.messageCount || 0,
+      humanHandoff: {
+        ...currentHandoff,
+        mode: HANDOFF_MODE.AI,
+        requestedAt: null,
+        requestedBy: null,
+        requestedReason: null,
+        assignedUserId: null,
+        assignedUserName: null,
+        claimedAt: null,
+        releasedAt: new Date().toISOString(),
       }
     });
   } catch (error) {
