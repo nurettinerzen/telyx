@@ -12,6 +12,8 @@ import {
   buildHandoffView,
   buildSystemEventMessage,
   claimHumanHandoff,
+  getLiveHandoffClaimedMessage,
+  getLiveHandoffReturnedToAiMessage,
   noteHumanReply,
   requestHumanHandoff,
   returnConversationToAi,
@@ -179,6 +181,7 @@ async function getBusinessForWhatsAppReply(businessId) {
     where: { id: businessId },
     select: {
       id: true,
+      language: true,
       name: true,
       whatsappPhoneNumberId: true,
       whatsappAccessToken: true,
@@ -501,6 +504,23 @@ router.post('/:id/handoff/claim', authenticateToken, async (req, res) => {
       ]
     });
 
+    if (chatLog.customerPhone) {
+      const business = await getBusinessForWhatsAppReply(req.businessId);
+      if (business) {
+        await sendWhatsAppMessage(
+          business,
+          chatLog.customerPhone,
+          getLiveHandoffClaimedMessage(business.language, getActorName(req.user)),
+          {
+            inboundMessageId: `handoff-claim:${chatLog.sessionId}:${Date.now()}`,
+            skipUsageMetering: true,
+          }
+        ).catch((error) => {
+          console.error('Claim handoff customer notification error:', error);
+        });
+      }
+    }
+
     res.json({
       success: true,
       handoff: buildHandoffView({ humanHandoff: state }, req.userId),
@@ -549,6 +569,23 @@ router.post('/:id/handoff/release', authenticateToken, async (req, res) => {
         )
       ]
     });
+
+    if (chatLog.customerPhone) {
+      const business = await getBusinessForWhatsAppReply(req.businessId);
+      if (business) {
+        await sendWhatsAppMessage(
+          business,
+          chatLog.customerPhone,
+          getLiveHandoffReturnedToAiMessage(business.language),
+          {
+            inboundMessageId: `handoff-release:${chatLog.sessionId}:${Date.now()}`,
+            skipUsageMetering: true,
+          }
+        ).catch((error) => {
+          console.error('Release handoff customer notification error:', error);
+        });
+      }
+    }
 
     res.json({
       success: true,

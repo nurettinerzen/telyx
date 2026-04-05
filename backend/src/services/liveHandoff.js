@@ -8,12 +8,26 @@ export const HANDOFF_MODE = Object.freeze({
 });
 
 const HUMAN_HANDOFF_PATTERNS = [
+  /\byetkili\s+biri(?:yle)?\s+g[öo]r[üu]ş(?:mek|mek\s+istiyorum|elim)?\b/i,
+  /\bm[üu]şteri\s+temsilcisi(?:yle)?\s+g[öo]r[üu]ş(?:mek|mek\s+istiyorum|elim)?\b/i,
   /\bcanli\s+(bir\s+)?(destek|temsilci|yetkili|insan)\b/i,
+  /\bcanl[ıi]\s+(bir\s+)?(destek|temsilci|yetkili|insan)\b/i,
   /\bmusteri\s+temsilcisi\b/i,
+  /\bm[üu]şteri\s+temsilcisi\b/i,
   /\byetkiliyle?\s+gorus/i,
+  /\byetkiliyle?\s+g[öo]r[üu]ş/i,
   /\binsan(?:la)?\s+gorus/i,
+  /\binsan(?:la)?\s+g[öo]r[üu]ş/i,
   /\btemsilci(?:yle)?\s+gorus/i,
+  /\btemsilci(?:yle)?\s+g[öo]r[üu]ş/i,
   /\bcanli\s+biri(?:yle)?\s+gorus/i,
+  /\bcanl[ıi]\s+biri(?:yle)?\s+g[öo]r[üu]ş/i,
+  /\boperat[öo]re?\s+bağla(?:r\s+m[ıi]s[ıi]n)?\b/i,
+  /\boperat[öo]re?\s+aktar\b/i,
+  /\btemsilciye?\s+bağla(?:r\s+m[ıi]s[ıi]n)?\b/i,
+  /\btemsilciye?\s+aktar\b/i,
+  /\bcanl[ıi]\s+deste[ğg]e?\s+bağla(?:r\s+m[ıi]s[ıi]n)?\b/i,
+  /\bcanl[ıi]\s+deste[ğg]e?\s+aktar\b/i,
   /\bbeni\s+birine\s+bagla/i,
   /\bhuman\b.*\b(agent|support|representative)\b/i,
   /\blive\s+(agent|support|representative)\b/i,
@@ -66,6 +80,25 @@ export function shouldTriggerHumanHandoff(message = '') {
   const text = String(message || '').trim();
   if (!text) return false;
   return HUMAN_HANDOFF_PATTERNS.some((pattern) => pattern.test(text));
+}
+
+export function getLiveHandoffClaimedMessage(language = 'TR', actorName = null) {
+  const safeActorName = String(actorName || '').trim();
+  if (String(language || 'TR').toUpperCase() === 'EN') {
+    return safeActorName
+      ? `${safeActorName} has joined this conversation and will assist you from here.`
+      : 'A teammate has joined this conversation and will assist you from here.';
+  }
+
+  return safeActorName
+    ? `${safeActorName} bu konuşmayı devraldı ve buradan size yardımcı olacak.`
+    : 'Bir temsilcimiz bu konuşmayı devraldı ve buradan size yardımcı olacak.';
+}
+
+export function getLiveHandoffReturnedToAiMessage(language = 'TR') {
+  return String(language || 'TR').toUpperCase() === 'EN'
+    ? 'This conversation has been handed back to our AI assistant. You can keep replying in this thread.'
+    : 'Bu konuşma tekrar yapay zeka asistanımıza devredildi. Aynı yazışma üzerinden devam edebilirsiniz.';
 }
 
 function buildUpdatedState(baseState = {}, handoffUpdate = {}) {
