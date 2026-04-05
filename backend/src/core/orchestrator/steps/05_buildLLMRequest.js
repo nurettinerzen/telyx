@@ -174,6 +174,7 @@ export async function buildLLMRequest(params) {
     entityResolution,
     channel = 'CHAT',
     liveSupportAvailable = null,
+    channelUserId = null,
   } = params;
   const allToolNames = toolsAll.map(t => t.function?.name).filter(Boolean);
   const { gatedTools, resolvedFlow, allowlistMode } = resolveFlowScopedTools({
@@ -210,7 +211,13 @@ export async function buildLLMRequest(params) {
 
   // Callback precondition guidance (belt-and-suspenders with toolLoop precondition check)
   // LLM should ask for name/phone BEFORE calling create_callback
-  if (!state.extractedSlots?.customer_name || !state.extractedSlots?.phone) {
+  const knownCallbackName = state.callbackFlow?.customerName || state.extractedSlots?.customer_name || null;
+  const knownCallbackPhone =
+    state.callbackFlow?.customerPhone ||
+    state.extractedSlots?.phone ||
+    (channel === 'WHATSAPP' ? channelUserId : null);
+
+  if (!knownCallbackName || !knownCallbackPhone) {
     enhancedSystemPrompt += `\n\nKRİTİK: create_callback aracını çağırmadan ÖNCE müşterinin adını ve telefon numarasını öğren. Bu bilgiler olmadan geri arama kaydı oluşturamazsın.`;
   }
 
@@ -223,6 +230,20 @@ export async function buildLLMRequest(params) {
 - Sipariş numarası, telefon son 4, kimlik doğrulama isteme.
 - create_callback çağrısında topic sorusu sorma; topic otomatik üretilecek.
 - Ad-soyad ve telefon mevcutsa create_callback çağır, yoksa sadece eksik alanı sor.`;
+
+    if (knownCallbackName && knownCallbackPhone) {
+      enhancedSystemPrompt += `
+- Bu konuşmada ad-soyad ve telefon zaten mevcut. BU TURDA create_callback aracını MUTLAKA çağır.
+- Telefonu tekrar isteme. Adı tekrar isteme. Serbest metinle oyalama yapma.`;
+    } else if (!knownCallbackName && knownCallbackPhone) {
+      enhancedSystemPrompt += `
+- Telefon numarası zaten mevcut, tekrar telefon isteme.
+- SADECE ad-soyad iste.`;
+    } else if (knownCallbackName && !knownCallbackPhone) {
+      enhancedSystemPrompt += `
+- Ad-soyad zaten mevcut, tekrar ad isteme.
+- SADECE telefon numarasını iste.`;
+    }
   }
 
   const whatsappLiveHandoffEnabled =

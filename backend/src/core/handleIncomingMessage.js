@@ -1273,6 +1273,7 @@ export async function handleIncomingMessage({
       business,
       sessionId: resolvedSessionId,
       channel,
+      channelUserId,
       hasKBMatch
     });
 
@@ -1511,6 +1512,7 @@ export async function handleIncomingMessage({
       entityResolution,
       channel,
       liveSupportAvailable: metadata.liveSupportAvailable ?? null,
+      channelUserId,
     });
 
     console.log(`🔧 Gated tools: ${gatedTools.length}`);

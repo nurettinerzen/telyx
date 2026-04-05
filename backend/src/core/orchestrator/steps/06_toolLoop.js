@@ -163,12 +163,13 @@ export function extractCallbackName(message = '') {
   return looksLikeRealCallbackName(candidate) ? candidate : null;
 }
 
-export function hydrateCreateCallbackArgs({ userMessage, state, args = {} }) {
+export function hydrateCreateCallbackArgs({ userMessage, state, args = {}, channel = 'CHAT', channelUserId = null }) {
   const extractedSlots = state.extractedSlots || {};
   const callbackFlow = state.callbackFlow || {};
 
+  const whatsappPhoneFallback = channel === 'WHATSAPP' ? channelUserId : null;
   const existingNameCandidate = args.customerName || callbackFlow.customerName || extractedSlots.customer_name || null;
-  const existingPhoneCandidate = args.customerPhone || callbackFlow.customerPhone || extractedSlots.phone || null;
+  const existingPhoneCandidate = args.customerPhone || callbackFlow.customerPhone || extractedSlots.phone || whatsappPhoneFallback || null;
   const existingName = looksLikeRealCallbackName(existingNameCandidate) ? existingNameCandidate : null;
   const existingPhone = normalizeCallbackPhone(existingPhoneCandidate);
 
@@ -443,7 +444,9 @@ export async function executeToolLoop(params) {
         const { hydratedArgs, extracted } = hydrateCreateCallbackArgs({
           userMessage,
           state,
-          args: toolArgs
+          args: toolArgs,
+          channel,
+          channelUserId,
         });
 
         toolArgs = hydratedArgs;

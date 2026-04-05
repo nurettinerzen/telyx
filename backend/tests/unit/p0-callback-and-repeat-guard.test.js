@@ -131,6 +131,30 @@ describe('P0 Callback deterministic flow', () => {
     expect(stateNeedsName.callbackFlow?.customerPhone).toBe('05551112233');
   });
 
+  it('A2b: whatsapp callback flow should reuse channel phone instead of asking again', async () => {
+    const state = {
+      callbackFlow: { pending: true }
+    };
+
+    const result = await makeRoutingDecision({
+      classification: { type: 'NEW_INTENT', confidence: 0.9, triggerRule: null, suggestedFlow: null },
+      state,
+      userMessage: 'Ahmet Yılmaz',
+      conversationHistory: [],
+      language: 'TR',
+      business: { id: 1, language: 'TR' },
+      sessionId: 'test-a2b',
+      channel: 'WHATSAPP',
+      channelUserId: '14245275089',
+      hasKBMatch: false
+    });
+
+    expect(result.callbackRequest).toBe(true);
+    expect(result.metadata?.missingFields).toEqual([]);
+    expect(state.callbackFlow?.customerPhone).toBe('14245275089');
+    expect(state.callbackFlow?.customerName).toBe('Ahmet Yılmaz');
+  });
+
   it('2.3: callback context should not trigger leak-filter verification prompts on generic text', () => {
     const leakResult = applyLeakFilter(
       'Takip numaranız TR123456789TR olarak görünüyor.',

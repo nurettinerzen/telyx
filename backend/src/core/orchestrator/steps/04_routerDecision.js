@@ -114,9 +114,9 @@ function extractNameCandidate(message = '', { allowLoose = false } = {}) {
   return candidate.trim();
 }
 
-function upsertCallbackContext({ state, userMessage, allowLooseName = false }) {
+function upsertCallbackContext({ state, userMessage, allowLooseName = false, fallbackPhone = null }) {
   const existingName = state.callbackFlow?.customerName || state.extractedSlots?.customer_name || null;
-  const existingPhone = state.callbackFlow?.customerPhone || state.extractedSlots?.phone || null;
+  const existingPhone = state.callbackFlow?.customerPhone || state.extractedSlots?.phone || fallbackPhone || null;
 
   const extractedPhone = extractPhoneCandidate(userMessage);
   const extractedName = extractNameCandidate(userMessage, { allowLoose: allowLooseName });
@@ -140,7 +140,7 @@ function upsertCallbackContext({ state, userMessage, allowLooseName = false }) {
 }
 
 export async function makeRoutingDecision(params) {
-  const { classification, state, userMessage, conversationHistory, language, business, sessionId = '' } = params;
+  const { classification, state, userMessage, conversationHistory, language, business, sessionId = '', channel = 'CHAT', channelUserId = null } = params;
   const routerPassthroughEnabled = isRouterPassthroughEnabled();
 
   // Get last assistant message
@@ -183,7 +183,8 @@ export async function makeRoutingDecision(params) {
     const { customerName, customerPhone } = upsertCallbackContext({
       state,
       userMessage,
-      allowLooseName: callbackPending
+      allowLooseName: callbackPending,
+      fallbackPhone: channel === 'WHATSAPP' ? channelUserId : null,
     });
 
     const missingFields = [];
