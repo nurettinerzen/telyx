@@ -44,7 +44,7 @@ export default function DashboardLayout({ children }) {
   const [chatPendingCount, setChatPendingCount] = useState(0);
   const [liveSupportAlert, setLiveSupportAlert] = useState(null);
   const initialLoadDone = useRef(false);
-  const knownPendingIdsRef = useRef(new Set());
+  const knownPendingRequestsRef = useRef(new Map());
 
   const shouldBypassEmailVerification = () => {
     if (typeof window === 'undefined') return false;
@@ -188,7 +188,7 @@ export default function DashboardLayout({ children }) {
       setWhatsappPendingCount(0);
       setChatPendingCount(0);
       setLiveSupportAlert(null);
-      knownPendingIdsRef.current = new Set();
+      knownPendingRequestsRef.current = new Map();
       return;
     }
 
@@ -219,9 +219,27 @@ export default function DashboardLayout({ children }) {
         setWhatsappPendingCount(pendingThreads.filter((chat) => chat?.channel === 'WHATSAPP').length);
         setChatPendingCount(pendingThreads.filter((chat) => chat?.channel === 'CHAT').length);
 
-        const nextIds = new Set(pendingThreads.map((chat) => chat.id));
-        const newThreads = pendingThreads.filter((chat) => !knownPendingIdsRef.current.has(chat.id));
-        knownPendingIdsRef.current = nextIds;
+        const requestMarkerFor = (chat) => (
+          chat?.handoff?.requestedAt ||
+          chat?.updatedAt ||
+          chat?.createdAt ||
+          ''
+        );
+
+        const previousMarkers = knownPendingRequestsRef.current;
+        const nextMarkers = new Map();
+
+        for (const chat of pendingThreads) {
+          nextMarkers.set(chat.id, requestMarkerFor(chat));
+        }
+
+        const newThreads = pendingThreads.filter((chat) => {
+          const nextMarker = requestMarkerFor(chat);
+          const previousMarker = previousMarkers.get(chat.id);
+          return previousMarker !== nextMarker;
+        });
+
+        knownPendingRequestsRef.current = nextMarkers;
 
         if (newThreads.length > 0) {
           const newestThread = newThreads[0];
