@@ -64,6 +64,14 @@ export const NAVIGATION_ITEMS = {
     href: '/dashboard/email',
     group: 'operations',
   },
+  whatsappInbox: {
+    labelTr: 'WhatsApp Inbox',
+    labelEn: 'WhatsApp Inbox',
+    descriptionTr: 'WhatsApp konuşmalarını tek ekranda görüntüleyin, devralın ve canlı yanıtlayın.',
+    descriptionEn: 'View WhatsApp conversations in one place, take them over, and reply live.',
+    href: '/dashboard/whatsapp',
+    group: 'operations',
+  },
   emailSnippets: {
     labelTr: 'Hızlı Yanıtlar',
     labelEn: 'Quick Replies',
