@@ -77,6 +77,10 @@ function formatPhone(value, fallback = '—') {
   return hasMeaningfulPhone(value) ? String(value).trim() : fallback;
 }
 
+function normalizePhoneDigits(value) {
+  return String(value || '').replace(/\D/g, '');
+}
+
 function dedupeWhatsAppConversations(chats = []) {
   const preferredByKey = new Map();
 
@@ -242,6 +246,11 @@ export default function WhatsAppInboxPage() {
     details: translate('dashboard.whatsappInboxPage.details'),
     noCustomerDataShort: translate('dashboard.whatsappInboxPage.noCustomerDataShort'),
     noPhoneAvailable: translate('dashboard.whatsappInboxPage.noPhoneAvailable'),
+    activeWorkspaceHint: translate('dashboard.whatsappInboxPage.activeWorkspaceHint'),
+    recentSessions: translate('dashboard.whatsappInboxPage.recentSessions'),
+    recentSessionsHint: translate('dashboard.whatsappInboxPage.recentSessionsHint'),
+    noRecentSessions: translate('dashboard.whatsappInboxPage.noRecentSessions'),
+    currentSession: translate('dashboard.whatsappInboxPage.currentSession'),
     threadEmpty: translate('dashboard.whatsappInboxPage.threadEmpty'),
     loadingThread: translate('dashboard.whatsappInboxPage.loadingThread'),
     loadFailed: translate('dashboard.whatsappInboxPage.loadFailed'),
@@ -266,6 +275,8 @@ export default function WhatsAppInboxPage() {
   const [handoffAction, setHandoffAction] = useState(null);
   const [customerData, setCustomerData] = useState(null);
   const [customerLoading, setCustomerLoading] = useState(false);
+  const [relatedSessions, setRelatedSessions] = useState([]);
+  const [relatedSessionsLoading, setRelatedSessionsLoading] = useState(false);
   const threadScrollRef = useRef(null);
   const requestedChatIdHandledRef = useRef(null);
 
@@ -307,7 +318,7 @@ export default function WhatsAppInboxPage() {
         if (requestedChatId && requestedChatIdHandledRef.current !== requestedChatId && rows.some((row) => row.id === requestedChatId)) {
           return requestedChatId;
         }
-        if (prev && rows.some((row) => row.id === prev)) return prev;
+        if (prev) return prev;
         return rows[0]?.id || null;
       });
     } catch {
@@ -411,6 +422,46 @@ export default function WhatsAppInboxPage() {
       cancelled = true;
     };
   }, [selectedChat?.customerPhone]);
+
+  useEffect(() => {
+    if (!hasMeaningfulPhone(selectedChat?.customerPhone)) {
+      setRelatedSessions([]);
+      setRelatedSessionsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setRelatedSessionsLoading(true);
+
+    apiClient.get('/api/chat-logs', {
+      params: {
+        page: 1,
+        limit: 20,
+        channel: 'WHATSAPP',
+        search: formatPhone(selectedChat.customerPhone, ''),
+      }
+    })
+      .then((response) => {
+        if (cancelled) return;
+
+        const targetPhoneDigits = normalizePhoneDigits(selectedChat.customerPhone);
+        const sessions = (response.data?.chatLogs || [])
+          .filter((chat) => normalizePhoneDigits(chat?.customerPhone) === targetPhoneDigits)
+          .sort((left, right) => new Date(right.updatedAt || right.createdAt || 0) - new Date(left.updatedAt || left.createdAt || 0));
+
+        setRelatedSessions(sessions);
+      })
+      .catch(() => {
+        if (!cancelled) setRelatedSessions([]);
+      })
+      .finally(() => {
+        if (!cancelled) setRelatedSessionsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedChat?.customerPhone, selectedChat?.updatedAt]);
 
   useEffect(() => {
     if (!selectedChat) return;
@@ -633,6 +684,7 @@ export default function WhatsAppInboxPage() {
                 <MessageSquare className="h-5 w-5 text-green-600" />
                 <h1 className="text-lg font-bold text-neutral-900 dark:text-white">{t.title}</h1>
               </div>
+              <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">{t.activeWorkspaceHint}</p>
             </div>
             <Button variant="ghost" size="sm" onClick={handleRefresh} disabled={listLoading || detailLoading}>
               <RefreshCw className={`h-4 w-4 ${listLoading || detailLoading ? 'animate-spin' : ''}`} />
@@ -885,6 +937,57 @@ export default function WhatsAppInboxPage() {
                           {!customerData && (
                             <div className="text-xs text-neutral-500 dark:text-neutral-400">{t.noCustomerDataShort}</div>
                           )}
+
+                          <div className="border-t border-neutral-200 pt-4 dark:border-neutral-800">
+                            <div>
+                              <div className="text-sm font-medium text-neutral-900 dark:text-white">{t.recentSessions}</div>
+                              <div className="mt-1 text-[11px] text-neutral-500 dark:text-neutral-400">{t.recentSessionsHint}</div>
+                            </div>
+
+                            <div className="mt-3 space-y-2">
+                              {relatedSessionsLoading ? (
+                                [1, 2, 3].map((row) => (
+                                  <div key={row} className="h-14 animate-pulse rounded-xl bg-neutral-100 dark:bg-neutral-800" />
+                                ))
+                              ) : relatedSessions.length === 0 ? (
+                                <div className="rounded-xl border border-dashed border-neutral-200 px-3 py-3 text-xs text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
+                                  {t.noRecentSessions}
+                                </div>
+                              ) : (
+                                relatedSessions.map((chat) => {
+                                  const isCurrent = chat.id === selectedChat?.id;
+                                  return (
+                                    <button
+                                      key={chat.id}
+                                      type="button"
+                                      onClick={() => setSelectedChatId(chat.id)}
+                                      className={`w-full rounded-xl border px-3 py-2 text-left transition ${
+                                        isCurrent
+                                          ? 'border-emerald-300 bg-emerald-50/70 dark:border-emerald-800 dark:bg-emerald-950/20'
+                                          : 'border-neutral-200 bg-white hover:border-neutral-300 dark:border-neutral-800 dark:bg-neutral-950 dark:hover:border-neutral-700'
+                                      }`}
+                                    >
+                                      <div className="flex items-center justify-between gap-2">
+                                        <div className="truncate text-xs font-medium text-neutral-900 dark:text-white">
+                                          {formatDateTime(chat.updatedAt || chat.createdAt, locale)}
+                                        </div>
+                                        {isCurrent ? (
+                                          <Badge variant="outline" className="text-[10px]">{t.currentSession}</Badge>
+                                        ) : (
+                                          <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${getCompactStatusClasses(chat)}`}>
+                                            {getCompactStatusLabel(chat, t)}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="mt-1 line-clamp-2 text-xs text-neutral-500 dark:text-neutral-400">
+                                        {buildInboxPreview(chat.messages) || '—'}
+                                      </div>
+                                    </button>
+                                  );
+                                })
+                              )}
+                            </div>
+                          </div>
                         </div>
                       )}
                     </div>
