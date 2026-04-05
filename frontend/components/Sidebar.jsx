@@ -66,8 +66,9 @@ import { NAVIGATION_ITEMS } from '@/lib/navigationConfig';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useHepsiburadaStatus, useSikayetvarStatus, useTrendyolStatus } from '@/hooks/useIntegrations';
 
-export default function Sidebar({ user, credits, business, whatsappPendingCount = 0 }) {
+export default function Sidebar({ user, credits, business, whatsappPendingCount = 0, chatPendingCount = 0 }) {
   const whatsappLiveHandoffEnabled = process.env.NEXT_PUBLIC_WHATSAPP_LIVE_HANDOFF_V2 === 'true';
+  const chatLiveHandoffEnabled = process.env.NEXT_PUBLIC_CHAT_LIVE_HANDOFF_V1 === 'true';
   const pathname = usePathname();
   const { t, locale } = useLanguage();
   const { can } = usePermissions();
@@ -345,6 +346,11 @@ export default function Sidebar({ user, credits, business, whatsappPendingCount 
                         {item.href === NAVIGATION_ITEMS.whatsappInbox.href && whatsappPendingCount > 0 && (
                           <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
                             {whatsappPendingCount > 99 ? '99+' : whatsappPendingCount}
+                          </span>
+                        )}
+                        {item.href === NAVIGATION_ITEMS.chatHistory.href && chatLiveHandoffEnabled && chatPendingCount > 0 && (
+                          <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                            {chatPendingCount > 99 ? '99+' : chatPendingCount}
                           </span>
                         )}
                       </Link>

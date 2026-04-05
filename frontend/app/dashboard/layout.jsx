@@ -35,11 +35,13 @@ export default function DashboardLayout({ children }) {
   const pathname = usePathname();
   const { t, locale } = useLanguage();
   const whatsappLiveHandoffEnabled = process.env.NEXT_PUBLIC_WHATSAPP_LIVE_HANDOFF_V2 === 'true';
+  const chatLiveHandoffEnabled = process.env.NEXT_PUBLIC_CHAT_LIVE_HANDOFF_V1 === 'true';
   const [user, setUser] = useState(null);
   const [credits, setCredits] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [whatsappPendingCount, setWhatsappPendingCount] = useState(0);
+  const [chatPendingCount, setChatPendingCount] = useState(0);
   const [liveSupportAlert, setLiveSupportAlert] = useState(null);
   const initialLoadDone = useRef(false);
   const knownPendingIdsRef = useRef(new Set());
@@ -182,8 +184,9 @@ export default function DashboardLayout({ children }) {
   };
 
   useEffect(() => {
-    if (!whatsappLiveHandoffEnabled || !user?.businessId) {
+    if ((!whatsappLiveHandoffEnabled && !chatLiveHandoffEnabled) || !user?.businessId) {
       setWhatsappPendingCount(0);
+      setChatPendingCount(0);
       setLiveSupportAlert(null);
       knownPendingIdsRef.current = new Set();
       return;
@@ -197,27 +200,44 @@ export default function DashboardLayout({ children }) {
           params: {
             page: 1,
             limit: 50,
-            channel: 'WHATSAPP',
           }
         });
 
         if (cancelled) return;
 
         const pendingThreads = (response.data?.chatLogs || [])
-          .filter((chat) => chat?.status === 'active' && chat?.handoff?.mode === 'REQUESTED')
+          .filter((chat) => (
+            chat?.status === 'active' &&
+            chat?.handoff?.mode === 'REQUESTED' &&
+            (
+              (chat?.channel === 'WHATSAPP' && whatsappLiveHandoffEnabled) ||
+              (chat?.channel === 'CHAT' && chatLiveHandoffEnabled)
+            )
+          ))
           .sort((left, right) => new Date(right.updatedAt || right.createdAt || 0) - new Date(left.updatedAt || left.createdAt || 0));
 
-        setWhatsappPendingCount(pendingThreads.length);
+        setWhatsappPendingCount(pendingThreads.filter((chat) => chat?.channel === 'WHATSAPP').length);
+        setChatPendingCount(pendingThreads.filter((chat) => chat?.channel === 'CHAT').length);
 
         const nextIds = new Set(pendingThreads.map((chat) => chat.id));
         const newThreads = pendingThreads.filter((chat) => !knownPendingIdsRef.current.has(chat.id));
         knownPendingIdsRef.current = nextIds;
 
-        if (pathname !== '/dashboard/whatsapp' && newThreads.length > 0) {
+        if (newThreads.length > 0) {
           const newestThread = newThreads[0];
+          const destination = newestThread.channel === 'CHAT'
+            ? '/dashboard/chats'
+            : '/dashboard/whatsapp';
+
+          if (pathname === destination) {
+            return;
+          }
+
           setLiveSupportAlert({
             id: newestThread.id,
+            channel: newestThread.channel,
             customerPhone: newestThread.customerPhone || null,
+            sessionId: newestThread.sessionId || null,
           });
         }
       } catch (error) {
@@ -239,7 +259,7 @@ export default function DashboardLayout({ children }) {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [whatsappLiveHandoffEnabled, user?.businessId, pathname]);
+  }, [chatLiveHandoffEnabled, whatsappLiveHandoffEnabled, user?.businessId, pathname]);
 
   if (loading) {
     return (
@@ -267,7 +287,13 @@ export default function DashboardLayout({ children }) {
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-950">
       {/* Sidebar */}
-      <Sidebar user={user} credits={credits} business={user?.business} whatsappPendingCount={whatsappPendingCount} />
+      <Sidebar
+        user={user}
+        credits={credits}
+        business={user?.business}
+        whatsappPendingCount={whatsappPendingCount}
+        chatPendingCount={chatPendingCount}
+      />
 
       {/* Main content - adjusted for 240px sidebar (w-60) */}
       <div className="flex-1 lg:ml-60 overflow-auto h-screen">
@@ -325,7 +351,9 @@ export default function DashboardLayout({ children }) {
                   {t('dashboard.whatsappInboxPage.globalAlertTitle')}
                 </h3>
                 <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-300">
-                  {t('dashboard.whatsappInboxPage.globalAlertDescription').replace('{phone}', liveSupportAlert.customerPhone || 'WhatsApp')}
+                  {liveSupportAlert.channel === 'CHAT'
+                    ? t('dashboard.chatHistoryPage.globalAlertDescription').replace('{session}', liveSupportAlert.sessionId || 'chat')
+                    : t('dashboard.whatsappInboxPage.globalAlertDescription').replace('{phone}', liveSupportAlert.customerPhone || 'WhatsApp')}
                 </p>
                 <div className="mt-4 flex items-center justify-end gap-2">
                   <button
@@ -338,12 +366,14 @@ export default function DashboardLayout({ children }) {
                   <button
                     type="button"
                     onClick={() => {
-                      router.push(`/dashboard/whatsapp?chatId=${liveSupportAlert.id}`);
+                      router.push(`${liveSupportAlert.channel === 'CHAT' ? '/dashboard/chats' : '/dashboard/whatsapp'}?chatId=${liveSupportAlert.id}`);
                       setLiveSupportAlert(null);
                     }}
                     className="rounded-lg bg-amber-500 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-amber-600"
                   >
-                    {t('dashboard.whatsappInboxPage.openInbox')}
+                    {liveSupportAlert.channel === 'CHAT'
+                      ? t('dashboard.chatHistoryPage.openConversation')
+                      : t('dashboard.whatsappInboxPage.openInbox')}
                   </button>
                 </div>
               </div>

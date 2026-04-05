@@ -163,6 +163,16 @@ export function isWhatsAppLiveHandoffEnabled() {
   return isFeatureEnabled('WHATSAPP_LIVE_HANDOFF_V2');
 }
 
+export function isChatLiveHandoffEnabled() {
+  return isFeatureEnabled('CHAT_LIVE_HANDOFF_V1');
+}
+
+export function isLiveHandoffEnabledForChannel(channel = '') {
+  if (channel === 'WHATSAPP') return isWhatsAppLiveHandoffEnabled();
+  if (channel === 'CHAT') return isChatLiveHandoffEnabled();
+  return false;
+}
+
 export function getLiveHandoffClaimedMessage(language = 'TR', actorName = null) {
   if (String(language || 'TR').toUpperCase() === 'EN') {
     return 'A live support teammate has joined this conversation and will assist you from here.';
@@ -175,6 +185,12 @@ export function getLiveHandoffReturnedToAiMessage(language = 'TR') {
   return String(language || 'TR').toUpperCase() === 'EN'
     ? 'This conversation has been handed back to our AI assistant. You can keep replying in this thread.'
     : 'Bu konuşma tekrar yapay zeka asistanımıza devredildi. Aynı yazışma üzerinden devam edebilirsiniz.';
+}
+
+export function getLiveHandoffAcknowledgementMessage(language = 'TR') {
+  return String(language || 'TR').toUpperCase() === 'EN'
+    ? 'A teammate will take over this conversation shortly. Please stay in this thread.'
+    : 'Bir temsilcimiz bu konuşmayı birazdan devralacak. Lütfen bu konuşmada kalın.';
 }
 
 export function getLiveSupportClarifyMessage(language = 'TR') {

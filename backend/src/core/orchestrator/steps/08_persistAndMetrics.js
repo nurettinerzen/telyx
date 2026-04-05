@@ -114,6 +114,7 @@ export async function persistAndEmitMetrics(params) {
   const assistantMessage = {
     role: 'assistant',
     content: persistedResponse,
+    timestamp: new Date().toISOString(),
     responseGrounding: persistedGrounding,
     metadata: normalizedAssistantMeta,
     ...(toolsCalled?.length > 0 && { toolCalls: toolsCalled })
@@ -124,7 +125,7 @@ export async function persistAndEmitMetrics(params) {
 
   const updatedMessages = [
     ...(chatLog?.messages || []),
-    { role: 'user', content: userMessage },
+    { role: 'user', content: userMessage, timestamp: new Date().toISOString() },
     assistantMessage
   ];
 

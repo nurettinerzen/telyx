@@ -18,7 +18,7 @@ import { calculateTokenCost, hasFreeChat } from '../config/plans.js';
 import callAnalysis from '../services/callAnalysis.js';
 
 // NEW: State machine services
-import { getOrCreateSession } from '../services/session-mapper.js';
+import { getOrCreateSession, getSession } from '../services/session-mapper.js';
 import { getState, updateState } from '../services/state-manager.js';
 import { shouldRunIntentRouter } from '../services/router-decision.js';
 // DEPRECATED: processSlotInput — LLM handles slot processing now (LLM Authority Refactor)
@@ -69,6 +69,7 @@ import {
 import { extractSessionToken, verifySessionToken } from '../security/sessionToken.js';
 import { queueUnifiedResponseTrace } from '../services/trace/responseTraceLogger.js';
 import { logAssistantFeedback } from '../services/operationalIncidentLogger.js';
+import { classifySemanticSupportIntent } from '../services/semantic-guard-classifier.js';
 import {
   buildChatWrittenIdempotencyKey,
   commitWrittenInteraction,
@@ -76,6 +77,23 @@ import {
   releaseWrittenInteraction,
   reserveWrittenInteraction
 } from '../services/writtenUsageService.js';
+import {
+  HANDOFF_MODE,
+  SUPPORT_OFFER_MODE,
+  appendChatLogMessages,
+  buildSystemEventMessage,
+  clearSupportRoutingState,
+  getLiveHandoffAcknowledgementMessage,
+  getLiveSupportAvailability,
+  getLiveSupportClarifyMessage,
+  getLiveSupportUnavailableMessage,
+  getNormalizedHandoffState,
+  getSupportRoutingState,
+  isChatLiveHandoffEnabled,
+  requestHumanHandoff,
+  setSupportRoutingPending,
+  shouldTriggerHumanHandoff,
+} from '../services/liveHandoff.js';
 
 const router = express.Router();
 
@@ -115,6 +133,135 @@ async function _isDashboardPreview(req, businessId) {
   } catch {
     return false;
   }
+}
+
+async function resolveWidgetContext({ embedKey, assistantId, req }) {
+  let business = null;
+  let assistant = null;
+
+  if (embedKey) {
+    business = await prisma.business.findUnique({
+      where: { chatEmbedKey: embedKey },
+      include: {
+        assistants: {
+          where: { isActive: true },
+          orderBy: { createdAt: 'desc' }
+        },
+        integrations: { where: { isActive: true } },
+        crmWebhook: true
+      }
+    });
+
+    if (!business) {
+      const error = new Error('Invalid embed key');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    if (!business.chatWidgetEnabled) {
+      const isDashboardPreview = await _isDashboardPreview(req, business.id);
+      if (!isDashboardPreview) {
+        const error = new Error('Chat widget is disabled');
+        error.statusCode = 403;
+        throw error;
+      }
+      console.log('🔓 [Widget] Dashboard preview bypass — chatWidgetEnabled check skipped');
+    }
+
+    const resolved = await resolveChatAssistantForBusiness({
+      prisma,
+      business,
+      allowAutoCreate: true
+    });
+
+    assistant = resolved.assistant;
+
+    if (!assistant) {
+      const error = new Error('No chat-capable assistant found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    if (resolved.createdFallback) {
+      console.log(`🆕 [Widget] Auto-created fallback chat assistant for business ${business.id}`);
+    }
+  } else {
+    const requestedAssistant = await prisma.assistant.findFirst({
+      where: {
+        id: assistantId,
+        isActive: true
+      },
+      include: {
+        business: {
+          include: {
+            assistants: {
+              where: { isActive: true },
+              orderBy: { createdAt: 'desc' }
+            },
+            integrations: { where: { isActive: true } },
+            crmWebhook: true
+          }
+        }
+      }
+    });
+
+    if (!requestedAssistant) {
+      const error = new Error('Assistant not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    business = requestedAssistant.business;
+
+    if (!business.chatWidgetEnabled) {
+      const isDashboardPreview = await _isDashboardPreview(req, business.id);
+      if (!isDashboardPreview) {
+        const error = new Error('Chat widget is disabled');
+        error.statusCode = 403;
+        throw error;
+      }
+      console.log('🔓 [Widget] Dashboard preview bypass (assistantId) — chatWidgetEnabled check skipped');
+    }
+
+    if (assistantHasCapability(requestedAssistant, ASSISTANT_CHANNEL_CAPABILITIES.CHAT)) {
+      assistant = requestedAssistant;
+    } else {
+      const resolved = await resolveChatAssistantForBusiness({
+        prisma,
+        business,
+        allowAutoCreate: true
+      });
+
+      assistant = resolved.assistant;
+
+      if (!assistant) {
+        const error = new Error('No chat-capable assistant found');
+        error.statusCode = 404;
+        throw error;
+      }
+
+      console.warn(`⚠️ [Widget] Requested assistant ${requestedAssistant.id} is not chat-capable. Using ${assistant.id} instead.`);
+    }
+  }
+
+  return {
+    business,
+    assistant: assistant ? { ...assistant, business } : null,
+  };
+}
+
+function buildInternalChatHandoffEvent(content, metadata = {}) {
+  return buildSystemEventMessage(content, {
+    visibility: 'internal',
+    ...metadata,
+  });
+}
+
+function buildPublicWidgetHistory(messages = []) {
+  return (Array.isArray(messages) ? messages : []).filter((message) => {
+    if (message?.role !== 'system') return true;
+    return message?.metadata?.visibility === 'customer';
+  });
 }
 
 const PLACEHOLDER_REGEX = /\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g;
@@ -952,6 +1099,73 @@ async function handleMessageLEGACY(sessionId, businessId, userMessage, systemPro
 }
 
 /**
+ * GET /api/chat/widget/session - Poll the latest public-safe widget transcript state
+ */
+router.get('/widget/session', async (req, res) => {
+  try {
+    const { embedKey, assistantId, sessionId: clientSessionId } = req.query;
+
+    if (!clientSessionId) {
+      return res.status(400).json({ error: 'sessionId is required' });
+    }
+
+    if (!embedKey && !assistantId) {
+      return res.status(400).json({ error: 'embedKey or assistantId is required' });
+    }
+
+    const { business, assistant } = await resolveWidgetContext({
+      embedKey,
+      assistantId,
+      req,
+    });
+
+    const resolvedSessionId = await getSession(business.id, 'CHAT', String(clientSessionId));
+    if (!resolvedSessionId) {
+      return res.json({
+        success: true,
+        found: false,
+        conversationId: null,
+        sessionId: String(clientSessionId),
+        history: [],
+        handoff: getNormalizedHandoffState(),
+      });
+    }
+
+    const [chatLog, state] = await Promise.all([
+      prisma.chatLog.findFirst({
+        where: {
+          sessionId: resolvedSessionId,
+          businessId: business.id,
+        },
+        select: {
+          status: true,
+          messages: true,
+          updatedAt: true,
+        }
+      }),
+      getState(resolvedSessionId),
+    ]);
+
+    res.json({
+      success: true,
+      found: Boolean(chatLog),
+      conversationId: resolvedSessionId,
+      sessionId: String(clientSessionId),
+      assistantName: assistant?.name || null,
+      status: chatLog?.status || 'active',
+      history: buildPublicWidgetHistory(chatLog?.messages || []),
+      handoff: getNormalizedHandoffState(state),
+      updatedAt: chatLog?.updatedAt || null,
+    });
+  } catch (error) {
+    console.error('❌ Widget session state error:', error);
+    res.status(error.statusCode || 500).json({
+      error: error.message || 'Failed to load widget conversation state',
+    });
+  }
+});
+
+/**
  * POST /api/chat/widget - Main chat endpoint
  */
 router.post('/widget', async (req, res) => {
@@ -982,108 +1196,19 @@ router.post('/widget', async (req, res) => {
 
     // Get assistant and business
     let _t = Date.now();
-    let assistant = null;
+    const resolvedContext = await resolveWidgetContext({
+      embedKey,
+      assistantId,
+      req,
+    });
 
-    if (embedKey) {
-      business = await prisma.business.findUnique({
-        where: { chatEmbedKey: embedKey },
-        include: {
-          assistants: {
-            where: { isActive: true },
-            orderBy: { createdAt: 'desc' }
-          },
-          integrations: { where: { isActive: true } },
-          crmWebhook: true  // Required for CRM tool gating
-        }
-      });
-
-      if (!business) {
-        return res.status(404).json({ error: 'Invalid embed key' });
-      }
-
-      if (!business.chatWidgetEnabled) {
-        // Dashboard preview bypass: if request has valid auth token for same business, allow
-        const isDashboardPreview = await _isDashboardPreview(req, business.id);
-        if (!isDashboardPreview) {
-          return res.status(403).json({ error: 'Chat widget is disabled' });
-        }
-        console.log('🔓 [Widget] Dashboard preview bypass — chatWidgetEnabled check skipped');
-      }
-
-      const resolved = await resolveChatAssistantForBusiness({
-        prisma,
-        business,
-        allowAutoCreate: true
-      });
-
-      assistant = resolved.assistant;
-
-      if (!assistant) {
-        return res.status(404).json({ error: 'No chat-capable assistant found' });
-      }
-
-      if (resolved.createdFallback) {
-        console.log(`🆕 [Widget] Auto-created fallback chat assistant for business ${business.id}`);
-      }
-    } else {
-      const requestedAssistant = await prisma.assistant.findFirst({
-        where: {
-          id: assistantId,
-          isActive: true
-        },
-        include: {
-          business: {
-            include: {
-              assistants: {
-                where: { isActive: true },
-                orderBy: { createdAt: 'desc' }
-              },
-              integrations: { where: { isActive: true } },
-              crmWebhook: true  // Required for CRM tool gating
-            }
-          }
-        }
-      });
-
-      if (!requestedAssistant) {
-        return res.status(404).json({ error: 'Assistant not found' });
-      }
-
-      business = requestedAssistant.business;
-
-      // SECURITY: Enforce chatWidgetEnabled for assistantId flow too (not just embedKey)
-      if (!business.chatWidgetEnabled) {
-        const isDashboardPreview = await _isDashboardPreview(req, business.id);
-        if (!isDashboardPreview) {
-          return res.status(403).json({ error: 'Chat widget is disabled' });
-        }
-        console.log('🔓 [Widget] Dashboard preview bypass (assistantId) — chatWidgetEnabled check skipped');
-      }
-
-      if (assistantHasCapability(requestedAssistant, ASSISTANT_CHANNEL_CAPABILITIES.CHAT)) {
-        assistant = requestedAssistant;
-      } else {
-        const resolved = await resolveChatAssistantForBusiness({
-          prisma,
-          business,
-          allowAutoCreate: true
-        });
-
-        assistant = resolved.assistant;
-
-        if (!assistant) {
-          return res.status(404).json({ error: 'No chat-capable assistant found' });
-        }
-
-        console.warn(`⚠️ [Widget] Requested assistant ${requestedAssistant.id} is not chat-capable. Using ${assistant.id} instead.`);
-      }
-    }
+    business = resolvedContext.business;
+    let assistant = resolvedContext.assistant;
 
     if (!assistant || !business) {
       return res.status(404).json({ error: 'Assistant not found' });
     }
 
-    assistant = { ...assistant, business };
     const language = business?.language || 'TR';
     const timezone = business?.timezone || 'Europe/Istanbul';
     console.log(`⏱️ [Widget] DB assistant+business: ${Date.now() - _t}ms`); _t = Date.now();
@@ -1143,6 +1268,224 @@ router.post('/widget', async (req, res) => {
     }
 
     console.log(`⏱️ [Widget] Security guards: ${Date.now() - _t}ms`); _t = Date.now();
+
+    let state = null;
+    let handoff = getNormalizedHandoffState();
+    let supportRouting = getSupportRoutingState();
+    if (isChatLiveHandoffEnabled()) {
+      state = await getState(sessionId);
+      handoff = getNormalizedHandoffState(state);
+      supportRouting = getSupportRoutingState(state);
+    }
+
+    const userTranscriptMessage = {
+      role: 'user',
+      content: message,
+      timestamp: new Date().toISOString(),
+    };
+
+    if (isChatLiveHandoffEnabled()) {
+      const liveSupportAvailability = await getLiveSupportAvailability({
+        businessId: business.id,
+        timezone,
+      });
+
+      let semanticSupportIntent = null;
+      if (handoff.mode === HANDOFF_MODE.AI) {
+        try {
+          semanticSupportIntent = await classifySemanticSupportIntent(message, language, {
+            supportChoicePending: supportRouting.pendingChoice,
+            supportOfferMode: supportRouting.offerMode,
+            liveSupportAvailable: liveSupportAvailability.available,
+          });
+        } catch (supportIntentError) {
+          console.error('⚠️ [ChatWidget] Semantic support intent classifier failed:', supportIntentError.message);
+        }
+      }
+
+      if (handoff.mode === HANDOFF_MODE.REQUESTED || handoff.mode === HANDOFF_MODE.ACTIVE) {
+        const updatedChatLog = await appendChatLogMessages({
+          sessionId,
+          businessId: business.id,
+          channel: 'CHAT',
+          assistantId: assistant.id,
+          messages: [userTranscriptMessage],
+        });
+
+        return res.json({
+          success: true,
+          reply: null,
+          suppressed: true,
+          conversationId: sessionId,
+          sessionId: clientSessionId || sessionId,
+          assistantName: assistant.name,
+          history: buildPublicWidgetHistory(updatedChatLog?.messages || []),
+          handoff: getNormalizedHandoffState(state),
+        });
+      }
+
+      const fallbackLiveHandoff = shouldTriggerHumanHandoff(message);
+      const shouldStartLiveHandoff =
+        semanticSupportIntent?.isLiveHandoff === true ||
+        (!semanticSupportIntent && fallbackLiveHandoff);
+      const shouldClarifySupport = semanticSupportIntent?.needsClarification === true;
+
+      if (shouldStartLiveHandoff) {
+        if (liveSupportAvailability.available) {
+          await clearSupportRoutingState({
+            sessionId,
+            businessId: business.id,
+            currentState: state,
+          });
+
+          const nextHandoff = await requestHumanHandoff({
+            sessionId,
+            businessId: business.id,
+            requestedBy: 'customer',
+            requestedReason: 'customer_requested_live_support',
+            currentState: state,
+          });
+
+          const acknowledgement = getLiveHandoffAcknowledgementMessage(language);
+          const updatedChatLog = await appendChatLogMessages({
+            sessionId,
+            businessId: business.id,
+            channel: 'CHAT',
+            assistantId: assistant.id,
+            messages: [
+              userTranscriptMessage,
+              buildInternalChatHandoffEvent(
+                'Customer requested live support.',
+                {
+                  type: 'handoff_requested',
+                  requestedBy: 'customer',
+                  supportIntent: semanticSupportIntent?.intent || 'LIVE_HANDOFF_REQUEST',
+                }
+              ),
+              {
+                role: 'assistant',
+                content: acknowledgement,
+                timestamp: new Date().toISOString(),
+                metadata: {
+                  source: 'live_handoff_acknowledgement',
+                }
+              }
+            ]
+          });
+
+          return res.json({
+            success: true,
+            reply: acknowledgement,
+            conversationId: sessionId,
+            sessionId: clientSessionId || sessionId,
+            assistantName: assistant.name,
+            history: buildPublicWidgetHistory(updatedChatLog?.messages || []),
+            handoff: nextHandoff,
+          });
+        }
+
+        await setSupportRoutingPending({
+          sessionId,
+          businessId: business.id,
+          offerMode: SUPPORT_OFFER_MODE.CALLBACK_ONLY,
+          liveSupportAvailable: false,
+          reason: 'live_support_unavailable',
+          currentState: state,
+        });
+
+        const unavailableMessage = getLiveSupportUnavailableMessage(language);
+        const updatedChatLog = await appendChatLogMessages({
+          sessionId,
+          businessId: business.id,
+          channel: 'CHAT',
+          assistantId: assistant.id,
+          messages: [
+            userTranscriptMessage,
+            buildInternalChatHandoffEvent(
+              'Live support unavailable; callback offered instead.',
+              {
+                type: 'handoff_unavailable',
+                supportIntent: semanticSupportIntent?.intent || 'LIVE_HANDOFF_REQUEST',
+              }
+            ),
+            {
+              role: 'assistant',
+              content: unavailableMessage,
+              timestamp: new Date().toISOString(),
+              metadata: {
+                source: 'live_handoff_unavailable',
+              }
+            }
+          ]
+        });
+
+        return res.json({
+          success: true,
+          reply: unavailableMessage,
+          conversationId: sessionId,
+          sessionId: clientSessionId || sessionId,
+          assistantName: assistant.name,
+          history: buildPublicWidgetHistory(updatedChatLog?.messages || []),
+          handoff: getNormalizedHandoffState(state),
+        });
+      }
+
+      if (shouldClarifySupport) {
+        const offerMode = liveSupportAvailability.available
+          ? SUPPORT_OFFER_MODE.CHOICE
+          : SUPPORT_OFFER_MODE.CALLBACK_ONLY;
+        const clarifyMessage = liveSupportAvailability.available
+          ? getLiveSupportClarifyMessage(language)
+          : getLiveSupportUnavailableMessage(language);
+
+        await setSupportRoutingPending({
+          sessionId,
+          businessId: business.id,
+          offerMode,
+          liveSupportAvailable: liveSupportAvailability.available,
+          reason: 'support_preference_requested',
+          currentState: state,
+        });
+
+        const updatedChatLog = await appendChatLogMessages({
+          sessionId,
+          businessId: business.id,
+          channel: 'CHAT',
+          assistantId: assistant.id,
+          messages: [
+            userTranscriptMessage,
+            buildInternalChatHandoffEvent(
+              liveSupportAvailability.available
+                ? 'Asked customer to choose between live handoff and callback.'
+                : 'Asked customer whether they want a callback because live support is unavailable.',
+              {
+                type: 'support_preference_requested',
+                offerMode,
+              }
+            ),
+            {
+              role: 'assistant',
+              content: clarifyMessage,
+              timestamp: new Date().toISOString(),
+              metadata: {
+                source: 'support_preference_clarify',
+                offerMode,
+              }
+            }
+          ]
+        });
+
+        return res.json({
+          success: true,
+          reply: clarifyMessage,
+          conversationId: sessionId,
+          sessionId: clientSessionId || sessionId,
+          assistantName: assistant.name,
+          history: buildPublicWidgetHistory(updatedChatLog?.messages || []),
+          handoff,
+        });
+      }
+    }
 
     if (subscription && subscription.plan !== 'FREE') {
       writtenUsageKey = buildChatWrittenIdempotencyKey({
@@ -1444,7 +1787,8 @@ router.post('/widget', async (req, res) => {
       // conversationId remains the canonical internal session key.
       sessionId: clientSessionId || sessionId,
       assistantName: assistant.name,
-      history: historyParity.updated ? historyParity.messages : (existingLog?.messages || []),
+      history: buildPublicWidgetHistory(historyParity.updated ? historyParity.messages : (existingLog?.messages || [])),
+      handoff: getNormalizedHandoffState(updatedState),
       verificationStatus: updatedState.verification?.status || 'none', // P0: Gate requirement for verification tests
       warnings: resultWarnings.length > 0 ? resultWarnings : undefined,
       toolsCalled: result.toolsCalled || [], // For test assertions (deprecated, use toolCalls)

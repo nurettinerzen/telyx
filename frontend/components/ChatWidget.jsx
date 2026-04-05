@@ -31,6 +31,39 @@ function isMeaningfulUserMessage(message = '') {
   return hasDigits || hasQuestion || wordCount >= 2 || normalized.length >= 12;
 }
 
+function mapServerMessageToWidgetMessage(message = {}) {
+  return {
+    role: message?.role || 'assistant',
+    content: String(message?.content || ''),
+    timestamp: message?.timestamp ? new Date(message.timestamp) : null,
+    traceId: message?.traceId || message?.metadata?.traceId || null,
+    metadata: message?.metadata || null,
+  };
+}
+
+function buildWidgetMessagesFromHistory(history = []) {
+  return (Array.isArray(history) ? history : [])
+    .filter((message) => typeof message?.content === 'string' && message.content.trim().length > 0)
+    .map(mapServerMessageToWidgetMessage);
+}
+
+function attachTraceToLatestAssistant(messages = [], traceId = null) {
+  if (!traceId) return messages;
+
+  const nextMessages = [...messages];
+  for (let index = nextMessages.length - 1; index >= 0; index -= 1) {
+    if (nextMessages[index]?.role === 'assistant') {
+      nextMessages[index] = {
+        ...nextMessages[index],
+        traceId,
+      };
+      break;
+    }
+  }
+
+  return nextMessages;
+}
+
 export default function ChatWidget({
   embedKey,           // NEW: Business-specific embed key (preferred)
   assistantId,        // LEGACY: Direct assistant ID (backward compatibility)
@@ -54,8 +87,10 @@ export default function ChatWidget({
   const [feedbackComment, setFeedbackComment] = useState('');
   const [feedbackSending, setFeedbackSending] = useState(false);
   const [feedbackSubmittedByTrace, setFeedbackSubmittedByTrace] = useState({});
+  const [widgetHandoff, setWidgetHandoff] = useState({ mode: 'AI' });
   const { t, locale } = useLanguage();
   const feedbackCopy = getChatWidgetFeedbackCopy(locale);
+  const chatLiveHandoffEnabled = process.env.NEXT_PUBLIC_CHAT_LIVE_HANDOFF_V1 === 'true';
 
   // Check widget status on mount
   // In preview mode (dashboard), skip the public status check — always show widget
@@ -137,6 +172,68 @@ export default function ChatWidget({
     setFeedbackReason(null);
     setFeedbackComment('');
   }, [latestAssistantTraceId]);
+
+  useEffect(() => {
+    if (!chatLiveHandoffEnabled || !isOpen || !sessionId || (!embedKey && !assistantId)) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    const syncSession = async () => {
+      try {
+        const params = new URLSearchParams({ sessionId });
+        if (embedKey) {
+          params.set('embedKey', embedKey);
+        } else if (assistantId) {
+          params.set('assistantId', assistantId);
+        }
+
+        const response = await fetch(`${API_URL}/api/chat/widget/session?${params.toString()}`);
+        if (!response.ok) {
+          return;
+        }
+
+        const data = await response.json();
+        if (cancelled) return;
+
+        setWidgetHandoff(data?.handoff || { mode: 'AI' });
+
+        const syncedMessages = buildWidgetMessagesFromHistory(data?.history || []);
+        if (syncedMessages.length > 0) {
+          setMessages((prev) => {
+            const previousSerialized = JSON.stringify(prev.map((message) => ({
+              role: message.role,
+              content: message.content,
+              timestamp: message.timestamp instanceof Date ? message.timestamp.toISOString() : message.timestamp || null,
+            })));
+            const nextSerialized = JSON.stringify(syncedMessages.map((message) => ({
+              role: message.role,
+              content: message.content,
+              timestamp: message.timestamp instanceof Date ? message.timestamp.toISOString() : message.timestamp || null,
+            })));
+
+            return previousSerialized === nextSerialized ? prev : syncedMessages;
+          });
+        }
+      } catch (error) {
+        console.error('Failed to sync widget session:', error);
+      }
+    };
+
+    syncSession();
+
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        syncSession();
+      }
+    }, 3000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [chatLiveHandoffEnabled, isOpen, sessionId, embedKey, assistantId]);
 
   // Add welcome message when chat opens
   useEffect(() => {
@@ -241,17 +338,30 @@ useEffect(() => {
 
       const data = await response.json();
 
+      if (data?.handoff) {
+        setWidgetHandoff(data.handoff);
+      }
+
+      const historyMessages = attachTraceToLatestAssistant(
+        buildWidgetMessagesFromHistory(data?.history || []),
+        data?.traceId || null
+      );
+      if (historyMessages.length > 0) {
+        setMessages(historyMessages);
+      }
+
       if (data.reply) {
-        const botMessage = {
-          role: 'assistant',
-          content: data.reply,
-          timestamp: new Date(),
-          traceId: data.traceId || null
-        };
-        setMessages(prev => [...prev, botMessage]);
-        setConversationHistory(prev => [...prev, { role: 'assistant', content: data.reply }]);
+        if (historyMessages.length === 0) {
+          setMessages(prev => [...prev, {
+            role: 'assistant',
+            content: data.reply,
+            timestamp: new Date(),
+            traceId: data.traceId || null
+          }]);
+        }
         setLatestAssistantTraceId(data.traceId || null);
-      } else {
+        setConversationHistory(prev => [...prev, { role: 'assistant', content: data.reply }]);
+      } else if (!data?.suppressed && (!data?.handoff || data.handoff.mode === 'AI')) {
         console.warn('No reply in response:', data);
         setMessages(prev => [...prev, {
           role: 'system',
@@ -315,11 +425,14 @@ useEffect(() => {
     setFeedbackReason(null);
     setFeedbackComment('');
     setFeedbackSubmittedByTrace({});
+    setWidgetHandoff({ mode: 'AI' });
   };
 
   const tracedAssistantMessages = messages.filter((msg) => msg.role === 'assistant' && msg.traceId);
   const meaningfulUserMessages = messages.filter((msg) => msg.role === 'user' && isMeaningfulUserMessage(msg.content));
-  const feedbackEligible = tracedAssistantMessages.length >= FEEDBACK_MIN_ASSISTANT_TURNS && meaningfulUserMessages.length >= 1;
+  const feedbackEligible = widgetHandoff?.mode === 'AI'
+    && tracedAssistantMessages.length >= FEEDBACK_MIN_ASSISTANT_TURNS
+    && meaningfulUserMessages.length >= 1;
   const latestAssistantMessage = [...messages]
     .reverse()
     .find((msg) => msg.role === 'assistant' && msg.traceId);
@@ -420,18 +533,36 @@ useEffect(() => {
             {messages.map((msg, index) => (
               <div
                 key={index}
-                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                className={`flex ${
+                  msg.role === 'user'
+                    ? 'justify-end'
+                    : msg.role === 'system'
+                      ? 'justify-center'
+                      : 'justify-start'
+                }`}
               >
                 <div
                   className={`max-w-[80%] px-4 py-2 rounded-2xl text-sm ${
                     msg.role === 'user'
                       ? 'text-white rounded-br-md'
+                      : msg.role === 'human_agent'
+                      ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-900 dark:text-emerald-100 border border-emerald-200 dark:border-emerald-800 rounded-bl-md shadow-sm'
                       : msg.role === 'assistant'
                       ? 'bg-white dark:bg-neutral-800 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-neutral-700 rounded-bl-md shadow-sm'
                       : 'bg-yellow-50 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-700'
                   }`}
                   style={msg.role === 'user' ? { backgroundColor: primaryColor } : {}}
                 >
+                  {msg.role === 'human_agent' && (
+                    <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                      {t('dashboard.chatWidgetPage.liveAgentLabel')}
+                    </div>
+                  )}
+                  {msg.role === 'system' && (
+                    <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-yellow-700 dark:text-yellow-300">
+                      {t('dashboard.chatWidgetPage.systemLabel')}
+                    </div>
+                  )}
                   {msg.content}
                 </div>
               </div>

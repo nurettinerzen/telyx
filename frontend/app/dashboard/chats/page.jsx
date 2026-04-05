@@ -111,6 +111,8 @@ function formatPhone(value, fallback = '—') {
 export default function ChatsPage() {
   const { t, locale } = useLanguage();
   const searchParams = useSearchParams();
+  const whatsappLiveHandoffEnabled = process.env.NEXT_PUBLIC_WHATSAPP_LIVE_HANDOFF_V2 === 'true';
+  const chatLiveHandoffEnabled = process.env.NEXT_PUBLIC_CHAT_LIVE_HANDOFF_V1 === 'true';
   const [chats, setChats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
@@ -168,8 +170,15 @@ export default function ChatsPage() {
   }, [chats, sortedChats]);
 
   const pendingLiveHandoffs = useMemo(() => {
-    return inboxChats.filter((chat) => chat?.channel === 'WHATSAPP' && chat?.handoff?.mode === 'REQUESTED');
-  }, [inboxChats]);
+    return inboxChats.filter((chat) => (
+      chat?.status === 'active' &&
+      chat?.handoff?.mode === 'REQUESTED' &&
+      (
+        (chat?.channel === 'WHATSAPP' && whatsappLiveHandoffEnabled) ||
+        (chat?.channel === 'CHAT' && chatLiveHandoffEnabled)
+      )
+    ));
+  }, [chatLiveHandoffEnabled, inboxChats, whatsappLiveHandoffEnabled]);
 
   const loadChatDetails = async (chatId, { openModal = false, silent = false } = {}) => {
     try {
@@ -240,7 +249,12 @@ export default function ChatsPage() {
   }, [isInitialLoad, statusFilter, channelFilter, searchQuery, dateRange]);
 
   useEffect(() => {
-    if (!showChatModal || !selectedChat?.id || selectedChat?.channel !== 'WHATSAPP') {
+    const liveHandoffChannel = (
+      (selectedChat?.channel === 'WHATSAPP' && whatsappLiveHandoffEnabled) ||
+      (selectedChat?.channel === 'CHAT' && chatLiveHandoffEnabled)
+    );
+
+    if (!showChatModal || !selectedChat?.id || selectedChat?.status !== 'active' || !liveHandoffChannel) {
       return undefined;
     }
 
@@ -249,7 +263,7 @@ export default function ChatsPage() {
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [showChatModal, selectedChat?.id, selectedChat?.channel]);
+  }, [chatLiveHandoffEnabled, selectedChat?.channel, selectedChat?.id, selectedChat?.status, showChatModal, whatsappLiveHandoffEnabled]);
 
   useEffect(() => {
     if (!requestedChatId) {
@@ -791,13 +805,17 @@ export default function ChatsPage() {
                   <span className="text-gray-500">{t('dashboard.chatsPage.assistant')}</span>
                   <p className="font-medium">{selectedChat.assistant?.name || '-'}</p>
                 </div>
-                {selectedChat.channel === 'WHATSAPP' && (
+                {((selectedChat.channel === 'WHATSAPP' && whatsappLiveHandoffEnabled) || (selectedChat.channel === 'CHAT' && chatLiveHandoffEnabled)) && (
                   <div>
                     <span className="text-gray-500">{t('dashboard.callbacksPage.customer')}</span>
-                    <p className="font-medium">{formatPhone(selectedChat.customerPhone)}</p>
+                    <p className="font-medium">
+                      {selectedChat.channel === 'WHATSAPP'
+                        ? formatPhone(selectedChat.customerPhone)
+                        : selectedChat.sessionId}
+                    </p>
                   </div>
                 )}
-                {selectedChat.channel === 'WHATSAPP' && (
+                {((selectedChat.channel === 'WHATSAPP' && whatsappLiveHandoffEnabled) || (selectedChat.channel === 'CHAT' && chatLiveHandoffEnabled)) && (
                   <div className="col-span-2">
                     <span className="text-gray-500">{t('dashboard.chatsPage.liveMode')}</span>
                     <div className="mt-2">{getHandoffBadge(selectedChat.handoff, selectedChat.status)}</div>
@@ -805,7 +823,7 @@ export default function ChatsPage() {
                 )}
               </div>
 
-              {selectedChat.channel === 'WHATSAPP' && (
+              {((selectedChat.channel === 'WHATSAPP' && whatsappLiveHandoffEnabled) || (selectedChat.channel === 'CHAT' && chatLiveHandoffEnabled)) && (
                 <div className="rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950">
                   <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                     <div>

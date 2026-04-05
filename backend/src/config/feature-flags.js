@@ -155,6 +155,10 @@ export const FEATURE_FLAGS = {
   // Enable explicitly per environment with WHATSAPP_LIVE_HANDOFF_V2=true.
   WHATSAPP_LIVE_HANDOFF_V2: process.env.WHATSAPP_LIVE_HANDOFF_V2 === 'true',
 
+  // Chat live handoff rollout.
+  // Keep OFF by default so chat-side takeover can ship behind a safe branch/beta gate.
+  CHAT_LIVE_HANDOFF_V1: process.env.CHAT_LIVE_HANDOFF_V1 === 'true',
+
   // WhatsApp feedback buttons rollout.
   // Keep OFF by default; beta can enable explicitly with WHATSAPP_FEEDBACK_V1=true.
   WHATSAPP_FEEDBACK_V1: process.env.WHATSAPP_FEEDBACK_V1 === 'true',
