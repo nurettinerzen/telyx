@@ -66,6 +66,7 @@ import {
   buildSystemEventMessage,
   getNormalizedHandoffState,
   HANDOFF_MODE,
+  isWhatsAppLiveHandoffEnabled,
   requestHumanHandoff,
   shouldTriggerHumanHandoff,
 } from '../services/liveHandoff.js';
@@ -627,7 +628,7 @@ async function processWhatsAppMessage(business, from, messageBody, messageId, tr
       timestamp: new Date().toISOString(),
     };
 
-    if (shouldTriggerHumanHandoff(messageBody) && handoff.mode === HANDOFF_MODE.AI) {
+    if (isWhatsAppLiveHandoffEnabled() && shouldTriggerHumanHandoff(messageBody) && handoff.mode === HANDOFF_MODE.AI) {
       await requestHumanHandoff({
         sessionId,
         businessId: business.id,

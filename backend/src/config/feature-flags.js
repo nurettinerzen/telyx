@@ -150,6 +150,11 @@ export const FEATURE_FLAGS = {
   // When enabled: callback interception no longer depends on stem/regex hints.
   SEMANTIC_CALLBACK_CLASSIFIER: process.env.FEATURE_SEMANTIC_CALLBACK_CLASSIFIER !== 'false', // Default: ON
 
+  // WhatsApp live handoff V2 rollout.
+  // Keep OFF by default so production stays safe until beta validation is complete.
+  // Enable explicitly per environment with WHATSAPP_LIVE_HANDOFF_V2=true.
+  WHATSAPP_LIVE_HANDOFF_V2: process.env.WHATSAPP_LIVE_HANDOFF_V2 === 'true',
+
   // Semantic prompt-injection / security-bypass classifier for orchestrator pre-check.
   // When enabled: prompt injection severity is decided semantically with heuristic fallback.
   SEMANTIC_INJECTION_CLASSIFIER: process.env.FEATURE_SEMANTIC_INJECTION_CLASSIFIER !== 'false', // Default: ON

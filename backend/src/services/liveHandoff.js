@@ -1,4 +1,5 @@
 import prisma from '../config/database.js';
+import { isFeatureEnabled } from '../config/feature-flags.js';
 import { getState, updateState } from './state-manager.js';
 
 export const HANDOFF_MODE = Object.freeze({
@@ -83,6 +84,10 @@ export function shouldTriggerHumanHandoff(message = '') {
   const text = String(message || '').trim();
   if (!text) return false;
   return HUMAN_HANDOFF_PATTERNS.some((pattern) => pattern.test(text));
+}
+
+export function isWhatsAppLiveHandoffEnabled() {
+  return isFeatureEnabled('WHATSAPP_LIVE_HANDOFF_V2');
 }
 
 export function getLiveHandoffClaimedMessage(language = 'TR', actorName = null) {

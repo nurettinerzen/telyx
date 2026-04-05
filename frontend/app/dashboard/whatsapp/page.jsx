@@ -125,6 +125,7 @@ function getHandoffBadge(mode, assignedUserName, t) {
 
 export default function WhatsAppInboxPage() {
   const { locale } = useLanguage();
+  const liveHandoffEnabled = process.env.NEXT_PUBLIC_WHATSAPP_LIVE_HANDOFF_V2 === 'true';
 
   const t = locale === 'tr'
     ? {
@@ -260,6 +261,14 @@ export default function WhatsAppInboxPage() {
   }, [searchInput]);
 
   const loadConversations = async ({ silent = false } = {}) => {
+    if (!liveHandoffEnabled) {
+      setConversations([]);
+      setSelectedChatId(null);
+      setSelectedChat(null);
+      setListLoading(false);
+      return;
+    }
+
     if (!silent) setListLoading(true);
 
     try {
@@ -292,7 +301,7 @@ export default function WhatsAppInboxPage() {
   };
 
   const loadChatDetails = async (chatId, { silent = false } = {}) => {
-    if (!chatId) {
+    if (!liveHandoffEnabled || !chatId) {
       setSelectedChat(null);
       return;
     }
@@ -523,6 +532,24 @@ export default function WhatsAppInboxPage() {
       </div>
     );
   };
+
+  if (!liveHandoffEnabled) {
+    return (
+      <div className="fixed inset-0 z-10 flex bg-white dark:bg-neutral-950 lg:left-60">
+        <div className="flex min-w-0 flex-1 items-center justify-center p-6">
+          <div className="w-full max-w-xl rounded-2xl border border-dashed border-neutral-300 bg-white p-8 dark:border-neutral-800 dark:bg-neutral-950">
+            <EmptyState
+              icon={AlertCircle}
+              title={locale === 'tr' ? 'WhatsApp live handoff beta için kapalı' : 'WhatsApp live handoff is disabled for this environment'}
+              description={locale === 'tr'
+                ? 'Bu panel yalnızca beta testinde açılacak şekilde feature flag arkasına alındı.'
+                : 'This workspace is protected behind a feature flag and should only be enabled for beta testing.'}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-10 flex bg-white dark:bg-neutral-950 lg:left-60">

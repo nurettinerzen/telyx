@@ -14,6 +14,7 @@ import {
   claimHumanHandoff,
   getLiveHandoffClaimedMessage,
   getLiveHandoffReturnedToAiMessage,
+  isWhatsAppLiveHandoffEnabled,
   noteHumanReply,
   requestHumanHandoff,
   returnConversationToAi,
@@ -28,6 +29,17 @@ function getActorName(user = {}) {
 
 function getReplyText(req) {
   return String(req.body?.message || req.body?.text || '').trim();
+}
+
+function ensureWhatsAppLiveHandoffEnabled(res) {
+  if (isWhatsAppLiveHandoffEnabled()) {
+    return true;
+  }
+
+  res.status(403).json({
+    error: 'WhatsApp live handoff is currently disabled in this environment'
+  });
+  return false;
 }
 
 function normalizeChatLogStatus(chatLog) {
@@ -415,6 +427,8 @@ router.get('/:id', authenticateToken, async (req, res) => {
 
 router.post('/:id/handoff/request', authenticateToken, async (req, res) => {
   try {
+    if (!ensureWhatsAppLiveHandoffEnabled(res)) return;
+
     const chatLog = await hydrateWhatsAppCustomerPhone(
       await getOwnedChatLog(req.params.id, req.businessId),
       req.businessId
@@ -466,6 +480,8 @@ router.post('/:id/handoff/request', authenticateToken, async (req, res) => {
 
 router.post('/:id/handoff/claim', authenticateToken, async (req, res) => {
   try {
+    if (!ensureWhatsAppLiveHandoffEnabled(res)) return;
+
     const chatLog = await hydrateWhatsAppCustomerPhone(
       await getOwnedChatLog(req.params.id, req.businessId),
       req.businessId
@@ -533,6 +549,8 @@ router.post('/:id/handoff/claim', authenticateToken, async (req, res) => {
 
 router.post('/:id/handoff/release', authenticateToken, async (req, res) => {
   try {
+    if (!ensureWhatsAppLiveHandoffEnabled(res)) return;
+
     const chatLog = await hydrateWhatsAppCustomerPhone(
       await getOwnedChatLog(req.params.id, req.businessId),
       req.businessId
@@ -599,6 +617,8 @@ router.post('/:id/handoff/release', authenticateToken, async (req, res) => {
 
 router.post('/:id/handoff/reply', authenticateToken, async (req, res) => {
   try {
+    if (!ensureWhatsAppLiveHandoffEnabled(res)) return;
+
     const chatLog = await hydrateWhatsAppCustomerPhone(
       await getOwnedChatLog(req.params.id, req.businessId),
       req.businessId
