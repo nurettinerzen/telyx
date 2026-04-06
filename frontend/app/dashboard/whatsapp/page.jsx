@@ -736,7 +736,7 @@ export default function WhatsAppInboxPage() {
       : (message?.content || '—');
 
     const wrapperClass = isSystem
-      ? 'mx-auto max-w-xl rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-200'
+      ? 'w-full max-w-xl rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-200'
       : isUser
         ? 'ml-auto max-w-2xl rounded-2xl bg-emerald-600 px-4 py-3 text-sm text-white'
         : isHuman
@@ -752,7 +752,10 @@ export default function WhatsAppInboxPage() {
           : t.aiLabel;
 
     return (
-      <div key={`${getMessageTimestamp(message) || 'msg'}-${index}`} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+      <div
+        key={`${getMessageTimestamp(message) || 'msg'}-${index}`}
+        className={`flex w-full min-w-0 ${isSystem ? 'justify-center' : isUser ? 'justify-end' : 'justify-start'}`}
+      >
         <div className={wrapperClass}>
           <div className="mb-1 text-[11px] font-medium opacity-80">{label}</div>
           <div className="whitespace-pre-wrap break-words">{renderedContent}</div>
@@ -946,7 +949,7 @@ export default function WhatsAppInboxPage() {
 
             <div className="flex min-h-0 flex-1">
               <div className="flex min-w-0 flex-1 flex-col">
-                <div ref={threadScrollRef} className="flex-1 space-y-4 overflow-y-auto px-5 py-5">
+                <div ref={threadScrollRef} className="flex-1 space-y-4 overflow-x-hidden overflow-y-auto px-5 py-5">
                   {detailLoading && !selectedChat?.messages?.length ? (
                     <div className="flex h-full items-center justify-center text-sm text-neutral-500">{t.loadingThread}</div>
                   ) : selectedChat?.messages?.length ? (
