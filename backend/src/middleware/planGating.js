@@ -12,6 +12,7 @@
  */
 
 import prisma from '../prismaClient.js';
+import { hasFeature } from '../config/plans.js';
 
 /**
  * Plan hierarchy for comparison
@@ -35,6 +36,23 @@ export function planMeetsRequirement(currentPlan, requiredPlan) {
   const currentLevel = PLAN_HIERARCHY[currentPlan] || 0;
   const requiredLevel = PLAN_HIERARCHY[requiredPlan] || 0;
   return currentLevel >= requiredLevel;
+}
+
+/**
+ * Check whether the current subscription can use the email inbox.
+ * Email access is feature-based, not strictly hierarchy-based, because PAYG
+ * also includes email even though it sits below STARTER in legacy gating.
+ *
+ * @param {{ plan?: string, status?: string } | null | undefined} subscription
+ * @returns {boolean}
+ */
+export function hasEmailInboxAccess(subscription) {
+  if (!subscription) return false;
+
+  const isActive = subscription.status === 'ACTIVE' || subscription.status === 'TRIAL';
+  if (!isActive) return false;
+
+  return hasFeature(subscription.plan, 'email');
 }
 
 /**
@@ -153,6 +171,53 @@ export async function requireStarterOrAbove(req, res, next) {
 }
 
 /**
+ * Require access to the email inbox based on plan feature entitlements.
+ * Usage: router.get('/threads', authenticateToken, requireEmailInboxAccess, handler)
+ */
+export async function requireEmailInboxAccess(req, res, next) {
+  try {
+    const businessId = req.businessId;
+
+    if (!businessId) {
+      return res.status(401).json({
+        error: 'AUTHENTICATION_REQUIRED',
+        message: 'Authentication required'
+      });
+    }
+
+    const subscription = await prisma.subscription.findUnique({
+      where: { businessId },
+      select: { plan: true, status: true }
+    });
+
+    if (!subscription) {
+      return res.status(403).json({
+        error: 'NO_SUBSCRIPTION',
+        message: 'No active subscription found'
+      });
+    }
+
+    if (!hasEmailInboxAccess(subscription)) {
+      return res.status(403).json({
+        error: 'PLAN_UPGRADE_REQUIRED',
+        message: 'This feature is not available on your current plan',
+        currentPlan: subscription.plan,
+        requiredPlan: 'PAYG',
+        upgradeUrl: '/dashboard/subscription'
+      });
+    }
+
+    next();
+  } catch (error) {
+    console.error('Email inbox gating error:', error);
+    res.status(500).json({
+      error: 'PLAN_CHECK_FAILED',
+      message: 'Failed to verify email inbox access'
+    });
+  }
+}
+
+/**
  * Check if feature is enabled for plan (non-blocking, adds flag to request)
  * Usage: router.get('/endpoint', authenticateToken, checkFeatureAccess('email'), handler)
  * Access via: req.featureAccess = { hasAccess: boolean, plan: string }
@@ -206,6 +271,8 @@ export function checkFeatureAccess(featureName) {
 }
 
 export default {
+  hasEmailInboxAccess,
+  requireEmailInboxAccess,
   requireProOrAbove,
   requireStarterOrAbove,
   checkFeatureAccess,

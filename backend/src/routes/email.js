@@ -7,7 +7,7 @@ import express from 'express';
 import crypto from 'crypto';
 import prisma from '../prismaClient.js';
 import { authenticateToken } from '../middleware/auth.js';
-import { planMeetsRequirement, requireStarterOrAbove } from '../middleware/planGating.js';
+import { hasEmailInboxAccess, requireEmailInboxAccess } from '../middleware/planGating.js';
 import gmailService from '../services/gmail.js';
 import outlookService from '../services/outlook.js';
 import emailAggregator from '../services/email-aggregator.js';
@@ -523,19 +523,13 @@ router.get('/status', authenticateToken, async (req, res) => {
       select: { plan: true, status: true }
     });
 
-    const isSubscriptionActive = ['ACTIVE', 'TRIAL'].includes(subscription?.status);
-    const hasInboxAccess = Boolean(
-      status.connected
-      && subscription
-      && isSubscriptionActive
-      && planMeetsRequirement(subscription.plan, 'STARTER')
-    );
+    const hasInboxAccess = Boolean(status.connected && hasEmailInboxAccess(subscription));
 
     res.json({
       ...status,
       hasInboxAccess,
       currentPlan: subscription?.plan || null,
-      requiredPlan: 'STARTER',
+      requiredPlan: hasInboxAccess ? null : 'PAYG',
       subscriptionStatus: subscription?.status || null,
     });
   } catch (error) {
@@ -551,7 +545,7 @@ router.get('/status', authenticateToken, async (req, res) => {
  * GET /api/email/threads
  * P1: PRO+ gating for email usage
  */
-router.get('/threads', authenticateToken, requireStarterOrAbove, async (req, res) => {
+router.get('/threads', authenticateToken, requireEmailInboxAccess, async (req, res) => {
   try {
     const { status, limit = 20, offset = 0, search } = req.query;
 
@@ -581,7 +575,7 @@ router.get('/threads', authenticateToken, requireStarterOrAbove, async (req, res
  * Get Single Thread
  * GET /api/email/threads/:threadId
  */
-router.get('/threads/:threadId', authenticateToken, async (req, res) => {
+router.get('/threads/:threadId', authenticateToken, requireEmailInboxAccess, async (req, res) => {
   try {
     const thread = await emailAggregator.getThreadFromDb(
       req.businessId,
@@ -603,7 +597,7 @@ router.get('/threads/:threadId', authenticateToken, async (req, res) => {
  * Close Thread
  * POST /api/email/threads/:threadId/close
  */
-router.post('/threads/:threadId/close', authenticateToken, async (req, res) => {
+router.post('/threads/:threadId/close', authenticateToken, requireEmailInboxAccess, async (req, res) => {
   try {
     const thread = await prisma.emailThread.findFirst({
       where: {
@@ -630,7 +624,7 @@ router.post('/threads/:threadId/close', authenticateToken, async (req, res) => {
  * PATCH /api/email/threads/:threadId
  * Allows user to manually set thread status (e.g., NO_REPLY_NEEDED)
  */
-router.patch('/threads/:threadId', authenticateToken, async (req, res) => {
+router.patch('/threads/:threadId', authenticateToken, requireEmailInboxAccess, async (req, res) => {
   try {
     const { status } = req.body;
     const validStatuses = ['PENDING_REPLY', 'NO_REPLY_NEEDED', 'CLOSED', 'SPAM'];
@@ -667,7 +661,7 @@ router.patch('/threads/:threadId', authenticateToken, async (req, res) => {
  * Get Pending Drafts
  * GET /api/email/drafts
  */
-router.get('/drafts', authenticateToken, async (req, res) => {
+router.get('/drafts', authenticateToken, requireEmailInboxAccess, async (req, res) => {
   try {
     const drafts = await emailAI.getPendingDrafts(req.businessId);
     res.json({ drafts });
@@ -681,7 +675,7 @@ router.get('/drafts', authenticateToken, async (req, res) => {
  * Get Single Draft
  * GET /api/email/drafts/:draftId
  */
-router.get('/drafts/:draftId', authenticateToken, async (req, res) => {
+router.get('/drafts/:draftId', authenticateToken, requireEmailInboxAccess, async (req, res) => {
   try {
     const draft = await emailAI.getDraft(req.params.draftId);
 
@@ -700,7 +694,7 @@ router.get('/drafts/:draftId', authenticateToken, async (req, res) => {
  * Update Draft Content
  * PUT /api/email/drafts/:draftId
  */
-router.put('/drafts/:draftId', authenticateToken, async (req, res) => {
+router.put('/drafts/:draftId', authenticateToken, requireEmailInboxAccess, async (req, res) => {
   try {
     const { content } = req.body;
 
@@ -722,7 +716,7 @@ router.put('/drafts/:draftId', authenticateToken, async (req, res) => {
  * Approve Draft
  * POST /api/email/drafts/:draftId/approve
  */
-router.post('/drafts/:draftId/approve', authenticateToken, async (req, res) => {
+router.post('/drafts/:draftId/approve', authenticateToken, requireEmailInboxAccess, async (req, res) => {
   try {
     const draft = await emailAI.getDraft(req.params.draftId);
 

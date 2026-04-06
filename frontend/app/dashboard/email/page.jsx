@@ -530,17 +530,19 @@ export default function EmailDashboardPage() {
   }
 
   if (!loading && emailStatus?.connected && emailStatus?.hasInboxAccess === false) {
+    const requiredPlanLabel = emailStatus?.requiredPlan || 'PAYG';
+
     return (
       <div className="flex items-center justify-center h-[calc(100vh-64px)]">
         <div className="text-center max-w-md">
           <ShieldAlert className="h-16 w-16 mx-auto text-neutral-400 dark:text-neutral-600 mb-4" />
           <h2 className="text-xl font-semibold text-neutral-900 dark:text-white mb-2">
-            {locale === 'tr' ? 'Starter plan gerekli' : 'Starter plan required'}
+            {locale === 'tr' ? 'Plan yükseltme gerekli' : 'Plan upgrade required'}
           </h2>
           <p className="text-neutral-500 dark:text-neutral-400 mb-6">
             {locale === 'tr'
-              ? 'Email inbox ekranını kullanmak için en az Starter plan gerekli. Entegrasyon bağlı kalsa da thread listesi bu planda açılamaz.'
-              : 'The email inbox requires at least the Starter plan. Your integration can stay connected, but thread access is locked on this plan.'}
+              ? `Email inbox ekranını kullanmak için en az ${requiredPlanLabel} plan gerekli. Entegrasyon bağlı kalsa da thread listesi bu planda açılamaz.`
+              : `The email inbox requires at least the ${requiredPlanLabel} plan. Your integration can stay connected, but thread access is locked on this plan.`}
           </p>
           <Button onClick={() => { window.location.href = '/dashboard/subscription'; }}>
             {locale === 'tr' ? 'Planları Gör' : 'View Plans'}
