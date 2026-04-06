@@ -6,7 +6,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -112,6 +112,8 @@ function formatPhone(value, fallback = '—') {
 
 export default function ChatsPage() {
   const { t, locale } = useLanguage();
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const whatsappLiveHandoffEnabled = process.env.NEXT_PUBLIC_WHATSAPP_LIVE_HANDOFF_V2 === 'true';
   const chatLiveHandoffEnabled = process.env.NEXT_PUBLIC_CHAT_LIVE_HANDOFF_V1 === 'true';
@@ -349,6 +351,22 @@ export default function ChatsPage() {
 
   const handleViewChat = async (chatId) => {
     await loadChatDetails(chatId, { openModal: true });
+  };
+
+  const handleChatModalChange = (open) => {
+    setShowChatModal(open);
+
+    if (!open) {
+      setSelectedChat(null);
+      setLiveReply('');
+
+      if (requestedChatId) {
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete('chatId');
+        const nextQuery = params.toString();
+        router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
+      }
+    }
   };
 
   const refreshConversationViews = async (chatId = null) => {
@@ -800,7 +818,7 @@ export default function ChatsPage() {
       )}
 
       {/* Chat Detail Modal */}
-      <Dialog open={showChatModal} onOpenChange={setShowChatModal}>
+      <Dialog open={showChatModal} onOpenChange={handleChatModalChange}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
