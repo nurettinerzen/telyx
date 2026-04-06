@@ -153,6 +153,7 @@ const TAG_CONFIG = {
 export default function EmailDashboardPage() {
   const { t, locale } = useLanguage();
   const queryClient = useQueryClient();
+  const emailT = (key) => t(`dashboard.emailPage.${key}`);
 
   // ─── Data Hooks ──────────────────────────────────────────
   const { data: emailStatus, isLoading: statusLoading } = useEmailStatus();
@@ -298,7 +299,9 @@ export default function EmailDashboardPage() {
               setSyncing(false);
             } else if (eventType === 'error') {
               toast.error(
-                data?.message
+                data?.code === 'EMAIL_RECONNECT_REQUIRED'
+                  ? emailT('reconnectRequired')
+                  : data?.message
                   || data?.error
                   || (locale === 'tr' ? 'Senkronizasyon hatası' : 'Sync error')
               );
@@ -433,16 +436,16 @@ export default function EmailDashboardPage() {
       <div className="relative" ref={snippetsRef}>
         <Button variant={buttonVariant} size="sm" onClick={loadSnippets} className="h-8 text-xs">
           <Zap className="h-3.5 w-3.5 mr-1" />
-          {locale === 'tr' ? 'Hızlı Yanıt' : 'Quick Reply'}
+          {emailT('quickReply')}
           <ChevronDown className="h-3 w-3 ml-1" />
         </Button>
         {snippetsOpen && (
           <div className="absolute bottom-full mb-1 right-0 w-64 bg-white dark:bg-neutral-800 rounded-lg shadow-xl border border-neutral-200 dark:border-neutral-700 py-1 z-50 max-h-64 overflow-y-auto">
             {snippets.length === 0 ? (
               <div className="px-3 py-4 text-center">
-                <p className="text-xs text-neutral-500">{locale === 'tr' ? 'Henüz hazır yanıt yok' : 'No snippets yet'}</p>
+                <p className="text-xs text-neutral-500">{emailT('noQuickRepliesYet')}</p>
                 <Link href="/dashboard/email-snippets" className="text-xs text-blue-500 hover:underline mt-1 inline-block">
-                  {locale === 'tr' ? 'Oluştur →' : 'Create →'}
+                  {emailT('createQuickReply')} →
                 </Link>
               </div>
             ) : snippets.map(s => (
@@ -455,15 +458,18 @@ export default function EmailDashboardPage() {
                 <p className="text-[10px] text-neutral-500 truncate mt-0.5">{s.body?.substring(0, 60)}...</p>
               </button>
             ))}
+            <div className="mt-1 border-t border-neutral-200 px-2 pt-2 dark:border-neutral-700">
+              <Link
+                href="/dashboard/email-snippets"
+                className="flex items-center justify-between rounded-md px-2 py-2 text-xs text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:hover:text-white"
+              >
+                <span>{emailT('manageQuickReplies')}</span>
+                <ExternalLink className="h-3.5 w-3.5" />
+              </Link>
+            </div>
           </div>
         )}
       </div>
-      <Button asChild variant="ghost" size="sm" className="h-8 text-xs">
-        <Link href="/dashboard/email-snippets">
-          <ExternalLink className="h-3.5 w-3.5 mr-1" />
-          {locale === 'tr' ? 'Yönet' : 'Manage'}
-        </Link>
-      </Button>
     </div>
   );
 
@@ -567,7 +573,7 @@ export default function EmailDashboardPage() {
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Mail className="h-5 w-5 text-neutral-700 dark:text-neutral-300" />
-              <h1 className="text-lg font-bold text-neutral-900 dark:text-white">Email</h1>
+              <h1 className="text-lg font-bold text-neutral-900 dark:text-white">{emailT('shortTitle')}</h1>
               <span className="text-xs text-neutral-500 bg-neutral-200 dark:bg-neutral-800 px-2 py-0.5 rounded-full">
                 {stats?.totalThreads || threads.length}
               </span>
@@ -739,7 +745,7 @@ export default function EmailDashboardPage() {
               <div className="flex gap-1.5 flex-shrink-0">
                 <Button variant="outline" size="sm" className="h-8 text-xs" onClick={handleGenerateDraft} disabled={generatingDraft || !!getActiveDraft()}>
                   <Sparkles className={`h-3.5 w-3.5 mr-1.5 ${generatingDraft ? 'animate-spin' : ''}`} />
-                  AI Öneri
+                  {emailT('aiSuggest')}
                 </Button>
                 <Button variant="outline" size="sm" className="h-8 text-xs" onClick={handleCloseThread} disabled={selectedThread.status === 'CLOSED'}>
                   <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
@@ -820,7 +826,7 @@ export default function EmailDashboardPage() {
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs text-neutral-500 font-medium uppercase tracking-wide flex items-center gap-1.5">
                       <Zap className="h-3 w-3 text-amber-500" />
-                      {locale === 'tr' ? 'Hızlı Yanıt' : 'Quick Reply'}
+                      {emailT('quickReply')}
                     </span>
                     <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setQuickReplyMode(false); setEditedContent(''); }}>
                       <X className="h-3 w-3 mr-1" />
@@ -893,7 +899,7 @@ export default function EmailDashboardPage() {
                   </div>
                   <Button size="sm" onClick={handleGenerateDraft} disabled={generatingDraft} className="h-8">
                     <Sparkles className={`h-3.5 w-3.5 mr-1.5 ${generatingDraft ? 'animate-spin' : ''}`} />
-                    {generatingDraft ? (locale === 'tr' ? 'Oluşturuluyor...' : 'Generating...') : 'AI Öneri'}
+                    {generatingDraft ? (locale === 'tr' ? 'Oluşturuluyor...' : 'Generating...') : emailT('aiSuggest')}
                   </Button>
                   {renderSnippetActions('outline')}
                   <Button variant="outline" size="sm" onClick={handleMarkNoReplyNeeded} className="h-8 text-xs">

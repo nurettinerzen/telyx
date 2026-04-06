@@ -78,7 +78,7 @@ function isInsufficientScopeError(error) {
 }
 
 function createReconnectRequiredError() {
-  const error = new Error('Gmail bağlantısı eksik izinlerle kurulu. Lütfen Gmail hesabınızı yeniden bağlayın.');
+  const error = new Error('Gmail connection is missing required permissions. Please reconnect your Gmail account.');
   error.code = 'EMAIL_RECONNECT_REQUIRED';
   return error;
 }

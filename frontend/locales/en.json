@@ -2562,6 +2562,7 @@
     },
     "emailPage": {
       "title": "Email Inbox",
+      "shortTitle": "Email",
       "description": "AI-assisted email management",
       "connectYourEmail": "Connect Your Email",
       "connectEmailDesc": "Connect your Gmail or Microsoft 365 account to start receiving AI-assisted email responses.",
@@ -2615,6 +2616,12 @@
       "draftGenerated": "Draft generated",
       "failedToGenerateDraft": "Failed to generate draft",
       "authRequired": "Authentication required",
+      "reconnectRequired": "Gmail connection is missing required permissions. Please reconnect your Gmail account.",
+      "quickReply": "Quick Reply",
+      "noQuickRepliesYet": "No quick replies yet",
+      "createQuickReply": "Create",
+      "manageQuickReplies": "Manage quick replies",
+      "aiSuggest": "AI Suggest",
       "status": {
         "new": "New",
         "awaitingReply": "Awaiting Reply",

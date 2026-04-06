@@ -2562,6 +2562,7 @@
     },
     "emailPage": {
       "title": "E-posta Gelen Kutusu",
+      "shortTitle": "E-posta",
       "description": "AI destekli e-posta yönetimi",
       "connectYourEmail": "E-postanızı Bağlayın",
       "connectEmailDesc": "AI destekli e-posta yanıtları almaya başlamak için Gmail veya Microsoft 365 hesabınızı bağlayın.",
@@ -2622,7 +2623,13 @@
       "noReplyNeededDesc": "Bu e-posta yanıt gerektirmiyor olarak işaretlendi. Yine de yanıt vermek isterseniz AI taslak oluşturabilirsiniz.",
       "draftGenerated": "Taslak oluşturuldu",
       "failedToGenerateDraft": "Taslak oluşturulamadı",
-      "authRequired": "Kimlik doğrulama gerekli"
+      "authRequired": "Kimlik doğrulama gerekli",
+      "reconnectRequired": "Gmail bağlantısı eksik izinlerle kurulu. Lütfen Gmail hesabınızı yeniden bağlayın.",
+      "quickReply": "Hızlı Yanıt",
+      "noQuickRepliesYet": "Henüz hazır yanıt yok",
+      "createQuickReply": "Oluştur",
+      "manageQuickReplies": "Hazır yanıtları yönet",
+      "aiSuggest": "AI Öneri"
     },
     "chatWidgetPage": {
       "title": "Sohbet Aracı",
