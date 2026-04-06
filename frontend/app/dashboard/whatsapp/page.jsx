@@ -609,7 +609,6 @@ export default function WhatsAppInboxPage() {
       });
       setSelectedChat(response.data?.chatLog || selectedChat);
       setReplyDraft('');
-      toast.success(t.liveReplySent);
       await loadConversations({ silent: true });
     } catch (error) {
       toast.error(error.response?.data?.error || t.liveReplyFailed);
