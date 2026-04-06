@@ -220,7 +220,7 @@ export default function WhatsAppInboxPage() {
   const { locale, t: translate } = useLanguage();
   const searchParams = useSearchParams();
   const requestedChatId = searchParams.get('chatId');
-  const isUnifiedInbox = pathname === '/dashboard/conversations';
+  const isUnifiedInbox = pathname === '/dashboard/chats' || pathname === '/dashboard/conversations';
   const liveHandoffEnabled = process.env.NEXT_PUBLIC_WHATSAPP_LIVE_HANDOFF_V2 === 'true';
   const chatLiveHandoffEnabled = process.env.NEXT_PUBLIC_CHAT_LIVE_HANDOFF_V1 === 'true';
   const pageEnabled = isUnifiedInbox
@@ -800,7 +800,7 @@ export default function WhatsAppInboxPage() {
               <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">{t.activeWorkspaceHint}</p>
             </div>
             <div className="flex items-center gap-1">
-              <Link href="/dashboard/chats">
+              <Link href="/dashboard/chat-history">
                 <Button variant="ghost" size="sm" title={translate('dashboard.sidebar.chatHistory')}>
                   <History className="h-4 w-4" />
                 </Button>

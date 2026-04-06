@@ -420,7 +420,7 @@ export default function CallbacksPage() {
                 <Button
                   variant="outline"
                   className="mt-2 w-full justify-between"
-                  onClick={() => router.push(`/dashboard/chats?chatId=${detailData.chatTranscript.id}`)}
+                  onClick={() => router.push(`/dashboard/chat-history?chatId=${detailData.chatTranscript.id}`)}
                 >
                   <span className="flex items-center gap-2">
                     <MessageSquare className="h-4 w-4" />

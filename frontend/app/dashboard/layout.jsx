@@ -245,7 +245,7 @@ export default function DashboardLayout({ children }) {
 
         if (newThreads.length > 0) {
           const newestThread = newThreads[0];
-          const destination = '/dashboard/conversations';
+          const destination = '/dashboard/chats';
 
           if (pathname === destination) {
             return;
@@ -399,7 +399,7 @@ export default function DashboardLayout({ children }) {
                   <button
                     type="button"
                     onClick={() => {
-                      router.push(`/dashboard/conversations?chatId=${liveSupportAlert.id}`);
+                      router.push(`/dashboard/chats?chatId=${liveSupportAlert.id}`);
                       setLiveSupportAlert(null);
                     }}
                     className="rounded-lg bg-amber-500 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-amber-600"

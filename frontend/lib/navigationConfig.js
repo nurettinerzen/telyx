@@ -69,7 +69,7 @@ export const NAVIGATION_ITEMS = {
     labelEn: 'Conversations',
     descriptionTr: 'Chat ve WhatsApp konuşmalarını tek ekranda yönetin, devralın ve canlı yanıtlayın.',
     descriptionEn: 'Manage chat and WhatsApp conversations in one place, take them over, and reply live.',
-    href: '/dashboard/conversations',
+    href: '/dashboard/chats',
     group: 'operations',
   },
   whatsappInbox: {
@@ -135,7 +135,7 @@ export const NAVIGATION_ITEMS = {
     labelEn: 'Chat History',
     descriptionTr: 'Geçmiş sohbet oturumlarını ve mesajları görüntüleyin.',
     descriptionEn: 'View past chat sessions and messages.',
-    href: '/dashboard/chats',
+    href: '/dashboard/chat-history',
     group: 'monitoring',
   },
 
