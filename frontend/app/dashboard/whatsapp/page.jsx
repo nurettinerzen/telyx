@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -23,6 +24,7 @@ import {
   PanelRightClose,
   PanelRightOpen,
   Phone,
+  History,
   RefreshCw,
   Search,
   Send,
@@ -218,7 +220,7 @@ export default function WhatsAppInboxPage() {
   const { locale, t: translate } = useLanguage();
   const searchParams = useSearchParams();
   const requestedChatId = searchParams.get('chatId');
-  const isUnifiedInbox = pathname === '/dashboard/conversations';
+  const isUnifiedInbox = pathname === '/dashboard/chats' || pathname === '/dashboard/conversations';
   const liveHandoffEnabled = process.env.NEXT_PUBLIC_WHATSAPP_LIVE_HANDOFF_V2 === 'true';
   const chatLiveHandoffEnabled = process.env.NEXT_PUBLIC_CHAT_LIVE_HANDOFF_V1 === 'true';
   const pageEnabled = isUnifiedInbox
@@ -328,6 +330,16 @@ export default function WhatsAppInboxPage() {
   const sidebarPreferenceKey = isUnifiedInbox
     ? 'telyx:conversations:sidebar-open'
     : 'telyx:whatsapp-inbox:sidebar-open';
+
+  // Prevent background scroll — this page uses fixed positioning,
+  // but the parent layout's overflow-auto container still scrolls behind it.
+  useEffect(() => {
+    const mainContent = document.querySelector('.flex-1.lg\\:ml-60');
+    if (mainContent) mainContent.style.overflow = 'hidden';
+    return () => {
+      if (mainContent) mainContent.style.overflow = '';
+    };
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchInput.trim()), 300);
@@ -797,9 +809,16 @@ export default function WhatsAppInboxPage() {
               </div>
               <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">{t.activeWorkspaceHint}</p>
             </div>
-            <Button variant="ghost" size="sm" onClick={handleRefresh} disabled={listLoading || detailLoading}>
-              <RefreshCw className={`h-4 w-4 ${listLoading || detailLoading ? 'animate-spin' : ''}`} />
-            </Button>
+            <div className="flex items-center gap-1">
+              <Link href="/dashboard/chat-history">
+                <Button variant="ghost" size="sm" title={translate('dashboard.sidebar.chatHistory')}>
+                  <History className="h-4 w-4" />
+                </Button>
+              </Link>
+              <Button variant="ghost" size="sm" onClick={handleRefresh} disabled={listLoading || detailLoading}>
+                <RefreshCw className={`h-4 w-4 ${listLoading || detailLoading ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
           </div>
 
           <div className="mb-3 flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 dark:border-amber-900 dark:bg-amber-950/20">

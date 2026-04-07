@@ -2057,7 +2057,7 @@ export default function RedAlertPage() {
                     </div>
                     {assistantTraceDetail.chatLog?.id && (
                       <a
-                        href={`/dashboard/chats?chatId=${assistantTraceDetail.chatLog.id}`}
+                        href={`/dashboard/chat-history?chatId=${assistantTraceDetail.chatLog.id}`}
                         className="text-sm text-blue-600 hover:underline"
                       >
                         {copy.traceModal.openChatHistory}
