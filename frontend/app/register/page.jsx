@@ -187,7 +187,7 @@ export default function RegisterPage() {
         {/* Logo/Header */}
         <div className="text-center mb-8 flex items-center justify-between max-w-2xl mx-auto">
           <Link href="/" className="inline-block">
-            <TelyxLogoFull className="h-10" />
+            <TelyxLogoFull width={136} height={38} />
           </Link>
           <LanguageSwitcher />
         </div>

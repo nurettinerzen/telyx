@@ -57,7 +57,7 @@ export const Footer = () => {
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="inline-block mb-4">
-              <TelyxLogoFull width={140} height={40} darkMode={resolvedTheme === 'dark'} />
+              <TelyxLogoFull width={128} height={36} darkMode={resolvedTheme === 'dark'} />
             </Link>
             <p className="text-sm text-gray-500 dark:text-neutral-500 leading-relaxed">
               {isTR

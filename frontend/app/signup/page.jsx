@@ -114,7 +114,7 @@ export default function SignupPage() {
       <div className="w-full max-w-md">
         <div className="flex justify-between items-center mb-8">
           <Link href="/">
-            <TelyxLogoFull width={160} height={48} darkMode={mounted && resolvedTheme === 'dark'} />
+            <TelyxLogoFull width={136} height={38} darkMode={mounted && resolvedTheme === 'dark'} />
           </Link>
           <LanguageSwitcher />
         </div>

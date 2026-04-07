@@ -14,7 +14,7 @@ const SYMBOL_LIGHT = '/telyx-symbol-light.png';
 const SYMBOL_DARK = '/telyx-symbol-dark.png';
 
 // Full logo with icon and text
-export function TelyxLogoFull({ className = '', width = 260, height = 75, darkMode = false }) {
+export function TelyxLogoFull({ className = '', width = 220, height = 62, darkMode = false }) {
   return (
     <div className={`relative ${className}`}>
       <Image
@@ -53,7 +53,7 @@ export function TelyxIcon({ className = 'w-8 h-8', darkMode = false }) {
 }
 
 // Compact version for sidebar
-export function TelyxLogoCompact({ darkMode = false, width = 140, height = 42 }) {
+export function TelyxLogoCompact({ darkMode = false, width = 110, height = 32 }) {
   return (
     <div className="relative">
       <Image
@@ -90,7 +90,7 @@ export function TelyxLogoText({ className = '', darkMode = false }) {
 }
 
 // White version for dark backgrounds
-export function TelyxLogoWhite({ width = 180, height = 50 }) {
+export function TelyxLogoWhite({ width = 160, height = 44 }) {
   return (
     <div className="relative">
       <Image

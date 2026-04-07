@@ -71,7 +71,7 @@ export default function WaitlistPage() {
         <div className="w-full max-w-md">
           <div className="flex justify-between items-center mb-8">
             <Link href="/">
-              <TelyxLogoFull width={200} height={60} darkMode={mounted && resolvedTheme === 'dark'} />
+              <TelyxLogoFull width={148} height={42} darkMode={mounted && resolvedTheme === 'dark'} />
             </Link>
             <LanguageSwitcher />
           </div>
@@ -104,7 +104,7 @@ export default function WaitlistPage() {
       <div className="w-full max-w-md">
         <div className="flex justify-between items-center mb-8">
           <Link href="/">
-            <TelyxLogoFull width={200} height={60} darkMode={mounted && resolvedTheme === 'dark'} />
+            <TelyxLogoFull width={148} height={42} darkMode={mounted && resolvedTheme === 'dark'} />
           </Link>
           <LanguageSwitcher />
         </div>
