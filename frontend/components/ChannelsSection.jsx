@@ -14,19 +14,19 @@ export const ChannelsSection = () => {
       icon: Phone,
       titleKey: 'landing.channels.phone.title',
       descKey: 'landing.channels.phone.desc',
-      color: 'from-blue-500 to-teal-500'
+      color: 'from-[#000ACF] to-[#00C4E6]'
     },
     {
       icon: MessageCircle,
       titleKey: 'landing.channels.whatsapp.title',
       descKey: 'landing.channels.whatsapp.desc',
-      color: 'from-green-500 to-emerald-500'
+      color: 'from-[#051752] to-[#006FEB]'
     },
     {
       icon: MessagesSquare,
       titleKey: 'landing.channels.chat.title',
       descKey: 'landing.channels.chat.desc',
-      color: 'from-teal-500 to-pink-500'
+      color: 'from-[#006FEB] to-[#00C4E6]'
     },
     {
       icon: Mail,

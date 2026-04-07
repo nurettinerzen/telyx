@@ -32,7 +32,7 @@ export default function NetGSMConnectionGuidePage() {
       {/* Header */}
       <div className="border-b border-neutral-200 dark:border-neutral-700 pb-6">
         <div className="flex items-center gap-3 mb-4">
-          <div className="p-3 bg-gradient-to-br from-blue-500 to-teal-600 rounded-xl">
+          <div className="p-3 bg-gradient-to-br from-[#051752] via-[#000ACF] to-[#00C4E6] rounded-xl">
             <Phone className="h-8 w-8 text-white" />
           </div>
           <div>
@@ -86,7 +86,7 @@ export default function NetGSMConnectionGuidePage() {
       <div className="space-y-6">
         {/* Step 1 */}
         <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 overflow-hidden">
-          <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4">
+          <div className="bg-gradient-to-r from-[#051752] to-[#006FEB] px-6 py-4">
             <div className="flex items-center gap-3">
               <span className="flex items-center justify-center w-8 h-8 bg-white/20 rounded-full text-white font-bold">
                 1
@@ -104,7 +104,7 @@ export default function NetGSMConnectionGuidePage() {
               href="https://portal.netgsm.com.tr"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-cyan-200 rounded-lg hover:bg-primary-200 dark:hover:bg-primary-800 transition-colors"
             >
               <ExternalLink className="h-4 w-4" />
               NetGSM Portal
@@ -114,7 +114,7 @@ export default function NetGSMConnectionGuidePage() {
 
         {/* Step 2 */}
         <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 overflow-hidden">
-          <div className="bg-gradient-to-r from-teal-500 to-teal-600 px-6 py-4">
+          <div className="bg-gradient-to-r from-[#000ACF] to-[#00C4E6] px-6 py-4">
             <div className="flex items-center gap-3">
               <span className="flex items-center justify-center w-8 h-8 bg-white/20 rounded-full text-white font-bold">
                 2
@@ -153,7 +153,7 @@ export default function NetGSMConnectionGuidePage() {
 
         {/* Step 3 */}
         <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 overflow-hidden">
-          <div className="bg-gradient-to-r from-teal-500 to-teal-600 px-6 py-4">
+          <div className="bg-gradient-to-r from-[#000ACF] to-[#00C4E6] px-6 py-4">
             <div className="flex items-center gap-3">
               <span className="flex items-center justify-center w-8 h-8 bg-white/20 rounded-full text-white font-bold">
                 3
@@ -168,8 +168,8 @@ export default function NetGSMConnectionGuidePage() {
               Aynı sayfada aşağı kaydırın ve <strong>SIP Trunk</strong> bölümünü bulun.
               SIP Trunk'ı <strong>açık</strong> konuma getirin ve aşağıdaki bilgileri girin:
             </p>
-            <div className="bg-gradient-to-r from-teal-50 to-teal-100 dark:from-teal-950 dark:to-teal-900 rounded-lg p-4 border border-teal-200 dark:border-teal-800">
-              <h4 className="font-medium text-teal-900 dark:text-teal-100 mb-3">
+            <div className="bg-gradient-to-r from-primary-50 to-cyan-50 dark:from-primary-950 dark:to-cyan-950 rounded-lg p-4 border border-primary-200 dark:border-primary-800">
+              <h4 className="font-medium text-primary-900 dark:text-cyan-100 mb-3">
                 SIP Trunk Bilgileri (NetGSM'e girilecek):
               </h4>
               <div className="space-y-3">
@@ -213,7 +213,7 @@ export default function NetGSMConnectionGuidePage() {
                   </Button>
                 </div>
               </div>
-              <p className="text-sm text-teal-700 dark:text-teal-300 mt-3">
+              <p className="text-sm text-primary-700 dark:text-cyan-200 mt-3">
                 ⚠️ Transport mutlaka <strong>TCP</strong> olmalı (UDP desteklenmez)
               </p>
             </div>
@@ -233,7 +233,7 @@ export default function NetGSMConnectionGuidePage() {
 
         {/* Step 4 */}
         <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 overflow-hidden">
-          <div className="bg-gradient-to-r from-green-500 to-green-600 px-6 py-4">
+          <div className="bg-gradient-to-r from-[#051752] to-[#006FEB] px-6 py-4">
             <div className="flex items-center gap-3">
               <span className="flex items-center justify-center w-8 h-8 bg-white/20 rounded-full text-white font-bold">
                 4
@@ -248,11 +248,11 @@ export default function NetGSMConnectionGuidePage() {
               Telyx panelinde <strong>Telefon Numaraları</strong> sayfasına gidin ve
               "Numara Ekle" butonuna tıklayın. Açılan formda NetGSM'den aldığınız SIP bilgilerini girin:
             </p>
-            <div className="bg-green-50 dark:bg-green-950 rounded-lg p-4 border border-green-200 dark:border-green-800">
-              <h4 className="font-medium text-green-900 dark:text-green-100 mb-3">
+            <div className="bg-primary-50 dark:bg-primary-950 rounded-lg p-4 border border-primary-200 dark:border-primary-800">
+              <h4 className="font-medium text-primary-900 dark:text-cyan-100 mb-3">
                 Telyx'e girilecek bilgiler:
               </h4>
-              <ul className="space-y-2 text-sm text-green-800 dark:text-green-200">
+              <ul className="space-y-2 text-sm text-primary-800 dark:text-cyan-100">
                 <li className="flex items-start gap-2">
                   <ArrowRight className="h-4 w-4 mt-0.5 flex-shrink-0" />
                   <span><strong>Telefon Numarası:</strong> 0850 numaranız (örn: 08503078914)</span>
@@ -268,7 +268,7 @@ export default function NetGSMConnectionGuidePage() {
               </ul>
             </div>
             <Link href="/dashboard/phone-numbers">
-              <Button className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700">
+              <Button className="bg-gradient-to-r from-[#051752] via-[#000ACF] to-[#006FEB] hover:from-[#041240] hover:via-[#0008b0] hover:to-[#00C4E6]">
                 <Phone className="h-4 w-4 mr-2" />
                 Telefon Numaraları Sayfasına Git
               </Button>
@@ -278,16 +278,16 @@ export default function NetGSMConnectionGuidePage() {
       </div>
 
       {/* Success Message */}
-      <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950 border border-green-200 dark:border-green-800 rounded-xl p-6">
+      <div className="bg-gradient-to-r from-primary-50 to-cyan-50 dark:from-primary-950 dark:to-cyan-950 border border-primary-200 dark:border-primary-800 rounded-xl p-6">
         <div className="flex items-start gap-4">
-          <div className="p-3 bg-green-100 dark:bg-green-900 rounded-full">
-            <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
+          <div className="p-3 bg-primary-100 dark:bg-primary-900 rounded-full">
+            <CheckCircle2 className="h-8 w-8 text-primary-600 dark:text-cyan-300" />
           </div>
           <div>
-            <h3 className="text-xl font-semibold text-green-900 dark:text-green-100 mb-2">
+            <h3 className="text-xl font-semibold text-primary-900 dark:text-cyan-100 mb-2">
               Tebrikler! 🎉
             </h3>
-            <p className="text-green-800 dark:text-green-200">
+            <p className="text-primary-800 dark:text-cyan-100">
               Tüm adımları tamamladıktan sonra numaranız AI asistanınıza bağlanacak ve
               gelen aramalar otomatik olarak yanıtlanacaktır.
             </p>

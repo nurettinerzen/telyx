@@ -26,11 +26,13 @@ export const metadata = {
       },
   icons: {
     icon: [
-      { url: '/favicon-v2.png' },
+      { url: '/favicon-light.png', media: '(prefers-color-scheme: light)' },
+      { url: '/favicon-dark.png', media: '(prefers-color-scheme: dark)' },
+      { url: '/favicon-v3.png' },
     ],
-    shortcut: ['/favicon-v2.png'],
+    shortcut: ['/favicon-v3.png'],
     apple: [
-      { url: '/apple-icon-v2.png' },
+      { url: '/apple-icon-v3.png' },
     ],
   },
 };

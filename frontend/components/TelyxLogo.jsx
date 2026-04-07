@@ -1,59 +1,80 @@
 /**
  * Telyx Logo Components
- * Using official logo PNG images
+ * Using official 2026 logo PNG images
  */
 
 import React from 'react';
 import Image from 'next/image';
 
+const HORIZONTAL_LIGHT = '/telyx-logo-horizontal-light.png';
+const HORIZONTAL_DARK = '/telyx-logo-horizontal-dark.png';
+const VERTICAL_LIGHT = '/telyx-logo-vertical-light.png';
+const VERTICAL_DARK = '/telyx-logo-vertical-dark.png';
+const SYMBOL_LIGHT = '/telyx-symbol-light.png';
+const SYMBOL_DARK = '/telyx-symbol-dark.png';
+
 // Full logo with icon and text
-export function TelyxLogoFull({ className = '', width = 260, height = 75, darkMode = false }) {
+export function TelyxLogoFull({ className = '', width = 220, height = 62, darkMode = false }) {
   return (
     <div className={`relative ${className}`}>
-      {/* Light mode logo (dark text) */}
       <Image
-        src="/telyx-logo-full.png"
-        alt="Telyx AI"
+        src={HORIZONTAL_LIGHT}
+        alt="Telyx"
         width={width}
         height={height}
         className={`object-contain ${darkMode ? 'hidden' : 'block'} dark:hidden`}
         priority
       />
-      {/* Dark mode logo (inverted to white) */}
       <Image
-        src="/telyx-logo-full.png"
-        alt="Telyx AI"
+        src={HORIZONTAL_DARK}
+        alt="Telyx"
         width={width}
         height={height}
-        className={`object-contain brightness-0 invert ${darkMode ? 'block' : 'hidden'} dark:block`}
+        className={`object-contain ${darkMode ? 'block' : 'hidden'} dark:block`}
         priority
       />
     </div>
   );
 }
 
-// Icon only (white version for dark backgrounds)
+// Icon only
 export function TelyxIcon({ className = 'w-8 h-8', darkMode = false }) {
   return (
     <div className={`relative ${className}`}>
       <Image
-        src="/telyx-logo-icon-white.png"
-        alt="Telyx AI"
+        src={darkMode ? SYMBOL_DARK : SYMBOL_LIGHT}
+        alt="Telyx"
         fill
-        className={`object-contain ${!darkMode ? 'brightness-0' : ''}`}
+        className="object-contain"
         priority
       />
     </div>
   );
 }
 
-// Compact version for sidebar - full logo scaled appropriately
-export function TelyxLogoCompact({ darkMode = false, width = 140, height = 42 }) {
+// Compact version for sidebar
+export function TelyxLogoCompact({ darkMode = false, width = 110, height = 32 }) {
   return (
     <div className="relative">
       <Image
-        src={darkMode ? '/telyx-logo-sidebar-white.png' : '/telyx-logo-sidebar-light.png'}
-        alt="Telyx AI"
+        src={darkMode ? HORIZONTAL_DARK : HORIZONTAL_LIGHT}
+        alt="Telyx"
+        width={width}
+        height={height}
+        className="object-contain"
+        priority
+      />
+    </div>
+  );
+}
+
+// Stacked version with symbol above wordmark
+export function TelyxLogoStacked({ className = '', width = 180, height = 180, darkMode = false }) {
+  return (
+    <div className={`relative ${className}`}>
+      <Image
+        src={darkMode ? VERTICAL_DARK : VERTICAL_LIGHT}
+        alt="Telyx"
         width={width}
         height={height}
         className="object-contain"
@@ -68,16 +89,16 @@ export function TelyxLogoText({ className = '', darkMode = false }) {
   return <TelyxLogoFull className={className} darkMode={darkMode} />;
 }
 
-// White version for dark backgrounds (footer, etc) - uses CSS invert
-export function TelyxLogoWhite({ width = 180, height = 50 }) {
+// White version for dark backgrounds
+export function TelyxLogoWhite({ width = 160, height = 44 }) {
   return (
     <div className="relative">
       <Image
-        src="/telyx-logo-full.png"
-        alt="Telyx AI"
+        src={HORIZONTAL_DARK}
+        alt="Telyx"
         width={width}
         height={height}
-        className="object-contain brightness-0 invert"
+        className="object-contain"
         priority
       />
     </div>

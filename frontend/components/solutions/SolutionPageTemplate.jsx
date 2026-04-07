@@ -41,8 +41,8 @@ function getStatParts(val) {
 
 export default function SolutionPageTemplate({
   sector,
-  accentColor = '#3b82f6',
-  accentLight = '#60a5fa',
+  accentColor = '#006FEB',
+  accentLight = '#00C4E6',
   heroIcon: HeroIcon,
   badgeColorClasses,
   statColorClasses,
@@ -85,7 +85,7 @@ export default function SolutionPageTemplate({
       ],
       visual: (
         <div className="flex flex-col items-center gap-3">
-          <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${howItWorksSteps[i]?.color || 'from-blue-500 to-cyan-500'} flex items-center justify-center shadow-lg`}>
+          <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${howItWorksSteps[i]?.color || 'from-[#000ACF] to-[#00C4E6]'} flex items-center justify-center shadow-lg`}>
             <span className="text-2xl font-bold text-white">{i + 1}</span>
           </div>
           <span className="text-sm font-medium text-[var(--sol-text-secondary)]">

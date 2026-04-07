@@ -64,7 +64,7 @@ export default function SecurityPage() {
     {
       id: 'encryption',
       icon: Lock,
-      color: 'from-blue-500 to-cyan-500',
+      color: 'from-[#000ACF] to-[#00C4E6]',
       title: isTR ? 'Uçtan Uca Şifreleme' : 'End-to-End Encryption',
       desc: isTR
         ? 'AES-256 şifreleme standardı ile verileriniz hem aktarım sırasında (TLS 1.3) hem de depolama halinde şifrelenir. Üçüncü taraflar verilerinize erişemez.'
@@ -73,7 +73,7 @@ export default function SecurityPage() {
     {
       id: 'access',
       icon: UserCheck,
-      color: 'from-emerald-500 to-teal-500',
+      color: 'from-[#051752] to-[#006FEB]',
       title: isTR ? 'Erişim Kontrolü' : 'Access Control',
       desc: isTR
         ? 'Rol bazlı yetkilendirme (RBAC), çok faktörlü kimlik doğrulama (MFA) desteği ve gelişmiş oturum yönetimi ile yetkisiz erişimi önleyin.'
@@ -82,7 +82,7 @@ export default function SecurityPage() {
     {
       id: 'infrastructure',
       icon: Server,
-      color: 'from-violet-500 to-purple-500',
+      color: 'from-[#000ACF] to-[#051752]',
       title: isTR ? 'Altyapı Güvenliği' : 'Infrastructure Security',
       desc: isTR
         ? 'Bulut altyapısı üzerinde çalışan sistemimiz otomatik yedekleme, DDoS koruması ve izole ağ mimarisi ile korunmaktadır.'
@@ -95,7 +95,7 @@ export default function SecurityPage() {
     {
       id: 'kvkk',
       icon: FileCheck,
-      color: 'from-blue-600 to-indigo-500',
+      color: 'from-[#051752] to-[#000ACF]',
       title: isTR ? 'KVKK Uyumluluğu' : 'KVKK Compliance',
       desc: isTR
         ? 'Kişisel Verilerin Korunması Kanunu\'na tam uyum sağlıyoruz.'
@@ -119,7 +119,7 @@ export default function SecurityPage() {
     {
       id: 'gdpr',
       icon: Globe,
-      color: 'from-emerald-500 to-green-500',
+      color: 'from-[#006FEB] to-[#00C4E6]',
       title: isTR ? 'GDPR Uyumluluğu' : 'GDPR Compliance',
       desc: isTR
         ? 'Avrupa Birliği Genel Veri Koruma Yönetmeliği\'ne uyum sağlıyoruz.'
@@ -178,25 +178,25 @@ export default function SecurityPage() {
   const opsCards = [
     {
       icon: Clock,
-      color: 'from-blue-500 to-cyan-500',
+      color: 'from-[#000ACF] to-[#00C4E6]',
       title: isTR ? '7/24 İzleme' : '24/7 Monitoring',
       desc: isTR ? 'Sistem sağlığı ve performans sürekli izlenir, anomaliler anında tespit edilir.' : 'System health and performance are continuously monitored, anomalies are detected instantly.',
     },
     {
       icon: BarChart3,
-      color: 'from-emerald-500 to-teal-500',
+      color: 'from-[#051752] to-[#006FEB]',
       title: isTR ? 'Audit Log' : 'Audit Log',
       desc: isTR ? 'Tüm işlemler detaylı şekilde kayıt altına alınır. Kim, ne zaman, ne yaptı — her şey izlenebilir.' : 'All operations are logged in detail. Who, when, what — everything is traceable.',
     },
     {
       icon: Activity,
-      color: 'from-orange-500 to-red-500',
+      color: 'from-[#006FEB] to-[#00C4E6]',
       title: isTR ? 'Otomatik Yedekleme' : 'Automatic Backup',
       desc: isTR ? 'Günlük otomatik yedekleme ile veri kaybı riskini minimuma indiriyoruz.' : 'We minimize data loss risk with daily automatic backups.',
     },
     {
       icon: Zap,
-      color: 'from-violet-500 to-purple-500',
+      color: 'from-[#000ACF] to-[#051752]',
       title: isTR ? 'Incident Response' : 'Incident Response',
       desc: isTR ? 'Detaylı olay müdahale planı ile güvenlik olaylarına hızlı ve etkin müdahale.' : 'Rapid and effective response to security incidents with a detailed incident response plan.',
     },
@@ -208,8 +208,8 @@ export default function SecurityPage() {
 
       {/* ═══ Hero ═══ */}
       <section className="relative pt-28 md:pt-36 pb-16 md:pb-24">
-        <div className="ft-glow-blob" style={{ width: 600, height: 600, top: -200, left: '8%', background: '#17a2b3' }} />
-        <div className="ft-glow-blob" style={{ width: 450, height: 450, top: -40, right: '5%', background: '#8b5cf6' }} />
+        <div className="ft-glow-blob" style={{ width: 600, height: 600, top: -200, left: '8%', background: '#006FEB' }} />
+        <div className="ft-glow-blob" style={{ width: 450, height: 450, top: -40, right: '5%', background: '#00C4E6' }} />
 
         <div className="container mx-auto px-4 relative z-10">
           <div className="text-center max-w-3xl mx-auto">
@@ -295,7 +295,7 @@ export default function SecurityPage() {
 
       {/* ═══ Section B: Yasal Uyumluluk ═══ */}
       <section className="relative py-16 md:py-24">
-        <div className="ft-glow-blob" style={{ width: 500, height: 500, bottom: -100, left: '50%', marginLeft: -250, background: '#17a2b3', opacity: 0.06 }} />
+        <div className="ft-glow-blob" style={{ width: 500, height: 500, bottom: -100, left: '50%', marginLeft: -250, background: '#006FEB', opacity: 0.06 }} />
 
         <div className="container mx-auto px-4 relative z-10">
           <div className="text-center max-w-3xl mx-auto mb-12">
@@ -389,7 +389,7 @@ export default function SecurityPage() {
                 >
                   <div className="ft-deep-card h-full">
                     <div className="relative z-10">
-                      <div className="ft-icon bg-gradient-to-br from-cyan-500 to-blue-600">
+                      <div className="ft-icon bg-gradient-to-br from-[#00C4E6] to-[#006FEB]">
                         <Icon className="w-6 h-6 text-white" />
                       </div>
                       <h3 className="text-lg font-bold mb-2" style={{ color: 'var(--ft-text-primary)' }}>

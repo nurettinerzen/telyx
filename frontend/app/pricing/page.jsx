@@ -118,7 +118,7 @@ export default function PricingPage() {
         {/* Glow blobs */}
         <div
           className="pr-glow-blob"
-          style={{ width: 500, height: 500, top: -100, left: '10%', background: '#17a2b3' }}
+          style={{ width: 500, height: 500, top: -100, left: '10%', background: '#006FEB' }}
         />
         <div
           className="pr-glow-blob"

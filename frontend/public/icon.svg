@@ -1,6 +1,6 @@
 <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
   <!-- T shape simplified for favicon -->
-  <path d="M6 5 L26 5 L26 10 L19 10 L19 13 L23 17 L23 27 L16 20 L16 13 L12 10 L6 10 Z" fill="#17a2b3"/>
+  <path d="M6 5 L26 5 L26 10 L19 10 L19 13 L23 17 L23 27 L16 20 L16 13 L12 10 L6 10 Z" fill="#051752"/>
   <!-- Accent dot -->
-  <circle cx="25" cy="12" r="3" fill="#14b8a6"/>
+  <circle cx="25" cy="12" r="3" fill="#00C4E6"/>
 </svg>

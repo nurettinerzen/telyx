@@ -25,8 +25,8 @@ export default function MetricCard({
     success: { bg: 'bg-green-50 dark:bg-green-900/30', text: 'text-green-600 dark:text-green-400', sparkline: '#10b981' },
     warning: { bg: 'bg-amber-50 dark:bg-amber-900/30', text: 'text-amber-600 dark:text-amber-400', sparkline: '#f59e0b' },
     danger: { bg: 'bg-red-50 dark:bg-red-900/30', text: 'text-red-600 dark:text-red-400', sparkline: '#ef4444' },
-    info: { bg: 'bg-blue-50 dark:bg-blue-900/30', text: 'text-blue-600 dark:text-blue-400', sparkline: '#3b82f6' },
-    purple: { bg: 'bg-teal-50 dark:bg-teal-900/30', text: 'text-teal-600 dark:text-teal-400', sparkline: '#a855f7' },
+    info: { bg: 'bg-info-50 dark:bg-info-900/30', text: 'text-info-600 dark:text-info-400', sparkline: '#006FEB' },
+    purple: { bg: 'bg-cyan-50 dark:bg-cyan-900/30', text: 'text-cyan-600 dark:text-cyan-400', sparkline: '#00C4E6' },
   };
 
   const getTrendIcon = () => {

@@ -34,7 +34,7 @@ export default function SolutionsPage() {
       titleKey: 'solutions.ecommerce.title',
       descKey: 'solutions.ecommerce.desc',
       href: '/solutions/ecommerce',
-      color: 'from-blue-500 to-cyan-500',
+      color: 'from-[#000ACF] to-[#00C4E6]',
       features: [
         'solutions.ecommerce.feature1',
         'solutions.ecommerce.feature2',
@@ -60,7 +60,7 @@ export default function SolutionsPage() {
       titleKey: 'solutions.salon.title',
       descKey: 'solutions.salon.desc',
       href: '/solutions/salon',
-      color: 'from-pink-500 to-rose-500',
+      color: 'from-[#006FEB] to-[#00C4E6]',
       features: [
         'solutions.salon.feature1',
         'solutions.salon.feature2',
@@ -73,7 +73,7 @@ export default function SolutionsPage() {
       titleKey: 'solutions.support.title',
       descKey: 'solutions.support.desc',
       href: '/solutions/support',
-      color: 'from-green-500 to-emerald-500',
+      color: 'from-[#051752] to-[#006FEB]',
       features: [
         'solutions.support.feature1',
         'solutions.support.feature2',
@@ -84,9 +84,9 @@ export default function SolutionsPage() {
 
   const benefitItems = [
     { key: 'b1', icon: Zap, title: t('solutions.whyTelyx.benefit1.title'), desc: t('solutions.whyTelyx.benefit1.desc'), color: 'from-yellow-500 to-orange-500' },
-    { key: 'b2', icon: MessageSquare, title: t('solutions.whyTelyx.benefit2.title'), desc: t('solutions.whyTelyx.benefit2.desc'), color: 'from-blue-500 to-primary' },
-    { key: 'b3', icon: Link2, title: t('solutions.whyTelyx.benefit3.title'), desc: t('solutions.whyTelyx.benefit3.desc'), color: 'from-emerald-500 to-teal-500' },
-    { key: 'b4', icon: ShieldCheck, title: t('solutions.whyTelyx.benefit4.title'), desc: t('solutions.whyTelyx.benefit4.desc'), color: 'from-violet-500 to-primary' },
+    { key: 'b2', icon: MessageSquare, title: t('solutions.whyTelyx.benefit2.title'), desc: t('solutions.whyTelyx.benefit2.desc'), color: 'from-[#006FEB] to-[#051752]' },
+    { key: 'b3', icon: Link2, title: t('solutions.whyTelyx.benefit3.title'), desc: t('solutions.whyTelyx.benefit3.desc'), color: 'from-[#000ACF] to-[#00C4E6]' },
+    { key: 'b4', icon: ShieldCheck, title: t('solutions.whyTelyx.benefit4.title'), desc: t('solutions.whyTelyx.benefit4.desc'), color: 'from-[#051752] to-[#000ACF]' },
   ];
 
   const hubStats = [
@@ -102,8 +102,8 @@ export default function SolutionsPage() {
 
       {/* ═══ Hero ═══ */}
       <section className="pt-28 md:pt-36 pb-16 md:pb-20 relative overflow-hidden">
-        <div className="sol-glow-blob w-96 h-96 top-20 left-1/4" style={{ background: '#17a2b3' }} />
-        <div className="sol-glow-blob w-72 h-72 bottom-0 right-1/4" style={{ background: '#3b82f6' }} />
+        <div className="sol-glow-blob w-96 h-96 top-20 left-1/4" style={{ background: '#006FEB' }} />
+        <div className="sol-glow-blob w-72 h-72 bottom-0 right-1/4" style={{ background: '#00C4E6' }} />
 
         <div className="container mx-auto px-4 relative z-10">
           <div className="text-center max-w-3xl mx-auto">

@@ -175,7 +175,7 @@ To exercise these rights, you can contact info@telyx.ai.`
   const currentContent = content[locale] || content.tr;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-teal-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
+    <div className="min-h-screen bg-gradient-to-br from-[#edf3ff] via-white to-[#edfbff] dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
       <Navigation />
 
       {/* Hero Section */}
@@ -186,7 +186,7 @@ To exercise these rights, you can contact info@telyx.ai.`
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.6 }}
-              className="w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-teal-500 to-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-6 md:mb-8"
+              className="w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-[#051752] via-[#000ACF] to-[#00C4E6] rounded-2xl flex items-center justify-center mx-auto mb-6 md:mb-8"
             >
               <Shield className="w-8 h-8 md:w-10 md:h-10 text-white" />
             </motion.div>

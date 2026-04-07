@@ -32,7 +32,7 @@ const vp = { once: true, margin: '-60px' };
 const quickStartSteps = [
   {
     icon: Rocket,
-    color: 'from-blue-500 to-cyan-500',
+    color: 'from-[#000ACF] to-[#00C4E6]',
     titleTR: 'Asistan Olustur',
     titleEN: 'Create Assistant',
     descTR: '10 dakikada ilk asistanınızı oluşturun',
@@ -40,7 +40,7 @@ const quickStartSteps = [
   },
   {
     icon: BookOpen,
-    color: 'from-emerald-500 to-teal-500',
+    color: 'from-[#051752] to-[#006FEB]',
     titleTR: 'Bilgi Tabanı Ekle',
     titleEN: 'Add Knowledge Base',
     descTR: 'Dokümanlarınızı yükleyin, AI öğrensin',
@@ -48,7 +48,7 @@ const quickStartSteps = [
   },
   {
     icon: Link2,
-    color: 'from-violet-500 to-purple-500',
+    color: 'from-[#000ACF] to-[#051752]',
     titleTR: 'Kanalları Bağla',
     titleEN: 'Connect Channels',
     descTR: 'WhatsApp, email, web chat entegre edin',
@@ -56,7 +56,7 @@ const quickStartSteps = [
   },
   {
     icon: PlayCircle,
-    color: 'from-orange-500 to-red-500',
+    color: 'from-[#006FEB] to-[#00C4E6]',
     titleTR: 'Yayına Alın',
     titleEN: 'Go Live',
     descTR: 'Müşterilerinize hizmet vermeye başlayın',
@@ -128,8 +128,8 @@ export default function HelpPage() {
       {/* ═══ Hero ═══ */}
       <section className="relative pt-28 md:pt-36 pb-16 md:pb-24">
         {/* Glow blobs */}
-        <div className="ft-glow-blob" style={{ width: 600, height: 600, top: -200, left: '8%', background: '#17a2b3' }} />
-        <div className="ft-glow-blob" style={{ width: 450, height: 450, top: -40, right: '5%', background: '#8b5cf6' }} />
+        <div className="ft-glow-blob" style={{ width: 600, height: 600, top: -200, left: '8%', background: '#006FEB' }} />
+        <div className="ft-glow-blob" style={{ width: 450, height: 450, top: -40, right: '5%', background: '#00C4E6' }} />
 
         <div className="container mx-auto px-4 relative z-10">
           <div className="text-center max-w-3xl mx-auto">

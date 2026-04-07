@@ -3,9 +3,9 @@
    ═══════════════════════════════════════════════ */
 
 .integrations-page {
-  --int-accent: #17a2b3;
-  --int-accent-light: #22d3ee;
-  --int-accent-glow: rgba(23, 162, 179, 0.25);
+  --int-accent: #051752;
+  --int-accent-light: #00c4e6;
+  --int-accent-glow: rgba(0, 111, 235, 0.25);
   --int-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
   --int-glass: rgba(255, 255, 255, 0.7);
@@ -156,8 +156,8 @@
 }
 
 :is(.dark) .int-cta {
-  background: linear-gradient(135deg, rgba(23, 162, 179, 0.08), rgba(23, 162, 179, 0.02));
-  border: 1px solid rgba(23, 162, 179, 0.15);
+  background: linear-gradient(135deg, rgba(0, 111, 235, 0.08), rgba(0, 196, 230, 0.03));
+  border: 1px solid rgba(0, 111, 235, 0.15);
 }
 
 .int-cta::before {
@@ -182,7 +182,7 @@
   width: 300px;
   height: 300px;
   border-radius: 999px;
-  background: #3b82f6;
+  background: #006feb;
   filter: blur(100px);
   opacity: 0.1;
   pointer-events: none;

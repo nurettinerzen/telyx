@@ -158,7 +158,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-teal-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-[#edf3ff] via-white to-[#edfbff] dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950 flex items-center justify-center p-4">
       {/* Google Sign-In Script */}
       <Script
         src="https://accounts.google.com/gsi/client"
@@ -187,7 +187,7 @@ export default function RegisterPage() {
         {/* Logo/Header */}
         <div className="text-center mb-8 flex items-center justify-between max-w-2xl mx-auto">
           <Link href="/" className="inline-block">
-            <TelyxLogoFull className="h-10" />
+            <TelyxLogoFull width={136} height={38} />
           </Link>
           <LanguageSwitcher />
         </div>
@@ -231,7 +231,7 @@ export default function RegisterPage() {
                       onClick={() => setFormData({ ...formData, businessType: type.value })}
                       className={`p-4 rounded-xl border-2 cursor-pointer transition-all hover:scale-[1.02] ${
                         formData.businessType === type.value
-                          ? 'border-teal-600 bg-teal-50 dark:bg-teal-900/30 shadow-md'
+                          ? 'border-[#051752] bg-primary-50 dark:bg-primary-900/30 shadow-md'
                           : 'border-gray-200 dark:border-neutral-600 bg-white dark:bg-neutral-700 hover:border-gray-300 dark:hover:border-neutral-500'
                       }`}
                       data-testid={`business-type-${type.value.toLowerCase()}`}
@@ -246,7 +246,7 @@ export default function RegisterPage() {
                           </div>
                         </div>
                         {formData.businessType === type.value && (
-                          <div className="w-6 h-6 rounded-full bg-teal-600 flex items-center justify-center flex-shrink-0 ml-4">
+                          <div className="w-6 h-6 rounded-full bg-[#051752] flex items-center justify-center flex-shrink-0 ml-4">
                             <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                             </svg>
@@ -290,7 +290,7 @@ export default function RegisterPage() {
               {/* Submit Button */}
               <Button
                 type="submit"
-                className="w-full bg-gradient-to-r from-teal-600 to-blue-500 hover:from-teal-700 hover:to-blue-600 text-lg py-6"
+                className="w-full bg-gradient-to-r from-[#051752] via-[#000ACF] to-[#006FEB] hover:from-[#041240] hover:via-[#0008b0] hover:to-[#00C4E6] text-lg py-6"
                 disabled={loading}
                 data-testid="submit-button"
               >
@@ -355,7 +355,7 @@ export default function RegisterPage() {
               {/* Sign In Link */}
               <p className="text-center text-sm text-gray-600">
                 {t('auth.alreadyHaveAccount')}{' '}
-                <Link href="/login" className="text-teal-600 hover:underline font-medium" data-testid="login-link">
+                <Link href="/login" className="text-[#000ACF] dark:text-[#00C4E6] hover:underline font-medium" data-testid="login-link">
                   {t('common.signIn')}
                 </Link>
               </p>

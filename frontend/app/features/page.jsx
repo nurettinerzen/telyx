@@ -59,32 +59,32 @@ export default function FeaturesPage() {
   useMouseGlow(gridRef);
 
   const features = [
-    { id: 'multichannel', icon: MessageSquare, titleKey: 'features.multichannel.title', descKey: 'features.multichannel.desc', items: ['features.multichannel.item1', 'features.multichannel.item2', 'features.multichannel.item3', 'features.multichannel.item4'], color: 'from-blue-500 to-cyan-500', big: true },
-    { id: 'ai', icon: Bot, titleKey: 'features.ai.title', descKey: 'features.ai.desc', items: ['features.ai.item1', 'features.ai.item2', 'features.ai.item3', 'features.ai.item4'], color: 'from-primary to-pink-500', big: true },
-    { id: 'ecommerce', icon: ShoppingCart, titleKey: 'features.ecommerce.title', descKey: 'features.ecommerce.desc', items: ['features.ecommerce.item1', 'features.ecommerce.item2', 'features.ecommerce.item3', 'features.ecommerce.item4'], color: 'from-green-500 to-emerald-500', big: false },
-    { id: 'calendar', icon: Calendar, titleKey: 'features.calendar.title', descKey: 'features.calendar.desc', items: ['features.calendar.item1', 'features.calendar.item2', 'features.calendar.item3'], color: 'from-orange-500 to-red-500', big: false },
-    { id: 'languages', icon: Globe, titleKey: 'features.languages.title', descKey: 'features.languages.desc', items: ['features.languages.item1', 'features.languages.item2', 'features.languages.item3'], color: 'from-cyan-500 to-blue-500', big: false },
-    { id: 'analytics', icon: BarChart3, titleKey: 'features.analytics.title', descKey: 'features.analytics.desc', items: ['features.analytics.item1', 'features.analytics.item2', 'features.analytics.item3'], color: 'from-violet-500 to-purple-500', big: false },
+    { id: 'multichannel', icon: MessageSquare, titleKey: 'features.multichannel.title', descKey: 'features.multichannel.desc', items: ['features.multichannel.item1', 'features.multichannel.item2', 'features.multichannel.item3', 'features.multichannel.item4'], color: 'from-[#000ACF] to-[#00C4E6]', big: true },
+    { id: 'ai', icon: Bot, titleKey: 'features.ai.title', descKey: 'features.ai.desc', items: ['features.ai.item1', 'features.ai.item2', 'features.ai.item3', 'features.ai.item4'], color: 'from-[#051752] to-[#006FEB]', big: true },
+    { id: 'ecommerce', icon: ShoppingCart, titleKey: 'features.ecommerce.title', descKey: 'features.ecommerce.desc', items: ['features.ecommerce.item1', 'features.ecommerce.item2', 'features.ecommerce.item3', 'features.ecommerce.item4'], color: 'from-[#051752] to-[#000ACF]', big: false },
+    { id: 'calendar', icon: Calendar, titleKey: 'features.calendar.title', descKey: 'features.calendar.desc', items: ['features.calendar.item1', 'features.calendar.item2', 'features.calendar.item3'], color: 'from-[#006FEB] to-[#00C4E6]', big: false },
+    { id: 'languages', icon: Globe, titleKey: 'features.languages.title', descKey: 'features.languages.desc', items: ['features.languages.item1', 'features.languages.item2', 'features.languages.item3'], color: 'from-[#00C4E6] to-[#006FEB]', big: false },
+    { id: 'analytics', icon: BarChart3, titleKey: 'features.analytics.title', descKey: 'features.analytics.desc', items: ['features.analytics.item1', 'features.analytics.item2', 'features.analytics.item3'], color: 'from-[#000ACF] to-[#051752]', big: false },
   ];
 
   const deepDiveSections = [
-    { id: 'dashboardKpi', icon: BarChart3, color: 'from-cyan-500 to-blue-500', items: ['features.deepDive.dashboardKpi.item1', 'features.deepDive.dashboardKpi.item2', 'features.deepDive.dashboardKpi.item3', 'features.deepDive.dashboardKpi.item4'] },
-    { id: 'securityKvkk', icon: ShieldCheck, color: 'from-emerald-500 to-teal-500', items: ['features.deepDive.securityKvkk.item1', 'features.deepDive.securityKvkk.item2', 'features.deepDive.securityKvkk.item3'] },
-    { id: 'integrations', icon: Puzzle, color: 'from-indigo-500 to-violet-500', items: ['features.deepDive.integrations.item1', 'features.deepDive.integrations.item2', 'features.deepDive.integrations.item3'] },
+    { id: 'dashboardKpi', icon: BarChart3, color: 'from-[#006FEB] to-[#00C4E6]', items: ['features.deepDive.dashboardKpi.item1', 'features.deepDive.dashboardKpi.item2', 'features.deepDive.dashboardKpi.item3', 'features.deepDive.dashboardKpi.item4'] },
+    { id: 'securityKvkk', icon: ShieldCheck, color: 'from-[#051752] to-[#006FEB]', items: ['features.deepDive.securityKvkk.item1', 'features.deepDive.securityKvkk.item2', 'features.deepDive.securityKvkk.item3'] },
+    { id: 'integrations', icon: Puzzle, color: 'from-[#000ACF] to-[#051752]', items: ['features.deepDive.integrations.item1', 'features.deepDive.integrations.item2', 'features.deepDive.integrations.item3'] },
   ];
 
   const setupSteps = [
-    { step: 1, icon: Bot, key: 'step1', color: 'from-blue-500 to-primary' },
-    { step: 2, icon: Link2, key: 'step2', color: 'from-emerald-500 to-teal-500' },
-    { step: 3, icon: Upload, key: 'step3', color: 'from-orange-500 to-red-500' },
-    { step: 4, icon: TestTube, key: 'step4', color: 'from-violet-500 to-primary' },
+    { step: 1, icon: Bot, key: 'step1', color: 'from-[#006FEB] to-[#051752]' },
+    { step: 2, icon: Link2, key: 'step2', color: 'from-[#000ACF] to-[#00C4E6]' },
+    { step: 3, icon: Upload, key: 'step3', color: 'from-[#051752] to-[#000ACF]' },
+    { step: 4, icon: TestTube, key: 'step4', color: 'from-[#00C4E6] to-[#006FEB]' },
   ];
 
   const solutionCards = [
-    { href: '/solutions/ecommerce', titleKey: 'features.solutions.ecommerce.title', descKey: 'features.solutions.ecommerce.desc', icon: ShoppingCart, color: 'from-blue-500 to-cyan-500' },
-    { href: '/solutions/restaurant', titleKey: 'features.solutions.restaurant.title', descKey: 'features.solutions.restaurant.desc', icon: UtensilsCrossed, color: 'from-orange-500 to-red-500' },
-    { href: '/solutions/salon', titleKey: 'features.solutions.salon.title', descKey: 'features.solutions.salon.desc', icon: Scissors, color: 'from-pink-500 to-rose-500' },
-    { href: '/solutions/support', titleKey: 'features.solutions.support.title', descKey: 'features.solutions.support.desc', icon: HeadphonesIcon, color: 'from-violet-500 to-purple-500' },
+    { href: '/solutions/ecommerce', titleKey: 'features.solutions.ecommerce.title', descKey: 'features.solutions.ecommerce.desc', icon: ShoppingCart, color: 'from-[#000ACF] to-[#00C4E6]' },
+    { href: '/solutions/restaurant', titleKey: 'features.solutions.restaurant.title', descKey: 'features.solutions.restaurant.desc', icon: UtensilsCrossed, color: 'from-[#051752] to-[#006FEB]' },
+    { href: '/solutions/salon', titleKey: 'features.solutions.salon.title', descKey: 'features.solutions.salon.desc', icon: Scissors, color: 'from-[#006FEB] to-[#00C4E6]' },
+    { href: '/solutions/support', titleKey: 'features.solutions.support.title', descKey: 'features.solutions.support.desc', icon: HeadphonesIcon, color: 'from-[#000ACF] to-[#051752]' },
   ];
 
   return (
@@ -94,8 +94,8 @@ export default function FeaturesPage() {
       {/* ═══ Hero ═══ */}
       <section className="relative pt-28 md:pt-36 pb-16 md:pb-24">
         {/* Glow blobs */}
-        <div className="ft-glow-blob" style={{ width: 600, height: 600, top: -200, left: '8%', background: '#17a2b3' }} />
-        <div className="ft-glow-blob" style={{ width: 450, height: 450, top: -40, right: '5%', background: '#8b5cf6' }} />
+        <div className="ft-glow-blob" style={{ width: 600, height: 600, top: -200, left: '8%', background: '#006FEB' }} />
+        <div className="ft-glow-blob" style={{ width: 450, height: 450, top: -40, right: '5%', background: '#00C4E6' }} />
 
         <div className="container mx-auto px-4 relative z-10">
           <div className="text-center max-w-3xl mx-auto">
@@ -233,7 +233,7 @@ export default function FeaturesPage() {
 
       {/* ═══ Deep Dive — Shimmer Top-Line Cards ═══ */}
       <section className="relative py-16 md:py-24">
-        <div className="ft-glow-blob" style={{ width: 500, height: 500, bottom: -100, left: '50%', marginLeft: -250, background: '#17a2b3', opacity: 0.06 }} />
+        <div className="ft-glow-blob" style={{ width: 500, height: 500, bottom: -100, left: '50%', marginLeft: -250, background: '#006FEB', opacity: 0.06 }} />
 
         <div className="container mx-auto px-4 relative z-10">
           <div className="text-center max-w-3xl mx-auto mb-12">

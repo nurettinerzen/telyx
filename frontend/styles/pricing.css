@@ -3,9 +3,9 @@
    ═══════════════════════════════════════════════ */
 
 .pricing-page {
-  --pr-accent: #17a2b3;
-  --pr-accent-light: #22d3ee;
-  --pr-accent-glow: rgba(23, 162, 179, 0.25);
+  --pr-accent: #051752;
+  --pr-accent-light: #00c4e6;
+  --pr-accent-glow: rgba(0, 111, 235, 0.25);
   --pr-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
   --pr-glass: rgba(255, 255, 255, 0.7);
@@ -16,7 +16,7 @@
   --pr-text-secondary: #475569;
   --pr-text-muted: #94a3b8;
   --pr-card-bg: rgba(255, 255, 255, 0.85);
-  --pr-popular-glow: rgba(23, 162, 179, 0.15);
+  --pr-popular-glow: rgba(0, 111, 235, 0.15);
 }
 
 :is(.dark) .pricing-page {
@@ -28,7 +28,7 @@
   --pr-text-secondary: #94a3b8;
   --pr-text-muted: #64748b;
   --pr-card-bg: rgba(255, 255, 255, 0.03);
-  --pr-popular-glow: rgba(23, 162, 179, 0.12);
+  --pr-popular-glow: rgba(0, 111, 235, 0.12);
 }
 
 /* ── Keyframes ── */
@@ -132,14 +132,14 @@
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: rgba(23, 162, 179, 0.12);
+  background: rgba(0, 111, 235, 0.12);
   display: grid;
   place-items: center;
   flex-shrink: 0;
 }
 
 :is(.dark) .pr-check-icon {
-  background: rgba(23, 162, 179, 0.2);
+  background: rgba(0, 111, 235, 0.2);
 }
 
 /* ── PAYG Card ── */
@@ -221,8 +221,8 @@
 }
 
 :is(.dark) .pr-cta-section {
-  background: linear-gradient(135deg, rgba(23, 162, 179, 0.08), rgba(23, 162, 179, 0.02));
-  border: 1px solid rgba(23, 162, 179, 0.15);
+  background: linear-gradient(135deg, rgba(0, 111, 235, 0.08), rgba(0, 196, 230, 0.03));
+  border: 1px solid rgba(0, 111, 235, 0.15);
 }
 
 .pr-cta-section::before {

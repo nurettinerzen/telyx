@@ -59,7 +59,7 @@ export default function IntegrationsPage() {
       id: 'communication',
       titleKey: 'integrationsPage.categories.communication',
       icon: MessagesSquare,
-      color: 'from-emerald-500 to-teal-500',
+      color: 'from-[#051752] to-[#00C4E6]',
       integrations: [
         { name: 'WhatsApp Business', descKey: 'integrationsPage.whatsapp.desc', status: STATUS.AVAILABLE, cta: '/dashboard/integrations', logo: '/assets/integrations/whatsapp.svg' },
         { name: 'Gmail', descKey: 'integrationsPage.gmail.desc', status: STATUS.AVAILABLE, cta: '/dashboard/integrations', logo: '/assets/integrations/gmail.svg' },
@@ -70,7 +70,7 @@ export default function IntegrationsPage() {
       id: 'ecommerce',
       titleKey: 'integrationsPage.categories.ecommerce',
       icon: ShoppingCart,
-      color: 'from-blue-500 to-cyan-500',
+      color: 'from-[#000ACF] to-[#00C4E6]',
       integrations: [
         { name: 'Shopify', descKey: 'integrationsPage.shopify.desc', status: STATUS.AVAILABLE, cta: '/dashboard/integrations', logo: '/assets/integrations/shopify.svg' },
         { name: 'ikas', descKey: 'integrationsPage.ikas.desc', status: STATUS.AVAILABLE, cta: '/dashboard/integrations', logo: '/assets/integrations/ikas.ico' },
@@ -82,7 +82,7 @@ export default function IntegrationsPage() {
       id: 'crm',
       titleKey: 'integrationsPage.categories.crm',
       icon: Users2,
-      color: 'from-violet-500 to-blue-500',
+      color: 'from-[#051752] to-[#006FEB]',
       integrations: [
         { name: 'Custom CRM', descKey: 'integrationsPage.customCrm.desc', status: STATUS.AVAILABLE, cta: '/dashboard/integrations/custom-crm', logo: '/assets/integrations/crm.png' },
         { name: 'HubSpot', descKey: 'integrationsPage.hubspot.desc', status: STATUS.SOON, cta: '/contact', logo: '/assets/integrations/hubspot.svg' },
@@ -101,7 +101,7 @@ export default function IntegrationsPage() {
       id: 'data',
       titleKey: 'integrationsPage.categories.data',
       icon: Database,
-      color: 'from-green-500 to-emerald-500',
+      color: 'from-[#051752] to-[#006FEB]',
       integrations: [
         { name: 'Webhook API', descKey: 'integrationsPage.webhookApi.desc', status: STATUS.AVAILABLE, cta: '/dashboard/integrations', logo: '/assets/integrations/webhook.png' },
         { name: 'Paraşüt', descKey: 'integrationsPage.parasut.desc', status: STATUS.SOON, cta: '/contact', logo: '/assets/integrations/parasut.svg' },
@@ -118,8 +118,8 @@ export default function IntegrationsPage() {
       {/* ═══ Hero ═══ */}
       <section className="relative pt-28 md:pt-36 pb-16 md:pb-24">
         {/* Glow blobs — GPU-isolated */}
-        <div className="int-glow-blob" style={{ width: 600, height: 600, top: -200, left: '8%', background: '#17a2b3' }} />
-        <div className="int-glow-blob" style={{ width: 450, height: 450, top: -40, right: '5%', background: '#8b5cf6' }} />
+        <div className="int-glow-blob" style={{ width: 600, height: 600, top: -200, left: '8%', background: '#006FEB' }} />
+        <div className="int-glow-blob" style={{ width: 450, height: 450, top: -40, right: '5%', background: '#00C4E6' }} />
 
         <div className="container mx-auto px-4 relative z-10">
           <div className="text-center max-w-3xl mx-auto">
@@ -291,7 +291,7 @@ export default function IntegrationsPage() {
           >
             <div className="int-request-card text-center">
               <div className="relative z-10">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-cyan-500 flex items-center justify-center mx-auto mb-4 shadow-lg">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#051752] via-[#000ACF] to-[#00C4E6] flex items-center justify-center mx-auto mb-4 shadow-lg">
                   <Plug className="w-6 h-6 text-white" />
                 </div>
                 <h3

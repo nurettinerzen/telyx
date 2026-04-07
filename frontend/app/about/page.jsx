@@ -85,42 +85,42 @@ export default function AboutPage() {
       name: 'Nurettin Erzen',
       titleKey: 'about.team.nurettin.title',
       descKey: 'about.team.nurettin.desc',
-      gradient: 'from-blue-500 to-cyan-500',
+      gradient: 'from-[#000ACF] to-[#00C4E6]',
       icon: Rocket,
     },
     {
       name: 'Miraç Öztürk',
       titleKey: 'about.team.mirac.title',
       descKey: 'about.team.mirac.desc',
-      gradient: 'from-violet-500 to-purple-500',
+      gradient: 'from-[#000ACF] to-[#051752]',
       icon: Zap,
     },
     {
       name: 'Davut Pehlivanlı',
       titleKey: 'about.team.davut.title',
       descKey: 'about.team.davut.desc',
-      gradient: 'from-emerald-500 to-teal-500',
+      gradient: 'from-[#051752] to-[#006FEB]',
       icon: Globe,
     },
     {
       name: 'Eyüp Yorulmaz',
       titleKey: 'about.team.eyup.title',
       descKey: 'about.team.eyup.desc',
-      gradient: 'from-orange-500 to-amber-500',
+      gradient: 'from-[#006FEB] to-[#00C4E6]',
       icon: Lightbulb,
     },
     {
       name: 'Ramazan Badeli',
       titleKey: 'about.team.ramazan.title',
       descKey: 'about.team.ramazan.desc',
-      gradient: 'from-rose-500 to-pink-500',
+      gradient: 'from-[#000ACF] to-[#00C4E6]',
       icon: Target,
     },
     {
       name: 'Merve Çınar',
       titleKey: 'about.team.merve.title',
       descKey: 'about.team.merve.desc',
-      gradient: 'from-cyan-500 to-blue-500',
+      gradient: 'from-[#00C4E6] to-[#006FEB]',
       icon: Heart,
     },
   ];
@@ -133,9 +133,9 @@ export default function AboutPage() {
   ];
 
   const values = [
-    { icon: Target, titleKey: 'about.values.mission.title', descKey: 'about.values.mission.desc', gradient: 'from-blue-500 to-cyan-500' },
-    { icon: Lightbulb, titleKey: 'about.values.vision.title', descKey: 'about.values.vision.desc', gradient: 'from-violet-500 to-purple-500' },
-    { icon: Heart, titleKey: 'about.values.culture.title', descKey: 'about.values.culture.desc', gradient: 'from-emerald-500 to-teal-500' },
+    { icon: Target, titleKey: 'about.values.mission.title', descKey: 'about.values.mission.desc', gradient: 'from-[#000ACF] to-[#00C4E6]' },
+    { icon: Lightbulb, titleKey: 'about.values.vision.title', descKey: 'about.values.vision.desc', gradient: 'from-[#051752] to-[#000ACF]' },
+    { icon: Heart, titleKey: 'about.values.culture.title', descKey: 'about.values.culture.desc', gradient: 'from-[#051752] to-[#006FEB]' },
   ];
 
   return (
@@ -144,8 +144,8 @@ export default function AboutPage() {
 
       {/* ═══ Hero ═══ */}
       <section className="relative pt-28 md:pt-36 pb-16 md:pb-24">
-        <div className="ft-glow-blob" style={{ width: 600, height: 600, top: -200, left: '8%', background: '#17a2b3' }} />
-        <div className="ft-glow-blob" style={{ width: 450, height: 450, top: -40, right: '5%', background: '#8b5cf6' }} />
+        <div className="ft-glow-blob" style={{ width: 600, height: 600, top: -200, left: '8%', background: '#006FEB' }} />
+        <div className="ft-glow-blob" style={{ width: 450, height: 450, top: -40, right: '5%', background: '#00C4E6' }} />
 
         <div className="container mx-auto px-4 relative z-10">
           <div className="text-center max-w-3xl mx-auto">
@@ -227,7 +227,7 @@ export default function AboutPage() {
                 className="ft-card"
                 style={{ padding: '2rem' }}
               >
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center mb-4 shadow-lg">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#000ACF] to-[#00C4E6] flex items-center justify-center mb-4 shadow-lg">
                   <Heart className="w-6 h-6 text-white" />
                 </div>
                 <h3 className="text-xl font-bold mb-3" style={{ color: 'var(--ft-text-primary)' }}>
@@ -246,7 +246,7 @@ export default function AboutPage() {
                 className="ft-card"
                 style={{ padding: '2rem' }}
               >
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-purple-500 flex items-center justify-center mb-4 shadow-lg">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#051752] to-[#000ACF] flex items-center justify-center mb-4 shadow-lg">
                   <MapPin className="w-6 h-6 text-white" />
                 </div>
                 <h3 className="text-xl font-bold mb-3" style={{ color: 'var(--ft-text-primary)' }}>
@@ -367,7 +367,7 @@ export default function AboutPage() {
               style={{ padding: '2.5rem' }}
             >
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#000ACF] to-[#00C4E6] flex items-center justify-center shadow-lg">
                   <Building2 className="w-6 h-6 text-white" />
                 </div>
                 <h2 className="text-2xl font-bold" style={{ color: 'var(--ft-text-primary)' }}>

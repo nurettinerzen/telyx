@@ -19,7 +19,7 @@ export default function Home() {
         <ChatWidget
           embedKey={runtimeConfig.landingChatEmbedKey}
           position="bottom-right"
-          primaryColor="#17a2b3"
+          primaryColor="#051752"
           showBranding={false}
           buttonText="Bize Yazın"
         />

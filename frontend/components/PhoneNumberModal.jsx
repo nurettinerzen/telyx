@@ -172,16 +172,16 @@ export default function PhoneNumberModal({ isOpen, onClose, onSuccess }) {
 
         <div className="space-y-6 py-4">
           {/* NetGSM Info Banner */}
-          <div className="bg-gradient-to-r from-blue-50 to-teal-50 dark:from-blue-950 dark:to-teal-950 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
+          <div className="bg-gradient-to-r from-primary-50 to-cyan-50 dark:from-primary-950 dark:to-cyan-950 border border-primary-200 dark:border-primary-800 rounded-xl p-4">
             <div className="flex items-start gap-3">
-              <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-                <Phone className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              <div className="p-2 bg-primary-100 dark:bg-primary-900 rounded-lg">
+                <Phone className="h-5 w-5 text-primary-600 dark:text-cyan-300" />
               </div>
               <div className="flex-1">
-                <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-1">
+                <h4 className="font-semibold text-primary-900 dark:text-white mb-1">
                   NetGSM ile Bağlantı
                 </h4>
-                <p className="text-sm text-blue-700 dark:text-blue-300 mb-3">
+                <p className="text-sm text-primary-700 dark:text-cyan-100 mb-3">
                   NetGSM 0850 numaranızı AI asistanınıza bağlamak için SIP bilgilerinizi girin.
                 </p>
                 <div className="flex flex-wrap gap-2">

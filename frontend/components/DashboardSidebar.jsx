@@ -254,7 +254,7 @@ export function DashboardSidebar() {
                   variant={isActive ? 'secondary' : 'ghost'}
                   className={cn(
                     "w-full justify-start",
-                    isActive && "bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 hover:bg-teal-100 dark:hover:bg-teal-900/50",
+                    isActive && "bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-blue-200 hover:bg-primary-100 dark:hover:bg-primary-900/45",
                     !canAccess && "opacity-50 cursor-not-allowed"
                   )}
                   onClick={() => {
@@ -317,11 +317,11 @@ export function DashboardSidebar() {
           <div className="p-4 border-t border-gray-200 dark:border-neutral-700 space-y-2">
             {/* Upgrade CTA for FREE users */}
             {plan === 'FREE' && (
-              <div className="p-3 bg-gradient-to-r from-teal-50 dark:from-teal-900/30 to-blue-50 dark:to-blue-900/30 rounded-lg mb-2">
+              <div className="p-3 bg-gradient-to-r from-primary-50 dark:from-primary-900/30 to-info-50 dark:to-info-900/20 rounded-lg mb-2">
                 <p className="text-sm font-semibold mb-1 text-gray-900 dark:text-white">Upgrade to unlock all features</p>
                 <Button 
                   size="sm" 
-                  className="w-full bg-teal-600 hover:bg-teal-700"
+                  className="w-full bg-[#051752] hover:bg-[#000ACF]"
                   onClick={() => {
                     router.push('/pricing');
                     setIsOpen(false);

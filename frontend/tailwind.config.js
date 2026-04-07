@@ -26,26 +26,26 @@ module.exports = {
     },
     extend: {
       colors: {
-        // Primary Color (Teal - Brand color)
+        // Primary Color (2026 brand palette)
         primary: {
-          50: '#e8f7f8',
-          100: '#b8e8ec',
-          200: '#88d9e0',
-          300: '#58cad4',
-          400: '#28bbc8',
-          500: '#17a2b3', // Main brand color
-          600: '#148f9e', // Hover state
-          700: '#117c89',
-          800: '#0e6974',
-          900: '#0b565f',
-          950: '#08434a',
-          DEFAULT: '#17a2b3',
+          50: '#eef3ff',
+          100: '#dbe5ff',
+          200: '#bfd0ff',
+          300: '#95b4ff',
+          400: '#5c8dff',
+          500: '#006feb',
+          600: '#000acf',
+          700: '#051752',
+          800: '#041240',
+          900: '#020c2c',
+          950: '#010618',
+          DEFAULT: '#051752',
           foreground: '#ffffff',
         },
-        // Accent Color (Teal for links/active states)
+        // Accent Color (bright teal highlights)
         accent: {
-          DEFAULT: '#14b8a6',
-          foreground: '#ffffff',
+          DEFAULT: '#00c4e6',
+          foreground: '#051752',
         },
         // Gray palette (refined)
         gray: {
@@ -103,19 +103,19 @@ module.exports = {
           900: '#7f1d1d',
           DEFAULT: '#ef4444',
         },
-        // Info (Blue)
+        // Info (brand light blue)
         info: {
-          50: '#eff6ff',
-          100: '#dbeafe',
-          200: '#bfdbfe',
-          300: '#93c5fd',
-          400: '#60a5fa',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
-          800: '#1e40af',
-          900: '#1e3a8a',
-          DEFAULT: '#3b82f6',
+          50: '#edf5ff',
+          100: '#d8eaff',
+          200: '#b5d5ff',
+          300: '#80b7ff',
+          400: '#4290ff',
+          500: '#006feb',
+          600: '#0058bc',
+          700: '#00438d',
+          800: '#032f61',
+          900: '#042044',
+          DEFAULT: '#006feb',
         },
         // Shadcn compatibility
         border: 'hsl(var(--border))',

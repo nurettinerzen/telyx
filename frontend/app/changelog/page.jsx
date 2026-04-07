@@ -50,7 +50,7 @@ const entries = [
     titleEN: 'Search Support & New Languages',
     descTR: 'Bilgi tabanı ve konuşma geçmişinde gelişmiş arama desteği eklendi. Portekizce, Almanca ve Fransızca dil destekleri ile global erişiminizi genişletin.',
     descEN: 'Added advanced search support across knowledge base and conversation history. Expand your global reach with Portuguese, German and French language support.',
-    color: 'from-purple-500 to-pink-500',
+    color: 'from-[#000ACF] to-[#00C4E6]',
     changes: [
       { type: 'new', textTR: 'Bilgi tabanında gelişmiş arama', textEN: 'Advanced knowledge base search' },
       { type: 'new', textTR: 'Konuşma geçmişi arama', textEN: 'Conversation history search' },
@@ -68,7 +68,7 @@ const entries = [
     titleEN: 'Multi-Channel Communication',
     descTR: 'WhatsApp, email ve web chat\u2019i tek platformda birle\u015Ftirdik. T\u00FCm kanallardan gelen m\u00FC\u015Fteri mesajlar\u0131n\u0131 tek bir panelden y\u00F6netin.',
     descEN: 'We unified WhatsApp, email and web chat on a single platform. Manage all customer messages from one dashboard.',
-    color: 'from-blue-500 to-cyan-500',
+    color: 'from-[#006FEB] to-[#00C4E6]',
     changes: [
       { type: 'new', textTR: 'WhatsApp Business entegrasyonu', textEN: 'WhatsApp Business integration' },
       { type: 'new', textTR: 'Gmail ve Outlook email deste\u011Fi', textEN: 'Gmail and Outlook email support' },
@@ -84,7 +84,7 @@ const entries = [
     titleEN: 'E-commerce Integrations',
     descTR: 'Shopify ve ikas entegrasyonlar\u0131 ile sipari\u015F takibi, iade y\u00F6netimi ve m\u00FC\u015Fteri do\u011Frulama s\u00FCre\u00E7lerini otomatikle\u015Ftirdik.',
     descEN: 'Automated order tracking, return management and customer verification with Shopify and ikas integrations.',
-    color: 'from-green-500 to-emerald-500',
+    color: 'from-[#051752] to-[#006FEB]',
     changes: [
       { type: 'new', textTR: 'Shopify entegrasyonu', textEN: 'Shopify integration' },
       { type: 'new', textTR: 'ikas entegrasyonu', textEN: 'ikas integration' },
@@ -100,7 +100,7 @@ const entries = [
     titleEN: 'Voice AI Assistant',
     descTR: 'AI destekli sesli g\u00F6r\u00FC\u015Fme, takvim entegrasyonu ve toplu arama kampanyalar\u0131 ile m\u00FC\u015Fteri ileti\u015Fimini bir \u00FCst seviyeye ta\u015F\u0131d\u0131k.',
     descEN: 'Elevated customer communication with AI-powered voice calls, calendar integration and bulk call campaigns.',
-    color: 'from-orange-500 to-red-500',
+    color: 'from-[#000ACF] to-[#051752]',
     changes: [
       { type: 'new', textTR: 'AI sesli g\u00F6r\u00FC\u015Fme deste\u011Fi', textEN: 'AI voice call support' },
       { type: 'new', textTR: 'Google Calendar entegrasyonu', textEN: 'Google Calendar integration' },
@@ -116,7 +116,7 @@ const entries = [
     titleEN: 'Dashboard & Analytics',
     descTR: 'Ger\u00E7ek zamanl\u0131 analitik, m\u00FC\u015Fteri veri y\u00F6netimi ve tak\u0131m rolleri ile i\u015Fletmenizi daha yak\u0131ndan takip edin.',
     descEN: 'Monitor your business closely with real-time analytics, customer data management and team roles.',
-    color: 'from-violet-500 to-purple-500',
+    color: 'from-[#006FEB] to-[#051752]',
     changes: [
       { type: 'new', textTR: 'Ger\u00E7ek zamanl\u0131 analitik dashboard', textEN: 'Real-time analytics dashboard' },
       { type: 'new', textTR: 'M\u00FC\u015Fteri veri y\u00F6netimi', textEN: 'Customer data management' },
@@ -153,8 +153,8 @@ export default function ChangelogPage() {
       {/* ═══ Hero ═══ */}
       <section className="relative pt-28 md:pt-36 pb-16 md:pb-24">
         {/* Glow blobs */}
-        <div className="ft-glow-blob" style={{ width: 600, height: 600, top: -200, left: '8%', background: '#17a2b3' }} />
-        <div className="ft-glow-blob" style={{ width: 450, height: 450, top: -40, right: '5%', background: '#8b5cf6' }} />
+        <div className="ft-glow-blob" style={{ width: 600, height: 600, top: -200, left: '8%', background: '#006FEB' }} />
+        <div className="ft-glow-blob" style={{ width: 450, height: 450, top: -40, right: '5%', background: '#00C4E6' }} />
 
         <div className="container mx-auto px-4 relative z-10">
           <div className="text-center max-w-3xl mx-auto">

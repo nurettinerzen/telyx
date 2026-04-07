@@ -29,7 +29,6 @@ import {
   Lock,
   Check,
   Database,
-  Sparkles,
   Shield,
   MessageSquare,
   Mail,
@@ -364,20 +363,21 @@ export default function Sidebar({ user, credits, business, whatsappPendingCount 
       <div className="px-3 py-1.5 border-t border-gray-200 dark:border-gray-800">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-3 w-full px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-              <Avatar className="h-8 w-8">
-                <AvatarFallback className="bg-primary-600 text-white text-sm">
+            <button className="flex items-center gap-3 w-full rounded-xl border border-gray-200/80 bg-white/80 px-3 py-2.5 text-left shadow-sm transition-colors hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:hover:bg-gray-800">
+              <Avatar className="h-9 w-9 flex-shrink-0">
+                <AvatarFallback className="bg-primary-600 text-white text-sm font-semibold">
                   {user?.name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U'}
                 </AvatarFallback>
               </Avatar>
-              <div className="flex-1 text-left min-w-0">
-                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">
                   {user?.name || t('dashboard.userFallback')}
                 </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                  <Sparkles className="h-3 w-3" />
-                  {getPlanDisplay()} {t('dashboard.planLabel')}
-                </p>
+                <div className="mt-1 flex items-center">
+                  <span className="inline-flex max-w-full truncate whitespace-nowrap rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-medium text-primary-700 dark:bg-primary-900/30 dark:text-primary-300">
+                    {getPlanDisplay()}
+                  </span>
+                </div>
               </div>
               <ChevronDown className="h-4 w-4 text-gray-400 flex-shrink-0" />
             </button>

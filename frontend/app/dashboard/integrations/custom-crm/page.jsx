@@ -159,9 +159,9 @@ export default function CustomCrmPage() {
           </Button>
         </div>
 
-        <div className="bg-gradient-to-r from-blue-50 to-teal-50 dark:from-blue-950/30 dark:to-teal-950/30 border border-blue-200 dark:border-blue-800 rounded-xl p-8 text-center">
-          <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Lock className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+        <div className="bg-gradient-to-r from-primary-50 to-cyan-50 dark:from-primary-950/30 dark:to-cyan-950/30 border border-primary-200 dark:border-primary-800 rounded-xl p-8 text-center">
+          <div className="w-16 h-16 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Lock className="w-8 h-8 text-primary-600 dark:text-cyan-300" />
           </div>
           <h2 className="text-2xl font-bold text-neutral-900 dark:text-white mb-2">
             Pro Pakete Yükseltin

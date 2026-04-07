@@ -23,7 +23,7 @@ export default function ApiDocsPage() {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.6 }}
-              className="w-20 h-20 md:w-24 md:h-24 bg-gradient-to-br from-primary to-blue-500 rounded-3xl flex items-center justify-center mx-auto mb-6 md:mb-8"
+              className="w-20 h-20 md:w-24 md:h-24 bg-gradient-to-br from-[#051752] via-[#000ACF] to-[#00C4E6] rounded-3xl flex items-center justify-center mx-auto mb-6 md:mb-8"
             >
               <FileCode className="w-10 h-10 md:w-12 md:h-12 text-white" />
             </motion.div>
@@ -53,12 +53,12 @@ export default function ApiDocsPage() {
               className="bg-white dark:bg-neutral-800 rounded-2xl p-8 shadow-sm border border-gray-100 dark:border-neutral-700 mb-8"
             >
               <div className="flex items-center justify-center gap-3 mb-4">
-                <Mail className="w-5 h-5 text-primary dark:text-teal-400" />
+                <Mail className="w-5 h-5 text-primary dark:text-[#00C4E6]" />
                 <span className="text-gray-600 dark:text-neutral-400">{t('apiDocs.contactText')}</span>
               </div>
               <a
                 href="mailto:info@telyx.ai"
-                className="text-primary hover:text-primary/80 dark:text-teal-400 dark:hover:text-teal-300 font-semibold text-lg"
+                className="text-primary hover:text-primary/80 dark:text-[#00C4E6] dark:hover:text-[#7fe9ff] font-semibold text-lg"
               >
                 info@telyx.ai
               </a>

@@ -232,7 +232,7 @@ export default function InventoryPage() {
               {/* CSV Upload */}
               <label style={{
                 padding: '10px 20px',
-                background: '#3b82f6',
+                background: '#006FEB',
                 color: 'white',
                 borderRadius: '5px',
                 cursor: 'pointer'

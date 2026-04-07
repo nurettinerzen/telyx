@@ -21,7 +21,7 @@ export const SectorsSection = () => {
         'landing.sectors.ecommerce.feature3'
       ],
       href: '/solutions/ecommerce',
-      color: 'from-blue-500 to-cyan-500'
+      color: 'from-[#000ACF] to-[#00C4E6]'
     },
     {
       icon: UtensilsCrossed,
@@ -40,7 +40,7 @@ export const SectorsSection = () => {
         'landing.sectors.salon.feature1'
       ],
       href: '/solutions/salon',
-      color: 'from-pink-500 to-teal-500'
+      color: 'from-[#006FEB] to-[#00C4E6]'
     },
     {
       icon: HeadphonesIcon,
@@ -50,7 +50,7 @@ export const SectorsSection = () => {
         'landing.sectors.support.feature2'
       ],
       href: '/solutions/support',
-      color: 'from-green-500 to-emerald-500'
+      color: 'from-[#051752] to-[#006FEB]'
     }
   ];
 

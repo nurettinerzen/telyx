@@ -36,7 +36,7 @@ export default function ContactPage() {
       name: 'Mehmet Yılmaz',
       role: isTR ? 'E-ticaret Müdürü, incehesap.com' : 'E-commerce Director, incehesap.com',
       initials: 'İH',
-      gradient: 'from-blue-500 to-cyan-500',
+      gradient: 'from-[#000ACF] to-[#00C4E6]',
     },
     {
       quote: isTR
@@ -45,7 +45,7 @@ export default function ContactPage() {
       name: 'Ayşe Kara',
       role: isTR ? 'Operasyon Yöneticisi, Oksid' : 'Operations Manager, Oksid',
       initials: 'OK',
-      gradient: 'from-violet-500 to-purple-500',
+      gradient: 'from-[#000ACF] to-[#051752]',
     },
     {
       quote: isTR
@@ -54,7 +54,7 @@ export default function ContactPage() {
       name: 'Nurettin Erzen',
       role: isTR ? 'Kurucu, Selenly' : 'Founder, Selenly',
       initials: 'SE',
-      gradient: 'from-emerald-500 to-teal-500',
+      gradient: 'from-[#051752] to-[#006FEB]',
     },
   ];
 
@@ -94,10 +94,10 @@ export default function ContactPage() {
   };
 
   const highlights = [
-    { icon: Zap, titleKey: 'contact.highlights.setup.title', descKey: 'contact.highlights.setup.desc', color: 'from-amber-500 to-orange-500' },
-    { icon: MessageSquare, titleKey: 'contact.highlights.channels.title', descKey: 'contact.highlights.channels.desc', color: 'from-blue-500 to-cyan-500' },
-    { icon: Shield, titleKey: 'contact.highlights.security.title', descKey: 'contact.highlights.security.desc', color: 'from-emerald-500 to-teal-500' },
-    { icon: Headphones, titleKey: 'contact.highlights.support.title', descKey: 'contact.highlights.support.desc', color: 'from-violet-500 to-purple-500' },
+    { icon: Zap, titleKey: 'contact.highlights.setup.title', descKey: 'contact.highlights.setup.desc', color: 'from-[#051752] to-[#000ACF]' },
+    { icon: MessageSquare, titleKey: 'contact.highlights.channels.title', descKey: 'contact.highlights.channels.desc', color: 'from-[#000ACF] to-[#00C4E6]' },
+    { icon: Shield, titleKey: 'contact.highlights.security.title', descKey: 'contact.highlights.security.desc', color: 'from-[#051752] to-[#006FEB]' },
+    { icon: Headphones, titleKey: 'contact.highlights.support.title', descKey: 'contact.highlights.support.desc', color: 'from-[#006FEB] to-[#00C4E6]' },
   ];
 
   const stats = [
@@ -122,11 +122,11 @@ export default function ContactPage() {
         <div className="absolute inset-0 pointer-events-none" style={{ contain: 'strict', willChange: 'transform', transform: 'translateZ(0)' }}>
           <div
             className="absolute rounded-full"
-            style={{ width: 500, height: 500, top: -120, left: '5%', background: '#17a2b3', filter: 'blur(120px)', opacity: 0.12 }}
+            style={{ width: 500, height: 500, top: -120, left: '5%', background: '#006FEB', filter: 'blur(120px)', opacity: 0.12 }}
           />
           <div
             className="absolute rounded-full"
-            style={{ width: 400, height: 400, top: 20, right: '8%', background: '#a855f7', filter: 'blur(120px)', opacity: 0.1 }}
+            style={{ width: 400, height: 400, top: 20, right: '8%', background: '#00C4E6', filter: 'blur(120px)', opacity: 0.1 }}
           />
         </div>
 

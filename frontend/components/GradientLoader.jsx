@@ -24,19 +24,19 @@ export default function GradientLoader({
       <div className={cn('relative', sizeClasses[size])}>
         {/* Primary blob */}
         <div
-          className="absolute inset-0 rounded-full bg-gradient-to-r from-teal-200 via-teal-300 to-teal-500 opacity-70 blur-xl animate-blob"
+          className="absolute inset-0 rounded-full bg-gradient-to-r from-[#051752] via-[#000ACF] to-[#00C4E6] opacity-70 blur-xl animate-blob"
           style={{ animationDuration: '7s' }}
         />
 
         {/* Secondary blob */}
         <div
-          className="absolute inset-2 rounded-full bg-gradient-to-r from-blue-300 via-cyan-300 to-teal-300 opacity-70 blur-lg animate-blob"
+          className="absolute inset-2 rounded-full bg-gradient-to-r from-[#000ACF] via-[#006FEB] to-[#00C4E6] opacity-70 blur-lg animate-blob"
           style={{ animationDuration: '7s', animationDelay: '2s' }}
         />
 
         {/* Center glow */}
         <div
-          className="absolute inset-4 rounded-full bg-gradient-to-r from-violet-200 to-pink-200 opacity-80 blur-md animate-pulse-slow"
+          className="absolute inset-4 rounded-full bg-gradient-to-r from-[#006FEB] to-[#00C4E6] opacity-80 blur-md animate-pulse-slow"
         />
 
         {/* Inner circle */}

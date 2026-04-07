@@ -3,9 +3,9 @@
    ═══════════════════════════════════════════════ */
 
 .features-page {
-  --ft-accent: #17a2b3;
-  --ft-accent-light: #22d3ee;
-  --ft-accent-glow: rgba(23, 162, 179, 0.25);
+  --ft-accent: #051752;
+  --ft-accent-light: #00c4e6;
+  --ft-accent-glow: rgba(0, 111, 235, 0.25);
   --ft-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
   --ft-glass: rgba(255, 255, 255, 0.7);
@@ -143,14 +143,14 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: rgba(23, 162, 179, 0.12);
+  background: rgba(0, 111, 235, 0.12);
   display: grid;
   place-items: center;
   flex-shrink: 0;
 }
 
 :is(.dark) .ft-check {
-  background: rgba(23, 162, 179, 0.2);
+  background: rgba(0, 111, 235, 0.2);
 }
 
 /* ── Deep Dive Section ── */
@@ -200,7 +200,7 @@
   align-items: center;
   justify-content: center;
   margin: 0 auto 16px;
-  box-shadow: 0 8px 32px rgba(23, 162, 179, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 111, 235, 0.2);
   position: relative;
   z-index: 10;
   transition: transform 0.35s var(--ft-ease), box-shadow 0.35s var(--ft-ease);
@@ -208,7 +208,7 @@
 
 .ft-step:hover .ft-step-circle {
   transform: scale(1.08);
-  box-shadow: 0 12px 40px rgba(23, 162, 179, 0.3);
+  box-shadow: 0 12px 40px rgba(0, 111, 235, 0.3);
 }
 
 .ft-step-number {
@@ -223,7 +223,7 @@
   font-size: 12px;
   font-weight: 700;
   margin-bottom: 8px;
-  box-shadow: 0 2px 8px rgba(23, 162, 179, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 111, 235, 0.3);
 }
 
 .ft-connector {
@@ -234,9 +234,9 @@
   height: 2px;
   background: linear-gradient(90deg,
     transparent,
-    rgba(23, 162, 179, 0.15) 10%,
-    rgba(23, 162, 179, 0.3) 50%,
-    rgba(23, 162, 179, 0.15) 90%,
+    rgba(0, 111, 235, 0.15) 10%,
+    rgba(0, 111, 235, 0.3) 50%,
+    rgba(0, 111, 235, 0.15) 90%,
     transparent
   );
 }
@@ -271,14 +271,14 @@
 .ft-flow-step-highlight {
   border-radius: 14px;
   padding: 16px;
-  background: linear-gradient(135deg, #0f172a, rgba(23, 162, 179, 0.3));
-  border: 1px solid rgba(23, 162, 179, 0.2);
+  background: linear-gradient(135deg, #051752, rgba(0, 10, 207, 0.32));
+  border: 1px solid rgba(0, 111, 235, 0.2);
   color: white;
 }
 
 :is(.dark) .ft-flow-step-highlight {
-  background: linear-gradient(135deg, rgba(23, 162, 179, 0.15), rgba(23, 162, 179, 0.05));
-  border-color: rgba(23, 162, 179, 0.2);
+  background: linear-gradient(135deg, rgba(0, 111, 235, 0.16), rgba(0, 196, 230, 0.08));
+  border-color: rgba(0, 111, 235, 0.2);
 }
 
 /* ── Solution Cards ── */
@@ -317,8 +317,8 @@
 }
 
 :is(.dark) .ft-cta {
-  background: linear-gradient(135deg, rgba(23, 162, 179, 0.08), rgba(23, 162, 179, 0.02));
-  border: 1px solid rgba(23, 162, 179, 0.15);
+  background: linear-gradient(135deg, rgba(0, 111, 235, 0.08), rgba(0, 196, 230, 0.03));
+  border: 1px solid rgba(0, 111, 235, 0.15);
 }
 
 .ft-cta::before {
@@ -343,7 +343,7 @@
   width: 300px;
   height: 300px;
   border-radius: 999px;
-  background: #3b82f6;
+  background: #006feb;
   filter: blur(100px);
   opacity: 0.1;
   pointer-events: none;

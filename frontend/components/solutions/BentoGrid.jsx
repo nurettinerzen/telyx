@@ -27,7 +27,7 @@ function BentoItem({ icon: Icon, title, desc, color, index }) {
     >
       {Icon && (
         <div
-          className={`w-12 h-12 rounded-xl bg-gradient-to-br ${color || 'from-blue-500 to-cyan-500'} flex items-center justify-center mb-4`}
+          className={`w-12 h-12 rounded-xl bg-gradient-to-br ${color || 'from-[#000ACF] to-[#00C4E6]'} flex items-center justify-center mb-4`}
         >
           <Icon className="w-6 h-6 text-white" />
         </div>

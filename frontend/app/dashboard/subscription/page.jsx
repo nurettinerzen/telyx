@@ -952,7 +952,7 @@ export default function SubscriptionPage() {
                       isCurrentPlan
                         ? 'bg-neutral-100 text-neutral-500 cursor-not-allowed border-neutral-200'
                         : isUpgrade
-                          ? 'bg-gradient-to-r from-teal-600 to-blue-500 hover:from-teal-700 hover:to-blue-600 text-white'
+                          ? 'bg-gradient-to-r from-[#051752] via-[#000ACF] to-[#006FEB] hover:from-[#041240] hover:via-[#0008b0] hover:to-[#00C4E6] text-white'
                           : 'border-neutral-300 text-neutral-700 hover:bg-neutral-50'
                     }`}
                     variant={isCurrentPlan ? 'outline' : (isUpgrade ? 'default' : 'outline')}
