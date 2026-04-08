@@ -133,13 +133,13 @@ export default function ContactPage() {
   ];
 
   const inputClass =
-    'mt-2 w-full h-14 px-4 border border-gray-200 dark:border-white/[0.08] rounded-[1.35rem] bg-white/60 dark:bg-white/[0.06] text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 backdrop-blur-sm transition-colors';
+    'mt-2 w-full h-12 px-4 border border-gray-200 dark:border-white/[0.08] rounded-xl bg-white/60 dark:bg-white/[0.06] text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 backdrop-blur-sm transition-colors';
   const textareaClass =
-    'mt-2 w-full px-4 py-3.5 border border-gray-200 dark:border-white/[0.08] rounded-[1.35rem] bg-white/60 dark:bg-white/[0.06] text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 backdrop-blur-sm transition-colors min-h-[190px]';
+    'mt-2 w-full px-4 py-3 border border-gray-200 dark:border-white/[0.08] rounded-xl bg-white/60 dark:bg-white/[0.06] text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 backdrop-blur-sm transition-colors min-h-[168px]';
 
   const current = testimonials[activeTestimonial];
   const testimonialCard = (
-    <div className="rounded-[2rem] p-6 md:p-7 border border-transparent dark:border-transparent bg-gray-50 dark:bg-white/[0.04]">
+    <div className="rounded-[2rem] p-5 md:p-6 border border-transparent dark:border-transparent bg-gray-50 dark:bg-white/[0.04]">
       <div className="flex gap-1 mb-4">
         {[...Array(5)].map((_, i) => (
           <svg key={i} className="w-4 h-4 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
@@ -148,7 +148,7 @@ export default function ContactPage() {
         ))}
       </div>
 
-      <div className="relative min-h-[106px] md:min-h-[96px]">
+      <div className="relative min-h-[92px] md:min-h-[82px]">
         {testimonials.map((item, i) => (
           <div
             key={i}
@@ -163,21 +163,21 @@ export default function ContactPage() {
               pointerEvents: i === activeTestimonial ? 'auto' : 'none',
             }}
           >
-            <p className="text-xl md:text-[1.7rem] italic text-gray-700 dark:text-neutral-200 leading-snug">
+            <p className="text-lg md:text-[1.35rem] italic text-gray-700 dark:text-neutral-200 leading-relaxed">
               &ldquo;{item.quote}&rdquo;
             </p>
           </div>
         ))}
       </div>
 
-      <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-3">
           <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${current.gradient} flex items-center justify-center text-white font-bold text-[11px]`}>
             {current.initials}
           </div>
           <div>
-            <p className="text-[15px] font-semibold text-gray-900 dark:text-white">{current.name}</p>
-            <p className="text-[13px] text-gray-500 dark:text-neutral-500">{current.role}</p>
+            <p className="text-sm font-semibold text-gray-900 dark:text-white">{current.name}</p>
+            <p className="text-xs text-gray-500 dark:text-neutral-500">{current.role}</p>
           </div>
         </div>
 
@@ -276,10 +276,10 @@ export default function ContactPage() {
       {/* ── Contact Form + Info ── */}
       <section className="py-8 md:py-12 pb-20">
         <div className="container mx-auto px-4">
-          <div className="grid items-start lg:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)] gap-8 xl:gap-10 max-w-6xl mx-auto">
+          <div className="grid items-stretch lg:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)] gap-8 xl:gap-10 max-w-6xl mx-auto">
 
             {/* Form */}
-            <div className="relative rounded-3xl p-8 md:p-10 border border-transparent dark:border-transparent bg-gray-50 dark:bg-white/[0.04]">
+            <div className="relative h-full rounded-3xl p-8 md:p-10 border border-transparent dark:border-transparent bg-gray-50 dark:bg-white/[0.04]">
               <h2 className="text-2xl font-bold mb-2 text-gray-900 dark:text-white">
                 {t('contact.form.title')}
               </h2>
@@ -401,7 +401,7 @@ export default function ContactPage() {
             </div>
 
             {/* Right Column */}
-            <div className="space-y-6">
+            <div className="grid h-full grid-rows-[auto_minmax(0,1fr)] gap-6">
               {/* Contact Info */}
               <div className="rounded-3xl p-8 border border-transparent dark:border-transparent bg-gray-50 dark:bg-white/[0.04]">
                 <h3 className="text-xl font-bold mb-6 text-gray-900 dark:text-white">{t('contact.info.title')}</h3>
@@ -431,20 +431,22 @@ export default function ContactPage() {
               </div>
 
               {/* Trust Stats */}
-              <div className="relative rounded-3xl p-8 border border-gray-200/70 dark:border-white/[0.06] bg-gray-50 dark:bg-white/[0.04] overflow-hidden">
+              <div className="relative h-full rounded-3xl p-8 border border-gray-200/70 dark:border-white/[0.06] bg-gray-50 dark:bg-white/[0.04] overflow-hidden">
                 <div className="absolute -top-20 -right-20 w-40 h-40 rounded-full bg-primary/10 dark:bg-primary/15 blur-[60px] pointer-events-none" />
 
-                <h3 className="text-xl font-bold mb-6 text-gray-900 dark:text-white relative z-10">{t('contact.trust.title')}</h3>
-                <div className="grid grid-cols-2 gap-4 relative z-10">
+                <div className="relative z-10 flex h-full flex-col">
+                  <h3 className="text-xl font-bold mb-6 text-gray-900 dark:text-white">{t('contact.trust.title')}</h3>
+                  <div className="grid flex-1 grid-cols-2 gap-4">
                   {stats.map((stat) => (
                     <div
                       key={stat.value}
-                      className="text-center p-4 rounded-2xl bg-white/75 dark:bg-white/[0.06] border border-gray-200/80 dark:border-white/[0.06] hover:bg-white dark:hover:bg-white/10 transition-colors duration-150"
+                      className="flex flex-col items-center justify-center text-center p-4 rounded-2xl bg-white/75 dark:bg-white/[0.06] border border-gray-200/80 dark:border-white/[0.06] hover:bg-white dark:hover:bg-white/10 transition-colors duration-150"
                     >
                       <div className="text-2xl font-bold text-primary-700 dark:text-primary-300 mb-1">{stat.value}</div>
                       <p className="text-xs text-gray-500 dark:text-neutral-400">{stat.label}</p>
                     </div>
                   ))}
+                  </div>
                 </div>
               </div>
 
