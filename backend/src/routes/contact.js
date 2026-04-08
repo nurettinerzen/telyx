@@ -1,6 +1,7 @@
 import express from 'express';
 import prisma from '../prismaClient.js';
 import rateLimit from 'express-rate-limit';
+import { getPublicContactProfile } from '../services/businessPhoneRouting.js';
 
 const router = express.Router();
 
@@ -14,6 +15,24 @@ const contactRateLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+});
+
+// GET /api/contact/info - Public contact info for the brand/admin business
+router.get('/info', async (_req, res) => {
+  try {
+    const contactProfile = await getPublicContactProfile(prisma);
+
+    res.json({
+      email: contactProfile.email,
+      phone: contactProfile.phone
+    });
+  } catch (error) {
+    console.error('Contact info fetch error:', error);
+    res.status(500).json({
+      error: 'Failed to fetch contact info',
+      code: 'SERVER_ERROR'
+    });
+  }
 });
 
 // POST /api/contact - Submit contact message

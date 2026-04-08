@@ -230,6 +230,9 @@ model PhoneNumber {
   sipPassword       String?
   sipServer         String?
   assistantId       String?
+  isDefaultInbound  Boolean       @default(false)
+  isDefaultOutbound Boolean       @default(false)
+  isPublicContact   Boolean       @default(false)
   status            PhoneStatus   @default(ACTIVE)
   monthlyCost       Float
   nextBillingDate   DateTime?
@@ -242,6 +245,9 @@ model PhoneNumber {
   @@index([businessId])
   @@index([phoneNumber])
   @@index([status])
+  @@index([businessId, isDefaultInbound])
+  @@index([businessId, isDefaultOutbound])
+  @@index([businessId, isPublicContact])
 }
 
 model Subscription {

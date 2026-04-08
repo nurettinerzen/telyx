@@ -117,6 +117,11 @@ export default function PhoneNumbersPage() {
   const isTR = locale !== 'en';
 
   const [phoneNumbers, setPhoneNumbers] = useState([]);
+  const [phoneMeta, setPhoneMeta] = useState({
+    limit: null,
+    canAddMore: true,
+    hasAdminPhoneOverride: false
+  });
   const [loading, setLoading] = useState(true);
   const [showProvisionModal, setShowProvisionModal] = useState(false);
   const [subscription, setSubscription] = useState(null);
@@ -144,11 +149,19 @@ export default function PhoneNumbersPage() {
         ]);
         const sub = subRes.status === 'fulfilled' ? subRes.value.data : null;
         const numbers = phoneRes.status === 'fulfilled' ? (phoneRes.value.data.phoneNumbers || []) : [];
+        const numbersMeta = phoneRes.status === 'fulfilled'
+          ? {
+            limit: phoneRes.value.data.limit ?? null,
+            canAddMore: phoneRes.value.data.canAddMore ?? true,
+            hasAdminPhoneOverride: phoneRes.value.data.hasAdminPhoneOverride ?? false
+          }
+          : { limit: null, canAddMore: true, hasAdminPhoneOverride: false };
         const snap = sub?.billingSnapshot || buildLegacyBillingSnapshot(sub);
         const outEnt = sub?.entitlements?.phone?.outbound || sub?.entitlements?.outbound || null;
 
         setSubscription(sub);
         setPhoneNumbers(numbers);
+        setPhoneMeta(numbersMeta);
 
         if (snap?.channels?.phone === false) { setIsLocked(true); setLockReason('PHONE_NOT_INCLUDED'); }
         else if (outEnt && outEnt.enabled === false) { setIsLocked(true); setLockReason(outEnt.reason || 'OUTBOUND_DISABLED'); }
@@ -167,6 +180,11 @@ export default function PhoneNumbersPage() {
     try {
       const response = await apiClient.phoneNumbers.getAll();
       setPhoneNumbers(response.data.phoneNumbers || []);
+      setPhoneMeta({
+        limit: response.data.limit ?? null,
+        canAddMore: response.data.canAddMore ?? true,
+        hasAdminPhoneOverride: response.data.hasAdminPhoneOverride ?? false
+      });
     } catch (_e) {
       toast.error(isTR ? 'Telefon numaraları yüklenemedi' : 'Failed to load phone numbers');
     } finally { setLoading(false); }
@@ -180,10 +198,23 @@ export default function PhoneNumbersPage() {
     } catch (_e) { /* handled */ }
   };
 
-  const rawLimit = subscription?.usage?.phoneNumbers?.limit ?? subscription?.limits?.phoneNumbers;
+  const handleRoutingUpdate = async (phoneId, payload, loadingMessage, successMessage) => {
+    try {
+      await toastHelpers.async(
+        apiClient.phoneNumbers.updateRouting(phoneId, payload),
+        loadingMessage,
+        successMessage
+      );
+      await loadPhoneNumbers();
+    } catch (_e) {
+      // handled by toast helper
+    }
+  };
+
+  const rawLimit = phoneMeta.limit ?? subscription?.usage?.phoneNumbers?.limit ?? subscription?.limits?.phoneNumbers;
   const phoneNumberLimit = rawLimit === undefined ? null : rawLimit;
   const isUnlimited = phoneNumberLimit === -1 || phoneNumberLimit === null;
-  const canAdd = () => !isLocked && subscription && (isUnlimited || phoneNumbers.length < phoneNumberLimit);
+  const canAdd = () => !isLocked && subscription && (phoneMeta.canAddMore ?? (isUnlimited || phoneNumbers.length < phoneNumberLimit));
 
   const voiceProgress = voiceUsage?.total > 0 ? (toNumber(voiceUsage.used) / toNumber(voiceUsage.total, 1)) * 100 : 0;
   const concurrentCalls = toNumber(snapshot?.entitlements?.concurrentCalls || subscription?.entitlements?.concurrentCalls, 0);
@@ -228,6 +259,21 @@ export default function PhoneNumbersPage() {
                       <Badge className="rounded-full bg-emerald-100 text-emerald-700 text-xs dark:bg-emerald-900/40 dark:text-emerald-300">
                         {number.status || (isTR ? 'Aktif' : 'Active')}
                       </Badge>
+                      {number.isDefaultInbound && (
+                        <Badge className="rounded-full bg-blue-100 text-blue-700 text-xs dark:bg-blue-900/40 dark:text-blue-300">
+                          {t('dashboard.phoneNumbersPage.inboundBadge')}
+                        </Badge>
+                      )}
+                      {number.isDefaultOutbound && (
+                        <Badge className="rounded-full bg-violet-100 text-violet-700 text-xs dark:bg-violet-900/40 dark:text-violet-300">
+                          {t('dashboard.phoneNumbersPage.outboundBadge')}
+                        </Badge>
+                      )}
+                      {number.isPublicContact && (
+                        <Badge className="rounded-full bg-amber-100 text-amber-700 text-xs dark:bg-amber-900/40 dark:text-amber-300">
+                          {t('dashboard.phoneNumbersPage.publicContactBadge')}
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -252,6 +298,53 @@ export default function PhoneNumbersPage() {
                   label={isTR ? 'Eşzamanlı Çağrı' : 'Concurrent Calls'}
                   value={fmt(concurrentCalls)}
                 />
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button
+                  variant={number.isDefaultInbound ? 'secondary' : 'outline'}
+                  size="sm"
+                  className="rounded-xl"
+                  disabled={number.isDefaultInbound}
+                  onClick={() => handleRoutingUpdate(
+                    number.id,
+                    { isDefaultInbound: true },
+                    t('dashboard.phoneNumbersPage.settingInbound'),
+                    t('dashboard.phoneNumbersPage.inboundUpdated')
+                  )}
+                >
+                  {number.isDefaultInbound ? t('dashboard.phoneNumbersPage.defaultInbound') : t('dashboard.phoneNumbersPage.setInbound')}
+                </Button>
+
+                <Button
+                  variant={number.isDefaultOutbound ? 'secondary' : 'outline'}
+                  size="sm"
+                  className="rounded-xl"
+                  disabled={number.isDefaultOutbound}
+                  onClick={() => handleRoutingUpdate(
+                    number.id,
+                    { isDefaultOutbound: true },
+                    t('dashboard.phoneNumbersPage.settingOutbound'),
+                    t('dashboard.phoneNumbersPage.outboundUpdated')
+                  )}
+                >
+                  {number.isDefaultOutbound ? t('dashboard.phoneNumbersPage.defaultOutbound') : t('dashboard.phoneNumbersPage.setOutbound')}
+                </Button>
+
+                <Button
+                  variant={number.isPublicContact ? 'secondary' : 'outline'}
+                  size="sm"
+                  className="rounded-xl"
+                  disabled={number.isPublicContact}
+                  onClick={() => handleRoutingUpdate(
+                    number.id,
+                    { isPublicContact: true },
+                    t('dashboard.phoneNumbersPage.settingPublicContact'),
+                    t('dashboard.phoneNumbersPage.publicContactUpdated')
+                  )}
+                >
+                  {number.isPublicContact ? t('dashboard.phoneNumbersPage.shownPublicly') : t('dashboard.phoneNumbersPage.setPublicContact')}
+                </Button>
               </div>
             </div>
           ))

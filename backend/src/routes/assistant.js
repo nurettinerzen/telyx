@@ -703,7 +703,7 @@ const VALID_CALL_TYPES = ['BILLING_REMINDER', 'APPOINTMENT_REMINDER', 'SHIPPING_
 router.post('/test-call', async (req, res) => {
   try {
     const { businessId } = req.user;
-    const { phoneNumber, callType } = req.body;
+    const { phoneNumber, callType, phoneNumberId } = req.body;
 
     // callType is required for outbound V1 so we know which flow runs
     if (!callType || !VALID_CALL_TYPES.includes(callType)) {
@@ -780,9 +780,21 @@ router.post('/test-call', async (req, res) => {
     }
 
     // Get phone number for outbound call
-    const fromPhoneNumber = await prisma.phoneNumber.findFirst({
-      where: { businessId, status: 'ACTIVE' }
-    });
+    const fromPhoneNumber = phoneNumberId
+      ? await prisma.phoneNumber.findFirst({
+        where: {
+          id: phoneNumberId,
+          businessId,
+          status: 'ACTIVE'
+        }
+      })
+      : await prisma.phoneNumber.findFirst({
+        where: { businessId, status: 'ACTIVE' },
+        orderBy: [
+          { isDefaultOutbound: 'desc' },
+          { createdAt: 'asc' }
+        ]
+      });
 
     if (!fromPhoneNumber || !fromPhoneNumber.elevenLabsPhoneId) {
       return res.status(400).json({ error: 'No phone number configured' });

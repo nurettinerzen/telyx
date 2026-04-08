@@ -208,6 +208,7 @@ export const apiClient = {
     getAll: () => api.get('/api/phone-numbers'),
     provision: (data) => api.post('/api/phone-numbers/provision', data),
     importSip: (data) => api.post('/api/phone-numbers/import-sip', data),
+    updateRouting: (id, data) => api.patch(`/api/phone-numbers/${id}/routing`, data),
     delete: (id) => api.delete(`/api/phone-numbers/${id}`),
     testCall: (id, testPhoneNumber) => api.post(`/api/phone-numbers/${id}/test-call`, { testPhoneNumber }),
     getCountries: () => api.get('/api/phone-numbers/countries'),

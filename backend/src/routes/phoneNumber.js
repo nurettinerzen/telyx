@@ -12,6 +12,13 @@ import netgsmService from '../services/netgsm.js';
 import elevenLabsService from '../services/elevenlabs.js';
 import { getProvidersForCountry } from '../config/sip-providers.js';
 import { resolvePhoneOutboundAccessForBusinessId } from '../services/phoneOutboundAccess.js';
+import {
+  hasBrandPhoneOverride,
+  reconcilePhoneNumberUsage,
+  resolveEffectivePhoneNumberLimit,
+  setPhoneNumberRoutingFlags,
+  syncLegacyBusinessPhoneFields
+} from '../services/businessPhoneRouting.js';
 
 const router = express.Router();
 
@@ -54,25 +61,31 @@ router.get('/', async (req, res) => {
     const businessId = req.businessId;
 
     if (!businessId) {
-      return res.json({ phoneNumbers: [], count: 0 });
+      return res.json({ phoneNumbers: [], count: 0, limit: 0, canAddMore: false, hasAdminPhoneOverride: false });
     }
 
-    // Get phone numbers from new PhoneNumber model
-    const phoneNumbers = await prisma.phoneNumber.findMany({
-      where: { businessId },
-      include: {
-        assistant: {
-          select: {
-            id: true,
-            name: true,
-            isActive: true
+    const [phoneNumbers, limit, hasAdminPhoneOverride] = await Promise.all([
+      prisma.phoneNumber.findMany({
+        where: { businessId },
+        include: {
+          assistant: {
+            select: {
+              id: true,
+              name: true,
+              isActive: true
+            }
           }
+        },
+        orderBy: {
+          createdAt: 'desc'
         }
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
-    });
+      }),
+      resolveEffectivePhoneNumberLimit(prisma, businessId),
+      hasBrandPhoneOverride(prisma, businessId)
+    ]);
+
+    const activeCount = phoneNumbers.filter((pn) => pn.status === 'ACTIVE').length;
+    const canAddMore = limit === -1 || activeCount < limit;
 
     res.json({
       phoneNumbers: phoneNumbers.map(pn => ({
@@ -86,9 +99,15 @@ router.get('/', async (req, res) => {
         monthlyCost: pn.monthlyCost,
         nextBillingDate: pn.nextBillingDate,
         createdAt: pn.createdAt,
-        elevenLabsPhoneId: pn.elevenLabsPhoneId
+        elevenLabsPhoneId: pn.elevenLabsPhoneId,
+        isDefaultInbound: pn.isDefaultInbound,
+        isDefaultOutbound: pn.isDefaultOutbound,
+        isPublicContact: pn.isPublicContact
       })),
-      count: phoneNumbers.length
+      count: phoneNumbers.length,
+      limit,
+      canAddMore,
+      hasAdminPhoneOverride
     });
 
   } catch (error) {
@@ -131,14 +150,17 @@ router.post('/provision', async (req, res) => {
       });
     }
 
-    // Check phone number limit
-    const existingNumbers = await prisma.phoneNumber.count({
-      where: { businessId }
-    });
+    // Check effective phone number limit
+    const [existingNumbers, effectiveLimit] = await Promise.all([
+      prisma.phoneNumber.count({
+        where: { businessId, status: 'ACTIVE' }
+      }),
+      resolveEffectivePhoneNumberLimit(prisma, businessId)
+    ]);
 
-    if (subscription.phoneNumbersLimit > 0 && existingNumbers >= subscription.phoneNumbersLimit) {
+    if (effectiveLimit > 0 && existingNumbers >= effectiveLimit) {
       return res.status(403).json({
-        error: `Phone number limit reached (${subscription.phoneNumbersLimit} numbers)`,
+        error: `Phone number limit reached (${effectiveLimit} numbers)`,
         upgrade: 'Consider upgrading your plan'
       });
     }
@@ -179,14 +201,9 @@ router.post('/provision', async (req, res) => {
       });
     }
 
-    // Update subscription usage
-    await prisma.subscription.update({
-      where: { businessId },
-      data: {
-        phoneNumbersUsed: {
-          increment: 1
-        }
-      }
+    await prisma.$transaction(async (tx) => {
+      await syncLegacyBusinessPhoneFields(tx, businessId);
+      await reconcilePhoneNumberUsage(tx, businessId);
     });
 
     console.log('✅ Phone number provisioned successfully:', result.phoneNumber);
@@ -420,30 +437,25 @@ router.post('/import-sip', async (req, res) => {
       });
     }
 
-    // Check phone number limit (PLATFORM LIMIT: 1 number per business)
-    // RACE CONDITION PROTECTION: Lock business row during check to prevent parallel creates
-    const PLATFORM_PHONE_LIMIT = 1; // Platform constraint (technical limitation)
-
-    // Use transaction with business row lock for atomicity
+    // Check effective phone number limit
     const limitCheck = await prisma.$transaction(async (tx) => {
-      // Lock business row to serialize phone number checks for this business
       await tx.business.findUnique({
         where: { id: businessId },
         select: { id: true }
       });
 
-      // Count active numbers within transaction
       const existingNumbers = await tx.phoneNumber.count({
         where: { businessId, status: 'ACTIVE' }
       });
+      const limit = await resolveEffectivePhoneNumberLimit(tx, businessId);
 
-      return { existingNumbers, limit: PLATFORM_PHONE_LIMIT };
+      return { existingNumbers, limit };
     });
 
-    if (limitCheck.existingNumbers >= limitCheck.limit) {
+    if (limitCheck.limit > 0 && limitCheck.existingNumbers >= limitCheck.limit) {
       return res.status(403).json({
         error: 'PHONE_NUMBER_LIMIT_REACHED',
-        message: 'Şu anda işletme başına 1 telefon numarası destekleniyor',
+        message: `Şu anda işletme başına ${limitCheck.limit} telefon numarası destekleniyor`,
         currentCount: limitCheck.existingNumbers,
         limit: limitCheck.limit
       });
@@ -499,50 +511,58 @@ router.post('/import-sip', async (req, res) => {
     let newPhoneNumber;
     let isNewNumber = false;
 
-    if (existingPhone) {
-      // Update existing record
-      console.log('📞 Phone number already exists, updating...');
-      newPhoneNumber = await prisma.phoneNumber.update({
-        where: { id: existingPhone.id },
-        data: {
-          elevenLabsPhoneId: elevenLabsPhoneId,
-          sipUsername: sipUsername,
-          sipPassword: sipPassword,
-          sipServer: sipServer,
-          assistantId: null,
-          status: 'ACTIVE'
-        }
-      });
-    } else {
-      // Create new record
-      isNewNumber = true;
-      newPhoneNumber = await prisma.phoneNumber.create({
-        data: {
-          businessId: businessId,
-          phoneNumber: formattedNumber,
-          countryCode: 'TR',
-          provider: 'ELEVENLABS',
-          elevenLabsPhoneId: elevenLabsPhoneId,
-          sipUsername: sipUsername,
-          sipPassword: sipPassword,
-          sipServer: sipServer,
-          assistantId: null,
-          status: 'ACTIVE',
-          monthlyCost: PRICING.NETGSM.displayMonthly,
-          nextBillingDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-        }
-      });
+    newPhoneNumber = await prisma.$transaction(async (tx) => {
+      let savedPhoneNumber;
+      const previousBusinessId = existingPhone?.businessId || null;
 
-      // Update subscription usage only for new numbers
-      await prisma.subscription.update({
-        where: { businessId },
-        data: {
-          phoneNumbersUsed: {
-            increment: 1
+      if (existingPhone) {
+        console.log('📞 Phone number already exists, updating...');
+        savedPhoneNumber = await tx.phoneNumber.update({
+          where: { id: existingPhone.id },
+          data: {
+            businessId,
+            countryCode: 'TR',
+            provider: 'ELEVENLABS',
+            elevenLabsPhoneId: elevenLabsPhoneId,
+            sipUsername: sipUsername,
+            sipPassword: sipPassword,
+            sipServer: sipServer,
+            assistantId: null,
+            status: 'ACTIVE'
           }
-        }
+        });
+      } else {
+        isNewNumber = true;
+        savedPhoneNumber = await tx.phoneNumber.create({
+          data: {
+            businessId: businessId,
+            phoneNumber: formattedNumber,
+            countryCode: 'TR',
+            provider: 'ELEVENLABS',
+            elevenLabsPhoneId: elevenLabsPhoneId,
+            sipUsername: sipUsername,
+            sipPassword: sipPassword,
+            sipServer: sipServer,
+            assistantId: null,
+            status: 'ACTIVE',
+            monthlyCost: PRICING.NETGSM.displayMonthly,
+            nextBillingDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+          }
+        });
+      }
+
+      if (previousBusinessId && previousBusinessId !== businessId) {
+        await syncLegacyBusinessPhoneFields(tx, previousBusinessId);
+        await reconcilePhoneNumberUsage(tx, previousBusinessId);
+      }
+
+      await syncLegacyBusinessPhoneFields(tx, businessId);
+      await reconcilePhoneNumberUsage(tx, businessId);
+
+      return tx.phoneNumber.findUnique({
+        where: { id: savedPhoneNumber.id }
       });
-    }
+    });
 
     console.log('✅ SIP trunk phone number saved:', newPhoneNumber.id);
 
@@ -624,6 +644,59 @@ router.patch('/:id/assistant', async (req, res) => {
 });
 
 // ============================================================================
+// UPDATE ROUTING FLAGS
+// ============================================================================
+router.patch('/:id/routing', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const businessId = req.businessId;
+    const {
+      isDefaultInbound,
+      isDefaultOutbound,
+      isPublicContact
+    } = req.body || {};
+
+    if (
+      typeof isDefaultInbound !== 'boolean'
+      && typeof isDefaultOutbound !== 'boolean'
+      && typeof isPublicContact !== 'boolean'
+    ) {
+      return res.status(400).json({
+        error: 'At least one routing flag must be provided'
+      });
+    }
+
+    const updatedPhone = await prisma.$transaction(async (tx) => {
+      const phone = await setPhoneNumberRoutingFlags(tx, {
+        businessId,
+        phoneNumberId: id,
+        isDefaultInbound,
+        isDefaultOutbound,
+        isPublicContact
+      });
+
+      await reconcilePhoneNumberUsage(tx, businessId);
+      return phone;
+    });
+
+    res.json({
+      success: true,
+      phoneNumber: updatedPhone
+    });
+  } catch (error) {
+    if (error.message === 'PHONE_NUMBER_NOT_FOUND') {
+      return res.status(404).json({ error: 'Phone number not found' });
+    }
+
+    console.error('❌ Update phone routing error:', error);
+    res.status(500).json({
+      error: 'Failed to update phone routing',
+      details: error.message
+    });
+  }
+});
+
+// ============================================================================
 // DELETE/CANCEL PHONE NUMBER
 // ============================================================================
 router.delete('/:id', async (req, res) => {
@@ -665,19 +738,13 @@ router.delete('/:id', async (req, res) => {
       }
     }
 
-    // Delete from database
-    await prisma.phoneNumber.delete({
-      where: { id: id }
-    });
+    await prisma.$transaction(async (tx) => {
+      await tx.phoneNumber.delete({
+        where: { id: id }
+      });
 
-    // Update subscription usage
-    await prisma.subscription.update({
-      where: { businessId: businessId },
-      data: {
-        phoneNumbersUsed: {
-          decrement: 1
-        }
-      }
+      await syncLegacyBusinessPhoneFields(tx, businessId);
+      await reconcilePhoneNumberUsage(tx, businessId);
     });
 
     console.log('✅ Phone number cancelled successfully');

@@ -17,8 +17,9 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { toast } from 'sonner';
 import {
   Mail, Clock, Send, Check, MessageSquare, Shield,
-  Zap, Headphones, Sparkles,
+  Zap, Headphones, Sparkles, Phone,
 } from 'lucide-react';
+import { formatPhone } from '@/lib/utils';
 
 export default function ContactPage() {
   const { t, locale } = useLanguage();
@@ -33,6 +34,10 @@ export default function ContactPage() {
   });
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [contactInfo, setContactInfo] = useState({
+    email: 'info@telyx.ai',
+    phone: '',
+  });
 
   // Rotating testimonials
   const testimonials = [
@@ -91,6 +96,37 @@ export default function ContactPage() {
     }, 5000);
     return () => clearInterval(interval);
   }, [testimonials.length]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadContactInfo = async () => {
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/contact/info`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        });
+
+        if (!response.ok) return;
+
+        const data = await response.json();
+        if (cancelled) return;
+
+        setContactInfo({
+          email: data?.email || 'info@telyx.ai',
+          phone: data?.phone || '',
+        });
+      } catch (_error) {
+        // Keep static fallback values.
+      }
+    };
+
+    loadContactInfo();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -412,11 +448,25 @@ export default function ContactPage() {
                     </div>
                     <div>
                       <h4 className="font-semibold mb-1 text-gray-900 dark:text-white">{t('contact.info.email')}</h4>
-                      <a href="mailto:info@telyx.ai" className="text-gray-600 dark:text-neutral-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors">
-                        info@telyx.ai
+                      <a href={`mailto:${contactInfo.email}`} className="text-gray-600 dark:text-neutral-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors">
+                        {contactInfo.email}
                       </a>
                     </div>
                   </div>
+
+                  {contactInfo.phone && (
+                    <div className="flex items-start gap-4 group">
+                      <div className="w-12 h-12 rounded-xl bg-primary-50 dark:bg-primary-950/50 flex items-center justify-center flex-shrink-0 group-hover:bg-primary group-hover:scale-105 transition-[background-color,transform] duration-150">
+                        <Phone className="w-5 h-5 text-primary-700 dark:text-primary-300 group-hover:text-white transition-colors" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold mb-1 text-gray-900 dark:text-white">{t('contact.info.phone')}</h4>
+                        <a href={`tel:${contactInfo.phone}`} className="text-gray-600 dark:text-neutral-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors">
+                          {formatPhone(contactInfo.phone) || contactInfo.phone}
+                        </a>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="flex items-start gap-4 group">
                     <div className="w-12 h-12 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 flex items-center justify-center flex-shrink-0 group-hover:bg-emerald-500 group-hover:scale-105 transition-[background-color,transform] duration-150">
