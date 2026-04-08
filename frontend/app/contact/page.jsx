@@ -129,6 +129,65 @@ export default function ContactPage() {
     'mt-2 w-full px-4 py-2.5 border border-gray-200 dark:border-white/[0.08] rounded-xl bg-white/60 dark:bg-white/[0.06] text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 backdrop-blur-sm transition-colors';
 
   const current = testimonials[activeTestimonial];
+  const testimonialCard = (
+    <div className="rounded-[2rem] p-8 md:p-10 border border-transparent dark:border-transparent bg-gray-50 dark:bg-white/[0.04]">
+      <div className="flex gap-1 mb-5">
+        {[...Array(5)].map((_, i) => (
+          <svg key={i} className="w-4 h-4 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+          </svg>
+        ))}
+      </div>
+
+      <div className="relative min-h-[148px] md:min-h-[132px]">
+        {testimonials.map((item, i) => (
+          <div
+            key={i}
+            className="transition-all duration-500 ease-out"
+            style={{
+              position: i === 0 ? 'relative' : 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              opacity: i === activeTestimonial ? 1 : 0,
+              transform: i === activeTestimonial ? 'translateY(0)' : 'translateY(8px)',
+              pointerEvents: i === activeTestimonial ? 'auto' : 'none',
+            }}
+          >
+            <p className="text-lg md:text-xl italic text-gray-700 dark:text-neutral-200 leading-relaxed">
+              &ldquo;{item.quote}&rdquo;
+            </p>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex items-center gap-3">
+          <div className={`w-11 h-11 rounded-full bg-gradient-to-br ${current.gradient} flex items-center justify-center text-white font-bold text-xs`}>
+            {current.initials}
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-gray-900 dark:text-white">{current.name}</p>
+            <p className="text-xs text-gray-500 dark:text-neutral-500">{current.role}</p>
+          </div>
+        </div>
+
+        <div className="flex gap-2 md:justify-end">
+          {testimonials.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setActiveTestimonial(i)}
+              className={`h-2 rounded-full transition-all duration-300 ${
+                i === activeTestimonial
+                  ? 'bg-primary-700 dark:bg-primary-300 w-6'
+                  : 'bg-gray-300 dark:bg-white/20 hover:bg-gray-400 dark:hover:bg-white/30 w-2'
+              }`}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-white dark:bg-neutral-950 overflow-hidden">
@@ -196,10 +255,19 @@ export default function ContactPage() {
         </div>
       </section>
 
+      {/* ── Testimonial Card ── */}
+      <section className="pb-10 md:pb-12">
+        <div className="container mx-auto px-4">
+          <div className="max-w-6xl mx-auto">
+            {testimonialCard}
+          </div>
+        </div>
+      </section>
+
       {/* ── Contact Form + Info ── */}
       <section className="py-8 md:py-12 pb-20">
         <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-2 gap-10 max-w-6xl mx-auto">
+          <div className="grid items-start lg:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)] gap-8 xl:gap-10 max-w-6xl mx-auto">
 
             {/* Form */}
             <div className="relative rounded-3xl p-8 md:p-10 border border-transparent dark:border-transparent bg-gray-50 dark:bg-white/[0.04]">
@@ -366,63 +434,6 @@ export default function ContactPage() {
                 </div>
               </div>
 
-              {/* Rotating Testimonials */}
-              <div className="rounded-3xl p-6 border border-transparent dark:border-transparent bg-gray-50 dark:bg-white/[0.04]">
-                <div className="flex gap-1 mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <svg key={i} className="w-4 h-4 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                    </svg>
-                  ))}
-                </div>
-
-                {/* Testimonial content with crossfade */}
-                <div className="relative min-h-[120px]">
-                  {testimonials.map((item, i) => (
-                    <div
-                      key={i}
-                      className="transition-all duration-500 ease-out"
-                      style={{
-                        position: i === 0 ? 'relative' : 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        opacity: i === activeTestimonial ? 1 : 0,
-                        transform: i === activeTestimonial ? 'translateY(0)' : 'translateY(8px)',
-                        pointerEvents: i === activeTestimonial ? 'auto' : 'none',
-                      }}
-                    >
-                      <p className="text-sm italic text-gray-600 dark:text-neutral-300 leading-relaxed mb-5">
-                        &ldquo;{item.quote}&rdquo;
-                      </p>
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${item.gradient} flex items-center justify-center text-white font-bold text-xs`}>
-                          {item.initials}
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-gray-900 dark:text-white">{item.name}</p>
-                          <p className="text-xs text-gray-500 dark:text-neutral-500">{item.role}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Dots indicator */}
-                <div className="flex gap-2 justify-center mt-5">
-                  {testimonials.map((_, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setActiveTestimonial(i)}
-                      className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                        i === activeTestimonial
-                          ? 'bg-primary-700 dark:bg-primary-300 w-6'
-                          : 'bg-gray-300 dark:bg-white/20 hover:bg-gray-400 dark:hover:bg-white/30'
-                      }`}
-                    />
-                  ))}
-                </div>
-              </div>
             </div>
 
           </div>
