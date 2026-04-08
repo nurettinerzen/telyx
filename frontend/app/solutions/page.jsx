@@ -111,7 +111,7 @@ export default function SolutionsPage() {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
-              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-primary/20 bg-primary/5 text-primary text-sm font-medium mb-6"
+              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-primary-200 bg-primary-50 text-primary-700 text-sm font-medium mb-6 dark:border-primary-800/60 dark:bg-primary-950/50 dark:text-primary-300"
             >
               <Sparkles className="w-4 h-4" />
               {t('solutions.hero.badge')}
@@ -168,7 +168,7 @@ export default function SolutionsPage() {
                     transition={{ duration: 0.5 }}
                     className="text-center"
                   >
-                    <div className="sol-counter-value text-4xl md:text-5xl font-bold text-primary">
+                    <div className="sol-counter-value text-4xl md:text-5xl font-bold text-primary-700 dark:text-primary-300">
                       {stat.raw}
                     </div>
                     <div className="text-sm mt-1 text-gray-600 dark:text-neutral-400">
@@ -185,7 +185,7 @@ export default function SolutionsPage() {
                   suffix={stat.suffix}
                   label={stat.label}
                   className="text-center"
-                  valueClassName="text-primary"
+                  valueClassName="text-primary-700 dark:text-primary-300"
                   labelClassName="text-gray-600 dark:text-neutral-400"
                 />
               );
@@ -216,7 +216,7 @@ export default function SolutionsPage() {
                         <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${solution.color} flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300`}>
                           <Icon className="w-7 h-7 text-white" />
                         </div>
-                        <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2 group-hover:text-primary transition-colors">
+                        <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2 group-hover:text-primary-700 dark:group-hover:text-primary-300 transition-colors">
                           {t(solution.titleKey)}
                         </h3>
                         <p className="text-gray-600 dark:text-neutral-400 mb-5 leading-relaxed">
@@ -232,7 +232,7 @@ export default function SolutionsPage() {
                             </li>
                           ))}
                         </ul>
-                        <span className="inline-flex items-center rounded-full border border-gray-200 dark:border-neutral-700 px-4 py-2 text-sm font-medium text-gray-700 dark:text-neutral-300 group-hover:border-primary group-hover:text-primary transition-colors">
+                        <span className="inline-flex items-center rounded-full border border-gray-200 dark:border-neutral-700 px-4 py-2 text-sm font-medium text-gray-700 dark:text-neutral-300 group-hover:border-primary-500 dark:group-hover:border-primary-400 group-hover:text-primary-700 dark:group-hover:text-primary-300 transition-colors">
                           {t('solutions.learnMore')}
                           <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
                         </span>

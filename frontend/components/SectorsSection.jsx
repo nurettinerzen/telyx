@@ -93,13 +93,13 @@ export const SectorsSection = () => {
                   <ul className="space-y-2 mb-4 flex-1">
                     {sector.features.map((feature, idx) => (
                       <li key={idx} className="flex items-start space-x-2 text-sm text-muted-foreground dark:text-neutral-400">
-                        <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0" />
+                        <div className="w-1.5 h-1.5 rounded-full bg-primary-700 dark:bg-primary-300 mt-2 flex-shrink-0" />
                         <span>{t(feature)}</span>
                       </li>
                     ))}
                   </ul>
                   <Link href={sector.href}>
-                    <Button variant="ghost" size="sm" className="w-full justify-start p-0 h-auto text-primary hover:text-primary/80">
+                    <Button variant="ghost" size="sm" className="w-full justify-start p-0 h-auto text-primary-700 dark:text-primary-300 hover:text-primary-600 dark:hover:text-primary-200">
                       {t('landing.sectors.learnMore')} &rarr;
                     </Button>
                   </Link>

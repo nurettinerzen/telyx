@@ -37,7 +37,7 @@ export const Hero = () => {
             transition={{ delay: 0.2, duration: 0.5 }}
             className="inline-block mb-6"
           >
-            <span className="px-5 py-2.5 bg-primary/10 dark:bg-primary/20 text-primary rounded-full text-sm font-medium border border-primary/20 dark:border-primary/30">
+            <span className="px-5 py-2.5 bg-primary-50 dark:bg-primary-950/50 text-primary-700 dark:text-primary-300 rounded-full text-sm font-medium border border-primary-200 dark:border-primary-800/60">
               {t('landing.hero.badge')}
             </span>
           </motion.div>
@@ -109,11 +109,11 @@ export const Hero = () => {
                       key={step.title}
                       className="flex items-center gap-3 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-3"
                     >
-                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold">
+                      <div className="h-8 w-8 rounded-full bg-primary-50 dark:bg-primary-950/50 flex items-center justify-center text-primary-700 dark:text-primary-300 text-xs font-bold">
                         {index + 1}
                       </div>
                       <div className="flex items-center gap-2 min-w-0">
-                        <Icon className="h-4 w-4 text-primary flex-shrink-0" />
+                        <Icon className="h-4 w-4 text-primary-700 dark:text-primary-300 flex-shrink-0" />
                         <span className="text-sm text-neutral-700 dark:text-neutral-200 text-left">
                           {step.title}
                         </span>

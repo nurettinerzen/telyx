@@ -69,7 +69,7 @@ export default function Navigation() {
               >
                 <Link
                   href={item.href}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-primary transition-colors rounded-lg hover:bg-gray-50 dark:hover:bg-neutral-800 flex items-center"
+                  className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-primary-700 dark:hover:text-primary-300 transition-colors rounded-lg hover:bg-gray-50 dark:hover:bg-neutral-800 flex items-center"
                 >
                   {item.name}
                   {item.items && (
@@ -85,7 +85,7 @@ export default function Navigation() {
                         <Link
                           key={subItem.nameKey}
                           href={subItem.href}
-                          className="block px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-primary/10 hover:text-primary transition-colors"
+                          className="block px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-primary/10 dark:hover:bg-primary-950/50 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
                         >
                           {t(subItem.nameKey)}
                         </Link>

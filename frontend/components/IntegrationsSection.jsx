@@ -79,7 +79,7 @@ export const IntegrationsSection = () => {
         >
           <Link
             href="/integrations"
-            className="inline-flex items-center gap-2 text-primary dark:text-primary-400 hover:text-primary/80 font-medium transition-colors group"
+            className="inline-flex items-center gap-2 text-primary-700 dark:text-primary-300 hover:text-primary-600 dark:hover:text-primary-200 font-medium transition-colors group"
           >
             {t('landing.integrations.viewAll')}
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />

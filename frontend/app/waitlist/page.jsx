@@ -213,7 +213,7 @@ export default function WaitlistPage() {
 
           <div className="mt-6 text-center text-sm text-gray-600 dark:text-neutral-400">
             {t('auth.alreadyHaveAccount')}{' '}
-            <Link href="/login" className="text-primary dark:text-primary hover:underline font-medium">
+            <Link href="/login" className="text-primary-700 dark:text-primary-300 hover:underline font-medium">
               {t('common.signIn')}
             </Link>
           </div>

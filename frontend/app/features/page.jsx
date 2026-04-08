@@ -175,7 +175,7 @@ export default function FeaturesPage() {
                           {feature.items.map((itemKey) => (
                             <li key={itemKey} className="flex items-start gap-2.5 text-sm" style={{ color: 'var(--ft-text-secondary)' }}>
                               <div className="ft-check mt-0.5">
-                                <Check className="h-3 w-3 text-primary" />
+                                <Check className="h-3 w-3 text-primary-700 dark:text-primary-300" />
                               </div>
                               <span>{t(itemKey)}</span>
                             </li>
@@ -215,7 +215,7 @@ export default function FeaturesPage() {
                           {feature.items.map((itemKey) => (
                             <li key={itemKey} className="flex items-start gap-2 text-sm" style={{ color: 'var(--ft-text-secondary)' }}>
                               <div className="ft-check mt-0.5">
-                                <Check className="h-3 w-3 text-primary" />
+                                <Check className="h-3 w-3 text-primary-700 dark:text-primary-300" />
                               </div>
                               <span>{t(itemKey)}</span>
                             </li>
@@ -277,7 +277,7 @@ export default function FeaturesPage() {
                         {section.items.map((itemKey) => (
                           <li key={itemKey} className="flex items-start gap-2.5 text-sm" style={{ color: 'var(--ft-text-secondary)' }}>
                             <div className="ft-check mt-0.5">
-                              <Check className="h-3 w-3 text-primary" />
+                              <Check className="h-3 w-3 text-primary-700 dark:text-primary-300" />
                             </div>
                             <span>{t(itemKey)}</span>
                           </li>
@@ -375,7 +375,7 @@ export default function FeaturesPage() {
                 {/* Left - Overview */}
                 <div className="p-6 md:p-8">
                   <div className="flex items-center gap-2 text-xs mb-4" style={{ color: 'var(--ft-text-muted)' }}>
-                    <span className="px-2.5 py-1 rounded-full bg-primary/10 text-primary font-medium">{t('features.sectorFlows.solutionLabel')}</span>
+                    <span className="px-2.5 py-1 rounded-full bg-primary-50 text-primary-700 font-medium dark:bg-primary-950/50 dark:text-primary-300">{t('features.sectorFlows.solutionLabel')}</span>
                     <span className="px-2.5 py-1 rounded-full" style={{ background: 'var(--ft-glass)' }}>{t('features.sectorFlows.ecommerceLabel')}</span>
                   </div>
                   <div className="flex items-center gap-2 mb-3">
@@ -393,13 +393,13 @@ export default function FeaturesPage() {
                     {(t('features.sectorFlows.ecommerce.features') || []).map((feature, i) => (
                       <li key={i} className="flex items-start gap-2 text-sm" style={{ color: 'var(--ft-text-secondary)' }}>
                         <div className="ft-check mt-0.5">
-                          <Check className="h-3 w-3 text-primary" />
+                          <Check className="h-3 w-3 text-primary-700 dark:text-primary-300" />
                         </div>
                         <span>{feature}</span>
                       </li>
                     ))}
                   </ul>
-                  <Link href="/solutions/ecommerce" className="inline-flex items-center gap-1 mt-5 text-sm font-semibold text-primary hover:underline">
+                  <Link href="/solutions/ecommerce" className="inline-flex items-center gap-1 mt-5 text-sm font-semibold text-primary-700 dark:text-primary-300 hover:underline">
                     {t('features.sectorFlows.detail')} <ArrowRight className="w-4 h-4" />
                   </Link>
                 </div>
@@ -441,7 +441,7 @@ export default function FeaturesPage() {
                     {(t('features.sectorFlows.ecommerce.kpiList') || []).map((kpi, i) => (
                       <li key={i} className="flex items-center gap-2 text-sm" style={{ color: 'var(--ft-text-secondary)' }}>
                         <div className="ft-check">
-                          <Check className="h-3 w-3 text-primary" />
+                          <Check className="h-3 w-3 text-primary-700 dark:text-primary-300" />
                         </div>
                         <span>{kpi}</span>
                       </li>
@@ -508,13 +508,13 @@ export default function FeaturesPage() {
                           <Icon className="h-5 w-5 text-white" />
                         </div>
                         <div className="flex-1">
-                          <h3 className="text-lg font-bold mb-1 group-hover:text-primary transition-colors duration-200" style={{ color: 'var(--ft-text-primary)' }}>
+                          <h3 className="text-lg font-bold mb-1 group-hover:text-primary-700 dark:group-hover:text-primary-300 transition-colors duration-200" style={{ color: 'var(--ft-text-primary)' }}>
                             {t(solution.titleKey)}
                           </h3>
                           <p className="text-sm leading-relaxed" style={{ color: 'var(--ft-text-secondary)' }}>
                             {t(solution.descKey)}
                           </p>
-                          <span className="inline-flex items-center gap-1 mt-3 text-sm font-semibold text-primary">
+                          <span className="inline-flex items-center gap-1 mt-3 text-sm font-semibold text-primary-700 dark:text-primary-300">
                             {t('features.solutions.link')} <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-200" />
                           </span>
                         </div>

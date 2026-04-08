@@ -151,7 +151,7 @@ export default function ContactPage() {
         <div className="container mx-auto px-4 relative z-10">
           <div className="text-center max-w-3xl mx-auto">
             <div>
-              <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-medium bg-primary/10 text-primary border border-primary/20 mb-6">
+              <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-medium bg-primary-50 text-primary-700 border border-primary-200 mb-6 dark:bg-primary-950/50 dark:text-primary-300 dark:border-primary-800/60">
                 <Sparkles className="w-4 h-4" />
                 {isTR ? 'İletişim' : 'Contact'}
               </span>
@@ -325,12 +325,12 @@ export default function ContactPage() {
                 <h3 className="text-xl font-bold mb-6 text-gray-900 dark:text-white">{t('contact.info.title')}</h3>
                 <div className="space-y-6">
                   <div className="flex items-start gap-4 group">
-                    <div className="w-12 h-12 rounded-xl bg-primary/10 dark:bg-primary/15 flex items-center justify-center flex-shrink-0 group-hover:bg-primary group-hover:scale-105 transition-[background-color,transform] duration-150">
-                      <Mail className="w-5 h-5 text-primary group-hover:text-white transition-colors" />
+                    <div className="w-12 h-12 rounded-xl bg-primary-50 dark:bg-primary-950/50 flex items-center justify-center flex-shrink-0 group-hover:bg-primary group-hover:scale-105 transition-[background-color,transform] duration-150">
+                      <Mail className="w-5 h-5 text-primary-700 dark:text-primary-300 group-hover:text-white transition-colors" />
                     </div>
                     <div>
                       <h4 className="font-semibold mb-1 text-gray-900 dark:text-white">{t('contact.info.email')}</h4>
-                      <a href="mailto:info@telyx.ai" className="text-gray-600 dark:text-neutral-400 hover:text-primary transition-colors">
+                      <a href="mailto:info@telyx.ai" className="text-gray-600 dark:text-neutral-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors">
                         info@telyx.ai
                       </a>
                     </div>
@@ -359,7 +359,7 @@ export default function ContactPage() {
                       key={stat.value}
                       className="text-center p-4 rounded-2xl bg-white/60 dark:bg-white/[0.06] border border-transparent hover:bg-white/80 dark:hover:bg-white/10 transition-colors duration-150"
                     >
-                      <div className="text-2xl font-bold text-primary mb-1">{stat.value}</div>
+                      <div className="text-2xl font-bold text-primary-700 dark:text-primary-300 mb-1">{stat.value}</div>
                       <p className="text-xs text-gray-500 dark:text-neutral-400">{stat.label}</p>
                     </div>
                   ))}
@@ -416,7 +416,7 @@ export default function ContactPage() {
                       onClick={() => setActiveTestimonial(i)}
                       className={`w-2 h-2 rounded-full transition-all duration-300 ${
                         i === activeTestimonial
-                          ? 'bg-primary w-6'
+                          ? 'bg-primary-700 dark:bg-primary-300 w-6'
                           : 'bg-gray-300 dark:bg-white/20 hover:bg-gray-400 dark:hover:bg-white/30'
                       }`}
                     />

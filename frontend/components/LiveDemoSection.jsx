@@ -83,8 +83,8 @@ export const LiveDemoSection = () => {
           <Card className="max-w-2xl mx-auto border-2 border-primary/20 dark:border-primary/30 shadow-blue-lg bg-card dark:bg-neutral-800">
             <div className="p-8 sm:p-12">
               <div className="flex items-center justify-center mb-6">
-                <div className="w-16 h-16 rounded-full bg-primary/10 dark:bg-primary/20 flex items-center justify-center">
-                  <Phone className="w-8 h-8 text-primary" />
+                <div className="w-16 h-16 rounded-full bg-primary-50 dark:bg-primary-950/50 flex items-center justify-center">
+                  <Phone className="w-8 h-8 text-primary-700 dark:text-primary-300" />
                 </div>
               </div>
 

@@ -340,7 +340,7 @@ export default function SecurityPage() {
                         {card.items.map((item) => (
                           <li key={item} className="flex items-start gap-2.5 text-sm" style={{ color: 'var(--ft-text-secondary)' }}>
                             <div className="ft-check mt-0.5">
-                              <Check className="h-3 w-3 text-primary" />
+                              <Check className="h-3 w-3 text-primary-700 dark:text-primary-300" />
                             </div>
                             <span>{item}</span>
                           </li>

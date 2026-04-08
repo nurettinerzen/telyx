@@ -133,7 +133,7 @@ export default function PricingPage() {
               viewport={{ once: true }}
               transition={{ ...transition, delay: 0 }}
             >
-              <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-medium bg-primary/10 text-primary border border-primary/20 mb-6">
+              <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-medium bg-primary-50 text-primary-700 border border-primary-200 mb-6 dark:bg-primary-950/50 dark:text-primary-300 dark:border-primary-800/60">
                 <Sparkles className="w-4 h-4" />
                 {isTR ? 'Şeffaf fiyatlandırma' : 'Transparent pricing'}
               </span>
@@ -164,7 +164,7 @@ export default function PricingPage() {
               whileInView={visible}
               viewport={{ once: true }}
               transition={{ ...transition, delay: 0.3 }}
-              className="text-sm font-medium text-primary"
+              className="text-sm font-medium text-primary-700 dark:text-primary-300"
             >
               {isTR
                 ? '15 dakika ücretsiz deneme — Kredi kartı gerekmez'
@@ -254,7 +254,7 @@ export default function PricingPage() {
                   {getPlanFeatures(plan).map((feature, idx) => (
                     <li key={idx} className="flex items-center gap-3">
                       <span className="pr-check-icon">
-                        <Check className="h-3 w-3 text-primary" />
+                        <Check className="h-3 w-3 text-primary-700 dark:text-primary-300" />
                       </span>
                       <span className="text-sm text-[var(--pr-text-secondary)] leading-snug">
                         {feature.text}
@@ -318,7 +318,7 @@ export default function PricingPage() {
               transition={{ ...transition, delay: 0.15 }}
               className="pr-payg-card text-center"
             >
-              <div className="text-5xl font-bold text-primary mb-1">
+              <div className="text-5xl font-bold text-primary-700 dark:text-primary-300 mb-1">
                 {formatSharedPrice(payg.pricePerMinute, region)}
                 <span className="text-lg font-normal text-[var(--pr-text-muted)] ml-1">
                   /{isTR ? 'dk' : 'min'}
@@ -452,7 +452,7 @@ export default function PricingPage() {
           >
             <p className="text-[var(--pr-text-secondary)]">
               {t('pricing.questions')}{' '}
-              <Link href="/contact" className="text-primary font-medium hover:underline">
+              <Link href="/contact" className="text-primary-700 dark:text-primary-300 font-medium hover:underline">
                 {t('pricing.contactUs')}
               </Link>
             </p>

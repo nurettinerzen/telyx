@@ -72,12 +72,12 @@ export const HowItWorks = () => {
                   </div>
 
                   <div className="relative">
-                    <div className="w-14 h-14 rounded-xl bg-primary/10 dark:bg-primary/20 flex items-center justify-center mb-6">
-                      <Icon className="w-7 h-7 text-primary" />
+                    <div className="w-14 h-14 rounded-xl bg-primary-50 dark:bg-primary-950/50 flex items-center justify-center mb-6">
+                      <Icon className="w-7 h-7 text-primary-700 dark:text-primary-300" />
                     </div>
 
                     <div className="flex items-center gap-3 mb-4">
-                      <span className="text-sm font-medium text-primary">{step.number}</span>
+                      <span className="text-sm font-medium text-primary-700 dark:text-primary-300">{step.number}</span>
                       <h3 className="text-xl font-medium text-foreground dark:text-white">
                         {t(step.titleKey)}
                       </h3>

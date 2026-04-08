@@ -221,7 +221,7 @@ export default function ChangelogPage() {
                     >
                       {isTR ? entry.dateTR : entry.dateEN}
                     </span>
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary/10 text-primary">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary-50 text-primary-700 dark:bg-primary-950/50 dark:text-primary-300">
                       <Tag className="w-3 h-3" />
                       {entry.version}
                     </span>

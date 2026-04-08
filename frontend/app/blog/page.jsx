@@ -223,7 +223,7 @@ export default function BlogPage() {
 
                         {/* Title */}
                         <h2
-                          className="text-xl font-bold mb-3 group-hover:text-primary transition-colors duration-200"
+                          className="text-xl font-bold mb-3 group-hover:text-primary-700 dark:group-hover:text-primary-300 transition-colors duration-200"
                           style={{ color: 'var(--ft-text-primary)' }}
                         >
                           {isTR ? post.title.tr : post.title.en}
@@ -255,7 +255,7 @@ export default function BlogPage() {
 
                         {/* Read more */}
                         <div className="mt-4">
-                          <span className="inline-flex items-center gap-1 text-sm font-semibold text-primary">
+                          <span className="inline-flex items-center gap-1 text-sm font-semibold text-primary-700 dark:text-primary-300">
                             {t('blog.readMore')}
                             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-200" />
                           </span>

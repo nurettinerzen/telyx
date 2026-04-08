@@ -240,9 +240,9 @@ export default function DemoCallWidget({ variant = 'full' }) {
 
   if (variant === 'compact') {
     return (
-      <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg border border-primary/20">
-        <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center">
-          <Phone className="h-5 w-5 text-primary" />
+      <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg border border-primary/20 dark:border-primary-800/60">
+        <div className="h-10 w-10 rounded-full bg-primary-50 dark:bg-primary-950/50 flex items-center justify-center">
+          <Phone className="h-5 w-5 text-primary-700 dark:text-primary-300" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-medium text-sm">{t('demoCallTitle')}</p>

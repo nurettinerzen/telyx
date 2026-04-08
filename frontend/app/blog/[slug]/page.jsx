@@ -669,7 +669,7 @@ export default function BlogPostPage() {
             <motion.div initial={fadeUp} whileInView={visible} viewport={{ once: true }} transition={{ ...transition, delay: 0 }}>
               <Link
                 href="/blog"
-                className="inline-flex items-center gap-2 text-sm font-medium mb-8 hover:text-primary transition-colors duration-200"
+                className="inline-flex items-center gap-2 text-sm font-medium mb-8 hover:text-primary-700 dark:hover:text-primary-300 transition-colors duration-200"
                 style={{ color: 'var(--ft-text-muted)' }}
               >
                 <ArrowLeft className="w-4 h-4" />
@@ -799,7 +799,7 @@ export default function BlogPostPage() {
                             {isTR ? relPost.category.tr : relPost.category.en}
                           </span>
                           <h3
-                            className="text-lg font-bold mb-2 group-hover:text-primary transition-colors duration-200"
+                            className="text-lg font-bold mb-2 group-hover:text-primary-700 dark:group-hover:text-primary-300 transition-colors duration-200"
                             style={{ color: 'var(--ft-text-primary)' }}
                           >
                             {isTR ? relPost.title.tr : relPost.title.en}
@@ -820,7 +820,7 @@ export default function BlogPostPage() {
                               {isTR ? relPost.readTime.tr : relPost.readTime.en}
                             </span>
                           </div>
-                          <span className="inline-flex items-center gap-1 mt-3 text-sm font-semibold text-primary">
+                          <span className="inline-flex items-center gap-1 mt-3 text-sm font-semibold text-primary-700 dark:text-primary-300">
                             {t('blog.readMore')}
                             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-200" />
                           </span>

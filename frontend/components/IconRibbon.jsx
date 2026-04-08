@@ -74,7 +74,7 @@ export const IconRibbon = () => {
             key={i}
             className="icon-ribbon-item flex-shrink-0 w-[100px] h-[100px] flex items-center justify-center will-change-transform"
           >
-            <div className="w-[72px] h-[72px] rounded-full bg-gray-100 dark:bg-neutral-800 flex items-center justify-center text-gray-500 dark:text-neutral-400 transition-all duration-300 hover:bg-primary/10 hover:text-primary hover:scale-110">
+            <div className="w-[72px] h-[72px] rounded-full bg-gray-100 dark:bg-neutral-800 flex items-center justify-center text-gray-500 dark:text-neutral-400 transition-all duration-300 hover:bg-primary/10 dark:hover:bg-primary-950/50 hover:text-primary-700 dark:hover:text-primary-300 hover:scale-110">
               <Icon className="w-7 h-7" />
             </div>
           </div>
