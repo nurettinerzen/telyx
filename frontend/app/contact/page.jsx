@@ -6,6 +6,13 @@ import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { toast } from 'sonner';
 import {
@@ -126,12 +133,14 @@ export default function ContactPage() {
   ];
 
   const inputClass =
-    'mt-2 w-full px-4 py-2.5 border border-gray-200 dark:border-white/[0.08] rounded-xl bg-white/60 dark:bg-white/[0.06] text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 backdrop-blur-sm transition-colors';
+    'mt-2 w-full h-14 px-4 border border-gray-200 dark:border-white/[0.08] rounded-[1.35rem] bg-white/60 dark:bg-white/[0.06] text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 backdrop-blur-sm transition-colors';
+  const textareaClass =
+    'mt-2 w-full px-4 py-3.5 border border-gray-200 dark:border-white/[0.08] rounded-[1.35rem] bg-white/60 dark:bg-white/[0.06] text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 backdrop-blur-sm transition-colors min-h-[190px]';
 
   const current = testimonials[activeTestimonial];
   const testimonialCard = (
-    <div className="rounded-[2rem] p-8 md:p-10 border border-transparent dark:border-transparent bg-gray-50 dark:bg-white/[0.04]">
-      <div className="flex gap-1 mb-5">
+    <div className="rounded-[2rem] p-6 md:p-7 border border-transparent dark:border-transparent bg-gray-50 dark:bg-white/[0.04]">
+      <div className="flex gap-1 mb-4">
         {[...Array(5)].map((_, i) => (
           <svg key={i} className="w-4 h-4 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
             <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
@@ -139,7 +148,7 @@ export default function ContactPage() {
         ))}
       </div>
 
-      <div className="relative min-h-[148px] md:min-h-[132px]">
+      <div className="relative min-h-[106px] md:min-h-[96px]">
         {testimonials.map((item, i) => (
           <div
             key={i}
@@ -154,21 +163,21 @@ export default function ContactPage() {
               pointerEvents: i === activeTestimonial ? 'auto' : 'none',
             }}
           >
-            <p className="text-lg md:text-xl italic text-gray-700 dark:text-neutral-200 leading-relaxed">
+            <p className="text-xl md:text-[1.7rem] italic text-gray-700 dark:text-neutral-200 leading-snug">
               &ldquo;{item.quote}&rdquo;
             </p>
           </div>
         ))}
       </div>
 
-      <div className="mt-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-3">
-          <div className={`w-11 h-11 rounded-full bg-gradient-to-br ${current.gradient} flex items-center justify-center text-white font-bold text-xs`}>
+          <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${current.gradient} flex items-center justify-center text-white font-bold text-[11px]`}>
             {current.initials}
           </div>
           <div>
-            <p className="text-sm font-semibold text-gray-900 dark:text-white">{current.name}</p>
-            <p className="text-xs text-gray-500 dark:text-neutral-500">{current.role}</p>
+            <p className="text-[15px] font-semibold text-gray-900 dark:text-white">{current.name}</p>
+            <p className="text-[13px] text-gray-500 dark:text-neutral-500">{current.role}</p>
           </div>
         </div>
 
@@ -340,19 +349,24 @@ export default function ContactPage() {
 
                 <div>
                   <Label htmlFor="businessType" className="text-sm font-medium text-gray-700 dark:text-neutral-300">{t('contact.form.businessType')}</Label>
-                  <select
-                    id="businessType"
+                  <Select
                     value={formData.businessType}
-                    onChange={(e) => setFormData({ ...formData, businessType: e.target.value })}
-                    className={inputClass}
+                    onValueChange={(value) => setFormData({ ...formData, businessType: value })}
                   >
-                    <option value="">{t('contact.form.selectType')}</option>
-                    <option value="ecommerce">{t('contact.form.types.ecommerce')}</option>
-                    <option value="restaurant">{t('contact.form.types.restaurant')}</option>
-                    <option value="salon">{t('contact.form.types.salon')}</option>
-                    <option value="service">{t('contact.form.types.service')}</option>
-                    <option value="other">{t('contact.form.types.other')}</option>
-                  </select>
+                    <SelectTrigger
+                      id="businessType"
+                      className={inputClass}
+                    >
+                      <SelectValue placeholder={t('contact.form.selectType')} />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-2xl border-gray-200 dark:border-white/[0.08] bg-white dark:bg-neutral-900">
+                      <SelectItem value="ecommerce">{t('contact.form.types.ecommerce')}</SelectItem>
+                      <SelectItem value="restaurant">{t('contact.form.types.restaurant')}</SelectItem>
+                      <SelectItem value="salon">{t('contact.form.types.salon')}</SelectItem>
+                      <SelectItem value="service">{t('contact.form.types.service')}</SelectItem>
+                      <SelectItem value="other">{t('contact.form.types.other')}</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div>
@@ -363,7 +377,7 @@ export default function ContactPage() {
                     rows={4}
                     value={formData.message}
                     onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                    className={`${inputClass} resize-none`}
+                    className={`${textareaClass} resize-none`}
                     placeholder={t('contact.form.messagePlaceholder')}
                   />
                 </div>
@@ -417,15 +431,15 @@ export default function ContactPage() {
               </div>
 
               {/* Trust Stats */}
-              <div className="relative rounded-3xl p-8 border border-transparent dark:border-transparent bg-gradient-to-br from-primary/5 to-primary/[0.02] dark:from-primary/10 dark:to-primary/[0.02] overflow-hidden">
-                <div className="absolute -top-20 -right-20 w-40 h-40 rounded-full bg-primary/20 blur-[60px] pointer-events-none" />
+              <div className="relative rounded-3xl p-8 border border-gray-200/70 dark:border-white/[0.06] bg-gray-50 dark:bg-white/[0.04] overflow-hidden">
+                <div className="absolute -top-20 -right-20 w-40 h-40 rounded-full bg-primary/10 dark:bg-primary/15 blur-[60px] pointer-events-none" />
 
                 <h3 className="text-xl font-bold mb-6 text-gray-900 dark:text-white relative z-10">{t('contact.trust.title')}</h3>
                 <div className="grid grid-cols-2 gap-4 relative z-10">
                   {stats.map((stat) => (
                     <div
                       key={stat.value}
-                      className="text-center p-4 rounded-2xl bg-white/60 dark:bg-white/[0.06] border border-transparent hover:bg-white/80 dark:hover:bg-white/10 transition-colors duration-150"
+                      className="text-center p-4 rounded-2xl bg-white/75 dark:bg-white/[0.06] border border-gray-200/80 dark:border-white/[0.06] hover:bg-white dark:hover:bg-white/10 transition-colors duration-150"
                     >
                       <div className="text-2xl font-bold text-primary-700 dark:text-primary-300 mb-1">{stat.value}</div>
                       <p className="text-xs text-gray-500 dark:text-neutral-400">{stat.label}</p>
