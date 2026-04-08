@@ -30,6 +30,8 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { getChatWidgetFeedbackCopy } from '@/lib/chatWidgetFeedbackCopy';
 import runtimeConfig from '@/lib/runtime-config';
 
+const DEFAULT_CHAT_WIDGET_COLOR = '#051752';
+const LEGACY_CHAT_WIDGET_COLOR = '#00A2B3';
 
 export default function ChatWidgetPage() {
   const { t, locale } = useLanguage();
@@ -58,7 +60,7 @@ export default function ChatWidgetPage() {
   // Local UI state
   const [isEnabled, setIsEnabled] = useState(false);
   const [position, setPosition] = useState('bottom-right');
-  const [primaryColor, setPrimaryColor] = useState('#00A2B3');
+  const [primaryColor, setPrimaryColor] = useState(DEFAULT_CHAT_WIDGET_COLOR);
   const [showBranding, setShowBranding] = useState(true);
   const [buttonText, setButtonText] = useState('');
   const [welcomeMessage, setWelcomeMessage] = useState('');
@@ -110,7 +112,12 @@ export default function ChatWidgetPage() {
     if (saved) {
       const settings = JSON.parse(saved);
       setPosition(settings.position || 'bottom-right');
-      setPrimaryColor(settings.primaryColor || '#00A2B3');
+      const savedColor = settings.primaryColor;
+      setPrimaryColor(
+        !savedColor || savedColor === LEGACY_CHAT_WIDGET_COLOR
+          ? DEFAULT_CHAT_WIDGET_COLOR
+          : savedColor
+      );
       setShowBranding(settings.showBranding !== undefined ? settings.showBranding : true);
       if (settings.buttonText) setButtonText(settings.buttonText);
       if (settings.welcomeMessage) setWelcomeMessage(settings.welcomeMessage);

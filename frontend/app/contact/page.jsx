@@ -56,6 +56,24 @@ export default function ContactPage() {
       initials: 'SE',
       gradient: 'from-[#051752] to-[#006FEB]',
     },
+    {
+      quote: isTR
+        ? 'Tahsilat hatırlatmalarında Telyx kullanıyoruz. Süreç daha düzenli ilerliyor, müşteriye hatırlatma yapmak da çok daha kolaylaştı.'
+        : 'We use Telyx for payment reminder workflows. The process is much more organized now, and reminding customers has become far easier.',
+      name: 'Fatih Altıntaş',
+      role: 'Faal Denetim',
+      initials: 'FD',
+      gradient: 'from-[#006FEB] to-[#000ACF]',
+    },
+    {
+      quote: isTR
+        ? 'Telyx ile gelen aramaları ve mesajları aynı sistemden yönetiyoruz. Hem hız hem de müşteri memnuniyeti tarafında gerçekten çok memnunuz.'
+        : 'With Telyx, we manage incoming calls and messages from the same system. We are genuinely very happy with both the speed and customer experience.',
+      name: 'Dicle Yıldız',
+      role: 'Moda Hasen',
+      initials: 'MH',
+      gradient: 'from-[#00C4E6] to-[#006FEB]',
+    },
   ];
 
   const [activeTestimonial, setActiveTestimonial] = useState(0);

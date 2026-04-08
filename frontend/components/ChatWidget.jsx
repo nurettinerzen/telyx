@@ -69,7 +69,7 @@ export default function ChatWidget({
   embedKey,           // NEW: Business-specific embed key (preferred)
   assistantId,        // LEGACY: Direct assistant ID (backward compatibility)
   position = 'bottom-right',
-  primaryColor = '#00A2B3',
+  primaryColor = '#051752',
   showBranding = true,
   buttonText,
   preview = false     // Dashboard preview mode — skip status check

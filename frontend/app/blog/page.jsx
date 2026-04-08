@@ -43,6 +43,54 @@ function useMouseGlow(ref) {
 /* ── Blog post data ── */
 const blogPosts = [
   {
+    slug: 'whatsapp-canli-destek-ai-handoff',
+    category: { tr: 'WhatsApp', en: 'WhatsApp' },
+    title: {
+      tr: 'WhatsApp Desteğinde AI’dan Canlı Temsilciye Geçiş Nasıl Kurgulanır?',
+      en: 'How to Design AI-to-Human Handoff in WhatsApp Support',
+    },
+    excerpt: {
+      tr: 'Aynı konuşma içinde AI ile başlayıp gerektiğinde canlı ekibe devreden destek akışının en doğru kurgusunu anlatıyoruz.',
+      en: 'We explain the cleanest way to start with AI and hand the same conversation over to a live support team when needed.',
+    },
+    date: '2026-04-08',
+    readTime: { tr: '7 dk', en: '7 min' },
+    author: 'Telyx Ekibi',
+    color: 'from-[#051752] to-[#00C4E6]',
+  },
+  {
+    slug: 'tahsilat-hatirlatma-otomasyonu',
+    category: { tr: 'Operasyon', en: 'Operations' },
+    title: {
+      tr: 'Tahsilat Hatırlatmalarında Yapay Zeka ile Daha Nazik ve Sistemli Süreçler',
+      en: 'Using AI for More Structured and More Polite Payment Reminder Flows',
+    },
+    excerpt: {
+      tr: 'Tahsilat hatırlatmalarını manuel takipten çıkarıp daha düzenli, ölçülebilir ve müşteri dostu hale getirmenin yollarını inceliyoruz.',
+      en: 'We explore how to move payment reminders out of manual follow-up and turn them into a measurable, customer-friendly workflow.',
+    },
+    date: '2026-04-04',
+    readTime: { tr: '6 dk', en: '6 min' },
+    author: 'Telyx Ekibi',
+    color: 'from-[#000ACF] to-[#006FEB]',
+  },
+  {
+    slug: 'cok-kanalli-destek-operasyonlari',
+    category: { tr: 'Destek Operasyonları', en: 'Support Operations' },
+    title: {
+      tr: 'WhatsApp, Webchat ve E-postayı Tek Ekrandan Yönetmek Neden Fark Yaratır?',
+      en: 'Why Managing WhatsApp, Webchat, and Email from One Screen Changes Operations',
+    },
+    excerpt: {
+      tr: 'Kanallar ayrı ayrı yönetildiğinde ekipler zaman kaybediyor. Tek bir operasyon ekranının neden daha hızlı ve daha kontrollü çalıştığını anlatıyoruz.',
+      en: 'Teams lose time when channels are managed separately. We explain why a unified operations workspace is faster and easier to control.',
+    },
+    date: '2026-03-27',
+    readTime: { tr: '5 dk', en: '5 min' },
+    author: 'Telyx Ekibi',
+    color: 'from-[#006FEB] to-[#00C4E6]',
+  },
+  {
     slug: 'ai-musteri-hizmetleri-gelecegi',
     category: { tr: 'AI & Teknoloji', en: 'AI & Technology' },
     title: {

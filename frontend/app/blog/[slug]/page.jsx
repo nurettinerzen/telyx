@@ -55,6 +55,288 @@ function formatDate(dateStr, isTR) {
    ══════════════════════════════════════════════ */
 
 const blogPosts = {
+  'whatsapp-canli-destek-ai-handoff': {
+    category: { tr: 'WhatsApp', en: 'WhatsApp' },
+    title: {
+      tr: 'WhatsApp Desteğinde AI’dan Canlı Temsilciye Geçiş Nasıl Kurgulanır?',
+      en: 'How to Design AI-to-Human Handoff in WhatsApp Support',
+    },
+    excerpt: {
+      tr: 'Aynı konuşma içinde AI ile başlayıp gerektiğinde canlı ekibe devreden destek akışının en doğru kurgusunu anlatıyoruz.',
+      en: 'We explain the cleanest way to start with AI and hand the same conversation over to a live support team when needed.',
+    },
+    date: '2026-04-08',
+    readTime: { tr: '7 dk', en: '7 min' },
+    author: 'Telyx Ekibi',
+    color: 'from-[#051752] to-[#00C4E6]',
+    content: {
+      tr: [
+        {
+          type: 'paragraph',
+          text: 'WhatsApp desteğinde en büyük hata, yapay zekayı ayrı bir kanal, canlı ekibi ayrı bir kanal gibi düşünmektir. Oysa müşteri için önemli olan kanal değil, konuşmanın kesintisiz devam etmesidir. En iyi deneyim, müşterinin aynı thread içinde önce AI’dan yardım alması, gerektiğinde de aynı yazışma içinden canlı desteğe geçebilmesidir.',
+        },
+        {
+          type: 'heading',
+          text: 'Handoff Yeni Sohbet Açmak Değildir',
+        },
+        {
+          type: 'paragraph',
+          text: 'Canlı destek isteyen müşteriyi farklı bir numaraya, yeni bir forma veya tekrar açıklama yapacağı ikinci bir ekrana yönlendirmek sürtünme yaratır. Handoff mantığında doğru kurgu, mevcut konuşmanın bağlamını korumak ve canlı temsilcinin kaldığı yerden devam etmesini sağlamaktır. Böylece müşteri tekrar sipariş numarası, sorun özeti veya iletişim bilgisi yazmak zorunda kalmaz.',
+        },
+        {
+          type: 'heading',
+          text: 'AI Ne Zaman Devreden Çıkmalı?',
+        },
+        {
+          type: 'paragraph',
+          text: 'AI destek süreci çoğu soruyu çözebilir; ancak üç durumda canlı desteğe geçiş kritik hale gelir: kullanıcı açıkça insan isterse, sistem aynı konuda iki kez takılırsa veya işlem yüksek güven gerektiriyorsa. Sipariş uyuşmazlıkları, ödeme konuları ve şikayet yönetimi gibi alanlarda canlı destek fallback’i hem müşteri memnuniyetini artırır hem de yanlış cevap riskini azaltır.',
+        },
+        {
+          type: 'heading',
+          text: 'Operasyon Ekibi İçin Doğru Arayüz',
+        },
+        {
+          type: 'paragraph',
+          text: 'Teknik handoff kadar önemli olan bir diğer konu da ekip arayüzüdür. Bekleyen konuşmaların ayrı görünmesi, bir temsilcinin konuşmayı sahiplenebilmesi, ekip içi çakışmaların engellenmesi ve gerekirse konuşmanın tekrar AI’a devredilebilmesi gerekir. Bu yüzden operasyon ekranında “bekliyor”, “canlıda”, “AI yönetiyor” gibi net durumlar kritik rol oynar.',
+        },
+        {
+          type: 'heading',
+          text: 'En Sağlıklı Akış',
+        },
+        {
+          type: 'paragraph',
+          text: 'Pratikte en iyi akış şöyledir: AI çözebiliyorsa devam eder, takıldığı yerde canlı desteği teklif eder, kullanıcı isterse aynı konuşma canlı ekibe geçer ve ekip işi tamamladıktan sonra gerekirse konuşmayı tekrar AI’a bırakır. Bu model hem operasyon ekibine hız kazandırır hem de müşterinin “yeniden başlıyorum” hissini ortadan kaldırır.',
+        },
+      ],
+      en: [
+        {
+          type: 'paragraph',
+          text: 'The biggest mistake in WhatsApp support is treating AI and live support as two separate channels. For the customer, the important thing is not the channel but the continuity of the conversation. The best experience starts with AI and, when needed, moves to a live agent within the same thread.',
+        },
+        {
+          type: 'heading',
+          text: 'Handoff Is Not Starting a New Conversation',
+        },
+        {
+          type: 'paragraph',
+          text: 'Sending a customer who asks for live support to a different number, form, or second screen creates friction. In a proper handoff model, the context of the current conversation is preserved and the live agent continues exactly where the AI left off. That means the customer does not need to repeat the order number, issue summary, or contact details.',
+        },
+        {
+          type: 'heading',
+          text: 'When Should AI Step Back?',
+        },
+        {
+          type: 'paragraph',
+          text: 'AI can handle most support interactions, but there are three moments when live support becomes critical: when the user explicitly asks for a human, when the system gets stuck on the same topic twice, or when the issue requires higher confidence. In topics like order disputes, payments, and complaints, live fallback improves customer satisfaction and reduces the risk of wrong answers.',
+        },
+        {
+          type: 'heading',
+          text: 'The Right Interface for the Operations Team',
+        },
+        {
+          type: 'paragraph',
+          text: 'The technical handoff is only half of the story. The team also needs the right interface: pending conversations should be visible, one agent should be able to claim the thread, agent collisions should be blocked, and the conversation should be returnable to AI when appropriate. That is why clear statuses such as waiting, live, and AI-managed matter so much.',
+        },
+        {
+          type: 'heading',
+          text: 'The Healthiest Flow',
+        },
+        {
+          type: 'paragraph',
+          text: 'In practice, the strongest model is simple: AI continues while it can solve the issue, offers live support when it gets stuck, hands the same thread to the live team when requested, and lets the team return the conversation to AI if appropriate. This removes the “I have to start over” feeling for the customer while keeping operations fast and controlled.',
+        },
+      ],
+    },
+  },
+
+  'tahsilat-hatirlatma-otomasyonu': {
+    category: { tr: 'Operasyon', en: 'Operations' },
+    title: {
+      tr: 'Tahsilat Hatırlatmalarında Yapay Zeka ile Daha Nazik ve Sistemli Süreçler',
+      en: 'Using AI for More Structured and More Polite Payment Reminder Flows',
+    },
+    excerpt: {
+      tr: 'Tahsilat hatırlatmalarını manuel takipten çıkarıp daha düzenli, ölçülebilir ve müşteri dostu hale getirmenin yollarını inceliyoruz.',
+      en: 'We explore how to move payment reminders out of manual follow-up and turn them into a measurable, customer-friendly workflow.',
+    },
+    date: '2026-04-04',
+    readTime: { tr: '6 dk', en: '6 min' },
+    author: 'Telyx Ekibi',
+    color: 'from-[#000ACF] to-[#006FEB]',
+    content: {
+      tr: [
+        {
+          type: 'paragraph',
+          text: 'Tahsilat hatırlatmaları birçok işletmede hâlâ manuel takip, Excel listeleri ve dağınık mesajlaşmalar üzerinden ilerliyor. Bu yapı hem operasyon ekibini yoruyor hem de müşteriye düzensiz ve sert görünen bir iletişim deneyimi bırakabiliyor. Yapay zeka destekli hatırlatma akışları ise süreci daha nazik, daha kontrollü ve çok daha ölçülebilir hale getiriyor.',
+        },
+        {
+          type: 'heading',
+          text: 'Manuel Takibin En Büyük Sorunu',
+        },
+        {
+          type: 'paragraph',
+          text: 'Manuel tahsilat takibinde en sık görülen problemler; kimi aradığınızı karıştırmak, hangi müşteriye ne zaman dönüş yapıldığını takip edememek ve ekip içinde aynı müşteriye çakışan hatırlatmalar göndermektir. Ayrıca tonlama sorunu da yaşanır; bazı hatırlatmalar gereğinden sert, bazıları ise fazla belirsiz kalabilir. Sonuç olarak hem ekip yorulur hem de müşteri deneyimi zarar görür.',
+        },
+        {
+          type: 'heading',
+          text: 'Yapay Zeka Burada Ne Değiştirir?',
+        },
+        {
+          type: 'paragraph',
+          text: 'AI destekli sistemler hatırlatmaları önceden tanımlanmış politikalara göre tetikleyebilir, müşterinin önceki yanıtlarını dikkate alabilir ve daha doğal bir dil kullanabilir. Böylece hatırlatma mesajları sadece “borcunuz var” diyen tekrarlar olmaktan çıkar; müşterinin durumuna göre nazik, açıklayıcı ve yönlendirici hale gelir. Aynı zamanda tüm sürecin kaydı tutulduğu için ekip hangi müşterinin ne zaman dönüş yaptığını rahatça görür.',
+        },
+        {
+          type: 'heading',
+          text: 'Doğru Kanalı Seçmek',
+        },
+        {
+          type: 'paragraph',
+          text: 'Her tahsilat hatırlatması telefonla yapılmak zorunda değildir. Bazı müşteriler için WhatsApp mesajı, bazıları için e-posta, bazıları için ise önce yazılı bildirim sonra telefonla takip modeli daha uygundur. Burada önemli olan tek bir kanal değil, kanal geçişlerini düzenli yönetebilmektir. Aynı operasyon ekranı üzerinden bu süreci izlemek ekip için büyük fark yaratır.',
+        },
+        {
+          type: 'heading',
+          text: 'Daha Sistemli, Daha Ölçülebilir',
+        },
+        {
+          type: 'paragraph',
+          text: 'Tahsilat hatırlatma sürecinin başarılı olması için sadece mesaj göndermek yetmez; hangi hatırlatmanın işe yaradığını da görmek gerekir. Yapay zeka destekli hatırlatma kurgusunda açılma oranı, yanıt oranı, dönüş süresi ve ödeme sonrası kapanış gibi metrikler kolayca izlenebilir. Bu sayede işletme sezgiyle değil, veriyle hareket eder ve tahsilat operasyonu daha öngörülebilir hale gelir.',
+        },
+      ],
+      en: [
+        {
+          type: 'paragraph',
+          text: 'Payment reminders in many businesses still rely on manual follow-ups, spreadsheet lists, and scattered messaging. This puts pressure on the operations team and can create a disorganized or overly harsh customer experience. AI-powered reminder flows make the process more polite, more controlled, and much easier to measure.',
+        },
+        {
+          type: 'heading',
+          text: 'The Biggest Problem with Manual Follow-Up',
+        },
+        {
+          type: 'paragraph',
+          text: 'The most common issues in manual collection workflows are losing track of who was contacted, not knowing when the customer was last followed up with, and sending overlapping reminders from different team members. Tone is also inconsistent: some reminders come across as too aggressive while others are too vague. The result is friction for both the team and the customer.',
+        },
+        {
+          type: 'heading',
+          text: 'What Does AI Change Here?',
+        },
+        {
+          type: 'paragraph',
+          text: 'AI-powered systems can trigger reminders according to defined policies, take earlier customer responses into account, and use more natural language. Instead of repeating the same “you have an unpaid balance” message, reminders become clearer, more polite, and more context-aware. Since the whole process is tracked, the team can instantly see who replied and when.',
+        },
+        {
+          type: 'heading',
+          text: 'Choosing the Right Channel',
+        },
+        {
+          type: 'paragraph',
+          text: 'Not every payment reminder needs a phone call. For some customers, WhatsApp is more effective; for others, email works better; and for some, a written reminder followed by a call is the healthiest model. The key is not a single channel but managing channel transitions in an orderly way. Doing this from one operations workspace makes a significant difference for the team.',
+        },
+        {
+          type: 'heading',
+          text: 'More Structured, More Measurable',
+        },
+        {
+          type: 'paragraph',
+          text: 'A strong reminder process is not only about sending messages but also about understanding which reminders actually work. In an AI-driven collection flow, metrics such as open rate, response rate, response time, and post-payment closure become easy to track. This helps businesses move from intuition to data and build a more predictable collection operation.',
+        },
+      ],
+    },
+  },
+
+  'cok-kanalli-destek-operasyonlari': {
+    category: { tr: 'Destek Operasyonları', en: 'Support Operations' },
+    title: {
+      tr: 'WhatsApp, Webchat ve E-postayı Tek Ekrandan Yönetmek Neden Fark Yaratır?',
+      en: 'Why Managing WhatsApp, Webchat, and Email from One Screen Changes Operations',
+    },
+    excerpt: {
+      tr: 'Kanallar ayrı ayrı yönetildiğinde ekipler zaman kaybediyor. Tek bir operasyon ekranının neden daha hızlı ve daha kontrollü çalıştığını anlatıyoruz.',
+      en: 'Teams lose time when channels are managed separately. We explain why a unified operations workspace is faster and easier to control.',
+    },
+    date: '2026-03-27',
+    readTime: { tr: '5 dk', en: '5 min' },
+    author: 'Telyx Ekibi',
+    color: 'from-[#006FEB] to-[#00C4E6]',
+    content: {
+      tr: [
+        {
+          type: 'paragraph',
+          text: 'Destek ekipleri çoğu zaman WhatsApp’ı ayrı, webchat’i ayrı, e-postayı ayrı araçlardan yönetiyor. Bu da sadece ekran sayısını artırmakla kalmıyor; ekip içinde önceliklendirme, sahiplenme ve takip süreçlerini de karmaşıklaştırıyor. Tek ekran yaklaşımı ise operasyonları sadeleştiriyor ve ekibin dikkatini doğru yere topluyor.',
+        },
+        {
+          type: 'heading',
+          text: 'Asıl Sorun Kanal Sayısı Değil, Dağınık Operasyon',
+        },
+        {
+          type: 'paragraph',
+          text: 'Kanal sayısının artması tek başına problem değildir. Problem, her kanalın kendi ayrı inbox’ı, kendi ayrı takibi ve kendi ayrı sahiplenme mantığıyla ilerlemesidir. Böyle olduğunda aynı müşteri bir yandan e-posta gönderirken diğer yandan WhatsApp’tan yazabilir ve ekip bu bağlantıyı kaçırabilir. Sonuç, geç cevaplar ve tekrarlayan iş yüküdür.',
+        },
+        {
+          type: 'heading',
+          text: 'Tek Ekran Ne Sağlar?',
+        },
+        {
+          type: 'paragraph',
+          text: 'Tek operasyon ekranı, ekibe önce en önemli işi gösterir. Hangi konuşma bekliyor, hangisi canlı destek istiyor, hangisi AI tarafından yönetiliyor, hangisi kapanmış; tüm bunlar tek listede görünür. Bu yaklaşım sadece hız kazandırmaz, aynı zamanda karar yorgunluğunu azaltır. Temsilciler “hangi sekmeye bakmalıyım” diye düşünmez, doğrudan sıradaki işe geçer.',
+        },
+        {
+          type: 'heading',
+          text: 'Handoff ve Sahiplenme Daha Temiz Çalışır',
+        },
+        {
+          type: 'paragraph',
+          text: 'Çok kanallı destek operasyonlarının kritik noktası sahiplenmedir. Bir temsilcinin konuşmayı devralması, diğer ekip arkadaşlarının bunu anında görmesi ve konuşmanın gereksiz yere iki kişi tarafından yönetilmemesi gerekir. Tek ekran modeli, bu tür çakışmaları azaltır ve canlı handoff akışını çok daha temiz hale getirir.',
+        },
+        {
+          type: 'heading',
+          text: 'Yönetim Açısından Da Daha Güçlü',
+        },
+        {
+          type: 'paragraph',
+          text: 'Tek bir operasyon ekranı sadece ekip için değil, yöneticiler için de avantaj sağlar. Hangi kanal daha çok yük üretiyor, nerede handoff artıyor, ekip hangi konularda en çok zorlanıyor gibi sorulara cevap bulmak kolaylaşır. Bu sayede kanal bazlı dağınık raporlar yerine tek bakışta okunabilen bir operasyon resmi oluşur.',
+        },
+      ],
+      en: [
+        {
+          type: 'paragraph',
+          text: 'Support teams often manage WhatsApp, webchat, and email from separate tools. This does not only increase the number of screens they watch; it also complicates prioritization, ownership, and follow-up. A single operations workspace simplifies support work and helps the team focus on what matters most.',
+        },
+        {
+          type: 'heading',
+          text: 'The Real Problem Is Not Channel Count, but Operational Fragmentation',
+        },
+        {
+          type: 'paragraph',
+          text: 'Having multiple channels is not the problem by itself. The problem starts when each channel comes with its own inbox, ownership rules, and follow-up habits. In that setup, the same customer can send an email while also writing on WhatsApp, and the team can easily miss the connection. The result is delayed responses and repeated work.',
+        },
+        {
+          type: 'heading',
+          text: 'What Does a Unified Workspace Provide?',
+        },
+        {
+          type: 'paragraph',
+          text: 'A unified operations screen shows the team the most important work first. Which conversation is waiting, which one needs live support, which one is AI-managed, and which one is already resolved can all be seen in a single list. This does not only make the team faster; it also reduces decision fatigue. Agents stop wondering which tab to check next.',
+        },
+        {
+          type: 'heading',
+          text: 'Handoff and Ownership Work More Cleanly',
+        },
+        {
+          type: 'paragraph',
+          text: 'Ownership is the critical point in multi-channel support operations. When one agent claims a conversation, the rest of the team should see that immediately, and the same conversation should not be actively handled by multiple people. A single-screen model reduces these collisions and makes live handoff flows far cleaner.',
+        },
+        {
+          type: 'heading',
+          text: 'It Is Stronger for Management Too',
+        },
+        {
+          type: 'paragraph',
+          text: 'A unified operations workspace is not only good for agents; it is also better for managers. It becomes easier to answer questions like which channel creates the most load, where handoff requests are increasing, and which topics challenge the team the most. Instead of fragmented channel-based reports, the business gets one clear operational picture.',
+        },
+      ],
+    },
+  },
+
   'ai-musteri-hizmetleri-gelecegi': {
     category: { tr: 'AI & Teknoloji', en: 'AI & Technology' },
     title: {
@@ -369,7 +651,7 @@ export default function BlogPostPage() {
     );
   }
 
-  const relatedSlugs = allSlugs.filter((s) => s !== slug);
+  const relatedSlugs = allSlugs.filter((s) => s !== slug).slice(0, 3);
   const content = isTR ? post.content.tr : post.content.en;
 
   return (
