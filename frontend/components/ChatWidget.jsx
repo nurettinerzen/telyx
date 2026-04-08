@@ -214,7 +214,25 @@ export default function ChatWidget({
               timestamp: message.timestamp instanceof Date ? message.timestamp.toISOString() : message.timestamp || null,
             })));
 
-            return previousSerialized === nextSerialized ? prev : syncedMessages;
+            if (previousSerialized === nextSerialized) {
+              return prev;
+            }
+
+            const latestLocalMessage = prev[prev.length - 1];
+            const latestSyncedMessage = syncedMessages[syncedMessages.length - 1];
+            const pendingLocalUserMessage =
+              isLoading &&
+              latestLocalMessage?.role === 'user' &&
+              (
+                latestSyncedMessage?.role !== 'user' ||
+                latestSyncedMessage?.content !== latestLocalMessage?.content
+              );
+
+            if (pendingLocalUserMessage) {
+              return prev;
+            }
+
+            return syncedMessages;
           });
         }
       } catch (error) {
@@ -234,7 +252,7 @@ export default function ChatWidget({
       cancelled = true;
       clearInterval(interval);
     };
-  }, [chatLiveHandoffEnabled, isOpen, sessionId, embedKey, assistantId]);
+  }, [chatLiveHandoffEnabled, isOpen, sessionId, embedKey, assistantId, isLoading]);
 
   // Add welcome message when chat opens
   useEffect(() => {
