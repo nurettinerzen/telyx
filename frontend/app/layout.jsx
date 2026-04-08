@@ -3,6 +3,7 @@ import { LanguageProvider } from '@/contexts/LanguageContext';
 import { ThemeProvider } from 'next-themes';
 import { Providers } from './providers';
 import BetaEnvironmentBar from '@/components/BetaEnvironmentBar';
+import PublicSiteChatWidget from '@/components/PublicSiteChatWidget';
 import runtimeConfig from '@/lib/runtime-config';
 
 const metadataBase = runtimeConfig.siteUrl ? new URL(runtimeConfig.siteUrl) : undefined;
@@ -52,6 +53,7 @@ export default function RootLayout({ children }) {
             <LanguageProvider>
               <BetaEnvironmentBar />
               {children}
+              <PublicSiteChatWidget />
             </LanguageProvider>
           </ThemeProvider>
         </Providers>
