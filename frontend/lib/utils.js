@@ -29,6 +29,27 @@ export function formatPhone(phone, format = 'display') {
     return `+${digits}`;
   }
   
+  // Turkish display formats
+  if (digits.length === 12 && digits.startsWith('90')) {
+    const local = `0${digits.slice(2)}`;
+
+    if (local.startsWith('0850') && local.length === 11) {
+      return `${local.slice(0, 4)} ${local.slice(4, 7)} ${local.slice(7)}`;
+    }
+
+    if (local.length === 11) {
+      return `${local.slice(0, 4)} ${local.slice(4, 7)} ${local.slice(7, 9)} ${local.slice(9)}`;
+    }
+  }
+
+  if (digits.length === 11 && digits.startsWith('0')) {
+    if (digits.startsWith('0850')) {
+      return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}`;
+    }
+
+    return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7, 9)} ${digits.slice(9)}`;
+  }
+
   // Display format: +1 (234) 567-8900
   if (digits.length === 11 && digits.startsWith('1')) {
     return `+1 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;

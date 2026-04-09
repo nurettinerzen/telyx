@@ -12,6 +12,7 @@ import netgsmService from '../services/netgsm.js';
 import elevenLabsService from '../services/elevenlabs.js';
 import { getProvidersForCountry } from '../config/sip-providers.js';
 import { resolvePhoneOutboundAccessForBusinessId } from '../services/phoneOutboundAccess.js';
+import { isPhoneInboundEnabledForBusinessRecord } from '../services/phoneInboundGate.js';
 import {
   hasBrandPhoneOverride,
   reconcilePhoneNumberUsage,
@@ -51,6 +52,11 @@ const PRICING = {
 const PHONE_ASSIGNMENT_DISABLED_V1_ERROR = {
   error: 'PHONE_ASSIGNMENT_DISABLED_V1',
   message: 'V1 sürümünde telefon numarası-assistant assignment kapalıdır.'
+};
+
+const PHONE_INBOUND_ASSIGNMENT_DISABLED_ERROR = {
+  error: 'PHONE_INBOUND_ASSIGNMENT_DISABLED',
+  message: 'Bu işletmede gelen arama asistanı ataması kapalıdır.'
 };
 
 // ============================================================================
@@ -107,7 +113,8 @@ router.get('/', async (req, res) => {
       count: phoneNumbers.length,
       limit,
       canAddMore,
-      hasAdminPhoneOverride
+      hasAdminPhoneOverride,
+      inboundEnabled: isPhoneInboundEnabledForBusinessRecord(req.user?.business)
     });
 
   } catch (error) {
@@ -640,7 +647,98 @@ router.patch('/:id/sip-config', async (req, res) => {
 // UPDATE ASSISTANT ASSIGNMENT
 // ============================================================================
 router.patch('/:id/assistant', async (req, res) => {
-  return res.status(403).json(PHONE_ASSIGNMENT_DISABLED_V1_ERROR);
+  try {
+    const { id } = req.params;
+    const { assistantId } = req.body || {};
+    const businessId = req.businessId;
+    const inboundEnabled = isPhoneInboundEnabledForBusinessRecord(req.user?.business);
+
+    if (!inboundEnabled) {
+      return res.status(403).json(PHONE_INBOUND_ASSIGNMENT_DISABLED_ERROR);
+    }
+
+    if (!assistantId || typeof assistantId !== 'string') {
+      return res.status(400).json({ error: 'assistantId is required' });
+    }
+
+    const [phoneNumber, assistant] = await Promise.all([
+      prisma.phoneNumber.findFirst({
+        where: {
+          id,
+          businessId,
+          status: 'ACTIVE'
+        }
+      }),
+      prisma.assistant.findFirst({
+        where: {
+          id: assistantId,
+          businessId,
+          isActive: true,
+          assistantType: 'phone',
+          callDirection: 'inbound'
+        },
+        select: {
+          id: true,
+          name: true,
+          elevenLabsAgentId: true,
+          callDirection: true
+        }
+      })
+    ]);
+
+    if (!phoneNumber) {
+      return res.status(404).json({ error: 'Phone number not found' });
+    }
+
+    if (!assistant) {
+      return res.status(404).json({ error: 'Inbound assistant not found' });
+    }
+
+    if (!phoneNumber.elevenLabsPhoneId) {
+      return res.status(400).json({
+        error: 'PHONE_NUMBER_NOT_CONNECTED',
+        message: 'Telefon numarası henüz 11Labs tarafında aktif değil.'
+      });
+    }
+
+    if (!assistant.elevenLabsAgentId) {
+      return res.status(400).json({
+        error: 'ASSISTANT_NOT_CONNECTED',
+        message: 'Seçilen asistan 11Labs ile bağlı değil.'
+      });
+    }
+
+    await elevenLabsService.updatePhoneNumber(phoneNumber.elevenLabsPhoneId, assistant.elevenLabsAgentId);
+
+    const updatedPhoneNumber = await prisma.phoneNumber.update({
+      where: { id },
+      data: { assistantId: assistant.id },
+      include: {
+        assistant: {
+          select: {
+            id: true,
+            name: true,
+            isActive: true
+          }
+        }
+      }
+    });
+
+    res.json({
+      success: true,
+      phoneNumber: {
+        id: updatedPhoneNumber.id,
+        assistantId: updatedPhoneNumber.assistant?.isActive ? updatedPhoneNumber.assistantId : null,
+        assistantName: updatedPhoneNumber.assistant?.isActive ? updatedPhoneNumber.assistant.name : null
+      }
+    });
+  } catch (error) {
+    console.error('❌ Update phone assistant error:', error);
+    res.status(500).json({
+      error: 'Failed to update phone assistant',
+      details: error.message
+    });
+  }
 });
 
 // ============================================================================

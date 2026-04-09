@@ -6,8 +6,8 @@ export const BRAND_OWNER_EMAIL = String(
 
 function sortPhoneNumbers(numbers = []) {
   return [...numbers].sort((a, b) => (
-    Number(Boolean(b.isPublicContact)) - Number(Boolean(a.isPublicContact))
-    || Number(Boolean(b.isDefaultInbound)) - Number(Boolean(a.isDefaultInbound))
+    Number(Boolean(b.isDefaultInbound)) - Number(Boolean(a.isDefaultInbound))
+    || Number(Boolean(b.isPublicContact)) - Number(Boolean(a.isPublicContact))
     || Number(Boolean(b.isDefaultOutbound)) - Number(Boolean(a.isDefaultOutbound))
     || new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   ));
@@ -107,7 +107,7 @@ export async function syncLegacyBusinessPhoneFields(tx, businessId) {
 
   const firstNumberId = activeNumbers[0].id;
   const inboundId = activeNumbers.find((item) => item.isDefaultInbound)?.id || firstNumberId;
-  const publicId = activeNumbers.find((item) => item.isPublicContact)?.id || inboundId;
+  const publicId = inboundId || activeNumbers.find((item) => item.isPublicContact)?.id || firstNumberId;
   const outboundId = activeNumbers.find((item) => item.isDefaultOutbound)?.id || publicId;
 
   await enforceSingleFlag(tx, businessId, 'isDefaultInbound', inboundId);
@@ -157,8 +157,12 @@ export async function setPhoneNumberRoutingFlags(
     if (isDefaultInbound) {
       await tx.phoneNumber.updateMany({
         where: { businessId, status: 'ACTIVE' },
-        data: { isDefaultInbound: false }
+        data: {
+          isDefaultInbound: false,
+          isPublicContact: false
+        }
       });
+      updateData.isPublicContact = true;
     }
     updateData.isDefaultInbound = isDefaultInbound;
   }

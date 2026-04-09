@@ -5,6 +5,13 @@ import Link from 'next/link';
 import { ArrowRight, Lock, MessageSquare, Phone, PhoneCall, Plus, Trash2, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import EmptyState from '@/components/EmptyState';
 import PhoneNumberModal from '@/components/PhoneNumberModal';
 import PageIntro from '@/components/PageIntro';
@@ -120,8 +127,10 @@ export default function PhoneNumbersPage() {
   const [phoneMeta, setPhoneMeta] = useState({
     limit: null,
     canAddMore: true,
-    hasAdminPhoneOverride: false
+    hasAdminPhoneOverride: false,
+    inboundEnabled: false
   });
+  const [assistants, setAssistants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showProvisionModal, setShowProvisionModal] = useState(false);
   const [subscription, setSubscription] = useState(null);
@@ -143,25 +152,35 @@ export default function PhoneNumbersPage() {
     (async () => {
       setLoading(true);
       try {
-        const [subRes, phoneRes] = await Promise.allSettled([
+        const [subRes, phoneRes, assistantsRes] = await Promise.allSettled([
           apiClient.subscription.getCurrent(),
-          apiClient.phoneNumbers.getAll()
+          apiClient.phoneNumbers.getAll(),
+          apiClient.assistants.getAll()
         ]);
         const sub = subRes.status === 'fulfilled' ? subRes.value.data : null;
         const numbers = phoneRes.status === 'fulfilled' ? (phoneRes.value.data.phoneNumbers || []) : [];
+        const activePhoneAssistants = assistantsRes.status === 'fulfilled'
+          ? ((assistantsRes.value.data.assistants || []).filter((assistant) => (
+            assistant?.assistantType !== 'text'
+            && assistant?.isActive
+            && assistant?.callDirection === 'inbound'
+          )))
+          : [];
         const numbersMeta = phoneRes.status === 'fulfilled'
           ? {
             limit: phoneRes.value.data.limit ?? null,
             canAddMore: phoneRes.value.data.canAddMore ?? true,
-            hasAdminPhoneOverride: phoneRes.value.data.hasAdminPhoneOverride ?? false
+            hasAdminPhoneOverride: phoneRes.value.data.hasAdminPhoneOverride ?? false,
+            inboundEnabled: phoneRes.value.data.inboundEnabled ?? false
           }
-          : { limit: null, canAddMore: true, hasAdminPhoneOverride: false };
+          : { limit: null, canAddMore: true, hasAdminPhoneOverride: false, inboundEnabled: false };
         const snap = sub?.billingSnapshot || buildLegacyBillingSnapshot(sub);
         const outEnt = sub?.entitlements?.phone?.outbound || sub?.entitlements?.outbound || null;
 
         setSubscription(sub);
         setPhoneNumbers(numbers);
         setPhoneMeta(numbersMeta);
+        setAssistants(activePhoneAssistants);
 
         if (snap?.channels?.phone === false) { setIsLocked(true); setLockReason('PHONE_NOT_INCLUDED'); }
         else if (outEnt && outEnt.enabled === false) { setIsLocked(true); setLockReason(outEnt.reason || 'OUTBOUND_DISABLED'); }
@@ -178,12 +197,28 @@ export default function PhoneNumbersPage() {
   const loadPhoneNumbers = async () => {
     setLoading(true);
     try {
-      const response = await apiClient.phoneNumbers.getAll();
+      const [phoneResponse, assistantsResponse] = await Promise.allSettled([
+        apiClient.phoneNumbers.getAll(),
+        apiClient.assistants.getAll()
+      ]);
+      const response = phoneResponse.status === 'fulfilled' ? phoneResponse.value : null;
+      const activePhoneAssistants = assistantsResponse.status === 'fulfilled'
+        ? ((assistantsResponse.value.data.assistants || []).filter((assistant) => (
+          assistant?.assistantType !== 'text'
+          && assistant?.isActive
+          && assistant?.callDirection === 'inbound'
+        )))
+        : assistants;
+      setAssistants(activePhoneAssistants);
+
+      if (!response) throw new Error('PHONE_NUMBERS_FETCH_FAILED');
+
       setPhoneNumbers(response.data.phoneNumbers || []);
       setPhoneMeta({
         limit: response.data.limit ?? null,
         canAddMore: response.data.canAddMore ?? true,
-        hasAdminPhoneOverride: response.data.hasAdminPhoneOverride ?? false
+        hasAdminPhoneOverride: response.data.hasAdminPhoneOverride ?? false,
+        inboundEnabled: response.data.inboundEnabled ?? false
       });
     } catch (_e) {
       toast.error(isTR ? 'Telefon numaraları yüklenemedi' : 'Failed to load phone numbers');
@@ -204,6 +239,19 @@ export default function PhoneNumbersPage() {
         apiClient.phoneNumbers.updateRouting(phoneId, payload),
         loadingMessage,
         successMessage
+      );
+      await loadPhoneNumbers();
+    } catch (_e) {
+      // handled by toast helper
+    }
+  };
+
+  const handleAssistantUpdate = async (phoneId, assistantId) => {
+    try {
+      await toastHelpers.async(
+        apiClient.phoneNumbers.updateAssistant(phoneId, { assistantId }),
+        isTR ? 'Gelen arama asistanı ayarlanıyor...' : 'Assigning inbound assistant...',
+        t('dashboard.phoneNumbersPage.assistantUpdated')
       );
       await loadPhoneNumbers();
     } catch (_e) {
@@ -251,31 +299,21 @@ export default function PhoneNumbersPage() {
                   <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
                     <Phone className="h-5 w-5 text-primary" />
                   </div>
-                  <div>
-                    <p className="text-xl font-bold tracking-tight text-neutral-900 dark:text-white">
-                      {formatPhone(number.phoneNumber)}
-                    </p>
-                    <div className="mt-1 flex flex-wrap gap-1.5">
-                      <Badge className="rounded-full bg-emerald-100 text-emerald-700 text-xs dark:bg-emerald-900/40 dark:text-emerald-300">
-                        {number.status || (isTR ? 'Aktif' : 'Active')}
-                      </Badge>
-                      {number.isDefaultInbound && (
-                        <Badge className="rounded-full bg-blue-100 text-blue-700 text-xs dark:bg-blue-900/40 dark:text-blue-300">
-                          {t('dashboard.phoneNumbersPage.inboundBadge')}
+                    <div>
+                      <p className="text-xl font-bold tracking-tight text-neutral-900 dark:text-white">
+                        {formatPhone(number.phoneNumber)}
+                      </p>
+                      <div className="mt-1 flex flex-wrap gap-1.5">
+                        <Badge className="rounded-full bg-emerald-100 text-emerald-700 text-xs dark:bg-emerald-900/40 dark:text-emerald-300">
+                          {number.status || (isTR ? 'Aktif' : 'Active')}
                         </Badge>
-                      )}
-                      {number.isDefaultOutbound && (
-                        <Badge className="rounded-full bg-violet-100 text-violet-700 text-xs dark:bg-violet-900/40 dark:text-violet-300">
-                          {t('dashboard.phoneNumbersPage.outboundBadge')}
-                        </Badge>
-                      )}
-                      {number.isPublicContact && (
-                        <Badge className="rounded-full bg-amber-100 text-amber-700 text-xs dark:bg-amber-900/40 dark:text-amber-300">
-                          {t('dashboard.phoneNumbersPage.publicContactBadge')}
-                        </Badge>
-                      )}
+                        {number.isDefaultInbound && (
+                          <Badge className="rounded-full bg-blue-100 text-blue-700 text-xs dark:bg-blue-900/40 dark:text-blue-300">
+                            {t('dashboard.phoneNumbersPage.inboundBadge')}
+                          </Badge>
+                        )}
+                      </div>
                     </div>
-                  </div>
                 </div>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" className="rounded-xl" onClick={() => handleRelease(number)}>
@@ -285,11 +323,7 @@ export default function PhoneNumbersPage() {
                 </div>
               </div>
 
-              <div className="mt-4 grid gap-2 sm:grid-cols-3">
-                <Metric
-                  label={isTR ? 'Asistan' : 'Assistant'}
-                  value={number.assistantName || (isTR ? 'Atanmamış' : 'Not assigned')}
-                />
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
                 <Metric
                   label={isTR ? 'Eklenme' : 'Added'}
                   value={formatDate(number.createdAt, 'short', locale)}
@@ -300,51 +334,58 @@ export default function PhoneNumbersPage() {
                 />
               </div>
 
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Button
-                  variant={number.isDefaultInbound ? 'secondary' : 'outline'}
-                  size="sm"
-                  className="rounded-xl"
-                  disabled={number.isDefaultInbound}
-                  onClick={() => handleRoutingUpdate(
-                    number.id,
-                    { isDefaultInbound: true },
-                    t('dashboard.phoneNumbersPage.settingInbound'),
-                    t('dashboard.phoneNumbersPage.inboundUpdated')
-                  )}
-                >
-                  {number.isDefaultInbound ? t('dashboard.phoneNumbersPage.defaultInbound') : t('dashboard.phoneNumbersPage.setInbound')}
-                </Button>
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                {phoneMeta.inboundEnabled && (
+                  <div className="min-w-0 flex-1 max-w-md">
+                    <p className="mb-1.5 text-xs font-medium uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
+                      {t('dashboard.phoneNumbersPage.inboundAssistant')}
+                    </p>
+                    <Select
+                      value={number.assistantId || undefined}
+                      onValueChange={(assistantId) => handleAssistantUpdate(number.id, assistantId)}
+                    >
+                      <SelectTrigger className="rounded-xl">
+                        <SelectValue placeholder={t('dashboard.phoneNumbersPage.selectAssistant')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {assistants.length > 0 ? assistants.map((assistant) => (
+                          <SelectItem key={assistant.id} value={assistant.id}>
+                            {assistant.name}
+                          </SelectItem>
+                        )) : (
+                          <SelectItem value="__disabled" disabled>
+                            {t('dashboard.phoneNumbersPage.noAssistants')}
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    {assistants.length === 0 && (
+                      <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
+                        {t('dashboard.phoneNumbersPage.inboundAssistantHint')}{' '}
+                        <Link href="/dashboard/assistant" className="font-medium text-primary hover:underline">
+                          {t('dashboard.phoneNumbersPage.createAssistantLink')}
+                        </Link>
+                      </p>
+                    )}
+                  </div>
+                )}
 
-                <Button
-                  variant={number.isDefaultOutbound ? 'secondary' : 'outline'}
-                  size="sm"
-                  className="rounded-xl"
-                  disabled={number.isDefaultOutbound}
-                  onClick={() => handleRoutingUpdate(
-                    number.id,
-                    { isDefaultOutbound: true },
-                    t('dashboard.phoneNumbersPage.settingOutbound'),
-                    t('dashboard.phoneNumbersPage.outboundUpdated')
-                  )}
-                >
-                  {number.isDefaultOutbound ? t('dashboard.phoneNumbersPage.defaultOutbound') : t('dashboard.phoneNumbersPage.setOutbound')}
-                </Button>
-
-                <Button
-                  variant={number.isPublicContact ? 'secondary' : 'outline'}
-                  size="sm"
-                  className="rounded-xl"
-                  disabled={number.isPublicContact}
-                  onClick={() => handleRoutingUpdate(
-                    number.id,
-                    { isPublicContact: true },
-                    t('dashboard.phoneNumbersPage.settingPublicContact'),
-                    t('dashboard.phoneNumbersPage.publicContactUpdated')
-                  )}
-                >
-                  {number.isPublicContact ? t('dashboard.phoneNumbersPage.shownPublicly') : t('dashboard.phoneNumbersPage.setPublicContact')}
-                </Button>
+                {phoneMeta.inboundEnabled && (
+                  <Button
+                    variant={number.isDefaultInbound ? 'secondary' : 'outline'}
+                    size="sm"
+                    className="rounded-xl"
+                    disabled={number.isDefaultInbound}
+                    onClick={() => handleRoutingUpdate(
+                      number.id,
+                      { isDefaultInbound: true },
+                      t('dashboard.phoneNumbersPage.settingInbound'),
+                      t('dashboard.phoneNumbersPage.inboundUpdated')
+                    )}
+                  >
+                    {number.isDefaultInbound ? t('dashboard.phoneNumbersPage.defaultInbound') : t('dashboard.phoneNumbersPage.setInbound')}
+                  </Button>
+                )}
               </div>
             </div>
           ))

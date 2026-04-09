@@ -1,6 +1,6 @@
 /**
  * Assistants Page
- * Manage AI assistants — Text (chat/WA/email) + Phone (outbound)
+ * Manage AI assistants — Text (chat/WA/email) + Phone (inbound/outbound)
  */
 
 'use client';
@@ -42,7 +42,7 @@ import {
 import EmptyState from '@/components/EmptyState';
 import VoiceCard from '@/components/VoiceCard';
 import { apiClient } from '@/lib/api';
-import { Bot, Plus, Edit, Trash2, Search, PhoneOutgoing, MessageSquare, Loader2, RefreshCw, ChevronDown, ChevronRight } from 'lucide-react';
+import { Bot, Plus, Edit, Trash2, Search, PhoneIncoming, PhoneOutgoing, MessageSquare, Loader2, RefreshCw, ChevronDown, ChevronRight } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -103,11 +103,27 @@ const DEFAULT_FIRST_MESSAGES = {
       if (company) return `Hello! I'm calling on behalf of ${company}.`;
       return `Hello!`;
     }
+  },
+  inbound: {
+    tr: (_businessName, assistantName) => {
+      const name = assistantName || '';
+      if (name) return `Merhaba, ben ${name}. Size nasıl yardımcı olabilirim?`;
+      return 'Merhaba, size nasıl yardımcı olabilirim?';
+    },
+    en: (_businessName, assistantName) => {
+      const name = assistantName || '';
+      if (name) return `Hello, I'm ${name}. How can I help you today?`;
+      return 'Hello, how can I help you today?';
+    }
   }
 };
 
 // Default system prompts based on call purpose
 const DEFAULT_SYSTEM_PROMPTS = {
+  inbound: {
+    tr: 'Müşteri sizi aradığında kısa, net ve yardım odaklı şekilde konuş. İhtiyacı anlamaya çalış, gerekirse bilgi topla ve çözüm üret.',
+    en: 'When a customer calls, speak briefly, clearly, and helpfully. Understand the need first, gather details when needed, and guide toward a solution.'
+  },
   sales: {
     tr: `Satış araması yap. Ürün veya hizmeti tanıt. Müşterinin ihtiyaçlarını dinle ve uygun çözümler sun.`,
     en: `Make a sales call. Introduce the product or service. Listen to customer needs and offer suitable solutions.`
@@ -155,6 +171,7 @@ export default function AssistantsPage() {
   // Business info
   const businessLanguage = businessData?.data?.language?.toLowerCase() || locale || 'tr';
   const businessName = businessData?.data?.name || '';
+  const phoneInboundEnabled = Boolean(businessData?.data?.phoneInboundEnabled);
 
   // Modal states
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -201,14 +218,12 @@ export default function AssistantsPage() {
     if (editingAssistant) return;
     if (isTextMode) return;
 
-    if (isOutboundDirection(formData.callDirection)) {
-      const lang = businessLanguage === 'tr' ? 'tr' : 'en';
-      const outboundGreeting = DEFAULT_FIRST_MESSAGES.outbound?.[lang]?.(businessName, formData.name) || '';
-      setFormData(prev => ({
-        ...prev,
-        firstMessage: outboundGreeting,
-      }));
-    }
+    const lang = businessLanguage === 'tr' ? 'tr' : 'en';
+    const defaultGreeting = DEFAULT_FIRST_MESSAGES[formData.callDirection]?.[lang]?.(businessName, formData.name) || '';
+    setFormData(prev => ({
+      ...prev,
+      firstMessage: defaultGreeting,
+    }));
   }, [formData.name, formData.callDirection, editingAssistant, businessName, businessLanguage, isTextMode]);
 
   // Handle "Yazı Asistanı" button click
@@ -249,7 +264,7 @@ export default function AssistantsPage() {
     setFormData({
       name: '',
       voiceId: defaultVoiceId,
-      systemPrompt: getDefaultSystemPrompt(defaultPurpose),
+      systemPrompt: getDefaultSystemPrompt('outbound', defaultPurpose),
       firstMessage: getDefaultFirstMessage('outbound', ''),
       language: businessLanguage || 'tr',
       tone: 'formal',
@@ -272,13 +287,16 @@ export default function AssistantsPage() {
   // Get default first message based on call direction
   const getDefaultFirstMessage = (direction, assistantName) => {
     const lang = businessLanguage === 'tr' ? 'tr' : 'en';
-    const messageFn = DEFAULT_FIRST_MESSAGES.outbound?.[lang];
+    const messageFn = DEFAULT_FIRST_MESSAGES[direction]?.[lang];
     return messageFn ? messageFn(businessName, assistantName) : '';
   };
 
   // Get default system prompt for a call purpose
-  const getDefaultSystemPrompt = (purpose) => {
+  const getDefaultSystemPrompt = (direction, purpose) => {
     const lang = businessLanguage === 'tr' ? 'tr' : 'en';
+    if (direction === 'inbound') {
+      return DEFAULT_SYSTEM_PROMPTS.inbound?.[lang] || '';
+    }
     return DEFAULT_SYSTEM_PROMPTS[purpose]?.[lang] || '';
   };
 
@@ -287,8 +305,17 @@ export default function AssistantsPage() {
     setFormData(prev => ({
       ...prev,
       callPurpose: purpose,
-      systemPrompt: getDefaultSystemPrompt(purpose),
-      firstMessage: getDefaultFirstMessage('outbound', prev.name),
+      systemPrompt: getDefaultSystemPrompt(prev.callDirection, purpose),
+      firstMessage: getDefaultFirstMessage(prev.callDirection, prev.name),
+    }));
+  };
+
+  const handleDirectionChange = (direction) => {
+    setFormData((prev) => ({
+      ...prev,
+      callDirection: direction,
+      systemPrompt: getDefaultSystemPrompt(direction, prev.callPurpose),
+      firstMessage: getDefaultFirstMessage(direction, prev.name),
     }));
   };
 
@@ -408,7 +435,9 @@ export default function AssistantsPage() {
       const inferredLang = voice?.language || businessLanguage || 'en';
 
       let displayPrompt = '';
-      if (assistant.callPurpose) {
+      if (assistant.callDirection === 'inbound') {
+        displayPrompt = DEFAULT_SYSTEM_PROMPTS.inbound?.[inferredLang] || '';
+      } else if (assistant.callPurpose) {
         displayPrompt = DEFAULT_SYSTEM_PROMPTS[assistant.callPurpose]?.[inferredLang] || '';
       }
 
@@ -597,6 +626,8 @@ export default function AssistantsPage() {
                       <div className="flex items-center gap-2">
                         {isText ? (
                           <MessageSquare className="h-4 w-4 text-teal-500" />
+                        ) : assistant.callDirection === 'inbound' ? (
+                          <PhoneIncoming className="h-4 w-4 text-blue-500" />
                         ) : (
                           <PhoneOutgoing className="h-4 w-4 text-orange-500" />
                         )}
@@ -617,7 +648,9 @@ export default function AssistantsPage() {
                       <span className="text-sm text-neutral-600 dark:text-neutral-400">
                         {!isText && assistant.callPurpose
                           ? t(`dashboard.assistantsPage.purpose${assistant.callPurpose.charAt(0).toUpperCase() + assistant.callPurpose.slice(1)}`) || assistant.callPurpose
-                          : '-'
+                          : (!isText && assistant.callDirection === 'inbound'
+                            ? t('dashboard.assistantsPage.inboundCall')
+                            : '-')
                         }
                       </span>
                     </td>
@@ -701,7 +734,11 @@ export default function AssistantsPage() {
                 </>
               ) : (
                 <>
-                  <PhoneOutgoing className="h-5 w-5 text-neutral-500" />
+                  {formData.callDirection === 'inbound' ? (
+                    <PhoneIncoming className="h-5 w-5 text-neutral-500" />
+                  ) : (
+                    <PhoneOutgoing className="h-5 w-5 text-neutral-500" />
+                  )}
                   {editingAssistant ? t('common.edit') : t('common.create')} — {t('dashboard.assistantsPage.phoneAssistant')}
                 </>
               )}
@@ -736,7 +773,26 @@ export default function AssistantsPage() {
             {/* ===== PHONE-ONLY FIELDS ===== */}
             {!isTextMode && (
               <>
+                {phoneInboundEnabled && (
+                  <div>
+                    <Label>{t('dashboard.assistantsPage.directionCol')}</Label>
+                    <Select
+                      value={formData.callDirection}
+                      onValueChange={handleDirectionChange}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="outbound">{t('dashboard.assistantsPage.outboundCall')}</SelectItem>
+                        <SelectItem value="inbound">{t('dashboard.assistantsPage.inboundCall')}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
                 {/* Call Purpose */}
+                {isOutboundDirection(formData.callDirection) && (
                 <div>
                   <Label>{t('dashboard.assistantsPage.callPurpose')}</Label>
                   <Select
@@ -758,6 +814,7 @@ export default function AssistantsPage() {
                     {t('dashboard.assistantsPage.purposeAutoPromptHint')}
                   </p>
                 </div>
+                )}
 
                 {/* Language */}
                 <div>
