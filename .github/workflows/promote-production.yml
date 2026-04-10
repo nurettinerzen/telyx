@@ -29,11 +29,11 @@ jobs:
 
       - name: Fetch source branch
         run: |
-          git fetch origin "${{ github.event.inputs.source_ref }}"
+          git fetch --no-tags origin "${{ github.event.inputs.source_ref }}"
 
       - name: Fast-forward production branch
         run: |
-          SOURCE_REF="origin/${{ github.event.inputs.source_ref }}"
+          SOURCE_REF="FETCH_HEAD"
 
           if git ls-remote --exit-code --heads origin production; then
             git fetch origin production
