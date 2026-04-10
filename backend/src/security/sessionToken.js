@@ -1,8 +1,11 @@
 import jwt from 'jsonwebtoken';
+import runtimeConfig from '../config/runtime.js';
 
 const SESSION_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
-const PROD_SESSION_COOKIE_NAME = '__Host-telyx_session';
+const PROD_SHARED_SESSION_COOKIE_NAME = '__Secure-telyx_session';
+const BETA_SHARED_SESSION_COOKIE_NAME = '__Secure-telyx_beta_session';
+const LEGACY_PROD_SESSION_COOKIE_NAME = '__Host-telyx_session';
 const DEV_SESSION_COOKIE_NAME = 'telyx_session';
 
 function getJwtSecret() {
@@ -17,8 +20,78 @@ function isProductionLikeCookieEnv() {
   return process.env.NODE_ENV === 'production';
 }
 
+function getDerivedCookieDomain() {
+  const explicitDomain = String(process.env.SESSION_COOKIE_DOMAIN || '').trim().replace(/^\./, '');
+  if (explicitDomain) {
+    return explicitDomain;
+  }
+
+  const candidateUrls = [
+    runtimeConfig.frontendUrl,
+    runtimeConfig.siteUrl,
+    runtimeConfig.backendUrl,
+  ].filter(Boolean);
+
+  for (const candidate of candidateUrls) {
+    try {
+      const hostname = new URL(candidate).hostname.toLowerCase();
+      if (!hostname || hostname === 'localhost' || /^\d+\.\d+\.\d+\.\d+$/.test(hostname)) {
+        continue;
+      }
+
+      const parts = hostname.split('.').filter(Boolean);
+      if (parts.length >= 2) {
+        return parts.slice(-2).join('.');
+      }
+    } catch {
+      // Ignore invalid URL candidates and fall through.
+    }
+  }
+
+  return null;
+}
+
+function getSharedCookieDomain() {
+  if (!isProductionLikeCookieEnv()) {
+    return null;
+  }
+
+  return getDerivedCookieDomain();
+}
+
+function getSharedSessionCookieName() {
+  if (!getSharedCookieDomain()) {
+    return null;
+  }
+
+  if (runtimeConfig.isBetaApp) {
+    return BETA_SHARED_SESSION_COOKIE_NAME;
+  }
+
+  return PROD_SHARED_SESSION_COOKIE_NAME;
+}
+
 function getSessionCookieName() {
-  return isProductionLikeCookieEnv() ? PROD_SESSION_COOKIE_NAME : DEV_SESSION_COOKIE_NAME;
+  if (!isProductionLikeCookieEnv()) {
+    return DEV_SESSION_COOKIE_NAME;
+  }
+
+  return getSharedSessionCookieName() || LEGACY_PROD_SESSION_COOKIE_NAME;
+}
+
+function getAllKnownCookieNames() {
+  const cookieNames = [
+    getSessionCookieName(),
+    LEGACY_PROD_SESSION_COOKIE_NAME,
+  ];
+
+  if (!isProductionLikeCookieEnv()) {
+    cookieNames.push(DEV_SESSION_COOKIE_NAME);
+  }
+
+  return Array.from(new Set([
+    ...cookieNames,
+  ].filter(Boolean)));
 }
 
 function normalizeCookieHeader(cookieHeader = '') {
@@ -41,7 +114,14 @@ export function extractSessionToken(req) {
   }
 
   const cookieMap = normalizeCookieHeader(req.headers?.cookie || '');
-  return cookieMap[getSessionCookieName()] || cookieMap[PROD_SESSION_COOKIE_NAME] || cookieMap[DEV_SESSION_COOKIE_NAME] || null;
+
+  for (const cookieName of getAllKnownCookieNames()) {
+    if (cookieMap[cookieName]) {
+      return cookieMap[cookieName];
+    }
+  }
+
+  return null;
 }
 
 export function buildSessionPayload(user, extra = {}) {
@@ -68,30 +148,56 @@ export function verifySessionToken(token) {
 
 export function setSessionCookie(res, token) {
   const isProduction = isProductionLikeCookieEnv();
-  res.cookie(getSessionCookieName(), token, {
+  const sharedDomain = getSharedCookieDomain();
+  const primaryCookieOptions = {
     httpOnly: true,
     secure: isProduction,
     sameSite: isProduction ? 'strict' : 'lax',
     path: '/',
     maxAge: SESSION_MAX_AGE_MS,
-  });
+    ...(sharedDomain ? { domain: sharedDomain } : {}),
+  };
+
+  res.cookie(getSessionCookieName(), token, primaryCookieOptions);
+
+  if (isProduction && sharedDomain) {
+    res.cookie(LEGACY_PROD_SESSION_COOKIE_NAME, token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'strict',
+      path: '/',
+      maxAge: SESSION_MAX_AGE_MS,
+    });
+  }
 }
 
 export function clearSessionCookie(res) {
   const isProduction = isProductionLikeCookieEnv();
-  const cookieOptions = {
+  const sharedDomain = getSharedCookieDomain();
+  const baseCookieOptions = {
     httpOnly: true,
     secure: isProduction,
     sameSite: isProduction ? 'strict' : 'lax',
     path: '/',
   };
+  const sharedCookieOptions = sharedDomain
+    ? { ...baseCookieOptions, domain: sharedDomain }
+    : null;
 
-  res.clearCookie(getSessionCookieName(), cookieOptions);
+  for (const cookieName of getAllKnownCookieNames()) {
+    if (!cookieName) continue;
+
+    if (sharedCookieOptions) {
+      res.clearCookie(cookieName, sharedCookieOptions);
+    }
+
+    res.clearCookie(cookieName, baseCookieOptions);
+  }
 
   if (!isProduction) {
-    res.clearCookie(PROD_SESSION_COOKIE_NAME, {
-      ...cookieOptions,
+    res.clearCookie(LEGACY_PROD_SESSION_COOKIE_NAME, {
       secure: false,
+      ...baseCookieOptions,
     });
   }
 }

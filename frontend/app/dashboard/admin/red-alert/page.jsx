@@ -60,7 +60,6 @@ export default function RedAlertPage() {
   const copy = getRedAlertCopy(locale);
   const uiLocale = locale === 'tr' ? 'tr-TR' : 'en-US';
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [summary, setSummary] = useState(null);
   const [events, setEvents] = useState([]);
   const [health, setHealth] = useState(null);
@@ -325,26 +324,18 @@ export default function RedAlertPage() {
     })
   ), [assistantTraceIdSet, opsEvents]);
 
-  // Check admin access
   useEffect(() => {
-    const checkAdminAccess = async () => {
+    const initializeDashboard = async () => {
       try {
-        const response = await apiClient.get('/api/auth/me');
-        if (response.data?.isAdmin === true) {
-          setIsAdmin(true);
-          const capabilities = await loadRedAlertCapabilities();
-          await loadDashboardData(capabilities);
-        } else {
-          setIsAdmin(false);
-          setLoading(false);
-        }
+        const capabilities = await loadRedAlertCapabilities();
+        await loadDashboardData(capabilities);
       } catch (error) {
-        console.error('Failed to check admin access:', error);
+        console.error('Failed to initialize Red Alert dashboard:', error);
         setLoading(false);
       }
     };
 
-    checkAdminAccess();
+    initializeDashboard();
   }, []);
 
   const loadRedAlertCapabilities = async () => {
@@ -655,10 +646,10 @@ export default function RedAlertPage() {
 
   // Reload data when filters change
   useEffect(() => {
-    if (isAdmin && opsCapabilities.loaded) {
+    if (opsCapabilities.loaded) {
       loadDashboardData();
     }
-  }, [filters.hours, filters.severity, filters.type, isAdmin, opsCapabilities.loaded]);
+  }, [filters.hours, filters.severity, filters.type, opsCapabilities.loaded]);
 
   useEffect(() => {
     if (['timeline', 'threats'].includes(activePanel)) {
@@ -673,47 +664,27 @@ export default function RedAlertPage() {
 
   // Reload events when pagination changes
   useEffect(() => {
-    if (isAdmin && pagination.page > 1) {
+    if (pagination.page > 1) {
       loadEvents();
     }
   }, [pagination.page]);
 
   // Reload error logs when error filters or pagination change
   useEffect(() => {
-    if (isAdmin) {
-      loadErrorLogs();
-    }
+    loadErrorLogs();
   }, [errorFilters.category, errorFilters.severity, errorFilters.resolved, errorPagination.page]);
 
   useEffect(() => {
-    if (isAdmin && opsPanelEnabled) {
+    if (opsPanelEnabled) {
       loadOpsEvents();
     }
-  }, [opsFilters.category, opsFilters.severity, opsPagination.page, isAdmin, opsPanelEnabled]);
+  }, [opsFilters.category, opsFilters.severity, opsPagination.page, opsPanelEnabled]);
 
   useEffect(() => {
-    if (isAdmin && opsPanelEnabled) {
+    if (opsPanelEnabled) {
       loadAssistantEvents();
     }
-  }, [assistantFilters.category, assistantFilters.severity, assistantFilters.resolved, assistantPagination.page, isAdmin, opsPanelEnabled]);
-
-  if (!isAdmin && !loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Card className="w-96">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5" />
-              {copy.common.accessDenied}
-            </CardTitle>
-            <CardDescription>
-              {copy.common.accessDeniedDesc}
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-    );
-  }
+  }, [assistantFilters.category, assistantFilters.severity, assistantFilters.resolved, assistantPagination.page, opsPanelEnabled]);
 
   if (loading) {
     return (

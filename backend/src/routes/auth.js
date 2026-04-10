@@ -10,7 +10,7 @@ import { safeRedirect } from '../middleware/redirectWhitelist.js';
 import { isPhoneInboundEnabledForBusinessRecord } from '../services/phoneInboundGate.js';
 import { validatePasswordPolicy, passwordPolicyMessage } from '../security/passwordPolicy.js';
 import { clearSessionCookie, issueSession } from '../security/sessionToken.js';
-import { isAdmin } from '../middleware/adminAuth.js';
+import { isAdmin, requireAdminMfa } from '../middleware/adminAuth.js';
 import { safeCompareStrings } from '../security/constantTime.js';
 import { authRateLimiter, apiRateLimiter } from '../middleware/rateLimiter.js';
 
@@ -433,17 +433,10 @@ router.get('/me', authenticateToken, async (req, res) => {
       user.business.phoneInboundEnabled = isPhoneInboundEnabledForBusinessRecord(user.business);
     }
 
-    const adminProfile = await prisma.adminUser.findUnique({
-      where: { email: user.email.toLowerCase() },
-      select: { id: true, role: true, isActive: true },
-    });
-
     res.json({
       ...user,
       subscription: user.business?.subscription || null,
       plan: user.business?.subscription?.plan || null,
-      isAdmin: Boolean(adminProfile?.isActive),
-      adminRole: adminProfile?.isActive ? adminProfile.role : null,
     });
   } catch (error) {
     console.error('Get user error:', error);
@@ -643,6 +636,10 @@ router.post('/admin-mfa/verify', authenticateToken, isAdmin, async (req, res) =>
     console.error('Admin MFA verify error:', error);
     return res.status(500).json({ error: 'Failed to verify MFA code' });
   }
+});
+
+router.get('/admin-route-state', authenticateToken, isAdmin, requireAdminMfa, (_req, res) => {
+  return res.status(204).end();
 });
 
 // Admin MFA status

@@ -4,8 +4,8 @@ import axios from 'axios';
 
 const CONFIG = {
   apiUrl: process.env.API_URL || 'https://api.telyx.ai',
-  email: process.env.TEST_ACCOUNT_A_EMAIL,
-  password: process.env.TEST_ACCOUNT_A_PASSWORD,
+  email: process.env.TEST_ADMIN_EMAIL || process.env.TEST_ACCOUNT_A_EMAIL,
+  password: process.env.TEST_ADMIN_PASSWORD || process.env.TEST_ACCOUNT_A_PASSWORD,
 };
 
 const ENDPOINTS = [
@@ -17,8 +17,8 @@ const ENDPOINTS = [
 
 function assertConfig() {
   const missing = [];
-  if (!CONFIG.email) missing.push('TEST_ACCOUNT_A_EMAIL');
-  if (!CONFIG.password) missing.push('TEST_ACCOUNT_A_PASSWORD');
+  if (!CONFIG.email) missing.push('TEST_ADMIN_EMAIL');
+  if (!CONFIG.password) missing.push('TEST_ADMIN_PASSWORD');
 
   if (missing.length > 0) {
     throw new Error(`Missing required env vars: ${missing.join(', ')}`);

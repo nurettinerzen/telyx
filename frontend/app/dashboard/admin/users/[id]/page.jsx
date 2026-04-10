@@ -61,7 +61,6 @@ export default function AdminUserDetailPage() {
   const adminPageHelp = getPageHelp('adminUserDetail', 'tr');
 
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [user, setUser] = useState(null);
 
   // Modals
@@ -83,29 +82,10 @@ export default function AdminUserDetailPage() {
   const [suspendReason, setSuspendReason] = useState('');
 
   useEffect(() => {
-    checkAdminAccess();
-  }, []);
-
-  useEffect(() => {
-    if (isAdmin && userId) {
+    if (userId) {
       loadUser();
     }
-  }, [isAdmin, userId]);
-
-  const checkAdminAccess = async () => {
-    try {
-      const response = await apiClient.get('/api/auth/me');
-      if (response.data?.isAdmin === true) {
-        setIsAdmin(true);
-      } else {
-        setIsAdmin(false);
-        setLoading(false);
-      }
-    } catch (error) {
-      setIsAdmin(false);
-      setLoading(false);
-    }
-  };
+  }, [userId]);
 
   const loadUser = async () => {
     setLoading(true);
@@ -199,15 +179,6 @@ export default function AdminUserDetailPage() {
     return (
       <div className="flex items-center justify-center h-96">
         <Loader2 className="w-8 h-8 animate-spin text-primary-500" />
-      </div>
-    );
-  }
-
-  if (!isAdmin) {
-    return (
-      <div className="flex flex-col items-center justify-center h-96">
-        <Shield className="w-16 h-16 text-gray-400 mb-4" />
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Erişim Engellendi</h2>
       </div>
     );
   }

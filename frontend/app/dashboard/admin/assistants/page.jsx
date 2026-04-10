@@ -51,7 +51,6 @@ import { toast } from 'sonner';
 
 export default function AdminAssistantsPage() {
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [assistants, setAssistants] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, pages: 0 });
 
@@ -64,29 +63,8 @@ export default function AdminAssistantsPage() {
   const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
-    checkAdminAccess();
-  }, []);
-
-  useEffect(() => {
-    if (isAdmin) {
-      loadAssistants();
-    }
-  }, [isAdmin, pagination.page, languageFilter]);
-
-  const checkAdminAccess = async () => {
-    try {
-      const response = await apiClient.get('/api/auth/me');
-      if (response.data?.isAdmin === true) {
-        setIsAdmin(true);
-      } else {
-        setIsAdmin(false);
-        setLoading(false);
-      }
-    } catch (error) {
-      setIsAdmin(false);
-      setLoading(false);
-    }
-  };
+    loadAssistants();
+  }, [pagination.page, languageFilter]);
 
   const loadAssistants = async () => {
     setLoading(true);
@@ -134,15 +112,6 @@ export default function AdminAssistantsPage() {
       setActionLoading(false);
     }
   };
-
-  if (!isAdmin && !loading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-96">
-        <Shield className="w-16 h-16 text-gray-400 mb-4" />
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Erişim Engellendi</h2>
-      </div>
-    );
-  }
 
   return (
     <div className="p-6 max-w-7xl mx-auto">

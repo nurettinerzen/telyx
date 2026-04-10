@@ -37,7 +37,7 @@ import {
   History,
   AlertTriangle,
   BookMarked,
-  Package,
+  Package
 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
@@ -198,24 +198,6 @@ export default function Sidebar({ user, credits, business, whatsappPendingCount 
     },
   ];
 
-  // Admin-only navigation
-  const isUserAdmin = user?.isAdmin === true;
-  const ADMIN_NAVIGATION = isUserAdmin ? [
-    {
-      label: t('dashboard.sidebar.adminSection'),
-      items: [
-        { icon: Shield, label: t('dashboard.sidebar.adminPanel'), href: '/dashboard/admin' },
-        { icon: AlertTriangle, label: t('dashboard.sidebar.redAlert'), href: '/dashboard/admin/red-alert' },
-        { icon: Users, label: t('dashboard.sidebar.adminUsers'), href: '/dashboard/admin/users' },
-        { icon: Bot, label: t('dashboard.sidebar.adminAssistants'), href: '/dashboard/admin/assistants' },
-        { icon: Phone, label: t('dashboard.sidebar.adminCalls'), href: '/dashboard/admin/calls' },
-        { icon: CreditCard, label: t('dashboard.sidebar.adminSubscriptions'), href: '/dashboard/admin/subscriptions' },
-        { icon: Database, label: t('dashboard.sidebar.adminEnterprise'), href: '/dashboard/admin/enterprise' },
-        { icon: BarChart3, label: t('dashboard.sidebar.adminAuditLog'), href: '/dashboard/admin/audit-log' },
-      ],
-    },
-  ] : [];
-
   const handleLockedFeatureClick = (featureId) => {
     setSelectedFeatureId(featureId);
     setUpgradeModalOpen(true);
@@ -266,7 +248,7 @@ export default function Sidebar({ user, credits, business, whatsappPendingCount 
         }}
         className="flex-1 min-h-0 overflow-y-auto py-2 px-3"
       >
-        {[...NAVIGATION, ...ADMIN_NAVIGATION].map((section) => {
+        {NAVIGATION.map((section) => {
           const sectionLabel = section.label;
           const isCollapsed = collapsedSections.includes(sectionLabel);
 

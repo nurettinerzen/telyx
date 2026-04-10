@@ -59,7 +59,8 @@ jest.unstable_mockModule('../../src/security/sessionToken.js', () => ({
 }));
 
 jest.unstable_mockModule('../../src/middleware/adminAuth.js', () => ({
-  isAdmin: (req, res, next) => next()
+  isAdmin: (req, res, next) => next(),
+  requireAdminMfa: (req, res, next) => next()
 }));
 
 jest.unstable_mockModule('../../src/security/constantTime.js', () => ({
@@ -116,11 +117,13 @@ describe('Auth me subscription shape', () => {
     prismaMock.adminUser.findUnique.mockResolvedValue(null);
   });
 
-  it('returns subscription and plan in a backward-compatible auth/me payload', async () => {
+  it('returns subscription and plan in a backward-compatible auth/me payload without admin flags', async () => {
     const response = await request(app).get('/api/auth/me');
 
     expect(response.status).toBe(200);
     expect(response.body.plan).toBe('ENTERPRISE');
+    expect(response.body.isAdmin).toBeUndefined();
+    expect(response.body.adminRole).toBeUndefined();
     expect(response.body.subscription).toEqual(
       expect.objectContaining({
         plan: 'ENTERPRISE',
@@ -132,5 +135,12 @@ describe('Auth me subscription shape', () => {
     expect(select.business.select.subscription.select.plan).toBe(true);
     expect(select.business.select.subscription.select.voiceAddOnMinutesBalance).toBeUndefined();
     expect(select.business.select.subscription.select.writtenInteractionAddOnBalance).toBeUndefined();
+  });
+
+  it('returns 204 for the admin route state endpoint when auth, admin, and MFA checks pass', async () => {
+    const response = await request(app).get('/api/auth/admin-route-state');
+
+    expect(response.status).toBe(204);
+    expect(response.text).toBe('');
   });
 });

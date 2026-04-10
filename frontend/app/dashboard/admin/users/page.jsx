@@ -5,7 +5,6 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   Users,
@@ -18,7 +17,6 @@ import {
   Ban,
   CheckCircle,
   Trash2,
-  Shield,
   Loader2,
   Building2,
 } from 'lucide-react';
@@ -52,9 +50,7 @@ import { PLAN_COLORS } from '@/lib/planConfig';
 
 
 export default function AdminUsersPage() {
-  const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [users, setUsers] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, pages: 0 });
 
@@ -69,29 +65,8 @@ export default function AdminUsersPage() {
   const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
-    checkAdminAccess();
-  }, []);
-
-  useEffect(() => {
-    if (isAdmin) {
-      loadUsers();
-    }
-  }, [isAdmin, pagination.page, planFilter, suspendedFilter]);
-
-  const checkAdminAccess = async () => {
-    try {
-      const response = await apiClient.get('/api/auth/me');
-      if (response.data?.isAdmin === true) {
-        setIsAdmin(true);
-      } else {
-        setIsAdmin(false);
-        setLoading(false);
-      }
-    } catch (error) {
-      setIsAdmin(false);
-      setLoading(false);
-    }
-  };
+    loadUsers();
+  }, [pagination.page, planFilter, suspendedFilter]);
 
   const loadUsers = async () => {
     setLoading(true);
@@ -158,15 +133,6 @@ export default function AdminUsersPage() {
       toast.error('Kullanıcı silinemedi');
     }
   };
-
-  if (!isAdmin && !loading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-96">
-        <Shield className="w-16 h-16 text-gray-400 mb-4" />
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Erişim Engellendi</h2>
-      </div>
-    );
-  }
 
   return (
     <div className="p-6 max-w-7xl mx-auto">

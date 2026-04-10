@@ -88,6 +88,7 @@ export const apiClient = {
     googleCodeAuth: (code) => api.post('/api/auth/google/code', { code }),
     adminMfaChallenge: () => api.post('/api/auth/admin-mfa/challenge'),
     adminMfaVerify: (challengeId, code) => api.post('/api/auth/admin-mfa/verify', { challengeId, code }),
+    adminRouteState: (config) => api.get('/api/auth/admin-route-state', config),
     adminMfaStatus: () => api.get('/api/auth/admin-mfa/status'),
   },
 

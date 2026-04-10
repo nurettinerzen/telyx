@@ -5,7 +5,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   Users,
@@ -18,7 +17,6 @@ import {
   AlertCircle,
   ArrowRight,
   BarChart3,
-  Shield,
   Loader2,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api';
@@ -27,31 +25,12 @@ import { toast } from 'sonner';
 // Admin email whitelist - should match backend
 
 export default function AdminDashboardPage() {
-  const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [stats, setStats] = useState(null);
 
   useEffect(() => {
-    checkAdminAccess();
+    loadStats();
   }, []);
-
-  const checkAdminAccess = async () => {
-    try {
-      const response = await apiClient.get('/api/auth/me');
-      if (response.data?.isAdmin === true) {
-        setIsAdmin(true);
-        loadStats();
-      } else {
-        setIsAdmin(false);
-        setLoading(false);
-      }
-    } catch (error) {
-      console.error('Failed to check admin access:', error);
-      setIsAdmin(false);
-      setLoading(false);
-    }
-  };
 
   const loadStats = async () => {
     try {
@@ -69,16 +48,6 @@ export default function AdminDashboardPage() {
     return (
       <div className="flex items-center justify-center h-96">
         <Loader2 className="w-8 h-8 animate-spin text-primary-500" />
-      </div>
-    );
-  }
-
-  if (!isAdmin) {
-    return (
-      <div className="flex flex-col items-center justify-center h-96">
-        <Shield className="w-16 h-16 text-gray-400 mb-4" />
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Erişim Engellendi</h2>
-        <p className="text-gray-500 dark:text-gray-400 mt-2">Bu sayfa sadece adminler için erişilebilir.</p>
       </div>
     );
   }

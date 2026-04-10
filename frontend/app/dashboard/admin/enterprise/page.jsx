@@ -52,7 +52,6 @@ export default function EnterpriseAdminPage() {
   const [customers, setCustomers] = useState([]);
   const [users, setUsers] = useState([]);
   const [stats, setStats] = useState(null);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [filter, setFilter] = useState('all'); // all, active, pending
 
   // Modal states
@@ -76,25 +75,8 @@ export default function EnterpriseAdminPage() {
   });
 
   useEffect(() => {
-    checkAdminAccess();
+    loadData();
   }, []);
-
-  const checkAdminAccess = async () => {
-    try {
-      const response = await apiClient.get('/api/auth/me');
-      if (response.data?.isAdmin === true) {
-        setIsAdmin(true);
-        loadData();
-      } else {
-        setIsAdmin(false);
-        setLoading(false);
-      }
-    } catch (error) {
-      console.error('Failed to check admin access:', error);
-      setIsAdmin(false);
-      setLoading(false);
-    }
-  };
 
   const loadData = async () => {
     try {
@@ -282,20 +264,6 @@ export default function EnterpriseAdminPage() {
     return (
       <div className="flex items-center justify-center h-96">
         <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
-      </div>
-    );
-  }
-
-  if (!isAdmin) {
-    return (
-      <div className="flex flex-col items-center justify-center h-96">
-        <AlertCircle className="w-16 h-16 text-red-500 mb-4" />
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-          Erisim Engellendi
-        </h2>
-        <p className="text-gray-500 dark:text-gray-400">
-          Bu sayfaya erisim yetkiniz yok.
-        </p>
       </div>
     );
   }
