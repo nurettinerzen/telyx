@@ -30,10 +30,11 @@ jobs:
       - name: Fetch source branch
         run: |
           git fetch --no-tags origin "${{ github.event.inputs.source_ref }}"
+          echo "SOURCE_SHA=$(git rev-parse FETCH_HEAD)" >> "$GITHUB_ENV"
 
       - name: Fast-forward production branch
         run: |
-          SOURCE_REF="FETCH_HEAD"
+          SOURCE_REF="${SOURCE_SHA}"
 
           if git ls-remote --exit-code --heads origin production; then
             git fetch origin production
