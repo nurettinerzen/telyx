@@ -32,6 +32,8 @@ jobs:
           API_URL: ${{ inputs.api_url }}
           TEST_ADMIN_EMAIL: ${{ secrets.TEST_ADMIN_EMAIL }}
           TEST_ADMIN_PASSWORD: ${{ secrets.TEST_ADMIN_PASSWORD }}
+          TEST_ACCOUNT_C_EMAIL: ${{ secrets.TEST_ACCOUNT_C_EMAIL }}
+          TEST_ACCOUNT_C_PASSWORD: ${{ secrets.TEST_ACCOUNT_C_PASSWORD }}
           TEST_ACCOUNT_A_EMAIL: ${{ secrets.TEST_ACCOUNT_A_EMAIL }}
           TEST_ACCOUNT_A_PASSWORD: ${{ secrets.TEST_ACCOUNT_A_PASSWORD }}
         run: |

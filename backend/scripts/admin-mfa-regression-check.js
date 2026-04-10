@@ -4,8 +4,8 @@ import axios from 'axios';
 
 const CONFIG = {
   apiUrl: process.env.API_URL || 'https://api.telyx.ai',
-  email: process.env.TEST_ADMIN_EMAIL || process.env.TEST_ACCOUNT_A_EMAIL,
-  password: process.env.TEST_ADMIN_PASSWORD || process.env.TEST_ACCOUNT_A_PASSWORD,
+  email: process.env.TEST_ADMIN_EMAIL || process.env.TEST_ACCOUNT_C_EMAIL || process.env.TEST_ACCOUNT_A_EMAIL,
+  password: process.env.TEST_ADMIN_PASSWORD || process.env.TEST_ACCOUNT_C_PASSWORD || process.env.TEST_ACCOUNT_A_PASSWORD,
 };
 
 const ENDPOINTS = [
@@ -32,14 +32,6 @@ async function loginUser() {
   });
 
   return response.data?.token;
-}
-
-async function getCurrentUser(token) {
-  const response = await axios.get(`${CONFIG.apiUrl}/api/auth/me`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-
-  return response.data;
 }
 
 async function getAdminMfaStatus(token) {
@@ -81,15 +73,12 @@ async function main() {
   assert(token, 'Login succeeded but no token was returned');
   console.log('Login successful');
 
-  const me = await getCurrentUser(token);
-  assert(me?.isAdmin === true, `TEST_ACCOUNT_A is not an admin on ${CONFIG.apiUrl}`);
-  console.log(`Admin account verified (${me.email}, role=${me.adminRole || 'unknown'})`);
-
   const statusResponse = await getAdminMfaStatus(token);
+  assert(statusResponse.status !== 403, `Configured test account is not an admin on ${CONFIG.apiUrl}`);
   assert(statusResponse.status === 200, `Unexpected /api/auth/admin-mfa/status status: ${statusResponse.status}`);
   assert(statusResponse.data?.mfaVerified === false, 'Expected fresh login to have mfaVerified=false');
   assert(Number(statusResponse.data?.maxAgeMinutes) === 15, `Expected maxAgeMinutes=15, got ${statusResponse.data?.maxAgeMinutes}`);
-  console.log('Admin MFA status verified (mfaVerified=false, maxAgeMinutes=15)');
+  console.log(`Admin MFA status verified (mfaVerified=false, maxAgeMinutes=${statusResponse.data?.maxAgeMinutes})`);
 
   for (const endpoint of ENDPOINTS) {
     const response = await callProtectedEndpoint(token, endpoint);
