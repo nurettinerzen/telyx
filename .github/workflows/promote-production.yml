@@ -46,6 +46,19 @@ jobs:
 
           git push origin production
 
+      - name: Trigger Render production deploy
+        env:
+          RENDER_PRODUCTION_DEPLOY_HOOK_URL: ${{ secrets.RENDER_PRODUCTION_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$RENDER_PRODUCTION_DEPLOY_HOOK_URL" ]; then
+            echo "RENDER_PRODUCTION_DEPLOY_HOOK_URL secret is not set."
+            exit 1
+          fi
+
+          curl --fail --show-error --silent \
+            --request POST \
+            "$RENDER_PRODUCTION_DEPLOY_HOOK_URL"
+
       - name: Promotion summary
         run: |
           echo "Promoted ${{ github.event.inputs.source_ref }} to production branch."
