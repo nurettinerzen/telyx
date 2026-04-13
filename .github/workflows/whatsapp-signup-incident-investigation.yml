@@ -1,0 +1,55 @@
+name: WhatsApp Signup Incident Investigation
+
+on:
+  workflow_dispatch:
+    inputs:
+      start_at:
+        description: Investigation window start (UTC ISO8601)
+        required: true
+        default: '2026-04-12T06:00:00Z'
+      end_at:
+        description: Investigation window end (UTC ISO8601)
+        required: true
+        default: '2026-04-12T06:50:00Z'
+      target_query:
+        description: User name/email search text
+        required: true
+        default: 'mirac ozturk'
+      expand_minutes:
+        description: Extra minutes to search before/after the window for matched users
+        required: true
+        default: '60'
+
+permissions:
+  contents: read
+
+jobs:
+  investigate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          npm install --production
+
+      - name: Inspect WhatsApp signup incident
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          START_AT: ${{ inputs.start_at }}
+          END_AT: ${{ inputs.end_at }}
+          TARGET_QUERY: ${{ inputs.target_query }}
+          EXPAND_MINUTES: ${{ inputs.expand_minutes }}
+        run: |
+          cd backend
+          node scripts/inspect-whatsapp-signup-incident.js
