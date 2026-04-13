@@ -37,7 +37,8 @@ import {
   History,
   AlertTriangle,
   BookMarked,
-  Package
+  Package,
+  Building2
 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
@@ -74,6 +75,7 @@ export default function Sidebar({ user, credits, business, whatsappPendingCount 
   const [mounted, setMounted] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState([]);
+  const [adminAccess, setAdminAccess] = useState({ enabled: false, mfaVerified: false });
   const navRef = useRef(null);
   const sidebarScrollRef = useRef(0);
 
@@ -110,6 +112,46 @@ export default function Sidebar({ user, credits, business, whatsappPendingCount 
 
     return () => cancelAnimationFrame(frame);
   }, [pathname]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadAdminAccess = async () => {
+      if (!user?.email) {
+        setAdminAccess({ enabled: false, mfaVerified: false });
+        return;
+      }
+
+      try {
+        const response = await apiClient.auth.adminMfaStatus({
+          validateStatus: () => true,
+          suppressExpected403: true,
+        });
+
+        if (cancelled) return;
+
+        if (response.status === 200) {
+          setAdminAccess({
+            enabled: true,
+            mfaVerified: response.data?.mfaVerified === true,
+          });
+          return;
+        }
+      } catch (error) {
+        console.warn('Failed to determine admin sidebar access:', error);
+      }
+
+      if (!cancelled) {
+        setAdminAccess({ enabled: false, mfaVerified: false });
+      }
+    };
+
+    loadAdminAccess();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.email]);
 
   // Upgrade modal state
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
@@ -196,6 +238,17 @@ export default function Sidebar({ user, credits, business, whatsappPendingCount 
         { icon: Settings, label: t('dashboard.sidebar.account'), href: NAVIGATION_ITEMS.account.href, permission: 'settings:view' },
       ],
     },
+    ...(adminAccess.enabled ? [{
+      label: t('dashboard.sidebar.adminSection'),
+      items: [
+        { icon: Shield, label: t('dashboard.sidebar.adminPanel'), href: buildAdminHref() },
+        { icon: AlertTriangle, label: t('dashboard.sidebar.redAlert'), href: buildAdminHref('/red-alert') },
+        { icon: Users, label: t('dashboard.sidebar.adminUsers'), href: buildAdminHref('/users') },
+        { icon: Building2, label: t('dashboard.sidebar.adminEnterprise'), href: buildAdminHref('/enterprise') },
+        { icon: CreditCard, label: t('dashboard.sidebar.adminSubscriptions'), href: buildAdminHref('/subscriptions') },
+        { icon: History, label: t('dashboard.sidebar.adminAuditLog'), href: buildAdminHref('/audit-log') },
+      ],
+    }] : []),
   ];
 
   const handleLockedFeatureClick = (featureId) => {
@@ -228,6 +281,15 @@ export default function Sidebar({ user, credits, business, whatsappPendingCount 
 
   // Get plan display name from centralized config
   const getPlanDisplay = () => getPlanDisplayName(userPlan, locale);
+
+  function buildAdminHref(path = '') {
+    const target = `/dashboard/admin${path}`;
+    if (adminAccess.mfaVerified) {
+      return target;
+    }
+
+    return `/dashboard/admin-auth?returnTo=${encodeURIComponent(target)}`;
+  }
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">

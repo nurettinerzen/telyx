@@ -89,7 +89,7 @@ export const apiClient = {
     adminMfaChallenge: () => api.post('/api/auth/admin-mfa/challenge'),
     adminMfaVerify: (challengeId, code) => api.post('/api/auth/admin-mfa/verify', { challengeId, code }),
     adminRouteState: (config) => api.get('/api/auth/admin-route-state', config),
-    adminMfaStatus: () => api.get('/api/auth/admin-mfa/status'),
+    adminMfaStatus: (config) => api.get('/api/auth/admin-mfa/status', config),
   },
 
   // Dashboard stats
