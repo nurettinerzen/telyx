@@ -1,0 +1,46 @@
+name: Inspect Admin Access
+
+on:
+  push:
+    branches:
+      - codex/investigate-info-admin
+    paths:
+      - .github/workflows/inspect-admin-access.yml
+      - backend/scripts/inspect-admin-access.js
+  workflow_dispatch:
+    inputs:
+      target_email:
+        description: Email address to inspect
+        required: true
+        default: info@telyx.ai
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          npm install --production
+
+      - name: Inspect admin access
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          TARGET_EMAIL: ${{ inputs.target_email || 'info@telyx.ai' }}
+        run: |
+          cd backend
+          node scripts/inspect-admin-access.js
