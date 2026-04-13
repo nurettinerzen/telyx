@@ -213,6 +213,7 @@ async function main() {
       id: true,
       name: true,
       email: true,
+      role: true,
       businessId: true,
       business: {
         select: {
@@ -234,6 +235,7 @@ async function main() {
         id: user.id,
         name: user.name,
         email: maskEmail(user.email),
+        role: user.role,
         businessId: user.businessId,
         businessName: user.business?.name || null,
         businessTimezone: user.business?.timezone || null,
@@ -326,6 +328,54 @@ async function main() {
     ? matchedWindowSessions
     : expandedUserSessions;
 
+  const candidateBusinessIds = Array.from(new Set(candidateUsers.map((user) => user.businessId)));
+  const candidateUserIdsArray = candidateUsers.map((user) => user.id);
+  const recentWindowStart = new Date(startAt.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  const businessIntegrations = candidateBusinessIds.length === 0
+    ? []
+    : await prisma.integration.findMany({
+      where: {
+        businessId: { in: candidateBusinessIds },
+        type: 'WHATSAPP',
+      },
+      select: {
+        businessId: true,
+        connected: true,
+        isActive: true,
+        updatedAt: true,
+        credentials: true,
+      },
+      orderBy: { businessId: 'asc' },
+    });
+
+  const recentBusinessSessions = candidateBusinessIds.length === 0
+    ? []
+    : await prisma.whatsappEmbeddedSignupSession.findMany({
+      where: {
+        businessId: { in: candidateBusinessIds },
+        createdAt: { gte: recentWindowStart, lte: expandedEndAt },
+      },
+      select: {
+        id: true,
+        businessId: true,
+        userId: true,
+        status: true,
+        errorCode: true,
+        errorMessage: true,
+        createdAt: true,
+        updatedAt: true,
+        user: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+
   printSection('Sessions in target window');
   printJson(
     'sessions',
@@ -388,16 +438,67 @@ async function main() {
     }
   }
 
-  const focusBusinessIds = Array.from(new Set(focusSessions.map((session) => session.businessId)));
-  const focusUserIds = Array.from(new Set(focusSessions.map((session) => session.userId)));
+  printSection('Current WhatsApp integration state');
+  if (businessIntegrations.length === 0) {
+    console.log('No WhatsApp integration row exists for the candidate business.');
+  } else {
+    printJson(
+      'integrations',
+      businessIntegrations.map((integration) => {
+        const credentials = integration.credentials && typeof integration.credentials === 'object'
+          ? integration.credentials
+          : {};
 
-  if (focusBusinessIds.length > 0 || focusUserIds.length > 0) {
+        return {
+          businessId: integration.businessId,
+          connected: Boolean(integration.connected),
+          isActive: Boolean(integration.isActive),
+          updatedAtUtc: toUtcIso(integration.updatedAt),
+          updatedAtTurkey: formatInTimeZone(integration.updatedAt, 'Europe/Istanbul'),
+          connectionStatus: credentials.connectionStatus || null,
+          phoneNumberId: credentials.phoneNumberId || null,
+          wabaId: credentials.wabaId || null,
+          tokenSource: credentials.tokenSource || null,
+          lastError: summarizeJson(credentials.lastError || null),
+        };
+      })
+    );
+  }
+
+  printSection('Recent business signup sessions (7 days)');
+  if (recentBusinessSessions.length === 0) {
+    console.log('No WhatsApp Embedded Signup sessions were found for the candidate business in the last 7 days.');
+  } else {
+    printJson(
+      'recentSessions',
+      recentBusinessSessions.map((session) => ({
+        id: session.id,
+        businessId: session.businessId,
+        userId: session.userId,
+        userName: session.user?.name || null,
+        userEmail: maskEmail(session.user?.email),
+        status: session.status,
+        errorCode: session.errorCode,
+        errorMessage: clip(session.errorMessage, 220),
+        createdAtUtc: toUtcIso(session.createdAt),
+        createdAtTurkey: formatInTimeZone(session.createdAt, 'Europe/Istanbul'),
+        updatedAtUtc: toUtcIso(session.updatedAt),
+      }))
+    );
+  }
+
+  const focusBusinessIds = Array.from(new Set((focusSessions.length > 0 ? focusSessions : recentBusinessSessions).map((session) => session.businessId)));
+  const focusUserIds = Array.from(new Set((focusSessions.length > 0 ? focusSessions : recentBusinessSessions).map((session) => session.userId)));
+  const errorLogBusinessIds = focusBusinessIds.length > 0 ? focusBusinessIds : candidateBusinessIds;
+  const errorLogUserIds = focusUserIds.length > 0 ? focusUserIds : candidateUserIdsArray;
+
+  if (errorLogBusinessIds.length > 0 || errorLogUserIds.length > 0) {
     const relatedErrorLogs = await prisma.errorLog.findMany({
       where: {
         createdAt: { gte: expandedStartAt, lte: expandedEndAt },
         OR: [
-          focusBusinessIds.length > 0 ? { businessId: { in: focusBusinessIds } } : undefined,
-          focusUserIds.length > 0 ? { userId: { in: focusUserIds } } : undefined,
+          errorLogBusinessIds.length > 0 ? { businessId: { in: errorLogBusinessIds } } : undefined,
+          errorLogUserIds.length > 0 ? { userId: { in: errorLogUserIds } } : undefined,
           { endpoint: { contains: '/api/integrations/whatsapp', mode: 'insensitive' } },
           { source: { contains: 'whatsapp', mode: 'insensitive' } },
           { message: { contains: 'whatsapp', mode: 'insensitive' } },
