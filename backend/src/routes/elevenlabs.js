@@ -1686,7 +1686,7 @@ router.post('/sync-conversations', authenticateToken, async (req, res) => {
     });
 
     if (businessAssistants.length === 0) {
-      return res.json({ synced: 0, message: 'No assistants with 11Labs configured' });
+      return res.json({ synced: 0, message: 'No configured assistants found' });
     }
 
     const agentIds = businessAssistants.map(a => a.elevenLabsAgentId);

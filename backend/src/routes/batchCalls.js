@@ -871,8 +871,8 @@ router.post('/', upload.single('file'), checkPermission('campaigns:view'), async
 
     if (!assistant.elevenLabsAgentId) {
       return res.status(400).json({
-        error: 'Assistant is not configured with 11Labs',
-        errorTR: 'Asistan 11Labs ile yapılandırılmamış'
+        error: 'Assistant is not ready for calls',
+        errorTR: 'Asistan aramalar için hazır değil'
       });
     }
 
@@ -894,8 +894,8 @@ router.post('/', upload.single('file'), checkPermission('campaigns:view'), async
 
     if (!phoneNumber.elevenLabsPhoneId) {
       return res.status(400).json({
-        error: 'Phone number is not configured with 11Labs',
-        errorTR: 'Telefon numarası 11Labs ile yapılandırılmamış'
+        error: 'Phone number is not ready for calls',
+        errorTR: 'Telefon numarası aramalar için hazır değil'
       });
     }
 
@@ -1197,7 +1197,7 @@ router.post('/', upload.single('file'), checkPermission('campaigns:view'), async
       });
 
       return res.status(500).json({
-        error: 'Failed to submit batch call to 11Labs',
+        error: 'Failed to start call campaign',
         details: elevenLabsError.response?.data || elevenLabsError.message
       });
     }
@@ -1658,7 +1658,7 @@ router.post('/:id/cancel', checkPermission('campaigns:view'), async (req, res) =
         ? 'Kampanya iptal edildi. Sıradaki aramalar yapılmayacak.'
         : 'Kampanya yerel olarak iptal edildi.',
       warning: elevenLabsError
-        ? `11Labs iptal hatası: ${elevenLabsError}. Devam eden aramalar tamamlanabilir.`
+        ? `Arama servisi iptal hatası: ${elevenLabsError}. Devam eden aramalar tamamlanabilir.`
         : (batchCall.status === 'IN_PROGRESS' ? 'Not: Şu anda devam eden arama varsa, o arama tamamlanana kadar sürecektir.' : null)
     });
 

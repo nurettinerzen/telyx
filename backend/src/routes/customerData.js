@@ -1517,7 +1517,7 @@ router.post('/sync-agents', async (req, res) => {
 
     res.json({
       success: true,
-      message: '11Labs agents synced successfully'
+      message: 'Assistants synced successfully'
     });
 
   } catch (error) {

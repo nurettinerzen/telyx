@@ -671,7 +671,7 @@ router.post('/', authenticateToken, checkPermission('assistants:create'), async 
         .catch(() => {});
 
       return res.status(500).json({
-        error: 'Failed to create 11Labs agent',
+        error: 'Failed to create assistant connection',
         details: elevenLabsError.response?.data || elevenLabsError.message
       });
     }
@@ -870,7 +870,7 @@ router.post('/test-call', async (req, res) => {
     }
 
     if (!assistant.elevenLabsAgentId) {
-      return res.status(400).json({ error: 'Assistant not configured with 11Labs' });
+      return res.status(400).json({ error: 'Assistant is not ready for calls' });
     }
 
     // Get phone number for outbound call
@@ -1265,9 +1265,9 @@ router.put('/:id', authenticateToken, checkPermission('assistants:edit'), async 
 
         // Don't fail the request, but warn in response
         return res.json({
-          message: 'Assistant updated in database but 11Labs sync failed',
+          message: 'Assistant updated in database but sync failed',
           assistant: updatedAssistant,
-          warning: '11Labs sync failed: ' + (updateError.response?.data?.detail || updateError.message)
+          warning: 'Sync failed: ' + (updateError.response?.data?.detail || updateError.message)
         });
       }
     } else if (!isTextAssistant) {
@@ -1356,7 +1356,7 @@ router.get('/:id/debug', authenticateToken, async (req, res) => {
     }
 
     if (!assistant.elevenLabsAgentId) {
-      return res.status(400).json({ error: 'No 11Labs agent ID' });
+      return res.status(400).json({ error: 'No connected assistant ID' });
     }
 
     // Get agent from 11Labs
@@ -1415,7 +1415,7 @@ router.post('/:id/sync', authenticateToken, checkPermission('assistants:edit'), 
     }
 
     if (assistant.assistantType === 'text') {
-      return res.status(400).json({ error: 'Text assistants do not support 11Labs sync' });
+      return res.status(400).json({ error: 'Text assistants do not support sync' });
     }
 
     // Get business with integrations
@@ -1664,15 +1664,12 @@ router.post('/:id/sync', authenticateToken, checkPermission('assistants:edit'), 
       assistant.elevenLabsAgentId = targetAgentId;
     }
 
-    const finalTools = buildAllToolsForAgent(targetAgentId);
-
     res.json({
       success: true,
       message: recreated
-        ? 'Assistant recreated and synced to 11Labs successfully'
-        : 'Assistant synced to 11Labs successfully',
-      recreated,
-      tools: finalTools.map(t => t.name)
+        ? 'Assistant reconnected and synced successfully'
+        : 'Assistant synced successfully',
+      recreated
     });
 
   } catch (error) {

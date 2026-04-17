@@ -363,7 +363,7 @@ router.get('/preview/:voiceId', async (req, res) => {
     }
 
     if (!ELEVENLABS_API_KEY) {
-      return res.status(500).json({ error: '11Labs API key not configured' });
+      return res.status(500).json({ error: 'Voice service is not configured' });
     }
 
     // Check cache first
@@ -455,7 +455,7 @@ router.get('/sample/:voiceId', async (req, res) => {
     }
 
     if (!ELEVENLABS_API_KEY) {
-      return res.status(500).json({ error: '11Labs API key not configured' });
+      return res.status(500).json({ error: 'Voice service is not configured' });
     }
 
     // Get voice info from 11Labs which includes preview URL
@@ -484,7 +484,7 @@ router.get('/sample/:voiceId', async (req, res) => {
 router.get('/elevenlabs/all', async (req, res) => {
   try {
     if (!ELEVENLABS_API_KEY) {
-      return res.status(500).json({ error: '11Labs API key not configured' });
+      return res.status(500).json({ error: 'Voice service is not configured' });
     }
 
     const response = await axios.get(`${ELEVENLABS_BASE_URL}/voices`, {
@@ -504,7 +504,7 @@ router.get('/elevenlabs/all', async (req, res) => {
     res.json({ voices, count: voices.length });
   } catch (error) {
     console.error('Failed to get 11Labs voices:', error.response?.data || error.message);
-    res.status(500).json({ error: 'Failed to get 11Labs voices' });
+    res.status(500).json({ error: 'Failed to load voices' });
   }
 });
 
