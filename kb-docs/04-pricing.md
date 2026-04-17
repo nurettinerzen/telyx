@@ -18,36 +18,41 @@
 - Tüm kanallar dahil
 
 ### Başlangıç (Starter) — 2.499₺/ay
-- 150 dakika dahil görüşme
-- Aşım: 23₺/dk (postpaid, ay sonu fatura)
-- 3 asistan
-- 1 eşzamanlı çağrı
-- Tüm kanallar dahil (telefon, WhatsApp, chat, e-posta)
+- 500 yazılı etkileşim
+- 5 asistan
+- Yazılı kanallar: WhatsApp, chat widget, e-posta
 - E-ticaret ve takvim entegrasyonu
 - Analitik
+- Telefon ve toplu arama dahil değildir
 
 ### Profesyonel (Pro) — 7.499₺/ay
+- 2000 yazılı etkileşim
 - 500 dakika dahil görüşme
 - Aşım: 23₺/dk
 - 10 asistan
-- 5 eşzamanlı çağrı
+- 2 eşzamanlı çağrı
 - Tüm Başlangıç özellikleri +
+- Telefon kanalı
 - Toplu arama (kampanyalar)
 - Öncelikli destek
 - API erişimi
 
 ### Kurumsal (Enterprise) — Özel Fiyat
+- Özel yazılı etkileşim limiti
 - Özel dakika paketi
-- 25+ asistan
+- Özel asistan limiti
 - 5+ eşzamanlı çağrı
 - Tüm Pro özellikleri +
 - SLA garantisi
 - Özel entegrasyonlar
-- Adanmış hesap yöneticisi
+- API erişimi
+- Adanmış kurulum ve destek
 
 ## Genel Kurallar
-- Tüm planlar aynı 4 kanalı destekler: Telefon, WhatsApp, Chat, E-posta
-- Aşım fiyatı tüm planlar için sabit: 23₺/dk
+- Trial, PAYG, Pro ve Enterprise planlarında telefon kanalı kullanılabilir
+- Starter planı yalnızca yazılı kanallar içindir
+- PAYG modelinde ses dakikaları bakiyeden düşer
+- Pro ve Enterprise planlarında telefon aşımı 23₺/dk olarak postpaid uygulanır
 - Kurumsal plan için iletişime geçin: info@telyx.ai
 
 ---
@@ -70,25 +75,28 @@
 - All channels included
 
 ### Starter — $55/month (US) | 2,499₺/month (TR)
-- 150 included minutes
-- Overage: $0.51/min | 23₺/min (postpaid)
-- 3 assistants, 1 concurrent call
-- All channels included
+- 500 written interactions
+- 5 assistants
+- Written channels only: WhatsApp, chat widget, email
 - E-commerce and calendar integration
 - Analytics
+- Phone and batch calls are not included
 
 ### Pro — $167/month (US) | 7,499₺/month (TR)
+- 2000 written interactions
 - 500 included minutes
 - Overage: $0.51/min | 23₺/min
-- 10 assistants, 5 concurrent calls
-- All Starter features plus batch calls, priority support, API access
+- 10 assistants, 2 concurrent calls
+- All Starter features plus phone, batch calls, priority support, API access
 
 ### Enterprise — Custom Pricing
-- Custom minute packages
-- 25+ assistants, 5+ concurrent calls
-- All Pro features plus SLA guarantee, custom integrations, dedicated account manager
+- Custom written interaction and minute packages
+- Custom assistant limit, 5+ concurrent calls
+- All Pro features plus SLA guarantee, custom integrations, and dedicated onboarding
 
 ## General Rules
-- All plans support the same 4 channels: Phone, WhatsApp, Chat, Email
-- Overage rate is fixed at 23₺/min (TR) | $0.51/min (US)
+- Trial, PAYG, Pro, and Enterprise include phone support
+- Starter is limited to written channels
+- PAYG voice usage is deducted from wallet balance
+- Pro and Enterprise voice overage is fixed at 23₺/min (TR) | $0.51/min (US)
 - Contact us for Enterprise: info@telyx.ai

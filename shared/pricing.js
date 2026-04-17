@@ -82,7 +82,7 @@ export const SHARED_PLAN_META = {
     nameTR: 'Profesyonel', nameEN: 'Pro',
     descTR: 'Yazılı kullanım havuzu ve ses dakikalarını birlikte sunar',
     descEN: 'Combines a written usage pool with included voice minutes',
-    features: ['writtenInteractions', 'minutes', 'concurrent', 'assistants', 'phone', 'whatsapp', 'chatWidget', 'email', 'ecommerce', 'calendar', 'analytics', 'batchCalls', 'customCrm', 'prioritySupport'],
+    features: ['writtenInteractions', 'minutes', 'concurrent', 'assistants', 'phone', 'whatsapp', 'chatWidget', 'email', 'ecommerce', 'calendar', 'analytics', 'batchCalls', 'customCrm', 'prioritySupport', 'apiAccess'],
   },
   ENTERPRISE: {
     id: 'ENTERPRISE',

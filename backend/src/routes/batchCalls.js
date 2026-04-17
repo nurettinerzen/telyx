@@ -173,7 +173,7 @@ const COMMON_MAPPING_FIELDS = ['phone', 'customer_name'];
 
 const PURPOSE_TEMPLATE_FIELDS = {
   collection: ['debt_amount', 'currency', 'due_date'],
-  sales: ['product_name', 'product_price', 'campaign_name'],
+  sales: ['product_name', 'product_price', 'campaign_name', 'customer_company', 'interest_area', 'previous_product', 'custom_notes'],
   general: ['info_type', 'custom_data']
 };
 
@@ -255,6 +255,47 @@ const COLUMN_ALIASES = {
     'campaign name',
     'kampanya adi',
     'kampanya adı'
+  ],
+  customer_company: [
+    'customer_company',
+    'customer company',
+    'company',
+    'company name',
+    'sirket',
+    'şirket',
+    'firma',
+    'firma adi',
+    'firma adı',
+    'sirket adi',
+    'şirket adı'
+  ],
+  interest_area: [
+    'interest_area',
+    'interest area',
+    'ilgi alani',
+    'ilgi alanı',
+    'odak alan',
+    'odak alanı',
+    'ilgili konu',
+    'oncelik',
+    'öncelik'
+  ],
+  previous_product: [
+    'previous_product',
+    'previous product',
+    'onceki urun',
+    'önceki ürün',
+    'onceki hizmet',
+    'önceki hizmet',
+    'mevcut urun',
+    'mevcut ürün',
+    'mevcut hizmet',
+    'mevcut altyapi',
+    'mevcut altyapı',
+    'kullandigi platform',
+    'kullandığı platform',
+    'altyapi',
+    'altyapı'
   ],
   info_type: [
     'info_type',
@@ -587,6 +628,10 @@ router.get('/template', async (req, res) => {
           {
             'Telefon': '+905321234567',
             'Müşteri Adı': 'Ahmet Yılmaz',
+            'Şirket': 'Kozvit',
+            'İlgi Alanı': 'WhatsApp ve e-posta müşteri desteği',
+            'Mevcut Altyapı': 'ikas',
+            'Notlar': 'Yüksek ürün çeşitliliği, kampanya dönemlerinde destek yükü artıyor',
             'Ürün/Hizmet Adı': 'Premium Paket',
             'Fiyat': '2500 TL',
             'Kampanya Adı': 'Yılsonu İndirimi'
@@ -594,6 +639,10 @@ router.get('/template', async (req, res) => {
           {
             'Telefon': '+905331234568',
             'Müşteri Adı': 'Ayşe Demir',
+            'Şirket': 'Online Çiftçi',
+            'İlgi Alanı': 'Sipariş durumu ve telefon destek otomasyonu',
+            'Mevcut Altyapı': 'ikas',
+            'Notlar': 'Sepet terk etme ve sipariş sonrası destek akışları öncelikli',
             'Ürün/Hizmet Adı': 'Standart Paket',
             'Fiyat': '1500 TL',
             'Kampanya Adı': 'Yılsonu İndirimi'
@@ -601,6 +650,10 @@ router.get('/template', async (req, res) => {
           {
             'Telefon': '+905341234569',
             'Müşteri Adı': 'Mehmet Kaya',
+            'Şirket': 'Kozabiat',
+            'İlgi Alanı': 'Chat ve çağrı merkezi ön eleme',
+            'Mevcut Altyapı': 'Özel e-ticaret sitesi',
+            'Notlar': 'Çok kanallı destek ve iade sorularında yoğunluk var',
             'Ürün/Hizmet Adı': 'Enterprise Paket',
             'Fiyat': '5000 TL',
             'Kampanya Adı': 'Kurumsal Fırsat'
@@ -610,6 +663,10 @@ router.get('/template', async (req, res) => {
         columnWidths = [
           { wch: 15 }, // Telefon
           { wch: 18 }, // Müşteri Adı
+          { wch: 18 }, // Şirket
+          { wch: 28 }, // İlgi Alanı
+          { wch: 18 }, // Mevcut Altyapı
+          { wch: 36 }, // Notlar
           { wch: 20 }, // Ürün/Hizmet Adı
           { wch: 12 }, // Fiyat
           { wch: 18 }, // Kampanya Adı
@@ -920,6 +977,18 @@ router.post('/', upload.single('file'), checkPermission('campaigns:view'), async
       if (campaignName !== null) {
         recipient.campaign_name = campaignName;
       }
+      const customerCompany = readMappedValue(row, mapping, 'customer_company');
+      if (customerCompany !== null) {
+        recipient.customer_company = customerCompany;
+      }
+      const interestArea = readMappedValue(row, mapping, 'interest_area');
+      if (interestArea !== null) {
+        recipient.interest_area = interestArea;
+      }
+      const previousProduct = readMappedValue(row, mapping, 'previous_product');
+      if (previousProduct !== null) {
+        recipient.previous_product = previousProduct;
+      }
 
       // General template variables
       const infoType = readMappedValue(row, mapping, 'info_type');
@@ -1027,6 +1096,9 @@ router.post('/', upload.single('file'), checkPermission('campaigns:view'), async
         if (r.product_name) dynamicVars.product_name = r.product_name;
         if (r.product_price) dynamicVars.product_price = r.product_price;
         if (r.campaign_name) dynamicVars.campaign_name = r.campaign_name;
+        if (r.customer_company) dynamicVars.customer_company = r.customer_company;
+        if (r.interest_area) dynamicVars.interest_area = r.interest_area;
+        if (r.previous_product) dynamicVars.previous_product = r.previous_product;
         // General variables
         if (r.info_type) dynamicVars.info_type = r.info_type;
         if (r.custom_data) dynamicVars.custom_data = r.custom_data;

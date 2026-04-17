@@ -20,7 +20,7 @@ Web sitemizden "Erken Erişim İçin Başvur" butonuna tıklayarak waitlist'e ka
 Kullandıkça Öde (PAYG) planı aylık taahhüt gerektirmez. 23₺/dakika üzerinden kullandığınız kadar ödersiniz.
 
 ### Aşım ücreti nedir?
-Başlangıç ve Profesyonel planlardaki dahil dakikalar aşıldığında 23₺/dk ücret uygulanır. Bu tutar ay sonu faturanıza eklenir (postpaid).
+Kullandıkça Öde (PAYG) modelinde ses dakikaları bakiyeden düşer. Profesyonel ve Kurumsal planlarda dahil veya tanımlı telefon dakikaları aşıldığında 23₺/dk ücret ay sonu faturasına eklenir. Başlangıç planında telefon kanalı yoktur.
 
 ### Plan değiştirmek mümkün mü?
 Evet. İstediğiniz zaman plan yükseltme veya düşürme yapabilirsiniz. Abonelik sayfasından yönetebilirsiniz.
@@ -78,7 +78,7 @@ Click the "Apply for Early Access" button on our website to join the waitlist.
 Pay As You Go (PAYG) requires no monthly commitment. You pay 23₺/min as you use it.
 
 ### What is the overage rate?
-When included minutes in Starter or Pro plans are exceeded, 23₺/min is charged. This is added to your end-of-month invoice (postpaid).
+On Pay As You Go (PAYG), voice usage is deducted from wallet balance. On Pro and Enterprise, 23₺/min is charged after included or defined phone minutes are exhausted and added to the end-of-month invoice. Starter does not include phone access.
 
 ### Can I change plans?
 Yes. You can upgrade or downgrade at any time from the Subscription page.

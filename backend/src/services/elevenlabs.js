@@ -1212,6 +1212,8 @@ import { buildAssistantPrompt, getActiveTools as getPromptBuilderTools } from '.
 export function buildAgentConfig(assistant, business, tools = [], integrations = []) {
   const language = business.language?.toLowerCase() || 'tr';
   const backendUrl = process.env.BACKEND_URL || 'https://api.aicallcenter.app';
+  const normalizedDirection = String(assistant?.callDirection || '').toLowerCase();
+  const usesSilentStart = normalizedDirection.startsWith('outbound');
 
   // Build system prompt using central promptBuilder for consistency
   const activeToolsList = getPromptBuilderTools(business, integrations);
@@ -1245,7 +1247,9 @@ export function buildAgentConfig(assistant, business, tools = [], integrations =
           prompt: systemPrompt,
           llm: 'gemini-2.5-flash'         // Fast and good quality for Turkish
         },
-        first_message: assistant.firstMessage || getDefaultFirstMessage(language, assistant.name),
+        ...(!usesSilentStart ? {
+          first_message: assistant.firstMessage || getDefaultFirstMessage(language, assistant.name)
+        } : {}),
         language: language
       },
       tts: {

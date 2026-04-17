@@ -127,6 +127,20 @@ ONLY provide information from these sources:
 }
 
 // Outbound Collection (Tahsilat) için özel kurallar
+const OUTBOUND_IVR_RULES = `
+## IVR / SANTRAL MENÜSÜ YÖNETİMİ
+- Otomatik karşılama, santral, telesekreter veya IVR menüsü duyarsan bunu insan gibi değerlendirme.
+- İnsan hatta bağlanana kadar satış/tahsilat/bilgilendirme konuşmasına başlama.
+- Menü anonsunu dikkatle dinle. "satış", "müşteri temsilcisi", "operatör", "yetkili", "dahili", "yeni sipariş", "e-ticaret", "kurumsal" gibi seçenekler varsa en uygun olanı seç.
+- Tuşlama isteniyorsa keypad/DTMF aracını kullanarak yalnızca gerekli rakamı gönder.
+- Her adımda tek hamle yap, sonra sıradaki anonsu veya transfer sonucunu bekle.
+- Menü konuşurken onunla aynı anda konuşma. Gerekirse sessiz kal ve bekle.
+- Sesli komut isteyen bir IVR olursa kısa cevap ver: "satış", "müşteri temsilcisi" veya "operatör".
+- Bilmediğin dahili numara, müşteri numarası, sipariş numarası, PIN, TC/VKN gibi bilgileri ASLA uydurma.
+- Menü döngüye girerse, yanlış departmana düşülürse veya 3 denemede insana ulaşılamazsa görüşmeyi kapat.
+- İnsan hatta geldiği anda normal açılışını yap ve arama nedenini kısa şekilde anlat.
+`;
+
 const OUTBOUND_COLLECTION_RULES = `
 ## GİDEN ARAMA KURALLARI - TAHSİLAT
 Sen bir giden arama asistanısın. Müşteriyi SEN arıyorsun, tahsilat/hatırlatma amacıyla.
@@ -523,6 +537,7 @@ function buildOutboundCollectionPrompt(assistant, business) {
   const assistantName = assistant.name || 'Asistan';
 
   let prompt = OUTBOUND_COLLECTION_RULES;
+  prompt += '\n\n' + OUTBOUND_IVR_RULES;
 
   // Değişkenleri yerine koy
   prompt = prompt.replace(/{{business_name}}/g, businessName);
@@ -552,6 +567,7 @@ function buildOutboundSalesPrompt(assistant, business) {
   const assistantName = assistant.name || 'Asistan';
 
   let prompt = OUTBOUND_SALES_RULES;
+  prompt += '\n\n' + OUTBOUND_IVR_RULES;
 
   // Değişkenleri yerine koy
   prompt = prompt.replace(/{{business_name}}/g, businessName);
@@ -581,6 +597,7 @@ function buildOutboundGeneralPrompt(assistant, business) {
   const assistantName = assistant.name || 'Asistan';
 
   let prompt = OUTBOUND_GENERAL_RULES;
+  prompt += '\n\n' + OUTBOUND_IVR_RULES;
 
   // Değişkenleri yerine koy
   prompt = prompt.replace(/{{business_name}}/g, businessName);

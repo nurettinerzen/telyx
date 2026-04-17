@@ -97,7 +97,11 @@ const TEMPLATE_VARIABLE_KEYS = {
   sales: {
     product_name: 'dashboard.batchCallsPage.templateVars.productName',
     product_price: 'dashboard.batchCallsPage.templateVars.productPrice',
-    campaign_name: 'dashboard.batchCallsPage.templateVars.campaignName'
+    campaign_name: 'dashboard.batchCallsPage.templateVars.campaignName',
+    customer_company: 'dashboard.batchCallsPage.templateVars.customerCompany',
+    interest_area: 'dashboard.batchCallsPage.templateVars.interestArea',
+    previous_product: 'dashboard.batchCallsPage.templateVars.previousProduct',
+    custom_notes: 'dashboard.batchCallsPage.templateVars.customNotes'
   },
   general: {
     info_type: 'dashboard.batchCallsPage.templateVars.infoType',

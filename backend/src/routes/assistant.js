@@ -77,6 +77,106 @@ function sendOutboundOnlyV1(res) {
   return res.status(403).json(OUTBOUND_ONLY_V1_ERROR);
 }
 
+function buildEndCallTool() {
+  return {
+    type: 'system',
+    name: 'end_call',
+    description: 'Müşteri vedalaştığında veya "iyi günler", "görüşürüz", "hoşçakal", "bye", "goodbye" dediğinde aramayı sonlandır. Görüşme tamamlandığında ve müşteri veda ettiğinde bu aracı kullan.',
+    params: {
+      system_tool_type: 'end_call'
+    }
+  };
+}
+
+function buildVoicemailDetectionTool() {
+  return {
+    type: 'system',
+    name: 'voicemail_detection',
+    description: 'Sesli mesaj (voicemail) algılandığında aramayı otomatik olarak sonlandırır.',
+    params: {
+      system_tool_type: 'voicemail_detection',
+      voicemail_message: '',
+      use_out_of_band_dtmf: false
+    }
+  };
+}
+
+function buildSkipTurnTool() {
+  return {
+    type: 'system',
+    name: 'skip_turn',
+    description: 'Otomatik santral/IVR menüsü konuşurken, transfer beklerken veya karşı taraf senden kısa süre beklemeni istediğinde sessiz kalmak için bu aracı kullan.',
+    params: {
+      system_tool_type: 'skip_turn'
+    }
+  };
+}
+
+function buildIvrTouchToneTool() {
+  return {
+    type: 'system',
+    name: 'play_keypad_touch_tone',
+    description: 'Arama otomatik santral veya IVR menüsüne düştüğünde satış, operatör, müşteri temsilcisi veya ilgili departmana ulaşmak için gerekli DTMF tuşlarını gönder. Yalnızca otomatik menülerde kullan; insanla konuşurken kullanma.',
+    params: {
+      system_tool_type: 'play_keypad_touch_tone'
+    }
+  };
+}
+
+function buildPhoneSystemTools({ callDirection } = {}) {
+  const systemTools = [
+    buildEndCallTool(),
+    buildVoicemailDetectionTool()
+  ];
+
+  if (isOutboundDirection(callDirection)) {
+    systemTools.push(buildSkipTurnTool(), buildIvrTouchToneTool());
+  }
+
+  return systemTools;
+}
+
+function shouldUseSilentStart(callDirection, assistantType = 'phone') {
+  return assistantType !== 'text' && isOutboundDirection(callDirection);
+}
+
+function normalizeFirstMessageValue(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function resolveStoredFirstMessage({
+  callDirection,
+  assistantType = 'phone',
+  providedFirstMessage,
+  fallbackFirstMessage
+} = {}) {
+  if (shouldUseSilentStart(callDirection, assistantType)) {
+    return null;
+  }
+
+  const explicitFirstMessage = normalizeFirstMessageValue(providedFirstMessage);
+  if (explicitFirstMessage) {
+    return explicitFirstMessage;
+  }
+
+  const fallback = normalizeFirstMessageValue(fallbackFirstMessage);
+  return fallback || null;
+}
+
+function resolveProviderFirstMessage({
+  callDirection,
+  assistantType = 'phone',
+  storedFirstMessage,
+  clearExisting = false
+} = {}) {
+  if (shouldUseSilentStart(callDirection, assistantType)) {
+    return clearExisting ? '' : undefined;
+  }
+
+  const normalized = normalizeFirstMessageValue(storedFirstMessage);
+  return normalized || undefined;
+}
+
 // ============================================================
 // ASSISTANT DEFAULTS BY LANGUAGE
 // ============================================================
@@ -338,7 +438,12 @@ router.post('/', authenticateToken, checkPermission('assistants:create'), async 
       }).text
       : '';
     const defaultFirstMessage = localizedDefaultFirstMessage || defaults.firstMessage.replace('{name}', name);
-    finalFirstMessage = firstMessage || defaultFirstMessage;
+    finalFirstMessage = resolveStoredFirstMessage({
+      callDirection: effectiveCallDirection,
+      assistantType,
+      providedFirstMessage: firstMessage,
+      fallbackFirstMessage: defaultFirstMessage
+    });
 
     // Get active tools based on business integrations (using central tool system)
     const activeToolsElevenLabs = getActiveToolsForElevenLabs(business);
@@ -351,27 +456,7 @@ router.post('/', authenticateToken, checkPermission('assistants:create'), async 
       const elevenLabsLang = getElevenLabsLanguage(lang);
       console.log('📝 Language mapping:', lang, '->', elevenLabsLang);
 
-      // System tools (end_call) go inside prompt.tools
-      const endCallTool = {
-        type: 'system',
-        name: 'end_call',
-        description: 'Müşteri vedalaştığında veya "iyi günler", "görüşürüz", "hoşçakal", "bye", "goodbye" dediğinde aramayı sonlandır. Görüşme tamamlandığında ve müşteri veda ettiğinde bu aracı kullan.',
-        params: {
-          system_tool_type: 'end_call'
-        }
-      };
-
-      // Voicemail detection tool - automatically ends call when voicemail is detected
-      const voicemailDetectionTool = {
-        type: 'system',
-        name: 'voicemail_detection',
-        description: 'Sesli mesaj (voicemail) algılandığında aramayı otomatik olarak sonlandırır.',
-        params: {
-          system_tool_type: 'voicemail_detection',
-          voicemail_message: '',  // Empty = just hang up, don't leave message
-          use_out_of_band_dtmf: false
-        }
-      };
+      const systemTools = buildPhoneSystemTools({ callDirection: effectiveCallDirection });
 
       // Webhook tools - inline in agent config (not separate via tool_ids)
       const backendUrl = runtimeConfig.backendUrl;
@@ -407,8 +492,8 @@ router.post('/', authenticateToken, checkPermission('assistants:create'), async 
         }
       }));
 
-      // All tools: system (end_call, voicemail_detection) + webhook
-      const allTools = [endCallTool, voicemailDetectionTool, ...webhookTools];
+      // All tools: system + webhook
+      const allTools = [...systemTools, ...webhookTools];
       console.log('🔧 Tools for agent:', allTools.map(t => t.name));
 
       // Build language-specific analysis prompts for post-call summary
@@ -438,6 +523,12 @@ router.post('/', authenticateToken, checkPermission('assistants:create'), async 
         console.warn('⚠️ [11Labs] Workspace webhook pre-sync error:', syncErr.message);
       }
 
+      const providerFirstMessage = resolveProviderFirstMessage({
+        callDirection: effectiveCallDirection,
+        assistantType,
+        storedFirstMessage: finalFirstMessage
+      });
+
       const agentConfig = {
         name: `${name} - ${Date.now()}`,
         conversation_config: {
@@ -449,7 +540,7 @@ router.post('/', authenticateToken, checkPermission('assistants:create'), async 
               // All tools: system + webhook (inline)
               tools: allTools
             },
-            first_message: finalFirstMessage,
+            ...(providerFirstMessage !== undefined ? { first_message: providerFirstMessage } : {}),
             language: elevenLabsLang
           },
           tts: {
@@ -539,8 +630,7 @@ router.post('/', authenticateToken, checkPermission('assistants:create'), async 
         }));
 
         // Update agent with correct webhook URLs including agentId
-        // Include voicemailDetectionTool along with endCallTool and webhook tools
-        const allToolsWithAgentId = [endCallTool, voicemailDetectionTool, ...updatedWebhookTools];
+        const allToolsWithAgentId = [...systemTools, ...updatedWebhookTools];
         await elevenLabsService.updateAgent(elevenLabsAgentId, {
           conversation_config: {
             agent: {
@@ -965,6 +1055,13 @@ router.put('/:id', authenticateToken, checkPermission('assistants:edit'), async 
     // Use central prompt builder to create the full system prompt, then add knowledge context
     const fullSystemPrompt = buildAssistantPrompt(tempAssistant, business, activeToolsList) + knowledgeContext;
 
+    const resolvedFirstMessage = resolveStoredFirstMessage({
+      callDirection: effectiveCallDirection,
+      assistantType: assistant.assistantType,
+      providedFirstMessage: firstMessage,
+      fallbackFirstMessage: assistant.firstMessage
+    });
+
     // Update in database
     const updateData = {
       name,
@@ -980,7 +1077,7 @@ router.put('/:id', authenticateToken, checkPermission('assistants:edit'), async 
     } else {
       // Phone: update all phone-related fields
       updateData.voiceId = voiceId;
-      updateData.firstMessage = firstMessage || assistant.firstMessage;
+      updateData.firstMessage = resolvedFirstMessage;
       updateData.model = model;
       updateData.callDirection = effectiveCallDirection;
       updateData.channelCapabilities = finalChannelCapabilities;
@@ -1002,27 +1099,7 @@ router.put('/:id', authenticateToken, checkPermission('assistants:edit'), async 
         console.log('📝 Update language mapping:', lang, '->', elevenLabsLang);
         console.log('🔧 Updating 11Labs agent:', assistant.elevenLabsAgentId);
 
-        // System tools (end_call, voicemail_detection) go inside prompt.tools
-        const endCallTool = {
-          type: 'system',
-          name: 'end_call',
-          description: 'Müşteri vedalaştığında veya "iyi günler", "görüşürüz", "hoşçakal", "bye", "goodbye" dediğinde aramayı sonlandır. Görüşme tamamlandığında ve müşteri veda ettiğinde bu aracı kullan.',
-          params: {
-            system_tool_type: 'end_call'
-          }
-        };
-
-        // Voicemail detection tool - automatically ends call when voicemail is detected
-        const voicemailDetectionTool = {
-          type: 'system',
-          name: 'voicemail_detection',
-          description: 'Sesli mesaj (voicemail) algılandığında aramayı otomatik olarak sonlandırır.',
-          params: {
-            system_tool_type: 'voicemail_detection',
-            voicemail_message: '',  // Empty = just hang up, don't leave message
-            use_out_of_band_dtmf: false
-          }
-        };
+        const systemTools = buildPhoneSystemTools({ callDirection: effectiveCallDirection });
 
         // Webhook tools - inline in agent config
         const backendUrl = runtimeConfig.backendUrl;
@@ -1060,8 +1137,8 @@ router.put('/:id', authenticateToken, checkPermission('assistants:edit'), async 
           }
         }));
 
-        // All tools: system (end_call, voicemail_detection) + webhook
-        const allTools = [endCallTool, voicemailDetectionTool, ...webhookTools];
+        // All tools: system + webhook
+        const allTools = [...systemTools, ...webhookTools];
         console.log('🔧 Updating tools for agent:', allTools.map(t => t.name));
 
         // Build language-specific analysis prompts for post-call summary
@@ -1091,6 +1168,13 @@ router.put('/:id', authenticateToken, checkPermission('assistants:edit'), async 
           console.warn('⚠️ [11Labs] Workspace webhook pre-sync error (update):', syncErr.message);
         }
 
+        const providerFirstMessage = resolveProviderFirstMessage({
+          callDirection: effectiveCallDirection,
+          assistantType: assistant.assistantType,
+          storedFirstMessage: resolvedFirstMessage,
+          clearExisting: true
+        });
+
         const agentUpdateConfig = {
           name,
           conversation_config: {
@@ -1102,7 +1186,7 @@ router.put('/:id', authenticateToken, checkPermission('assistants:edit'), async 
                 // All tools: system + webhook (inline)
                 tools: allTools
               },
-              first_message: firstMessage || assistant.firstMessage,
+              ...(providerFirstMessage !== undefined ? { first_message: providerFirstMessage } : {}),
               language: elevenLabsLang
             },
             tts: {
@@ -1343,8 +1427,28 @@ router.post('/:id/sync', authenticateToken, checkPermission('assistants:edit'), 
     const lang = business?.language || 'TR';
     const elevenLabsLang = getElevenLabsLanguage(lang);
     const elevenLabsVoiceId = getElevenLabsVoiceId(assistant.voiceId, lang);
+    const normalizedFirstMessage = resolveStoredFirstMessage({
+      callDirection: assistant.callDirection,
+      assistantType: assistant.assistantType,
+      providedFirstMessage: assistant.firstMessage,
+      fallbackFirstMessage: assistant.firstMessage
+    });
+    const providerFirstMessage = resolveProviderFirstMessage({
+      callDirection: assistant.callDirection,
+      assistantType: assistant.assistantType,
+      storedFirstMessage: normalizedFirstMessage,
+      clearExisting: true
+    });
 
     console.log('🔄 Syncing assistant to 11Labs:', assistant.id, '->', assistant.elevenLabsAgentId);
+
+    if (normalizedFirstMessage !== assistant.firstMessage) {
+      await prisma.assistant.update({
+        where: { id: assistant.id },
+        data: { firstMessage: normalizedFirstMessage }
+      });
+      assistant.firstMessage = normalizedFirstMessage;
+    }
 
     // First, check current agent state
     try {
@@ -1361,26 +1465,7 @@ router.post('/:id/sync', authenticateToken, checkPermission('assistants:edit'), 
       console.warn('⚠️ Could not check current agent state:', checkErr.message);
     }
 
-    // System tools (end_call, voicemail_detection)
-    const endCallTool = {
-      type: 'system',
-      name: 'end_call',
-      description: 'Müşteri vedalaştığında veya "iyi günler", "görüşürüz", "hoşçakal", "bye", "goodbye" dediğinde aramayı sonlandır. Görüşme tamamlandığında ve müşteri veda ettiğinde bu aracı kullan.',
-      params: {
-        system_tool_type: 'end_call'
-      }
-    };
-
-    const voicemailDetectionTool = {
-      type: 'system',
-      name: 'voicemail_detection',
-      description: 'Sesli mesaj (voicemail) algılandığında aramayı otomatik olarak sonlandırır.',
-      params: {
-        system_tool_type: 'voicemail_detection',
-        voicemail_message: '',
-        use_out_of_band_dtmf: false
-      }
-    };
+    const systemTools = buildPhoneSystemTools({ callDirection: assistant.callDirection });
 
     // Webhook tools - inline in agent config
     const backendUrl = runtimeConfig.backendUrl;
@@ -1418,7 +1503,7 @@ router.post('/:id/sync', authenticateToken, checkPermission('assistants:edit'), 
     }));
 
     // All tools: system + webhook (inline)
-    const allTools = [endCallTool, voicemailDetectionTool, ...webhookTools];
+    const allTools = [...systemTools, ...webhookTools];
     console.log('🔧 Tools to sync:', allTools.map(t => t.name));
 
     // Language-specific analysis prompts
@@ -1445,7 +1530,7 @@ router.post('/:id/sync', authenticateToken, checkPermission('assistants:edit'), 
             temperature: 0.1,
             tools: allTools  // Inline tools replace tool_ids
           },
-          first_message: assistant.firstMessage,
+          ...(providerFirstMessage !== undefined ? { first_message: providerFirstMessage } : {}),
           language: elevenLabsLang
         },
         tts: {
