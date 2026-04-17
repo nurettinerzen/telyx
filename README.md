@@ -16,7 +16,7 @@
 - Next.js 14 (App Router)
 - React
 - Tailwind CSS
-- Multi-language support (EN/TR)
+- Turkish & English support (EN/TR)
 
 ## ✨ Features
 
@@ -193,7 +193,7 @@ NEXT_PUBLIC_API_URL=http://localhost:3001
 
 ## 🎨 Frontend Features
 
-- **Multi-language Support** - English & Turkish
+- **Turkish & English Support** - English & Turkish
 - **Responsive Design** - Mobile-friendly UI
 - **Real-time Updates** - Live data synchronization
 - **Toast Notifications** - User feedback on actions

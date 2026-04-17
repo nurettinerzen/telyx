@@ -346,7 +346,7 @@ kill -9 <PID>
 
 - **Hot Reload:** Both frontend and backend auto-restart on file changes
 - **Database GUI:** Use `yarn prisma studio` to view/edit data visually
-- **Multi-language:** Frontend supports EN/TR out of the box
+- **Language support:** Frontend supports EN/TR out of the box
 - **Security:** Always filter queries by `businessId` in new endpoints
 - **Testing:** Use curl or Postman to test APIs before frontend integration
 

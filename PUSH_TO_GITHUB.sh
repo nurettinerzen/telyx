@@ -38,7 +38,7 @@ echo ""
 git commit -m "feat: Complete TELYX.AI feature implementation
 
 ✨ New Features:
-- Multi-language support (16 languages)
+- Turkish & English support
 - Integration system (Calendly, Google Calendar, HubSpot, Sheets, WhatsApp, Zapier)
 - Call Analytics Dashboard with sentiment analysis
 - BYOC Phone Number System (Netgsm, Bulutfon support)
@@ -64,7 +64,7 @@ git commit -m "feat: Complete TELYX.AI feature implementation
 - Frontend pages (voices, integrations, phone-numbers, analytics)
 
 🎯 All 6 tasks completed:
-1. ✅ Multi-language support (15+ languages)
+1. ✅ Turkish & English support
 2. ✅ Integration system (6 integrations with OAuth)
 3. ✅ Call Analytics Dashboard (AI-powered)
 4. ✅ BYOC Phone Number System (global support)

@@ -145,7 +145,7 @@ Bu dosya, tüm geliştirmelerin özetini ve değiştirilen/oluşturulan dosyalar
 - 6 Frontend component/page
 
 ### Migration Notes: 2
-- Multi-language support
+- Turkish & English support
 - VAPI Knowledge Base integration
 
 ---
@@ -196,7 +196,7 @@ sudo supervisorctl restart frontend
 
 ## ✅ TEST CHECKLIST
 
-### Multi-Language:
+### Language Support:
 - [ ] Dil değiştirme çalışıyor
 - [ ] Her dil için sesler görünüyor
 - [ ] Business language validation çalışıyor

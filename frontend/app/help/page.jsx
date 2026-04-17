@@ -109,7 +109,6 @@ export default function HelpPage() {
     { questionKey: 'help.faq.q1', answerKey: 'help.faq.a1' },
     { questionKey: 'help.faq.q2', answerKey: 'help.faq.a2' },
     { questionKey: 'help.faq.q3', answerKey: 'help.faq.a3' },
-    { questionKey: 'help.faq.q4', answerKey: 'help.faq.a4' },
     { questionKey: 'help.faq.q5', answerKey: 'help.faq.a5' },
     { questionKey: 'help.faq.q6', answerKey: 'help.faq.a6' },
     { questionKey: 'help.faq.q7', answerKey: 'help.faq.a7' },

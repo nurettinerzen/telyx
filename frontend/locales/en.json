@@ -413,7 +413,7 @@
       "desc": "GPT-4 based intelligent customer service",
       "item1": "Natural language processing",
       "item2": "Context understanding",
-      "item3": "Multi-language support",
+      "item3": "Intent recognition",
       "item4": "Continuous learning"
     },
     "ecommerce": {
@@ -430,13 +430,6 @@
       "item1": "Google Calendar sync",
       "item2": "Automatic appointment creation",
       "item3": "Reminder notifications"
-    },
-    "languages": {
-      "title": "Multi-Language Support",
-      "desc": "Provide customer service in 16 different languages",
-      "item1": "Turkish and English",
-      "item2": "Arabic, German, French",
-      "item3": "And more..."
     },
     "analytics": {
       "title": "Real-Time Dashboard",
@@ -642,7 +635,7 @@
         "subtitle": "Features that keep you one step ahead of the competition",
         "item1": { "title": "Smart Product Recommendations", "desc": "Personalized product suggestions based on customer history and preferences." },
         "item2": { "title": "Auto Stock Alerts", "desc": "Automatically notify interested customers when products are back in stock." },
-        "item3": { "title": "Multi-Language Support", "desc": "Serve your international customers in their own language." }
+        "item3": { "title": "Customer Verification", "desc": "Verify customer identity before sharing order details or starting return actions." }
       },
       "cta": {
         "title": "Provide 24/7 Support to Your E-commerce Customers",
@@ -732,7 +725,7 @@
       },
       "tabs": {
         "tab1": { "title": "Reservations", "contentTitle": "Smart Table Management", "contentDesc": "Real-time availability with calendar integration. Customers can book tables 24/7 via WhatsApp or web.", "bullet1": "Google Calendar integration", "bullet2": "Auto confirmation and reminders", "bullet3": "No-show protection" },
-        "tab2": { "title": "Menu Guide", "contentTitle": "Interactive Menu Assistant", "contentDesc": "Present your menu digitally with allergen info, portion details and prices.", "bullet1": "Allergen and dietary filters", "bullet2": "Chef's picks and daily specials", "bullet3": "Multi-language support" },
+        "tab2": { "title": "Menu Guide", "contentTitle": "Interactive Menu Assistant", "contentDesc": "Present your menu digitally with allergen info, portion details and prices.", "bullet1": "Allergen and dietary filters", "bullet2": "Chef's picks and daily specials", "bullet3": "Price and portion details" },
         "tab3": { "title": "Feedback", "contentTitle": "Guest Experience Tracking", "contentDesc": "Send automatic post-meal satisfaction surveys. Route negative feedback to managers instantly.", "bullet1": "Auto survey delivery", "bullet2": "Instant manager alerts", "bullet3": "Trend analysis dashboard" }
       }
     },
@@ -873,7 +866,7 @@
         "msg4": "A password reset link has been sent to info@mycompany.com. The link is valid for 15 minutes."
       },
       "tabs": {
-        "tab1": { "title": "Resolution", "contentTitle": "Smart Issue Detection", "contentDesc": "AI automatically identifies intent and priority from customer messages, generating grounded answers from your knowledge base.", "bullet1": "Intent and priority classification", "bullet2": "Knowledge-grounded responses", "bullet3": "Multi-language support" },
+        "tab1": { "title": "Resolution", "contentTitle": "Smart Issue Detection", "contentDesc": "AI automatically identifies intent and priority from customer messages, generating grounded answers from your knowledge base.", "bullet1": "Intent and priority classification", "bullet2": "Knowledge-grounded responses", "bullet3": "Automatic ticket creation" },
         "tab2": { "title": "Escalation", "contentTitle": "Smart Routing", "contentDesc": "AI routes unresolved issues to the right department and agent with full context summary.", "bullet1": "Department-based routing", "bullet2": "Conversation summary handoff", "bullet3": "Priority-based queueing" },
         "tab3": { "title": "Analytics", "contentTitle": "Performance Dashboard", "contentDesc": "Monitor resolution rates, customer satisfaction, average response times and trend analysis from one dashboard.", "bullet1": "Real-time metrics", "bullet2": "Agent performance comparison", "bullet3": "Weekly trend reports" }
       }
@@ -3568,8 +3561,6 @@
       "a2": "We support phone (AI voice response), WhatsApp Business, web chat widget, and email channels.",
       "q3": "How long does setup take?",
       "a3": "Basic setup can be completed within 10 minutes. You can start using your assistant immediately after creating it.",
-      "q4": "Which languages do you support besides English?",
-      "a4": "We support 16 different languages: Turkish, English, German, French, Spanish, Italian, Portuguese, Russian, Arabic, Japanese, Korean, Chinese, Hindi, Dutch, Polish, and Swedish.",
       "q5": "Does it integrate with my e-commerce site?",
       "a5": "Yes, we integrate with ikas, Ticimax, Ideasoft, and Shopify. Your customers can check their order status.",
       "q6": "How does pricing work?",

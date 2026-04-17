@@ -33,7 +33,7 @@ git add .
 git commit -m "feat: Complete TELYX.AI feature implementation
 
 ✨ Features:
-- Multi-language support (16 languages)
+- Turkish & English support
 - Integration system (Calendly, Google Calendar, HubSpot, Sheets, WhatsApp, Zapier)
 - Call Analytics Dashboard with sentiment analysis
 - BYOC Phone Number System (Netgsm, Bulutfon)

@@ -413,7 +413,7 @@
       "desc": "GPT-4 tabanlı akıllı müşteri hizmeti",
       "item1": "Doğal dil işleme",
       "item2": "Bağlam anlayışı",
-      "item3": "Çoklu dil desteği",
+      "item3": "Niyet tanıma",
       "item4": "Sürekli öğrenme"
     },
     "ecommerce": {
@@ -430,13 +430,6 @@
       "item1": "Google Calendar senkronizasyonu",
       "item2": "Otomatik randevu oluşturma",
       "item3": "Hatırlatma bildirimleri"
-    },
-    "languages": {
-      "title": "Çoklu Dil Desteği",
-      "desc": "16 farklı dilde müşteri hizmeti sunun",
-      "item1": "Türkçe ve İngilizce",
-      "item2": "Arapça, Almanca, Fransızca",
-      "item3": "Ve daha fazlası..."
     },
     "analytics": {
       "title": "Gerçek Zamanlı Dashboard",
@@ -642,7 +635,7 @@
         "subtitle": "Rakiplerinizden bir adım önde olmanızı sağlayan özellikler",
         "item1": { "title": "Akıllı Ürün Önerisi", "desc": "Müşteri geçmişine ve tercihlerine göre kişiselleştirilmiş ürün tavsiyeleri." },
         "item2": { "title": "Otomatik Stok Uyarısı", "desc": "Ürün stoğa geldiğinde ilgili müşterilere otomatik bildirim gönderimi." },
-        "item3": { "title": "Çoklu Dil Desteği", "desc": "Uluslararası müşterilerinize kendi dillerinde destek sunun." }
+        "item3": { "title": "Müşteri Doğrulama", "desc": "Sipariş detayı paylaşmadan veya iade başlatmadan önce müşteri kimliğini doğrulayın." }
       },
       "cta": {
         "title": "E-ticaret Müşterilerinize 7/24 Destek Sunun",
@@ -732,7 +725,7 @@
       },
       "tabs": {
         "tab1": { "title": "Rezervasyon", "contentTitle": "Akıllı Masa Yönetimi", "contentDesc": "Takvim entegrasyonuyla gerçek zamanlı doluluk kontrolü. Müşteriler 7/24 WhatsApp'tan veya web'den masa ayırtabilir.", "bullet1": "Google Calendar entegrasyonu", "bullet2": "Otomatik onay ve hatırlatma", "bullet3": "No-show koruması" },
-        "tab2": { "title": "Menü Rehberi", "contentTitle": "İnteraktif Menü Asistanı", "contentDesc": "Alerjen bilgisi, porsiyon detayları ve fiyatlarla birlikte menünüzü dijital olarak sunun.", "bullet1": "Alerjen ve diyet filtreleri", "bullet2": "Şefin önerisi ve günün menüsü", "bullet3": "Çoklu dil desteği" },
+        "tab2": { "title": "Menü Rehberi", "contentTitle": "İnteraktif Menü Asistanı", "contentDesc": "Alerjen bilgisi, porsiyon detayları ve fiyatlarla birlikte menünüzü dijital olarak sunun.", "bullet1": "Alerjen ve diyet filtreleri", "bullet2": "Şefin önerisi ve günün menüsü", "bullet3": "Fiyat ve porsiyon detayları" },
         "tab3": { "title": "Geri Bildirim", "contentTitle": "Misafir Deneyimi Takibi", "contentDesc": "Yemek sonrası otomatik memnuniyet anketi gönderin, olumsuz geri bildirimleri anında yöneticiye iletin.", "bullet1": "Otomatik anket gönderimi", "bullet2": "Anlık yönetici bildirimi", "bullet3": "Trend analizi paneli" }
       }
     },
@@ -873,7 +866,7 @@
         "msg4": "Şifre sıfırlama bağlantısı info@sirketim.com adresine gönderildi. Bağlantı 15 dakika geçerlidir."
       },
       "tabs": {
-        "tab1": { "title": "Sorun Çözme", "contentTitle": "Akıllı Sorun Tespiti", "contentDesc": "AI müşteri mesajından niyeti ve önceliği otomatik belirler, bilgi tabanınızdan dayanaklı yanıt üretir.", "bullet1": "Niyet ve öncelik sınıflandırma", "bullet2": "Bilgi tabanından dayanaklı yanıt", "bullet3": "Çoklu dil desteği" },
+        "tab1": { "title": "Sorun Çözme", "contentTitle": "Akıllı Sorun Tespiti", "contentDesc": "AI müşteri mesajından niyeti ve önceliği otomatik belirler, bilgi tabanınızdan dayanaklı yanıt üretir.", "bullet1": "Niyet ve öncelik sınıflandırma", "bullet2": "Bilgi tabanından dayanaklı yanıt", "bullet3": "Otomatik talep oluşturma" },
         "tab2": { "title": "Eskalasyon", "contentTitle": "Akıllı Yönlendirme", "contentDesc": "AI çözemediği soruları tam bağlam özetiyle birlikte doğru departman ve temsilciye yönlendirir.", "bullet1": "Departman bazlı yönlendirme", "bullet2": "Konuşma özeti aktarımı", "bullet3": "Öncelik bazlı kuyruk" },
         "tab3": { "title": "Analitik", "contentTitle": "Performans Paneli", "contentDesc": "Çözüm oranları, müşteri memnuniyeti, ortalama yanıt süreleri ve trend analizlerini tek panelden izleyin.", "bullet1": "Gerçek zamanlı metrikler", "bullet2": "Temsilci performans karşılaştırma", "bullet3": "Haftalık trend raporları" }
       }
@@ -3568,8 +3561,6 @@
       "a2": "Telefon (AI sesli yanıt), WhatsApp Business, web chat widget ve e-posta kanallarını destekliyoruz.",
       "q3": "Kurulum ne kadar sürer?",
       "a3": "Temel kurulum 10 dakika içinde tamamlanabilir. Asistanınızı oluşturduktan sonra hemen kullanmaya başlayabilirsiniz.",
-      "q4": "Türkçe dışında hangi dilleri destekliyorsunuz?",
-      "a4": "16 farklı dili destekliyoruz: Türkçe, İngilizce, Almanca, Fransızca, İspanyolca, İtalyanca, Portekizce, Rusça, Arapça, Japonca, Korece, Çince, Hintçe, Felemenkçe, Lehçe ve İsveççe.",
       "q5": "E-ticaret sitemle entegre çalışır mı?",
       "a5": "Evet, İkas, Ticimax, İdeasoft ve Shopify ile entegre çalışıyoruz. Müşterileriniz sipariş durumu sorgulayabilir.",
       "q6": "Fiyatlandırma nasıl çalışıyor?",

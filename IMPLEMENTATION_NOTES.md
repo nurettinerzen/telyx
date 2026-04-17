@@ -192,7 +192,7 @@
 2. **pgvector** - Faster semantic search
 3. **Intent Classification** - Better filtering
 4. **Pair Quality Scoring** - Remove low-quality pairs
-5. **Multi-language** - Better Turkish support
+5. **Language quality** - Better Turkish support
 6. **Observability** - Full metrics dashboard
 
 ### Phase 3 (Advanced)

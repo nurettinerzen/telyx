@@ -106,7 +106,7 @@ Incoming message webhook (multi-tenant).
 - Supports multiple businesses on same webhook endpoint
 - Isolates conversation history per business
 - Uses business-specific AI assistant configuration
-- Multi-language error messages based on business language
+- Language-aware error messages based on business language
 
 ### 5. Rate Limiting Middleware
 **File:** `backend/src/middleware/rateLimiter.js`

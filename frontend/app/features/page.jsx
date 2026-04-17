@@ -14,7 +14,6 @@ import {
   Bot,
   Calendar,
   Check,
-  Globe,
   HeadphonesIcon,
   Link2,
   MessageSquare,
@@ -63,9 +62,10 @@ export default function FeaturesPage() {
     { id: 'ai', icon: Bot, titleKey: 'features.ai.title', descKey: 'features.ai.desc', items: ['features.ai.item1', 'features.ai.item2', 'features.ai.item3', 'features.ai.item4'], color: 'from-[#051752] to-[#006FEB]', big: true },
     { id: 'ecommerce', icon: ShoppingCart, titleKey: 'features.ecommerce.title', descKey: 'features.ecommerce.desc', items: ['features.ecommerce.item1', 'features.ecommerce.item2', 'features.ecommerce.item3', 'features.ecommerce.item4'], color: 'from-[#051752] to-[#000ACF]', big: false },
     { id: 'calendar', icon: Calendar, titleKey: 'features.calendar.title', descKey: 'features.calendar.desc', items: ['features.calendar.item1', 'features.calendar.item2', 'features.calendar.item3'], color: 'from-[#006FEB] to-[#00C4E6]', big: false },
-    { id: 'languages', icon: Globe, titleKey: 'features.languages.title', descKey: 'features.languages.desc', items: ['features.languages.item1', 'features.languages.item2', 'features.languages.item3'], color: 'from-[#00C4E6] to-[#006FEB]', big: false },
     { id: 'analytics', icon: BarChart3, titleKey: 'features.analytics.title', descKey: 'features.analytics.desc', items: ['features.analytics.item1', 'features.analytics.item2', 'features.analytics.item3'], color: 'from-[#000ACF] to-[#051752]', big: false },
   ];
+  const bigFeatures = features.filter((feature) => feature.big);
+  const smallFeatures = features.filter((feature) => !feature.big);
 
   const deepDiveSections = [
     { id: 'dashboardKpi', icon: BarChart3, color: 'from-[#006FEB] to-[#00C4E6]', items: ['features.deepDive.dashboardKpi.item1', 'features.deepDive.dashboardKpi.item2', 'features.deepDive.dashboardKpi.item3', 'features.deepDive.dashboardKpi.item4'] },
@@ -150,7 +150,7 @@ export default function FeaturesPage() {
           <div ref={gridRef} className="max-w-7xl mx-auto">
             {/* Row 1: 2 big cards */}
             <div className="grid md:grid-cols-2 gap-5 md:gap-6 mb-5 md:mb-6">
-              {features.filter(f => f.big).map((feature, index) => {
+              {bigFeatures.map((feature, index) => {
                 const Icon = feature.icon;
                 return (
                   <motion.div
@@ -189,8 +189,8 @@ export default function FeaturesPage() {
             </div>
 
             {/* Row 2: 4 smaller cards */}
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 md:gap-6">
-              {features.filter(f => !f.big).map((feature, index) => {
+            <div className={`grid sm:grid-cols-2 ${smallFeatures.length >= 4 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-5 md:gap-6`}>
+              {smallFeatures.map((feature, index) => {
                 const Icon = feature.icon;
                 return (
                   <motion.div
