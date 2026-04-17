@@ -24,23 +24,6 @@ export function useProfile() {
 }
 
 /**
- * Hook to fetch notification preferences
- * @returns {object} Query result with notifications data
- */
-export function useNotifications() {
-  return useQuery({
-    queryKey: ['settings', 'notifications'],
-    queryFn: async () => {
-      const response = await apiClient.settings.getNotifications();
-      return {
-        emailOnLimit: response.data?.emailOnLimit ?? true,
-      };
-    },
-    staleTime: 2 * 60 * 1000,
-  });
-}
-
-/**
  * Hook to fetch email signature
  * @returns {object} Query result with signature data
  */
@@ -97,23 +80,6 @@ export function useUpdateProfile() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['settings', 'profile'] });
-    },
-  });
-}
-
-/**
- * Hook to update notifications
- * @returns {object} Mutation object
- */
-export function useUpdateNotifications() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (notificationsData) => {
-      return await apiClient.settings.updateNotifications(notificationsData);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['settings', 'notifications'] });
     },
   });
 }

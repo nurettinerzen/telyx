@@ -1,6 +1,6 @@
 /**
  * Settings Page
- * User profile, notifications, and account settings
+ * User profile and account settings
  * UPDATE EXISTING FILE: frontend/app/dashboard/settings/page.jsx
  */
 
@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SecurePasswordInput } from '@/components/ui/secure-password-input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
@@ -22,7 +21,6 @@ import {
 } from '@/components/ui/select';
 import {
   User,
-  Bell,
   AlertTriangle,
   Globe,
   Mail,
@@ -39,11 +37,9 @@ import { getPageHelp } from '@/content/pageHelp';
 
 import {
   useProfile,
-  useNotifications,
   useEmailSignature,
   useEmailPairStats,
   useUpdateProfile,
-  useUpdateNotifications,
   useUpdateEmailSignature,
   useChangeEmail,
   useChangePassword,
@@ -58,25 +54,20 @@ export default function SettingsPage() {
 
   // React Query hooks
   const { data: profileData, isLoading: profileLoading } = useProfile();
-  const { data: notificationsData, isLoading: notificationsLoading } = useNotifications();
   const { data: signatureData, isLoading: signatureLoading } = useEmailSignature();
   const { data: pairStats } = useEmailPairStats();
 
   const updateProfile = useUpdateProfile();
-  const updateNotifications = useUpdateNotifications();
   const updateEmailSignature = useUpdateEmailSignature();
   const changePassword = useChangePassword();
   const changeEmail = useChangeEmail();
   const deleteAccount = useDeleteAccount();
 
-  const loading = profileLoading || notificationsLoading || signatureLoading;
+  const loading = profileLoading || signatureLoading;
 
   // Local state for form inputs
   const [profile, setProfile] = useState({ name: '', email: '', company: '' });
   const [region, setRegion] = useState({ language: 'TR', country: 'TR', timezone: 'Europe/Istanbul' });
-  const [notifications, setNotifications] = useState({
-    emailOnLimit: true,
-  });
   const [emailSignature, setEmailSignature] = useState({
     signature: '',
     signatureType: 'PLAIN',
@@ -116,12 +107,6 @@ export default function SettingsPage() {
       });
     }
   }, [profileData]);
-
-  useEffect(() => {
-    if (notificationsData) {
-      setNotifications(notificationsData);
-    }
-  }, [notificationsData]);
 
   useEffect(() => {
     if (signatureData) {
@@ -176,19 +161,6 @@ export default function SettingsPage() {
         }
       );
       dispatchUserRefresh();
-    } catch {}
-  };
-
-  const handleSaveNotifications = async () => {
-    try {
-      await runToastAction(
-        () => updateNotifications.mutateAsync(notifications),
-        {
-          loading: t('dashboard.settingsPage.savingPreferences'),
-          success: t('dashboard.settingsPage.notificationPreferencesUpdated'),
-          error: t('dashboard.settingsPage.notificationPreferencesFailed'),
-        }
-      );
     } catch {}
   };
 
@@ -629,47 +601,6 @@ export default function SettingsPage() {
           <Button onClick={handleSaveSignature} disabled={updateEmailSignature.isPending}>
             {updateEmailSignature.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             {t('dashboard.settingsPage.saveSignatureBtn')}
-          </Button>
-        </div>
-      </div>
-
-      {/* Notifications Section */}
-      <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-3 shadow-sm">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="p-2 rounded-lg">
-            <Bell className="h-5 w-5 text-primary-600 dark:text-primary-400" />
-          </div>
-          <div>
-            <h2 className="text-sm font-semibold text-neutral-900 dark:text-white">{t('dashboard.settingsPage.notificationsTitle')}</h2>
-            <p className="text-xs text-neutral-500 dark:text-neutral-400">{t('dashboard.settingsPage.configureUpdates')}</p>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <p className="text-xs text-neutral-500 dark:text-neutral-400">
-            {t('dashboard.settingsPage.notificationsOnlyLiveHint')}
-          </p>
-
-          <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800/50">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="font-medium text-neutral-900 dark:text-white">{t('dashboard.settingsPage.usageLimitAlerts')}</p>
-                <p className="text-xs text-neutral-500 dark:text-neutral-400">{t('dashboard.settingsPage.alertApproachingLimit')}</p>
-              </div>
-              <Switch
-                checked={notifications.emailOnLimit}
-                onCheckedChange={(checked) =>
-                  setNotifications({ ...notifications, emailOnLimit: checked })
-                }
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="flex justify-end mt-6">
-          <Button onClick={handleSaveNotifications} disabled={updateNotifications.isPending}>
-            {updateNotifications.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {t('dashboard.settingsPage.savePreferencesBtn')}
           </Button>
         </div>
       </div>

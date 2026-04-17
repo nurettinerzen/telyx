@@ -6,10 +6,6 @@ import { requireRecentAuth } from '../middleware/reauth.js';
 import { validatePasswordPolicy, passwordPolicyMessage } from '../security/passwordPolicy.js';
 import { clearSessionCookie, issueSession } from '../security/sessionToken.js';
 import {
-  getBusinessNotificationPreferences,
-  updateBusinessNotificationPreferences,
-} from '../services/settingsPreferences.js';
-import {
   hardDeleteSelfUser,
   hardDeleteWorkspaceForOwner,
   isValidDeleteAccountConfirmation,
@@ -194,31 +190,6 @@ router.put('/profile', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error updating profile:', error);
     res.status(500).json({ error: 'Failed to update profile' });
-  }
-});
-
-// GET /api/settings/notifications
-router.get('/notifications', authenticateToken, async (req, res) => {
-  try {
-    const preferences = await getBusinessNotificationPreferences(req.businessId);
-    res.json(preferences);
-  } catch (error) {
-    console.error('Error fetching notifications:', error);
-    res.status(500).json({ error: 'Failed to fetch notifications' });
-  }
-});
-
-// PUT /api/settings/notifications
-router.put('/notifications', authenticateToken, async (req, res) => {
-  try {
-    const preferences = await updateBusinessNotificationPreferences(req.businessId, req.body || {});
-    res.json({
-      message: 'Notification preferences updated',
-      preferences,
-    });
-  } catch (error) {
-    console.error('Error updating notifications:', error);
-    res.status(500).json({ error: 'Failed to update notifications' });
   }
 });
 

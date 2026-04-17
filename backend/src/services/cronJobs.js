@@ -169,10 +169,9 @@ export async function checkLowBalance() {
         try {
           // Send low balance email
           await emailService.sendLowBalanceWarning({
-            to: ownerEmail,
+            email: ownerEmail,
             businessName: subscription.business.name,
-            currentBalance: subscription.balance,
-            plan: subscription.plan
+            balance: subscription.balance
           });
 
           // Update warned timestamp
@@ -322,9 +321,8 @@ export async function checkTrialExpired() {
       if (ownerEmail && emailService) {
         try {
           await emailService.sendTrialExpiredNotification({
-            to: ownerEmail,
+            email: ownerEmail,
             businessName: subscription.business.name,
-            phoneMinutesUsed: subscription.trialMinutesUsed || 0
           });
 
           notifiedCount++;
@@ -493,12 +491,10 @@ export async function billOverageUsage() {
         if (ownerEmail && emailService && await shouldSendUsageNotification(subscription.business.id)) {
           try {
             await emailService.sendOverageBillNotification({
-              to: ownerEmail,
+              email: ownerEmail,
               businessName: subscription.business.name,
               overageMinutes: subscription.overageMinutes,
-              overageAmount,
-              overageRate,
-              periodEnd: subscription.currentPeriodEnd
+              totalAmount: overageAmount
             });
             console.log(`📧 Overage bill notification sent to: ${ownerEmail}`);
           } catch (emailErr) {

@@ -802,14 +802,23 @@ export const sendWeeklySummaryEmail = async (email, businessName, stats) => {
 /**
  * 15. Low Balance Warning Email (Alias for sendLowBalanceAlert)
  */
-export const sendLowBalanceWarningEmail = async (email, data) => {
-  return sendLowBalanceAlert(email, data?.balance || data?.remainingMinutes || 0);
+export const sendLowBalanceWarningEmail = async (email, dataOrBusinessName = {}, balanceArg = null, remainingMinutesArg = null) => {
+  const data = (dataOrBusinessName && typeof dataOrBusinessName === 'object')
+    ? dataOrBusinessName
+    : {
+        businessName: dataOrBusinessName,
+        balance: balanceArg,
+        remainingMinutes: remainingMinutesArg
+      };
+
+  return sendLowBalanceAlert(email, data?.balance ?? data?.currentBalance ?? data?.remainingMinutes ?? 0);
 };
 
 /**
  * 16. Trial Expired Notification
  */
-export const sendTrialExpiredNotification = async ({ email, businessName }) => {
+export const sendTrialExpiredNotification = async ({ email, to, businessName }) => {
+  const targetEmail = email || to;
   const subject = 'Telyx.AI - Deneme Süreniz Doldu';
   const html = `
     <!DOCTYPE html>
@@ -848,14 +857,14 @@ export const sendTrialExpiredNotification = async ({ email, businessName }) => {
     </html>
   `;
 
-  return sendEmail(email, subject, html);
+  return sendEmail(targetEmail, subject, html);
 };
 
 /**
  * 17. Overage Bill Notification
  */
-export const sendOverageBillNotification = async ({ email, businessName, overageMinutes, totalAmount }) => {
-  return sendOverageInvoice(email, overageMinutes, totalAmount);
+export const sendOverageBillNotification = async ({ email, to, businessName, overageMinutes, totalAmount, overageAmount }) => {
+  return sendOverageInvoice(email || to, overageMinutes, totalAmount ?? overageAmount);
 };
 
 /**
@@ -953,8 +962,8 @@ export const sendAutoReloadFailedEmail = async (email, businessName, amount) => 
 /**
  * 20. Low Balance Warning (with data object)
  */
-export const sendLowBalanceWarning = async ({ email, businessName, balance, threshold }) => {
-  return sendLowBalanceAlert(email, balance);
+export const sendLowBalanceWarning = async ({ email, to, businessName, balance, currentBalance, threshold }) => {
+  return sendLowBalanceAlert(email || to, balance ?? currentBalance ?? threshold ?? 0);
 };
 
 /**

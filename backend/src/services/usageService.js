@@ -177,6 +177,9 @@ export async function recordUsage(params) {
       usageRecord.id
     );
 
+    // The active billing path must also trigger warning emails and overage lock state.
+    await checkUsageWarnings(subscription.id);
+
     console.log(`✅ Usage recorded: ${durationMinutes} dk, ChargeType: ${chargeResult.chargeType}, Total: ${chargeResult.totalCharge} TL`);
 
     return {
@@ -431,14 +434,41 @@ async function checkUsageWarnings(subscriptionId) {
               const emailService = (await import('./emailService.js')).default;
               await emailService.sendLowBalanceWarningEmail(
                 ownerEmail,
-                subscription.business.name,
-                subscription.balance,
-                balanceMinutes
+                {
+                  businessName: subscription.business.name,
+                  balance: subscription.balance,
+                  remainingMinutes: balanceMinutes
+                }
               );
             } catch (emailError) {
               console.error('Failed to send low balance email:', emailError);
             }
           }
+        }
+      }
+    }
+
+    // Check postpaid overage limit lock
+    const currentOverageMinutes = Number(subscription.overageMinutes || 0);
+    const currentOverageLimit = Number(subscription.overageLimit || 0);
+    if (currentOverageLimit > 0 && currentOverageMinutes > 0 && currentOverageMinutes >= currentOverageLimit && !subscription.overageLimitReached) {
+      await prisma.subscription.update({
+        where: { id: subscriptionId },
+        data: { overageLimitReached: true }
+      });
+
+      const ownerEmail = subscription.business?.users?.[0]?.email;
+      if (ownerEmail && await shouldSendUsageNotification(subscription.business.id)) {
+        try {
+          const emailService = (await import('./emailService.js')).default;
+          await emailService.sendOverageLimitReachedEmail(
+            ownerEmail,
+            subscription.business.name,
+            currentOverageMinutes,
+            currentOverageLimit
+          );
+        } catch (emailError) {
+          console.error('Failed to send overage limit email:', emailError);
         }
       }
     }

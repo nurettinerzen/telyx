@@ -130,8 +130,6 @@ export const apiClient = {
   settings: {
     getProfile: () => api.get('/api/settings/profile'),
     updateProfile: (data) => api.put('/api/settings/profile', data),
-    getNotifications: () => api.get('/api/settings/notifications'),
-    updateNotifications: (data) => api.put('/api/settings/notifications', data),
     changePassword: (data) => api.post('/api/settings/change-password', data),
     deleteAccount: (data) => api.post('/api/settings/delete-account', data),
   },
