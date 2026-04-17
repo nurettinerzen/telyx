@@ -641,7 +641,7 @@ router.get('/:id/audio', auditSensitiveDataAccess('call_log_audio', (req) => req
     if (error.response?.status === 404) {
       // Provide more helpful error message
       return res.status(404).json({
-        error: 'Ses kaydı bulunamadı. 11Labs tarafında kayıt etkinleştirilmemiş olabilir.'
+        error: 'Ses kaydı bulunamadı. Kayıt özelliği etkinleştirilmemiş olabilir.'
       });
     }
     if (error.response?.status === 401 || error.response?.status === 403) {

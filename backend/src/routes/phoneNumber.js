@@ -395,7 +395,7 @@ router.post('/:id/import-twilio', async (req, res) => {
   } catch (error) {
     console.error('❌ Import Twilio error:', error);
     res.status(500).json({
-      error: 'Failed to import Twilio number to 11Labs',
+      error: 'Failed to connect phone number',
       details: error.message
     });
   }
@@ -504,7 +504,7 @@ router.post('/import-sip', async (req, res) => {
       // Return detailed error
       const errorDetail = error.response?.data?.detail || error.message;
       return res.status(400).json({
-        error: '11Labs SIP bağlantısı başarısız',
+        error: 'SIP bağlantısı başarısız',
         details: errorDetail,
         message: 'SIP bilgilerinizi kontrol edin. Sunucu, kullanıcı adı ve şifre doğru olmalıdır.'
       });
@@ -614,7 +614,7 @@ router.patch('/:id/sip-config', async (req, res) => {
     }
 
     if (!phoneNumber.elevenLabsPhoneId) {
-      return res.status(400).json({ error: 'Phone number not connected to 11Labs' });
+      return res.status(400).json({ error: 'Phone number is not connected' });
     }
 
     // Update in 11Labs
@@ -697,14 +697,14 @@ router.patch('/:id/assistant', async (req, res) => {
     if (!phoneNumber.elevenLabsPhoneId) {
       return res.status(400).json({
         error: 'PHONE_NUMBER_NOT_CONNECTED',
-        message: 'Telefon numarası henüz 11Labs tarafında aktif değil.'
+        message: 'Telefon numarası henüz aktif değil.'
       });
     }
 
     if (!assistant.elevenLabsAgentId) {
       return res.status(400).json({
         error: 'ASSISTANT_NOT_CONNECTED',
-        message: 'Seçilen asistan 11Labs ile bağlı değil.'
+        message: 'Seçilen asistan aramalar için hazır değil.'
       });
     }
 
@@ -970,7 +970,7 @@ router.post('/:id/test-call', async (req, res) => {
     // P0.2: Use safeCallInitiator for capacity management
     if (!phoneNumber.elevenLabsPhoneId || !assistant?.elevenLabsAgentId) {
       return res.status(400).json({
-        error: 'Phone number or outbound assistant not connected to 11Labs',
+        error: 'Phone number or outbound assistant is not ready',
         hint: 'Aktif bir outbound assistant oluşturup tekrar deneyin'
       });
     }

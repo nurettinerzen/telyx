@@ -55,7 +55,7 @@ Verileriniz izniniz olmadan pazarlama amacıyla üçüncü kişilerle paylaşıl
           title: "Üçüncü Taraflarla Paylaşım",
           content: `Verileriniz şu durumlarda üçüncü taraflarla paylaşılabilir:
 • Entegrasyon sağlayıcıları (Google, WhatsApp vb.): Sadece entegrasyon çalışması için gerekli kısım.
-• Sesli arama ve yapay zeka servis sağlayıcıları (örn. ElevenLabs, OpenAI): Konuşma işleme ve asistan çalıştırmak için gerekli veriler.
+• Sesli arama ve yapay zeka servis sağlayıcıları: Konuşma işleme ve asistan çalıştırmak için gerekli veriler.
 • Ödeme işleyiciler: Abonelik ödemeleri için (kredi kartı bilgileriniz tarafımızca saklanmaz).
 • Yasal zorunluluklar: Mahkeme kararı, resmi talep, yasal gereklilik durumunda.
 
@@ -135,7 +135,7 @@ Your data is not shared with third parties for marketing purposes without your c
           title: "Third-Party Sharing",
           content: `Your data may be shared with third parties in the following cases:
 • Integration providers (Google, WhatsApp, etc.): Only the portion necessary for integration to function.
-• Voice call and AI service providers (e.g., ElevenLabs, OpenAI): Data necessary for conversation processing and running assistants.
+• Voice call and AI service providers: Data necessary for conversation processing and running assistants.
 • Payment processors: For subscription payments (your credit card information is not stored by us).
 • Legal obligations: In case of court orders, official requests, or legal requirements.
 

@@ -202,19 +202,6 @@ export default function AssistantsPage() {
   const isTextMode = formData.assistantType === 'text';
   const isSilentStartMode = !isTextMode && usesSilentStart(formData.callDirection);
 
-  // Update first message when assistant name changes (phone only)
-  useEffect(() => {
-    if (editingAssistant) return;
-    if (isTextMode) return;
-
-    const lang = businessLanguage === 'tr' ? 'tr' : 'en';
-    const defaultGreeting = DEFAULT_FIRST_MESSAGES[formData.callDirection]?.[lang]?.(businessName, formData.name) || '';
-    setFormData(prev => ({
-      ...prev,
-      firstMessage: defaultGreeting,
-    }));
-  }, [formData.name, formData.callDirection, editingAssistant, businessName, businessLanguage, isTextMode]);
-
   // Handle "Yazı Asistanı" button click
   const handleNewTextAssistant = () => {
     // Check if text assistant already exists
@@ -274,19 +261,24 @@ export default function AssistantsPage() {
   };
 
   // Get default first message based on call direction
-  const getDefaultFirstMessage = (direction, assistantName) => {
-    const lang = businessLanguage === 'tr' ? 'tr' : 'en';
+  const getDefaultFirstMessage = (direction, assistantName, language = formData.language || businessLanguage) => {
+    const lang = language === 'tr' ? 'tr' : 'en';
     const messageFn = DEFAULT_FIRST_MESSAGES[direction]?.[lang];
     return messageFn ? messageFn(businessName, assistantName) : '';
   };
 
   // Get default system prompt for a call purpose
-  const getDefaultSystemPrompt = (direction, purpose) => {
-    const lang = businessLanguage === 'tr' ? 'tr' : 'en';
+  const getDefaultSystemPrompt = (direction, purpose, language = formData.language || businessLanguage) => {
+    const lang = language === 'tr' ? 'tr' : 'en';
     if (direction === 'inbound') {
       return DEFAULT_SYSTEM_PROMPTS.inbound?.[lang] || '';
     }
     return DEFAULT_SYSTEM_PROMPTS[purpose]?.[lang] || '';
+  };
+
+  const shouldRefreshFirstMessage = (currentFirstMessage, direction, assistantName, language) => {
+    if (!currentFirstMessage?.trim()) return true;
+    return currentFirstMessage === getDefaultFirstMessage(direction, assistantName, language);
   };
 
   // Handle call purpose change
@@ -294,8 +286,7 @@ export default function AssistantsPage() {
     setFormData(prev => ({
       ...prev,
       callPurpose: purpose,
-      systemPrompt: getDefaultSystemPrompt(prev.callDirection, purpose),
-      firstMessage: getDefaultFirstMessage(prev.callDirection, prev.name),
+      systemPrompt: getDefaultSystemPrompt(prev.callDirection, purpose, prev.language),
     }));
   };
 
@@ -303,8 +294,14 @@ export default function AssistantsPage() {
     setFormData((prev) => ({
       ...prev,
       callDirection: direction,
-      systemPrompt: getDefaultSystemPrompt(direction, prev.callPurpose),
-      firstMessage: getDefaultFirstMessage(direction, prev.name),
+      systemPrompt: getDefaultSystemPrompt(direction, prev.callPurpose, prev.language),
+      firstMessage: usesSilentStart(direction)
+        ? ''
+        : (
+          shouldRefreshFirstMessage(prev.firstMessage, prev.callDirection, prev.name, prev.language)
+            ? getDefaultFirstMessage(direction, prev.name, prev.language)
+            : prev.firstMessage
+        ),
     }));
   };
 
@@ -429,7 +426,9 @@ export default function AssistantsPage() {
         name: assistant.name,
         voiceId: assistant.voiceId || '',
         systemPrompt: displayPrompt,
-        firstMessage: usesSilentStart(assistant.callDirection || 'outbound') ? '' : (assistant.firstMessage || ''),
+        firstMessage: usesSilentStart(assistant.callDirection || 'outbound')
+          ? ''
+          : (assistant.firstMessage || getDefaultFirstMessage(assistant.callDirection || 'outbound', assistant.name, assistant.language || inferredLang)),
         language: assistant.language || inferredLang,
         tone: assistant.tone || 'formal',
         customNotes: assistant.customNotes || '',
@@ -745,8 +744,15 @@ export default function AssistantsPage() {
                 id="name"
                 value={formData.name}
                 onChange={(e) => {
-                  if (e.target.value.length <= 25) {
-                    setFormData({ ...formData, name: e.target.value });
+                  const nextName = e.target.value;
+                  if (nextName.length <= 25) {
+                    setFormData((prev) => ({
+                      ...prev,
+                      name: nextName,
+                      firstMessage: prev.assistantType !== 'text' && !usesSilentStart(prev.callDirection) && shouldRefreshFirstMessage(prev.firstMessage, prev.callDirection, prev.name, prev.language)
+                        ? getDefaultFirstMessage(prev.callDirection, nextName, prev.language)
+                        : prev.firstMessage,
+                    }));
                   }
                 }}
                 maxLength={25}
@@ -805,7 +811,14 @@ export default function AssistantsPage() {
                   <Label htmlFor="language">{t('dashboard.assistantsPage.assistantLanguage')}</Label>
                   <Select
                     value={formData.language}
-                    onValueChange={(value) => setFormData({ ...formData, language: value, voiceId: '' })}
+                    onValueChange={(value) => setFormData((prev) => ({
+                      ...prev,
+                      language: value,
+                      voiceId: '',
+                      firstMessage: prev.assistantType !== 'text' && !usesSilentStart(prev.callDirection) && shouldRefreshFirstMessage(prev.firstMessage, prev.callDirection, prev.name, prev.language)
+                        ? getDefaultFirstMessage(prev.callDirection, prev.name, value)
+                        : prev.firstMessage,
+                    }))}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -864,16 +877,23 @@ export default function AssistantsPage() {
                   <Label htmlFor="firstMessage">
                     {t('dashboard.assistantsPage.greetingMessage')}
                   </Label>
-                  <div className="p-3 bg-neutral-50 border border-neutral-200 rounded-md text-sm text-neutral-700 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300">
-                    {isSilentStartMode
-                      ? t('dashboard.assistantsPage.silentStartEnabled')
-                      : (formData.firstMessage || t('dashboard.assistantsPage.autoGeneratedWhenNamed'))
-                    }
-                  </div>
+                  {isSilentStartMode ? (
+                    <div className="p-3 bg-neutral-50 border border-neutral-200 rounded-md text-sm text-neutral-700 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300">
+                      {t('dashboard.assistantsPage.silentStartEnabled')}
+                    </div>
+                  ) : (
+                    <Textarea
+                      id="firstMessage"
+                      rows={3}
+                      value={formData.firstMessage}
+                      onChange={(e) => setFormData({ ...formData, firstMessage: e.target.value })}
+                      placeholder={t('dashboard.assistantsPage.greetingPlaceholder')}
+                    />
+                  )}
                   <p className="text-xs text-neutral-500 mt-1">
                     {isSilentStartMode
                       ? t('dashboard.assistantsPage.silentStartHint')
-                      : t('dashboard.assistantsPage.autoGeneratedHint')
+                      : t('dashboard.assistantsPage.greetingHint')
                     }
                   </p>
                 </div>
