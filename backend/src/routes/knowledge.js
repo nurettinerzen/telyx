@@ -49,6 +49,25 @@ const upload = multer({
   }
 });
 
+async function removeKnowledgeDocumentFromAllAssistants(businessId, documentId) {
+  if (!businessId || !documentId) return;
+
+  const assistants = await prisma.assistant.findMany({
+    where: { businessId, isActive: true },
+    select: { elevenLabsAgentId: true, name: true }
+  });
+
+  for (const assistant of assistants) {
+    if (!assistant.elevenLabsAgentId) continue;
+
+    try {
+      await elevenLabsService.removeKnowledgeFromAgent(assistant.elevenLabsAgentId, documentId);
+    } catch (error) {
+      console.error(`11Labs removeKnowledgeFromAgent failed for assistant "${assistant.name}":`, error.message);
+    }
+  }
+}
+
 // GET /api/knowledge - Get all knowledge base items (documents, faqs, urls)
 router.get('/', authenticateToken, async (req, res) => {
   try {
@@ -410,17 +429,7 @@ router.delete('/documents/:id', authenticateToken, async (req, res) => {
     // Delete from 11Labs if we have the document ID
     if (document.elevenLabsDocId) {
       try {
-        // Get assistant to remove from agent
-        const assistant = await prisma.assistant.findFirst({
-          where: { businessId, isActive: true },
-          select: { elevenLabsAgentId: true }
-        });
-
-        if (assistant?.elevenLabsAgentId) {
-          // Remove from agent first
-          await elevenLabsService.removeKnowledgeFromAgent(assistant.elevenLabsAgentId, document.elevenLabsDocId);
-        }
-
+        await removeKnowledgeDocumentFromAllAssistants(businessId, document.elevenLabsDocId);
         // Then delete the document from 11Labs
         await elevenLabsService.deleteKnowledgeDocument(document.elevenLabsDocId);
       } catch (elevenLabsError) {
@@ -564,14 +573,7 @@ router.delete('/faqs/:id', authenticateToken, async (req, res) => {
     // Delete from 11Labs if we have the document ID
     if (faq.elevenLabsDocId) {
       try {
-        const assistant = await prisma.assistant.findFirst({
-          where: { businessId, isActive: true },
-          select: { elevenLabsAgentId: true }
-        });
-
-        if (assistant?.elevenLabsAgentId) {
-          await elevenLabsService.removeKnowledgeFromAgent(assistant.elevenLabsAgentId, faq.elevenLabsDocId);
-        }
+        await removeKnowledgeDocumentFromAllAssistants(businessId, faq.elevenLabsDocId);
         await elevenLabsService.deleteKnowledgeDocument(faq.elevenLabsDocId);
       } catch (elevenLabsError) {
         console.error('11Labs delete failed:', elevenLabsError);
@@ -993,14 +995,7 @@ router.delete('/urls/:id', authenticateToken, async (req, res) => {
     // Delete from 11Labs if we have the document ID
     if (urlEntry.elevenLabsDocId) {
       try {
-        const assistant = await prisma.assistant.findFirst({
-          where: { businessId, isActive: true },
-          select: { elevenLabsAgentId: true }
-        });
-
-        if (assistant?.elevenLabsAgentId) {
-          await elevenLabsService.removeKnowledgeFromAgent(assistant.elevenLabsAgentId, urlEntry.elevenLabsDocId);
-        }
+        await removeKnowledgeDocumentFromAllAssistants(businessId, urlEntry.elevenLabsDocId);
         await elevenLabsService.deleteKnowledgeDocument(urlEntry.elevenLabsDocId);
       } catch (elevenLabsError) {
         console.error('11Labs delete failed:', elevenLabsError);

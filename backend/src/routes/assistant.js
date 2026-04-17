@@ -181,6 +181,62 @@ function isElevenLabsNotFound(error) {
   return Number(error?.response?.status) === 404;
 }
 
+function getKnowledgeItemSyncName(item) {
+  if (!item) return null;
+
+  if (item.type === 'FAQ' && item.question) {
+    return `FAQ: ${item.question.substring(0, 50)}`;
+  }
+
+  if (item.title) {
+    return item.title;
+  }
+
+  if (item.fileName) {
+    return item.fileName;
+  }
+
+  if (item.url) {
+    return item.url;
+  }
+
+  return null;
+}
+
+function getActiveKnowledgeItemNames(items = []) {
+  return new Set(
+    items
+      .map(getKnowledgeItemSyncName)
+      .map(name => String(name || '').trim())
+      .filter(Boolean)
+  );
+}
+
+function filterKnowledgeBaseEntriesForBusiness(currentKnowledgeBase = [], activeKnowledgeNames = new Set()) {
+  if (!Array.isArray(currentKnowledgeBase) || currentKnowledgeBase.length === 0) {
+    return [];
+  }
+
+  if (!(activeKnowledgeNames instanceof Set) || activeKnowledgeNames.size === 0) {
+    return [];
+  }
+
+  return currentKnowledgeBase.filter((entry) => activeKnowledgeNames.has(String(entry?.name || '').trim()));
+}
+
+function buildPhoneAssistantPromptFromState(assistant, business, integrations = []) {
+  const tempAssistant = {
+    name: assistant?.name,
+    assistantType: assistant?.assistantType || 'phone',
+    systemPrompt: assistant?.userInstructions || null,
+    tone: assistant?.tone || 'professional',
+    customNotes: assistant?.customNotes || null,
+    callDirection: assistant?.callDirection
+  };
+
+  return buildAssistantPrompt(tempAssistant, business, getPromptBuilderTools(business, integrations));
+}
+
 // ============================================================
 // ASSISTANT DEFAULTS BY LANGUAGE
 // ============================================================
@@ -991,36 +1047,6 @@ router.put('/:id', authenticateToken, checkPermission('assistants:edit'), async 
     // Get 11Labs voice ID from central mapping
     const elevenLabsVoiceId = getElevenLabsVoiceId(voiceId, language || business?.language);
 
-    // 🔥 KNOWLEDGE BASE İÇERİĞİNİ ÇEK
-    const knowledgeItems = await prisma.knowledgeBase.findMany({
-      where: { businessId, status: 'ACTIVE' }
-    });
-
-    let knowledgeContext = '';
-    if (knowledgeItems.length > 0) {
-      const kbByType = { URL: [], DOCUMENT: [], FAQ: [] };
-
-      for (const item of knowledgeItems) {
-        if (item.type === 'FAQ' && item.question && item.answer) {
-          kbByType.FAQ.push(`Q: ${item.question}\nA: ${item.answer}`);
-        } else if (item.content) {
-          kbByType[item.type]?.push(`[${item.title}]: ${item.content.substring(0, 1000)}`);
-        }
-      }
-
-      if (kbByType.FAQ.length > 0) {
-        knowledgeContext += '\n\n=== FREQUENTLY ASKED QUESTIONS ===\n' + kbByType.FAQ.join('\n\n');
-      }
-      if (kbByType.URL.length > 0) {
-        knowledgeContext += '\n\n=== WEBSITE CONTENT ===\n' + kbByType.URL.join('\n\n');
-      }
-      if (kbByType.DOCUMENT.length > 0) {
-        knowledgeContext += '\n\n=== DOCUMENTS ===\n' + kbByType.DOCUMENT.join('\n\n');
-      }
-
-      console.log('📚 Knowledge Base items added:', knowledgeItems.length);
-    }
-
     // Determine effective callDirection based on callPurpose
     // For outbound calls, callPurpose determines the actual callDirection for prompt selection
     // 3 main purposes: sales, collection, general
@@ -1043,11 +1069,15 @@ router.put('/:id', authenticateToken, checkPermission('assistants:edit'), async 
       getDefaultCapabilitiesForCallDirection(effectiveCallDirection)
     );
 
+    const baseUserInstructions = systemPrompt !== undefined
+      ? (systemPrompt || null)
+      : (assistant.userInstructions || null);
+
     // Build full system prompt using promptBuilder
     const tempAssistant = {
       name,
       assistantType: assistant.assistantType,
-      systemPrompt: systemPrompt,
+      systemPrompt: baseUserInstructions,
       tone: tone || assistant.tone || 'professional',
       customNotes: customNotes !== undefined ? customNotes : assistant.customNotes,
       callDirection: effectiveCallDirection
@@ -1056,8 +1086,8 @@ router.put('/:id', authenticateToken, checkPermission('assistants:edit'), async 
     // Get active tools list for prompt builder
     const activeToolsList = getPromptBuilderTools(business, business.integrations || []);
 
-    // Use central prompt builder to create the full system prompt, then add knowledge context
-    const fullSystemPrompt = buildAssistantPrompt(tempAssistant, business, activeToolsList) + knowledgeContext;
+    // Keep the phone prompt lean; ElevenLabs knowledge base already handles KB retrieval.
+    const fullSystemPrompt = buildAssistantPrompt(tempAssistant, business, activeToolsList);
 
     const resolvedFirstMessage = resolveStoredFirstMessage({
       callDirection: effectiveCallDirection,
@@ -1072,7 +1102,7 @@ router.put('/:id', authenticateToken, checkPermission('assistants:edit'), async 
       systemPrompt: fullSystemPrompt,
       tone: tone || assistant.tone || 'professional',
       customNotes: customNotes !== undefined ? customNotes : assistant.customNotes,
-      userInstructions: systemPrompt !== undefined ? (systemPrompt || null) : assistant.userInstructions,
+      userInstructions: baseUserInstructions,
     };
 
     if (isTextAssistant) {
@@ -1423,6 +1453,11 @@ router.post('/:id/sync', authenticateToken, checkPermission('assistants:edit'), 
       where: { id: businessId },
       include: { integrations: { where: { isActive: true } } }
     });
+    const activeKnowledgeItems = await prisma.knowledgeBase.findMany({
+      where: { businessId, status: 'ACTIVE' }
+    });
+    const activeKnowledgeNames = getActiveKnowledgeItemNames(activeKnowledgeItems);
+    const cleanSystemPrompt = buildPhoneAssistantPromptFromState(assistant, business, business.integrations || []);
 
     const lang = business?.language || 'TR';
     const elevenLabsLang = getElevenLabsLanguage(lang);
@@ -1448,6 +1483,14 @@ router.post('/:id/sync', authenticateToken, checkPermission('assistants:edit'), 
         data: { firstMessage: normalizedFirstMessage }
       });
       assistant.firstMessage = normalizedFirstMessage;
+    }
+
+    if (cleanSystemPrompt !== assistant.systemPrompt) {
+      await prisma.assistant.update({
+        where: { id: assistant.id },
+        data: { systemPrompt: cleanSystemPrompt }
+      });
+      assistant.systemPrompt = cleanSystemPrompt;
     }
 
     const systemTools = buildPhoneSystemTools({ callDirection: assistant.callDirection });
@@ -1508,7 +1551,7 @@ router.post('/:id/sync', authenticateToken, checkPermission('assistants:edit'), 
     };
     const langAnalysis = analysisPrompts[elevenLabsLang] || analysisPrompts.en;
 
-    const buildAgentSyncConfig = ({ agentIdForWebhook = null, postCallWebhookId = null } = {}) => ({
+    const buildAgentSyncConfig = ({ agentIdForWebhook = null, postCallWebhookId = null, knowledgeBase = null } = {}) => ({
       name: assistant.name,
       conversation_config: {
         agent: {
@@ -1516,7 +1559,8 @@ router.post('/:id/sync', authenticateToken, checkPermission('assistants:edit'), 
             prompt: assistant.systemPrompt,
             llm: 'gemini-2.5-flash',
             temperature: 0.1,
-            tools: buildAllToolsForAgent(agentIdForWebhook)
+            tools: buildAllToolsForAgent(agentIdForWebhook),
+            ...(knowledgeBase !== null ? { knowledge_base: knowledgeBase } : {})
           },
           ...(providerFirstMessage !== undefined ? { first_message: providerFirstMessage } : {}),
           language: elevenLabsLang
@@ -1565,18 +1609,27 @@ router.post('/:id/sync', authenticateToken, checkPermission('assistants:edit'), 
     let targetAgentId = assistant.elevenLabsAgentId || null;
     let agentMissingInElevenLabs = !targetAgentId;
     let recreated = false;
+    let syncedKnowledgeBase = [];
 
     if (targetAgentId) {
       try {
         const currentAgent = await elevenLabsService.getAgent(targetAgentId);
         const currentToolIds = currentAgent.tool_ids || [];
         const currentInlineTools = currentAgent.conversation_config?.agent?.prompt?.tools || [];
+        const currentKnowledgeBase = currentAgent.conversation_config?.agent?.prompt?.knowledge_base || [];
+        const filteredKnowledgeBase = filterKnowledgeBaseEntriesForBusiness(currentKnowledgeBase, activeKnowledgeNames);
+        const removedKnowledgeEntries = currentKnowledgeBase.length - filteredKnowledgeBase.length;
         console.log('📊 CURRENT AGENT STATE:');
         console.log('   - tool_ids:', currentToolIds.length > 0 ? currentToolIds : 'none');
         console.log('   - inline_tools:', currentInlineTools.length > 0 ? currentInlineTools.map(t => t.name) : 'none');
+        console.log('   - knowledge_base:', currentKnowledgeBase.length > 0 ? currentKnowledgeBase.map(kb => kb.name) : 'none');
+        if (removedKnowledgeEntries > 0) {
+          console.log(`   - stale_knowledge_removed_on_sync: ${removedKnowledgeEntries}`);
+        }
         if (currentToolIds.length > 0) {
           console.log('   ⚠️ PROBLEM: Agent has tool_ids which may be broken!');
         }
+        syncedKnowledgeBase = filteredKnowledgeBase;
       } catch (checkErr) {
         if (isElevenLabsNotFound(checkErr)) {
           agentMissingInElevenLabs = true;
@@ -1605,7 +1658,10 @@ router.post('/:id/sync', authenticateToken, checkPermission('assistants:edit'), 
 
     if (!agentMissingInElevenLabs && targetAgentId) {
       try {
-        const agentUpdateConfig = buildAgentSyncConfig({ agentIdForWebhook: targetAgentId });
+        const agentUpdateConfig = buildAgentSyncConfig({
+          agentIdForWebhook: targetAgentId,
+          knowledgeBase: syncedKnowledgeBase
+        });
         const allTools = buildAllToolsForAgent(targetAgentId);
         console.log('🔧 Tools to sync:', allTools.map(t => t.name));
         await elevenLabsService.updateAgent(targetAgentId, agentUpdateConfig);
@@ -1636,13 +1692,45 @@ router.post('/:id/sync', authenticateToken, checkPermission('assistants:edit'), 
 
       const createConfig = buildAgentSyncConfig({
         agentIdForWebhook: null,
-        postCallWebhookId
+        postCallWebhookId,
+        knowledgeBase: []
       });
 
       const createdAgent = await elevenLabsService.createAgent(createConfig);
       targetAgentId = createdAgent.agent_id;
       recreated = true;
       console.log(`✅ Recreated 11Labs agent during sync: ${targetAgentId}`);
+
+      if (activeKnowledgeItems.length > 0) {
+        console.log(`📚 Re-syncing ${activeKnowledgeItems.length} KB items to recreated assistant...`);
+        for (const kb of activeKnowledgeItems) {
+          try {
+            let kbContent = '';
+            let kbName = getKnowledgeItemSyncName(kb) || 'Knowledge Item';
+
+            if (kb.type === 'FAQ' && kb.question && kb.answer) {
+              kbContent = `Q: ${kb.question}\nA: ${kb.answer}`;
+            } else if (kb.type === 'URL' && kb.url) {
+              await elevenLabsService.addKnowledgeDocument(targetAgentId, {
+                name: kbName,
+                url: kb.url
+              });
+              continue;
+            } else if (kb.content) {
+              kbContent = kb.content;
+            }
+
+            if (kbContent) {
+              await elevenLabsService.addKnowledgeDocument(targetAgentId, {
+                name: kbName,
+                content: kbContent
+              });
+            }
+          } catch (kbError) {
+            console.error(`⚠️ Failed to sync KB "${kb.title}" to recreated assistant:`, kbError.message);
+          }
+        }
+      }
 
       if (activeToolDefinitions.length > 0) {
         await elevenLabsService.updateAgent(targetAgentId, {
