@@ -1,10 +1,9 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { apiClient } from '@/lib/api';
 import { toast } from '@/lib/toast';
-import { renderTrustedCheckoutHtml } from '@/lib/safeHtml';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -15,7 +14,6 @@ import {
   CreditCard,
   Info,
   Check,
-  Zap,
   Wallet,
   RefreshCw,
   Settings
@@ -111,13 +109,11 @@ const REGIONAL_TOPUP = {
  * BuyCreditModal Component - YENİ FİYATLANDIRMA SİSTEMİ
  * Modal for topping up balance (TL/USD/BRL)
  */
-export default function BuyCreditModal({ isOpen, onClose, onSuccess }) {
-  const { t, locale } = useLanguage();
+export default function BuyCreditModal({ isOpen, onClose, onSuccess, initialRegion = null }) {
+  const { locale } = useLanguage();
   const lang = LOCALE_TO_LANG[locale] || 'TR';
   const txt = TRANSLATIONS[lang] || TRANSLATIONS.TR;
-  const checkoutContainerRef = useRef(null);
 
-  // Default to TR region - could be passed as prop or fetched
   const [region, setRegion] = useState('TR');
   const regionConfig = REGIONAL_TOPUP[region] || REGIONAL_TOPUP.TR;
   const currency = regionConfig.currency;
@@ -129,17 +125,30 @@ export default function BuyCreditModal({ isOpen, onClose, onSuccess }) {
   const [autoReloadEnabled, setAutoReloadEnabled] = useState(false);
   const [autoReloadThreshold, setAutoReloadThreshold] = useState(regionConfig.autoReloadThresholds[0]);
   const [autoReloadAmount, setAutoReloadAmount] = useState(regionConfig.autoReloadAmounts[0]);
-  const [checkoutFormHtml, setCheckoutFormHtml] = useState('');
 
   // Calculate minutes from amount
   const minutesFromAmount = Math.floor(amount / regionConfig.pricePerMinute);
 
-  // Handle iyzico checkout form rendering
   useEffect(() => {
-    if (checkoutFormHtml && checkoutContainerRef.current) {
-      renderTrustedCheckoutHtml(checkoutContainerRef.current, checkoutFormHtml);
+    if (initialRegion && REGIONAL_TOPUP[initialRegion]) {
+      setRegion((current) => (current === initialRegion ? current : initialRegion));
+      return;
     }
-  }, [checkoutFormHtml]);
+
+    const nextRegion = locale?.toLowerCase().startsWith('pt')
+      ? 'BR'
+      : locale?.toLowerCase().startsWith('en')
+        ? 'US'
+        : 'TR';
+
+    setRegion((current) => (current === nextRegion ? current : nextRegion));
+  }, [initialRegion, locale]);
+
+  useEffect(() => {
+    setAmount(regionConfig.quickOptions[1]);
+    setAutoReloadThreshold(regionConfig.autoReloadThresholds[0]);
+    setAutoReloadAmount(regionConfig.autoReloadAmounts[0]);
+  }, [regionConfig.autoReloadAmounts, regionConfig.autoReloadThresholds, regionConfig.quickOptions]);
 
   const handleAmountChange = (e) => {
     const value = parseFloat(e.target.value) || 0;
@@ -164,16 +173,10 @@ export default function BuyCreditModal({ isOpen, onClose, onSuccess }) {
         locale
       });
 
-      // Handle different response types
-      if (response.data?.checkoutFormContent) {
-        // iyzico checkout form
-        setCheckoutFormHtml(response.data.checkoutFormContent);
-      } else if (response.data?.sessionUrl) {
-        // Stripe checkout
+      if (response.data?.sessionUrl) {
         toast.info(txt.paymentRedirect);
         window.location.href = response.data.sessionUrl;
       } else if (response.data?.success) {
-        // Direct top-up (saved card)
         toast.success(txt.balanceAdded);
         onSuccess?.();
         onClose();
@@ -205,33 +208,6 @@ export default function BuyCreditModal({ isOpen, onClose, onSuccess }) {
   };
 
   if (!isOpen) return null;
-
-  // If showing checkout form
-  if (checkoutFormHtml) {
-    return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-auto">
-          <div className="flex items-center justify-between p-4 border-b border-neutral-200 dark:border-neutral-700">
-            <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">
-              {txt.title}
-            </h2>
-            <button
-              onClick={() => {
-                setCheckoutFormHtml('');
-                onClose();
-              }}
-              className="text-neutral-500 hover:text-neutral-700 transition-colors p-1 rounded-lg hover:bg-neutral-100"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-          <div className="p-4">
-            <div ref={checkoutContainerRef} id="iyzico-checkout-container" />
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

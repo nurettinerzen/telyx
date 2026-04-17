@@ -294,7 +294,11 @@ export default function AdminSubscriptionsPage() {
                   <td className="px-4 py-3">
                     <div className="text-sm">
                       <p className="text-gray-900 dark:text-white">
-                        {sub.paymentProvider === 'stripe' ? 'Stripe' : sub.paymentProvider === 'iyzico' ? 'iyzico' : 'Manuel'}
+                        {sub.paymentProvider === 'stripe'
+                          ? 'Stripe'
+                          : sub.paymentProvider === 'stripe_brl'
+                            ? 'Stripe (BR)'
+                            : 'Manual'}
                       </p>
                       {sub.stripeSubscriptionId && (
                         <p className="text-xs text-gray-500 font-mono truncate max-w-[100px]">{sub.stripeSubscriptionId}</p>

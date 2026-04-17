@@ -141,9 +141,10 @@ describe('Balance top-up checkout', () => {
       amount: 250,
       currency: 'TRY',
       countryCode: 'TR',
-      successUrl: 'https://telyx.ai/dashboard/subscription?wallet_topup=success',
+      successUrl: 'https://telyx.ai/dashboard/subscription?wallet_topup=success&session_id={CHECKOUT_SESSION_ID}',
       cancelUrl: 'https://telyx.ai/dashboard/subscription?wallet_topup=cancel',
-      businessId: '11'
+      businessId: '11',
+      checkoutLocale: undefined
     });
     expect(response.body.sessionUrl).toBe('https://checkout.stripe.test/payg-topup');
   });

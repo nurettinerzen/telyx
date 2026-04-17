@@ -6,14 +6,13 @@
 
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Check, CreditCard, Loader2, AlertCircle, MessageSquare, PhoneCall, X } from 'lucide-react';
 import { apiClient } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { formatDate } from '@/lib/utils';
-import { renderTrustedCheckoutHtml } from '@/lib/safeHtml';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import PageIntro from '@/components/PageIntro';
@@ -87,13 +86,9 @@ export default function SubscriptionPage() {
 
   const loading = subscriptionLoading || billingLoading;
   const [upgrading, setUpgrading] = useState(false);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [checkoutFormHtml, setCheckoutFormHtml] = useState('');
   const [purchasingAddOn, setPurchasingAddOn] = useState('');
-  const checkoutContainerRef = useRef(null);
   // Credit modal state
   const [creditModalOpen, setCreditModalOpen] = useState(false);
-  const [creditRefreshTrigger, setCreditRefreshTrigger] = useState(0);
   const [userCountry, setUserCountry] = useState(() => {
     // Initial detection from browser locale
     if (typeof navigator !== 'undefined') {
@@ -149,6 +144,21 @@ export default function SubscriptionPage() {
     return regionConfig.plans[planId] || null;
   };
 
+  const formatBillingAmount = useCallback((amount, currency) => {
+    const normalizedCurrency = String(currency || 'USD').toUpperCase();
+    const currencyLocale = normalizedCurrency === 'TRY'
+      ? 'tr-TR'
+      : normalizedCurrency === 'BRL'
+        ? 'pt-BR'
+        : 'en-US';
+
+    return new Intl.NumberFormat(currencyLocale, {
+      style: 'currency',
+      currency: normalizedCurrency,
+      maximumFractionDigits: 2
+    }).format(Number(amount || 0));
+  }, []);
+
   const refreshBillingState = useCallback(async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['subscription'] }),
@@ -168,13 +178,6 @@ export default function SubscriptionPage() {
   const getPlanName = (plan) => {
     return t(plan.nameKey);
   };
-
-  // Handle iyzico checkout form rendering
-  useEffect(() => {
-    if (showPaymentModal && checkoutFormHtml && checkoutContainerRef.current) {
-      renderTrustedCheckoutHtml(checkoutContainerRef.current, checkoutFormHtml);
-    }
-  }, [showPaymentModal, checkoutFormHtml]);
 
   // Check for success/error in URL params (after payment callback)
   useEffect(() => {
@@ -318,10 +321,6 @@ export default function SubscriptionPage() {
             : t('dashboard.subscriptionPage.downgradeScheduledNoDate').replace('{planName}', planName)
         );
         await refreshBillingState();
-      } else if (response.data?.checkoutFormContent) {
-        // iyzico checkout form
-        setCheckoutFormHtml(response.data.checkoutFormContent);
-        setShowPaymentModal(true);
       } else if (response.data?.sessionUrl) {
         // Stripe checkout (new subscription)
         window.location.href = response.data.sessionUrl;
@@ -397,11 +396,6 @@ export default function SubscriptionPage() {
     } finally {
       setUpgrading(false);
     }
-  };
-
-  const closePaymentModal = () => {
-    setShowPaymentModal(false);
-    setCheckoutFormHtml('');
   };
 
   const handleBuyAddOn = async (kind, packageId) => {
@@ -653,7 +647,6 @@ export default function SubscriptionPage() {
           {/* Credit Balance - full width */}
           <CreditBalance
             onBuyCredit={() => setCreditModalOpen(true)}
-            refreshTrigger={creditRefreshTrigger}
           />
         </div>
       )}
@@ -976,8 +969,6 @@ export default function SubscriptionPage() {
         </div>
       </div>
 
-      {/* Billing history - Hidden until real invoices are available */}
-      {/*
       <div className="bg-white rounded-xl border border-neutral-200 shadow-sm">
         <div className="p-6 border-b border-neutral-200">
           <div className="flex items-center gap-3">
@@ -985,43 +976,65 @@ export default function SubscriptionPage() {
             <h2 className="text-lg font-semibold text-neutral-900">{t('dashboard.subscriptionPage.billingHistory')}</h2>
           </div>
         </div>
-        <div className="p-8 text-center text-sm text-neutral-500">
-          {t('dashboard.subscriptionPage.noBillingHistory')}
+        <div className="divide-y divide-neutral-200">
+          {billingHistory.length === 0 ? (
+            <div className="p-8 text-center text-sm text-neutral-500">
+              {t('dashboard.subscriptionPage.noBillingHistory')}
+            </div>
+          ) : (
+            billingHistory.map((entry) => {
+              const invoiceUrl = entry.invoicePdfUrl || entry.hostedInvoiceUrl || null;
+              const statusTone = entry.status === 'paid'
+                ? 'text-emerald-600'
+                : entry.status === 'open'
+                  ? 'text-amber-600'
+                  : 'text-neutral-500';
+
+              return (
+                <div key={entry.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="font-medium text-neutral-900">
+                      {entry.description || entry.plan || t('dashboard.subscriptionPage.billingHistory')}
+                    </p>
+                    <p className="mt-1 text-sm text-neutral-500">
+                      {formatDate(entry.date, 'long', locale)}
+                      {entry.plan ? ` • ${entry.plan}` : ''}
+                    </p>
+                  </div>
+                  <div className="text-left sm:text-right">
+                    <p className="font-semibold text-neutral-900">
+                      {formatBillingAmount(entry.amount, entry.currency)}
+                    </p>
+                    <div className="mt-1 flex items-center gap-3 text-sm sm:justify-end">
+                      <span className={statusTone}>
+                        {String(entry.status || 'paid').replace('_', ' ')}
+                      </span>
+                      {invoiceUrl && (
+                        <a
+                          href={invoiceUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-primary-600 hover:text-primary-700"
+                        >
+                          {locale === 'tr' ? 'Faturayi ac' : 'Open invoice'}
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
-      */}
-
-      {/* iyzico Payment Modal */}
-      {showPaymentModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-auto">
-            <div className="flex justify-between items-center p-4 border-b border-neutral-200">
-              <h3 className="text-lg font-semibold text-neutral-900">
-                {t('dashboard.subscriptionPage.payment')}
-              </h3>
-              <button
-                onClick={closePaymentModal}
-                className="text-neutral-500 hover:text-neutral-700 transition-colors p-1"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="p-4">
-              <div ref={checkoutContainerRef} id="iyzico-checkout-container" />
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Buy Credit Modal - YENİ KREDİ SİSTEMİ */}
       <BuyCreditModal
         isOpen={creditModalOpen}
+        initialRegion={region}
         onClose={() => setCreditModalOpen(false)}
         onSuccess={() => {
-          // Refresh credit balance
-          setCreditRefreshTrigger(prev => prev + 1);
-          // Also reload subscription data
-          refetchSubscription();
+          refreshBillingState();
         }}
       />
     </div>

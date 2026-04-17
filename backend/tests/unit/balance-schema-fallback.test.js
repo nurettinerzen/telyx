@@ -92,42 +92,47 @@ describe('Balance route schema-safe reads', () => {
   });
 
   it('returns balance data without selecting billing v2-only subscription columns', async () => {
-    prismaMock.subscription.findUnique.mockResolvedValue({
-      id: 33,
-      businessId: 11,
-      plan: 'ENTERPRISE',
-      balance: 0,
-      minutesLimit: 0,
-      minutesUsed: 0,
-      trialMinutesUsed: 0,
-      trialChatExpiry: null,
-      includedMinutesUsed: 0,
-      overageMinutes: 0,
-      overageRate: 23,
-      overageLimit: 0,
-      overageLimitReached: false,
-      creditMinutes: 0,
-      creditMinutesUsed: 0,
-      packageWarningAt80: false,
-      creditWarningAt80: false,
-      autoReloadEnabled: false,
-      autoReloadThreshold: 2,
-      autoReloadAmount: 5,
-      enterpriseMinutes: 750,
-      enterpriseSupportInteractions: 500,
-      enterprisePrice: 19999,
-      enterpriseConcurrent: 3,
-      enterpriseStartDate: new Date('2026-03-01T00:00:00.000Z'),
-      enterpriseEndDate: new Date('2026-04-01T00:00:00.000Z'),
-      enterprisePaymentStatus: 'paid',
-      currentPeriodStart: new Date('2026-03-01T00:00:00.000Z'),
-      currentPeriodEnd: new Date('2026-04-01T00:00:00.000Z'),
-      business: {
-        country: 'TR',
-        name: 'Acme',
-        users: [{ email: 'owner@example.com' }]
-      }
-    });
+    const missingColumnError = new Error('The column `voiceAddOnMinutesBalance` does not exist');
+    missingColumnError.code = 'P2022';
+
+    prismaMock.subscription.findUnique
+      .mockRejectedValueOnce(missingColumnError)
+      .mockResolvedValueOnce({
+        id: 33,
+        businessId: 11,
+        plan: 'ENTERPRISE',
+        balance: 0,
+        minutesLimit: 0,
+        minutesUsed: 0,
+        trialMinutesUsed: 0,
+        trialChatExpiry: null,
+        includedMinutesUsed: 0,
+        overageMinutes: 0,
+        overageRate: 23,
+        overageLimit: 0,
+        overageLimitReached: false,
+        creditMinutes: 0,
+        creditMinutesUsed: 0,
+        packageWarningAt80: false,
+        creditWarningAt80: false,
+        autoReloadEnabled: false,
+        autoReloadThreshold: 2,
+        autoReloadAmount: 5,
+        enterpriseMinutes: 750,
+        enterpriseSupportInteractions: 500,
+        enterprisePrice: 19999,
+        enterpriseConcurrent: 3,
+        enterpriseStartDate: new Date('2026-03-01T00:00:00.000Z'),
+        enterpriseEndDate: new Date('2026-04-01T00:00:00.000Z'),
+        enterprisePaymentStatus: 'paid',
+        currentPeriodStart: new Date('2026-03-01T00:00:00.000Z'),
+        currentPeriodEnd: new Date('2026-04-01T00:00:00.000Z'),
+        business: {
+          country: 'TR',
+          name: 'Acme',
+          users: [{ email: 'owner@example.com' }]
+        }
+      });
 
     const response = await request(app).get('/api/balance');
 
@@ -140,7 +145,10 @@ describe('Balance route schema-safe reads', () => {
       })
     );
 
-    const select = prismaMock.subscription.findUnique.mock.calls[0][0].select;
+    expect(prismaMock.subscription.findUnique).toHaveBeenCalledTimes(2);
+    const firstSelect = prismaMock.subscription.findUnique.mock.calls[0][0].select;
+    const select = prismaMock.subscription.findUnique.mock.calls[1][0].select;
+    expect(firstSelect.voiceAddOnMinutesBalance).toBe(true);
     expect(select.plan).toBe(true);
     expect(select.business).toBeDefined();
     expect(select.voiceAddOnMinutesBalance).toBeUndefined();

@@ -26,7 +26,8 @@ const resolvePlanFromStripePriceIdMock = jest.fn();
 const resolveStripePriceIdForPlanMock = jest.fn();
 const stripeServiceMock = {
   ensureCustomer: jest.fn(),
-  createAddonCheckoutSession: jest.fn()
+  createAddonCheckoutSession: jest.fn(),
+  resolveCheckoutLocale: jest.fn(() => 'tr')
 };
 
 jest.unstable_mockModule('@prisma/client', () => ({
@@ -47,10 +48,6 @@ jest.unstable_mockModule('../../src/middleware/auth.js', () => ({
 }));
 
 jest.unstable_mockModule('../../src/services/emailService.js', () => ({
-  default: {}
-}));
-
-jest.unstable_mockModule('../../src/services/iyzicoSubscription.js', () => ({
   default: {}
 }));
 

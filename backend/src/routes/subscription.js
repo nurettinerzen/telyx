@@ -3,8 +3,7 @@
 // ============================================================================
 // FILE: backend/src/routes/subscription.js
 //
-// Enhanced with iyzico support for Turkish customers
-// Stripe for global customers, iyzico for Turkey (TR)
+// Stripe-only billing and subscription management
 // ============================================================================
 
 // Load environment variables first
@@ -15,13 +14,10 @@ import express from 'express';
 import prisma from '../prismaClient.js';
 import { authenticateToken, verifyBusinessAccess } from '../middleware/auth.js';
 import Stripe from 'stripe';
-import crypto from 'crypto';
 import emailService from '../services/emailService.js';
-import iyzicoSubscription from '../services/iyzicoSubscription.js';
 import paymentProvider from '../services/paymentProvider.js';
 import balanceService from '../services/balanceService.js';
 import { getEffectivePlanConfig } from '../services/planConfig.js';
-import { getPlanWithPricing } from '../config/plans.js';
 import { isPhoneInboundEnabledForBusinessRecord } from '../services/phoneInboundGate.js';
 import { buildPhoneEntitlements } from '../services/phonePlanEntitlements.js';
 import stripeService from '../services/stripe.js';
@@ -31,6 +27,14 @@ import {
   resolvePlanFromStripePriceId,
   resolveStripePriceIdForPlan,
 } from '../services/stripePlanCatalog.js';
+import {
+  listOpenBillingCheckoutSessions,
+  markBillingCheckoutSessionCompleted,
+  markBillingCheckoutSessionExpired,
+  recordBillingCheckoutSession,
+  registerBillingTrialClaim,
+  resolveBillingTrialEligibility
+} from '../services/billingAudit.js';
 import runtimeConfig from '../config/runtime.js';
 
 const router = express.Router();
@@ -155,9 +159,12 @@ function getStripe() {
   return stripe;
 }
 
-function hashValue(value) {
-  if (!value) return null;
-  return crypto.createHash('sha256').update(String(value), 'utf8').digest('hex').slice(0, 12);
+function resolveStripeCheckoutLocale(checkoutLocale, countryCode) {
+  if (typeof stripeService.resolveCheckoutLocale === 'function') {
+    return stripeService.resolveCheckoutLocale(checkoutLocale, countryCode);
+  }
+
+  return undefined;
 }
 
 function isMissingStripeSubscriptionError(error) {
@@ -312,8 +319,7 @@ async function reconcileLocallyManagedBillingCycle(subscription) {
     return subscription;
   }
 
-  const hasManagedProviderSubscription = Boolean(subscription.stripeSubscriptionId)
-    || paymentProvider === 'iyzico';
+  const hasManagedProviderSubscription = Boolean(subscription.stripeSubscriptionId);
 
   if (hasManagedProviderSubscription) {
     return subscription;
@@ -350,8 +356,6 @@ async function reconcileLocallyManagedBillingCycle(subscription) {
         pendingPlanId: null,
         stripeSubscriptionId: null,
         stripePriceId: null,
-        iyzicoSubscriptionId: null,
-        iyzicoReferenceCode: null,
         pendingSubscriptionToken: null,
         minutesLimit: paygConfig.minutesLimit,
         callsLimit: paygConfig.callsLimit,
@@ -403,6 +407,10 @@ async function reconcileLocallyManagedBillingCycle(subscription) {
 
   if (!lastUpdateData) {
     return subscription;
+  }
+
+  if (typeof prisma.subscription.update !== 'function') {
+    return { ...subscription, ...lastUpdateData };
   }
 
   const updated = await prisma.subscription.update({
@@ -463,8 +471,6 @@ async function switchBusinessToPayg({ businessId, force = false }) {
         phoneNumbersLimit: paygConfig.phoneNumbersLimit,
         stripeSubscriptionId: null,
         stripePriceId: null,
-        iyzicoSubscriptionId: null,
-        iyzicoReferenceCode: null,
         pendingSubscriptionToken: null,
         includedMinutesUsed: 0,
         overageMinutes: 0,
@@ -662,6 +668,131 @@ function buildBillingSnapshot({
   };
 }
 
+function getBillingCurrency(countryCode) {
+  const normalizedCountry = String(countryCode || '').toUpperCase();
+  if (normalizedCountry === 'TR') return 'TRY';
+  if (normalizedCountry === 'BR') return 'BRL';
+  return 'USD';
+}
+
+function normalizeBillingHistoryStatus(status) {
+  const normalized = String(status || '').toLowerCase();
+  if (['paid', 'open', 'void', 'draft', 'uncollectible'].includes(normalized)) {
+    return normalized;
+  }
+  return 'paid';
+}
+
+function formatAddOnDescription(kind, quantity, countryCode) {
+  const isVoice = String(kind || '').toUpperCase() === 'VOICE';
+  const normalizedCountry = String(countryCode || '').toUpperCase();
+
+  if (normalizedCountry === 'TR') {
+    return isVoice
+      ? `${quantity} dk ses add-on`
+      : `${quantity} yazili etkilesim add-on`;
+  }
+
+  return isVoice
+    ? `${quantity} voice minutes add-on`
+    : `${quantity} written interactions add-on`;
+}
+
+async function getStripeInvoiceHistoryEntries(subscription, countryCode) {
+  if (!subscription?.stripeCustomerId || !process.env.STRIPE_SECRET_KEY) {
+    return [];
+  }
+
+  try {
+    const invoices = await getStripe().invoices.list({
+      customer: subscription.stripeCustomerId,
+      limit: 24
+    });
+
+    return (invoices.data || []).map((invoice) => {
+      const primaryLine = invoice.lines?.data?.[0];
+      const linePeriod = primaryLine?.period;
+
+      return {
+        id: `invoice:${invoice.id}`,
+        source: 'stripe_invoice',
+        type: invoice.billing_reason || 'subscription_cycle',
+        date: new Date((invoice.created || 0) * 1000).toISOString(),
+        amount: Number.isFinite(invoice.amount_paid)
+          ? invoice.amount_paid / 100
+          : (invoice.total || 0) / 100,
+        currency: String(invoice.currency || getBillingCurrency(countryCode)).toUpperCase(),
+        status: normalizeBillingHistoryStatus(invoice.status),
+        description: invoice.description || primaryLine?.description || `Invoice ${invoice.number || invoice.id}`,
+        plan: subscription.plan,
+        number: invoice.number || null,
+        hostedInvoiceUrl: invoice.hosted_invoice_url || null,
+        invoicePdfUrl: invoice.invoice_pdf || null,
+        periodStart: linePeriod?.start ? new Date(linePeriod.start * 1000).toISOString() : null,
+        periodEnd: linePeriod?.end ? new Date(linePeriod.end * 1000).toISOString() : null
+      };
+    });
+  } catch (error) {
+    console.warn(`⚠️ Failed to load Stripe invoices for business ${subscription.businessId}: ${error.message}`);
+    return [];
+  }
+}
+
+async function getLocalBillingHistoryEntries(subscription, countryCode) {
+  const [topUps, addOns] = await Promise.all([
+    typeof prisma.balanceTransaction?.findMany === 'function'
+      ? prisma.balanceTransaction.findMany({
+        where: {
+          subscriptionId: subscription.id,
+          type: 'TOPUP'
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 24
+      })
+      : Promise.resolve([]),
+    typeof prisma.addOnPurchase?.findMany === 'function'
+      ? prisma.addOnPurchase.findMany({
+        where: {
+          subscriptionId: subscription.id,
+          status: 'COMPLETED'
+        },
+        orderBy: { completedAt: 'desc' },
+        take: 24
+      })
+      : Promise.resolve([])
+  ]);
+
+  const currency = getBillingCurrency(countryCode);
+
+  const topUpEntries = topUps.map((transaction) => ({
+    id: `topup:${transaction.id}`,
+    source: 'wallet_topup',
+    type: 'wallet_topup',
+    date: transaction.createdAt.toISOString(),
+    amount: Math.abs(Number(transaction.amount || 0)),
+    currency,
+    status: 'paid',
+    description: transaction.description || 'Wallet top-up',
+    plan: 'PAYG',
+    stripePaymentIntentId: transaction.stripePaymentIntentId || null
+  }));
+
+  const addOnEntries = addOns.map((purchase) => ({
+    id: `addon:${purchase.id}`,
+    source: 'addon_purchase',
+    type: `addon_${String(purchase.kind || '').toLowerCase()}`,
+    date: (purchase.completedAt || purchase.createdAt).toISOString(),
+    amount: Number(purchase.amount || 0),
+    currency,
+    status: 'paid',
+    description: formatAddOnDescription(purchase.kind, purchase.quantity, countryCode),
+    plan: subscription.plan,
+    stripePaymentIntentId: purchase.stripePaymentIntentId || null
+  }));
+
+  return [...topUpEntries, ...addOnEntries];
+}
+
 function normalizeSubscriptionStatus(status) {
   const normalized = String(status || '').trim().toUpperCase();
   if (['ACTIVE', 'TRIAL', 'TRIALING', 'PAST_DUE', 'CANCELED', 'UNPAID', 'INCOMPLETE', 'INCOMPLETE_EXPIRED'].includes(normalized)) {
@@ -748,6 +879,156 @@ async function recordCompletedAddOnPurchase(session) {
   });
 }
 
+async function finalizeRegularStripeCheckoutSession(session, { sendEmail = false } = {}) {
+  const businessId = session.metadata?.businessId
+    ? Number.parseInt(String(session.metadata.businessId), 10)
+    : null;
+  const stripeCustomerId = session.customer ? String(session.customer) : null;
+  const stripeSubscriptionId = session.subscription ? String(session.subscription) : null;
+
+  if (!businessId || !stripeCustomerId || !stripeSubscriptionId) {
+    throw new Error(`Subscription checkout ${session.id} is missing business or Stripe identifiers`);
+  }
+
+  const stripeSubscription = await getStripe().subscriptions.retrieve(stripeSubscriptionId);
+  const priceId = session.metadata?.priceId
+    ? String(session.metadata.priceId)
+    : (stripeSubscription.items?.data?.[0]?.price?.id || null);
+  const requestedPlanId = String(session.metadata?.planId || '').trim().toUpperCase();
+  const planId = requestedPlanId || await resolvePlanFromPriceId(priceId) || 'STARTER';
+  const planConfig = PLAN_CONFIG[planId] || PLAN_CONFIG.STARTER;
+  const currentPeriodStart = stripeSubscription.current_period_start
+    ? new Date(stripeSubscription.current_period_start * 1000)
+    : new Date();
+  const currentPeriodEnd = stripeSubscription.current_period_end
+    ? new Date(stripeSubscription.current_period_end * 1000)
+    : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+  await prisma.subscription.upsert({
+    where: { businessId },
+    create: {
+      businessId,
+      plan: planId,
+      status: 'ACTIVE',
+      paymentProvider: 'stripe',
+      stripeCustomerId,
+      stripeSubscriptionId,
+      stripePriceId: priceId,
+      currentPeriodStart,
+      currentPeriodEnd,
+      minutesLimit: planConfig.minutesLimit,
+      callsLimit: planConfig.callsLimit,
+      assistantsLimit: planConfig.assistantsLimit,
+      phoneNumbersLimit: planConfig.phoneNumbersLimit
+    },
+    update: {
+      plan: planId,
+      status: 'ACTIVE',
+      paymentProvider: 'stripe',
+      stripeCustomerId,
+      stripeSubscriptionId,
+      stripePriceId: priceId,
+      cancelAtPeriodEnd: false,
+      pendingPlanId: null,
+      currentPeriodStart,
+      currentPeriodEnd,
+      minutesLimit: planConfig.minutesLimit,
+      callsLimit: planConfig.callsLimit,
+      assistantsLimit: planConfig.assistantsLimit,
+      phoneNumbersLimit: planConfig.phoneNumbersLimit
+    }
+  });
+
+  await markBillingCheckoutSessionCompleted(session.id, {
+    completedAt: new Date(),
+    stripeCustomerId,
+    stripeSubscriptionId,
+    metadata: {
+      businessId,
+      planId,
+      priceId
+    }
+  });
+
+  if (sendEmail) {
+    const targetBusiness = await prisma.business.findUnique({
+      where: { id: businessId },
+      select: {
+        name: true,
+        users: {
+          where: { role: 'OWNER' },
+          take: 1,
+          select: { email: true }
+        }
+      }
+    });
+
+    const ownerEmail = targetBusiness?.users?.[0]?.email;
+    if (ownerEmail) {
+      const paidAmount = Number.isFinite(session.amount_total)
+        ? session.amount_total / 100
+        : (planConfig.priceTRY ?? planConfig.price ?? 0);
+
+      await emailService.sendPaymentSuccessEmail(
+        ownerEmail,
+        targetBusiness?.name || `Business ${businessId}`,
+        paidAmount,
+        planId
+      );
+    }
+  }
+
+  return {
+    businessId,
+    planId,
+    stripeSubscriptionId,
+    stripeCustomerId,
+    currentPeriodStart,
+    currentPeriodEnd
+  };
+}
+
+async function reconcileOpenSubscriptionCheckouts(businessId) {
+  if (!businessId || !getStripe()) {
+    return false;
+  }
+
+  const openSessions = await listOpenBillingCheckoutSessions(businessId, ['SUBSCRIPTION'], 5);
+  if (openSessions.length === 0) {
+    return false;
+  }
+
+  let reconciled = false;
+
+  for (const checkout of openSessions) {
+    if (!checkout?.stripeCheckoutSessionId) {
+      continue;
+    }
+
+    const stripeSession = await getStripe().checkout.sessions.retrieve(checkout.stripeCheckoutSessionId);
+    const stripeStatus = String(stripeSession?.status || '').toLowerCase();
+    const paymentStatus = String(stripeSession?.payment_status || '').toLowerCase();
+
+    if (stripeStatus === 'complete' || paymentStatus === 'paid') {
+      await finalizeRegularStripeCheckoutSession(stripeSession, { sendEmail: false });
+      reconciled = true;
+      continue;
+    }
+
+    if (stripeStatus === 'expired') {
+      await markBillingCheckoutSessionExpired(checkout.stripeCheckoutSessionId, {
+        metadata: {
+          businessId,
+          reconciledAt: new Date().toISOString()
+        }
+      });
+      reconciled = true;
+    }
+  }
+
+  return reconciled;
+}
+
 async function billWrittenOverageIfNeeded(subscription, billingWindowEnd = null) {
   if (!subscription?.id || !subscription?.currentPeriodStart) {
     return null;
@@ -826,7 +1107,7 @@ async function billWrittenOverageIfNeeded(subscription, billingWindowEnd = null)
   return invoiceResult;
 }
 
-// Plan configurations with both Stripe and iyzico pricing
+// Plan configurations for Stripe pricing
 // Updated: January 2026 - synced with pricing.js
 const PLAN_CONFIG = {
   FREE: {
@@ -851,7 +1132,6 @@ const PLAN_CONFIG = {
   STARTER: {
     name: 'STARTER',
     stripePriceId: process.env.STRIPE_STARTER_PRICE_ID || 'price_starter',
-    iyzicoPlanRef: process.env.IYZICO_STARTER_PLAN_REF,
     price: 55,        // $55 USD
     priceTRY: 2499,   // ₺2,499 TRY
     minutesLimit: 0,
@@ -862,7 +1142,6 @@ const PLAN_CONFIG = {
   PRO: {
     name: 'PRO',
     stripePriceId: process.env.STRIPE_PRO_PRICE_ID || 'price_pro',
-    iyzicoPlanRef: process.env.IYZICO_PRO_PLAN_REF,
     price: 167,       // $167 USD
     priceTRY: 7499,   // ₺7,499 TRY
     minutesLimit: 500,
@@ -873,7 +1152,6 @@ const PLAN_CONFIG = {
   ENTERPRISE: {
     name: 'ENTERPRISE',
     stripePriceId: process.env.STRIPE_ENTERPRISE_PRICE_ID || 'price_enterprise',
-    iyzicoPlanRef: process.env.IYZICO_ENTERPRISE_PLAN_REF,
     price: null,      // Contact sales
     priceTRY: null,   // İletişime geçin
     minutesLimit: -1, // unlimited (custom)
@@ -914,6 +1192,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
           const businessIdFromMetadata = session.metadata?.businessId
             ? parseInt(session.metadata.businessId, 10)
             : null;
+          const amountPaid = Number.isFinite(session.amount_total) ? session.amount_total / 100 : 0;
 
           if (paymentIntentId && session.customer) {
             try {
@@ -944,7 +1223,6 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
               throw new Error(`Balance top-up target subscription not found for checkout session ${session.id}`);
             }
 
-            const amountPaid = Number.isFinite(session.amount_total) ? session.amount_total / 100 : 0;
             const minutes = session.metadata?.minutes || '0';
 
             await balanceService.topUp(
@@ -956,6 +1234,17 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
           } else {
             console.log(`ℹ️ Balance top-up already processed for payment intent ${paymentIntentId}`);
           }
+
+          await markBillingCheckoutSessionCompleted(session.id, {
+            completedAt: new Date(),
+            stripePaymentIntentId: paymentIntentId,
+            stripeCustomerId: session.customer ? String(session.customer) : null,
+            metadata: {
+              businessId: businessIdFromMetadata,
+              minutes: session.metadata?.minutes || null,
+              amountPaid
+            }
+          });
 
           break;
         }
@@ -973,6 +1262,16 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
             }
           }
           await recordCompletedAddOnPurchase(session);
+          await markBillingCheckoutSessionCompleted(session.id, {
+            completedAt: new Date(),
+            stripePaymentIntentId: paymentIntentId,
+            stripeCustomerId: session.customer ? String(session.customer) : null,
+            metadata: {
+              businessId: session.metadata?.businessId || null,
+              addonKind: session.metadata?.addonKind || null,
+              packageId: session.metadata?.packageId || null
+            }
+          });
           console.log(`✅ Add-on purchase applied: ${session.metadata?.addonKind || 'UNKNOWN'} for session ${session.id}`);
           break;
         }
@@ -1039,79 +1338,33 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
             }
           });
 
+          await markBillingCheckoutSessionCompleted(session.id, {
+            completedAt: new Date(),
+            stripeCustomerId: session.customer ? String(session.customer) : null,
+            stripeSubscriptionId: stripeSubId ? String(stripeSubId) : null,
+            metadata: {
+              subscriptionId,
+              planId: 'ENTERPRISE'
+            }
+          });
+
           console.log('✅ Enterprise subscription payment confirmed, plan activated. Stripe Sub:', stripeSubId);
           break;
         }
 
-        // Regular subscription checkout
-        const stripeSubscriptionId = session.subscription;
-        const customerId = session.customer;
-        const priceId = session.line_items?.data[0]?.price?.id || session.metadata?.priceId;
+        const finalizedCheckout = await finalizeRegularStripeCheckoutSession(session, { sendEmail: true });
+        console.log('✅ Subscription activated:', finalizedCheckout.planId);
+        break;
+      }
 
-        // Determine plan from price ID
-        const plan = await resolvePlanFromPriceId(priceId) || 'STARTER';
-
-        const planConfig = PLAN_CONFIG[plan];
-
-        // Update subscription in database
-        const subscription = await prisma.subscription.updateMany({
-          where: { stripeCustomerId: customerId },
-          data: {
-            stripeSubscriptionId: stripeSubscriptionId,
-            stripePriceId: priceId,
-            plan: plan,
-            status: 'ACTIVE',
-            currentPeriodStart: new Date(),
-            currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-            // Set plan limits
-            minutesLimit: planConfig.minutesLimit,
-            callsLimit: planConfig.callsLimit,
-            assistantsLimit: planConfig.assistantsLimit,
-            phoneNumbersLimit: planConfig.phoneNumbersLimit
+      case 'checkout.session.expired': {
+        const session = event.data.object;
+        await markBillingCheckoutSessionExpired(session.id, {
+          metadata: {
+            expiredAt: new Date().toISOString(),
+            businessId: session.metadata?.businessId || null
           }
         });
-
-        // Get business ID
-        const sub = await prisma.subscription.findFirst({
-          where: { stripeCustomerId: customerId },
-          include: {
-            business: {
-              select: {
-                id: true,
-                name: true,
-                users: {
-                  where: { role: 'OWNER' },
-                  select: { email: true },
-                  take: 1
-                }
-              }
-            }
-          }
-        });
-
-        if (sub && sub.business) {
-          const businessId = sub.business.id;
-          const ownerEmail = sub.business.users[0]?.email;
-
-          // Note: Phone numbers are now provisioned manually via the Phone Numbers page
-          // Users can add 11Labs phone numbers after subscription activation
-
-          // Send payment success email
-          if (ownerEmail) {
-            const paidAmount = Number.isFinite(session.amount_total)
-              ? session.amount_total / 100
-              : planConfig.priceTRY;
-
-            await emailService.sendPaymentSuccessEmail(
-              ownerEmail,
-              sub.business.name,
-              paidAmount,
-              plan
-            );
-          }
-        }
-
-        console.log('✅ Subscription activated:', plan);
         break;
       }
 
@@ -1406,257 +1659,6 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
 });
 
 // ============================================================================
-// IYZICO WEBHOOK
-// ============================================================================
-
-router.post('/iyzico-webhook', express.json(), async (req, res) => {
-  console.log('📥 iyzico webhook received', {
-    webhookType: req.body?.iyziEventType || req.body?.status || 'unknown',
-    hasToken: Boolean(req.body?.token),
-    hasConversationId: Boolean(req.body?.conversationId),
-  });
-
-  try {
-    const result = await iyzicoSubscription.processWebhook(req.body);
-
-    if (result.success) {
-      res.json({ received: true });
-    } else {
-      console.error('❌ iyzico webhook processing failed:', result.error);
-      res.status(400).json({ error: result.error });
-    }
-  } catch (error) {
-    console.error('❌ iyzico webhook error:', error);
-    res.status(500).json({ error: 'Webhook handler failed' });
-  }
-});
-
-// ============================================================================
-// IYZICO PAYMENT CALLBACK (Simple checkout - not subscription)
-// ============================================================================
-
-router.post('/iyzico-payment-callback', async (req, res) => {
-  const { token } = req.body;
-  const { planId, businessId } = req.query;
-  const frontendUrl = runtimeConfig.frontendUrl;
-
-  console.log('📥 iyzico payment callback received:', {
-    hasToken: Boolean(token),
-    planId,
-    businessId
-  });
-
-  if (!token) {
-    return res.redirect(`${frontendUrl}/pricing?error=missing_token`);
-  }
-
-  try {
-    // Retrieve checkout form result
-    const Iyzipay = (await import('iyzipay')).default;
-    const iyzipay = new Iyzipay({
-      apiKey: process.env.IYZICO_API_KEY,
-      secretKey: process.env.IYZICO_SECRET_KEY,
-      uri: process.env.IYZICO_BASE_URL || 'https://sandbox-api.iyzipay.com'
-    });
-
-    const request = {
-      locale: Iyzipay.LOCALE.TR,
-      conversationId: `callback-${Date.now()}`,
-      token: token
-    };
-
-    iyzipay.checkoutForm.retrieve(request, async (err, result) => {
-      if (err) {
-        console.error('iyzico retrieve error:', err);
-        return res.redirect(`${frontendUrl}/pricing?error=payment_failed`);
-      }
-
-      console.log('iyzico payment result:', result.status, result.paymentStatus);
-
-      if (result.status === 'success' && result.paymentStatus === 'SUCCESS') {
-        // Payment successful - activate subscription
-        const planConfig = PLAN_CONFIG[planId];
-
-        if (planConfig && businessId) {
-          await prisma.subscription.upsert({
-            where: { businessId: parseInt(businessId) },
-            create: {
-              businessId: parseInt(businessId),
-              paymentProvider: 'iyzico',
-              iyzicoPaymentId: result.paymentId,
-              plan: planId,
-              status: 'ACTIVE',
-              currentPeriodStart: new Date(),
-              currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-              minutesLimit: planConfig.minutesLimit,
-              callsLimit: planConfig.callsLimit,
-              assistantsLimit: planConfig.assistantsLimit,
-              phoneNumbersLimit: planConfig.phoneNumbersLimit
-            },
-            update: {
-              paymentProvider: 'iyzico',
-              iyzicoPaymentId: result.paymentId,
-              plan: planId,
-              status: 'ACTIVE',
-              currentPeriodStart: new Date(),
-              currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-              minutesLimit: planConfig.minutesLimit,
-              callsLimit: planConfig.callsLimit,
-              assistantsLimit: planConfig.assistantsLimit,
-              phoneNumbersLimit: planConfig.phoneNumbersLimit
-            }
-          });
-
-          console.log('✅ iyzico payment successful, plan activated:', planId);
-        }
-
-        return res.redirect(`${frontendUrl}/dashboard/assistant?success=true&provider=iyzico`);
-      } else {
-        console.log('❌ iyzico payment failed:', result.errorMessage);
-        return res.redirect(`${frontendUrl}/pricing?error=payment_failed&message=${encodeURIComponent(result.errorMessage || 'Ödeme başarısız')}`);
-      }
-    });
-  } catch (error) {
-    console.error('iyzico callback error:', error);
-    return res.redirect(`${frontendUrl}/pricing?error=callback_failed`);
-  }
-});
-
-// iyzico Subscription Callback - POST handler for form submission
-router.post('/iyzico-subscription-callback', async (req, res) => {
-  const { token } = req.body;
-  const frontendUrl = runtimeConfig.frontendUrl;
-
-  console.log('📥 iyzico subscription callback received', { tokenHash: hashValue(token) });
-
-  if (!token) {
-    return res.redirect(`${frontendUrl}/dashboard/subscription?status=error&message=missing_token`);
-  }
-
-  try {
-    // Retrieve subscription checkout form result using iyzicoSubscription service
-    const result = await iyzicoSubscription.retrieveCheckoutFormResult(token);
-
-    if (!result.success) {
-      console.error('iyzico callback error:', result.error);
-      return res.redirect(`${frontendUrl}/dashboard/subscription?status=error`);
-    }
-
-    console.log('iyzico subscription result received', {
-      success: Boolean(result?.success),
-      reference: result?.subscriptionReferenceCode ? hashValue(result.subscriptionReferenceCode) : null
-    });
-
-    // Find subscription by pending token
-    const subscription = await prisma.subscription.findFirst({
-      where: { pendingSubscriptionToken: token }
-    });
-
-    if (subscription) {
-      const planId = subscription.pendingPlanId;
-      const planConfig = PLAN_CONFIG[planId] || PLAN_CONFIG.STARTER;
-
-      await prisma.subscription.update({
-        where: { id: subscription.id },
-        data: {
-          plan: planId,
-          status: 'ACTIVE',
-          paymentProvider: 'iyzico',
-          iyzicoSubscriptionId: result.subscriptionReferenceCode,
-          iyzicoReferenceCode: result.subscriptionReferenceCode,
-          currentPeriodStart: new Date(result.startDate),
-          currentPeriodEnd: new Date(result.endDate),
-          pendingSubscriptionToken: null,
-          pendingPlanId: null,
-          // Set plan limits
-          minutesLimit: planConfig.minutesLimit,
-          callsLimit: planConfig.callsLimit,
-          assistantsLimit: planConfig.assistantsLimit,
-          phoneNumbersLimit: planConfig.phoneNumbersLimit
-        }
-      });
-
-      console.log('✅ iyzico subscription activated:', planId);
-    }
-
-    return res.redirect(`${frontendUrl}/dashboard/subscription?status=success`);
-  } catch (error) {
-    console.error('iyzico subscription callback error:', error);
-    return res.redirect(`${frontendUrl}/dashboard/subscription?status=error`);
-  }
-});
-
-// iyzico callback - POST handler (used by iyzicoSubscription service)
-router.post('/iyzico-callback', async (req, res) => {
-  const { token } = req.body;
-  const frontendUrl = runtimeConfig.frontendUrl;
-
-  console.log('📥 iyzico callback received', { tokenHash: hashValue(token) });
-
-  if (!token) {
-    return res.redirect(`${frontendUrl}/dashboard/subscription?status=error&message=missing_token`);
-  }
-
-  try {
-    // Retrieve subscription checkout form result using iyzicoSubscription service
-    const result = await iyzicoSubscription.retrieveCheckoutFormResult(token);
-
-    if (!result.success) {
-      console.error('iyzico callback error:', result.error);
-      return res.redirect(`${frontendUrl}/dashboard/subscription?status=error`);
-    }
-
-    console.log('iyzico subscription result received', {
-      success: Boolean(result?.success),
-      reference: result?.subscriptionReferenceCode ? hashValue(result.subscriptionReferenceCode) : null
-    });
-
-    // Find subscription by pending token
-    const subscription = await prisma.subscription.findFirst({
-      where: { pendingSubscriptionToken: token }
-    });
-
-    if (subscription) {
-      const planId = subscription.pendingPlanId;
-      const planConfig = PLAN_CONFIG[planId] || PLAN_CONFIG.STARTER;
-
-      await prisma.subscription.update({
-        where: { id: subscription.id },
-        data: {
-          plan: planId,
-          status: 'ACTIVE',
-          paymentProvider: 'iyzico',
-          iyzicoSubscriptionId: result.subscriptionReferenceCode,
-          iyzicoReferenceCode: result.subscriptionReferenceCode,
-          currentPeriodStart: new Date(result.startDate),
-          currentPeriodEnd: new Date(result.endDate),
-          pendingSubscriptionToken: null,
-          pendingPlanId: null,
-          // Set plan limits
-          minutesLimit: planConfig.minutesLimit,
-          callsLimit: planConfig.callsLimit,
-          assistantsLimit: planConfig.assistantsLimit,
-          phoneNumbersLimit: planConfig.phoneNumbersLimit
-        }
-      });
-
-      console.log('✅ iyzico subscription activated:', planId);
-    }
-
-    return res.redirect(`${frontendUrl}/dashboard/subscription?status=success`);
-  } catch (error) {
-    console.error('iyzico callback error:', error);
-    return res.redirect(`${frontendUrl}/dashboard/subscription?status=error`);
-  }
-});
-
-// Legacy callback (GET - for backward compatibility)
-router.get('/iyzico-callback', async (req, res) => {
-  const frontendUrl = runtimeConfig.frontendUrl;
-  return res.redirect(`${frontendUrl}/dashboard/subscription?status=error&message=use_post`);
-});
-
-// ============================================================================
 // PUBLIC ROUTES (no auth required)
 // ============================================================================
 
@@ -1712,7 +1714,6 @@ router.get('/plans', async (req, res) => {
         currency: 'USD',
         interval: 'month',
         stripePriceId: PLAN_CONFIG.STARTER.stripePriceId,
-        iyzicoPlanRef: PLAN_CONFIG.STARTER.iyzicoPlanRef,
         popular: true,
         features: [
           '5 AI assistants',
@@ -1735,7 +1736,6 @@ router.get('/plans', async (req, res) => {
         currency: 'USD',
         interval: 'month',
         stripePriceId: PLAN_CONFIG.PRO.stripePriceId,
-        iyzicoPlanRef: PLAN_CONFIG.PRO?.iyzicoPlanRef,
         bestValue: true,
         features: [
           '10 AI assistants',
@@ -1763,7 +1763,6 @@ router.get('/plans', async (req, res) => {
         interval: 'month',
         contactSales: true,
         stripePriceId: PLAN_CONFIG.ENTERPRISE.stripePriceId,
-        iyzicoPlanRef: PLAN_CONFIG.ENTERPRISE.iyzicoPlanRef,
         features: [
           'Unlimited AI assistants',
           'Unlimited phone numbers',
@@ -1795,6 +1794,8 @@ router.use(authenticateToken);
 router.get('/current', verifyBusinessAccess, async (req, res) => {
   try {
     const { businessId } = req.user;
+
+    await reconcileOpenSubscriptionCheckouts(businessId);
 
     let subscription = await findSubscriptionWithBillingFallback(businessId);
     subscription = await reconcileLocallyManagedBillingCycle(subscription);
@@ -1986,6 +1987,27 @@ router.post('/addons/checkout', verifyBusinessAccess, async (req, res) => {
       checkoutLocale
     });
 
+    await recordBillingCheckoutSession({
+      businessId,
+      subscriptionId: subscription.id,
+      provider: 'stripe',
+      checkoutType: 'ADDON',
+      stripeCheckoutSessionId: session.id,
+      stripeCustomerId,
+      planId: subscription.plan,
+      addonKind: normalizedKind,
+      packageId: selectedPackage.id,
+      amount: selectedPackage.amount,
+      currency: country === 'TR' ? 'TRY' : country === 'BR' ? 'BRL' : 'USD',
+      checkoutUrl: session.url,
+      successUrl: `${frontendUrl}/dashboard/subscription?addon=success&addon_kind=${normalizedKind}&session_id={CHECKOUT_SESSION_ID}`,
+      cancelUrl: `${frontendUrl}/dashboard/subscription?addon=cancel&addon_kind=${normalizedKind}`,
+      metadata: {
+        quantity: selectedPackage.quantity,
+        unitPrice: selectedPackage.unitPrice
+      }
+    });
+
     res.json({
       success: true,
       provider: 'stripe',
@@ -2036,6 +2058,17 @@ router.get('/verify-addon-session', verifyBusinessAccess, async (req, res) => {
 
     await recordCompletedAddOnPurchase(session);
 
+    await markBillingCheckoutSessionCompleted(sessionId, {
+      completedAt: new Date(),
+      stripePaymentIntentId: paymentIntentId,
+      stripeCustomerId: session.customer ? String(session.customer) : null,
+      metadata: {
+        businessId,
+        addonKind: session.metadata?.addonKind || null,
+        packageId: session.metadata?.packageId || null
+      }
+    });
+
     const subscription = await prisma.subscription.findUnique({
       where: { businessId },
       select: {
@@ -2065,12 +2098,13 @@ router.get('/payment-provider', verifyBusinessAccess, async (req, res) => {
       where: { id: businessId },
       select: { country: true }
     });
+    const countryCode = business?.country || 'TR';
 
     res.json({
       provider,
-      country: business?.country || 'TR',
-      isIyzico: provider === 'iyzico',
-      isStripe: provider === 'stripe'
+      country: countryCode,
+      isStripe: provider === 'stripe' || provider === 'stripe_brl',
+      paymentMethods: paymentProvider.getPaymentMethodsForCountry(countryCode)
     });
   } catch (error) {
     console.error('Get payment provider error:', error);
@@ -2078,17 +2112,16 @@ router.get('/payment-provider', verifyBusinessAccess, async (req, res) => {
   }
 });
 
-// Create checkout session - Automatically selects Stripe or iyzico based on country
+// Create checkout session - Stripe-only entry point
 router.post('/create-checkout', verifyBusinessAccess, async (req, res) => {
   try {
     const { businessId } = req.user;
-    const { priceId, planId, forceProvider, locale: checkoutLocale } = req.body;
+    const { priceId, planId, locale: checkoutLocale } = req.body;
 
     if (!priceId && !planId) {
       return res.status(400).json({ error: 'Price ID or Plan ID required' });
     }
 
-    // Get business to determine provider
     const user = await prisma.user.findFirst({
       where: { businessId },
       include: { business: true }
@@ -2098,38 +2131,8 @@ router.post('/create-checkout', verifyBusinessAccess, async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Determine payment provider (can be forced or auto-detected)
-    const provider = forceProvider || paymentProvider.getProviderForCountry(user.business.country);
+    console.log(`💳 Creating Stripe checkout for business ${businessId} (country: ${user.business.country})`);
 
-    console.log(`💳 Creating checkout for business ${businessId} with provider: ${provider} (country: ${user.business.country})`);
-
-    // ========== IYZICO CHECKOUT ==========
-    if (provider === 'iyzico') {
-      const finalPlanId = planId || resolvePlanFromStripePriceId(priceId);
-
-      if (!finalPlanId || finalPlanId === 'FREE') {
-        return res.status(400).json({ error: 'Invalid plan for iyzico' });
-      }
-
-      const result = await iyzicoSubscription.initializeCheckoutForm(businessId, finalPlanId);
-
-      if (!result.success) {
-        return res.status(400).json({
-          error: 'Failed to initialize iyzico checkout',
-          details: result.error
-        });
-      }
-
-      return res.json({
-        provider: 'iyzico',
-        checkoutFormContent: result.checkoutFormContent,
-        token: result.token,
-        tokenExpireTime: result.tokenExpireTime
-      });
-    }
-
-    // ========== STRIPE CHECKOUT ==========
-    // Get price ID from plan ID if not provided
     let finalPriceId = priceId;
     if (!finalPriceId && planId) {
       finalPriceId = resolveStripePriceIdForPlan(
@@ -2139,7 +2142,9 @@ router.post('/create-checkout', verifyBusinessAccess, async (req, res) => {
       );
     }
 
-    if (!finalPriceId) {
+    const finalPlanId = planId || await resolvePlanFromPriceId(finalPriceId);
+
+    if (!finalPriceId || !finalPlanId || finalPlanId === 'FREE') {
       return res.status(400).json({ error: 'Invalid plan or price ID' });
     }
 
@@ -2162,13 +2167,31 @@ router.post('/create-checkout', verifyBusinessAccess, async (req, res) => {
           quantity: 1
         }
       ],
-      success_url: `${frontendUrl}/dashboard/assistant?success=true&provider=stripe`,
+      success_url: `${frontendUrl}/dashboard/subscription?success=true&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${frontendUrl}/pricing?canceled=true`,
       metadata: {
         businessId: businessId.toString(),
-        priceId: finalPriceId
+        priceId: finalPriceId,
+        planId: finalPlanId
       },
-      locale: stripeService.resolveCheckoutLocale(checkoutLocale, user.business.country || 'TR')
+      locale: resolveStripeCheckoutLocale(checkoutLocale, user.business.country || 'TR')
+    });
+
+    await recordBillingCheckoutSession({
+      businessId,
+      provider: 'stripe',
+      checkoutType: 'SUBSCRIPTION',
+      stripeCheckoutSessionId: session.id,
+      stripeCustomerId,
+      planId: planId || resolvePlanFromStripePriceId(finalPriceId) || '',
+      amount: null,
+      currency: user.business.country === 'TR' ? 'TRY' : user.business.country === 'BR' ? 'BRL' : 'USD',
+      checkoutUrl: session.url,
+      successUrl: `${frontendUrl}/dashboard/subscription?success=true&session_id={CHECKOUT_SESSION_ID}`,
+      cancelUrl: `${frontendUrl}/pricing?canceled=true`,
+      metadata: {
+        priceId: finalPriceId
+      }
     });
 
     res.json({
@@ -2185,7 +2208,7 @@ router.post('/create-checkout', verifyBusinessAccess, async (req, res) => {
   }
 });
 
-// Cancel subscription - supports both Stripe and iyzico
+// Cancel subscription at period end
 router.post('/cancel', verifyBusinessAccess, async (req, res) => {
   try {
     const { businessId } = req.user;
@@ -2198,40 +2221,14 @@ router.post('/cancel', verifyBusinessAccess, async (req, res) => {
       return res.status(400).json({ error: 'No subscription found' });
     }
 
-    // Handle based on payment provider
-    if (subscription.paymentProvider === 'iyzico' && subscription.iyzicoSubscriptionId) {
-      // Cancel iyzico subscription
-      const result = await iyzicoSubscription.cancelSubscription(subscription.iyzicoSubscriptionId);
-
-      if (!result.success) {
-        return res.status(400).json({ error: result.error || 'Failed to cancel iyzico subscription' });
-      }
-
-      await prisma.subscription.update({
-        where: { businessId },
-        data: {
-          cancelAtPeriodEnd: true
-        }
-      });
-
-      return res.json({
-        success: true,
-        provider: 'iyzico',
-        message: 'Aboneliğiniz iptal edildi'
-      });
-    }
-
-    // Stripe cancellation
     if (!subscription.stripeSubscriptionId) {
       return res.status(400).json({ error: 'No active subscription' });
     }
 
-    // Cancel at period end (don't cancel immediately)
-    await getStripe().subscriptions.update(subscription.stripeSubscriptionId, {
+    const canceledSubscription = await getStripe().subscriptions.update(subscription.stripeSubscriptionId, {
       cancel_at_period_end: true
     });
 
-    // Update database
     await prisma.subscription.update({
       where: { businessId },
       data: {
@@ -2242,7 +2239,10 @@ router.post('/cancel', verifyBusinessAccess, async (req, res) => {
     res.json({
       success: true,
       provider: 'stripe',
-      message: 'Subscription will be canceled at the end of the current period'
+      message: 'Subscription will be canceled at the end of the current period',
+      cancelAt: canceledSubscription?.current_period_end
+        ? new Date(canceledSubscription.current_period_end * 1000)
+        : (subscription.currentPeriodEnd || null)
     });
   } catch (error) {
     console.error('Cancel subscription error:', error);
@@ -2263,17 +2263,6 @@ router.post('/reactivate', verifyBusinessAccess, async (req, res) => {
       return res.status(400).json({ error: 'No subscription found' });
     }
 
-    // Handle based on payment provider
-    if (subscription.paymentProvider === 'iyzico') {
-      // iyzico doesn't support reactivation the same way
-      // User needs to create a new subscription
-      return res.status(400).json({
-        error: 'iyzico subscriptions cannot be reactivated. Please create a new subscription.',
-        needsNewSubscription: true
-      });
-    }
-
-    // Stripe reactivation
     if (!subscription.stripeSubscriptionId) {
       return res.status(400).json({ error: 'No subscription found' });
     }
@@ -2326,12 +2315,6 @@ router.post('/undo-scheduled-change', verifyBusinessAccess, async (req, res) => 
 
     if (!subscription.pendingPlanId) {
       return res.status(400).json({ error: 'No scheduled plan change found' });
-    }
-
-    if (subscription.paymentProvider === 'iyzico') {
-      return res.status(400).json({
-        error: 'Scheduled plan changes cannot be reverted for iyzico subscriptions.'
-      });
     }
 
     const user = await prisma.user.findFirst({
@@ -2444,7 +2427,7 @@ router.post('/undo-scheduled-change', verifyBusinessAccess, async (req, res) => 
 });
 
 // ============================================================================
-// UPGRADE ENDPOINT - iyzico Subscription API with Plan References
+// UPGRADE ENDPOINT - Stripe subscription management
 // ============================================================================
 
 router.post('/upgrade', verifyBusinessAccess, async (req, res) => {
@@ -2500,47 +2483,10 @@ router.post('/upgrade', verifyBusinessAccess, async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Determine payment provider based on country
-    const provider = paymentProvider.getProviderForCountry(user.business.country);
+    const pricingProfile = paymentProvider.getProviderForCountry(user.business.country);
 
-    console.log(`💳 Upgrade request for business ${businessId}, plan: ${normalizedPlanId}, provider: ${provider}`);
+    console.log(`💳 Upgrade request for business ${businessId}, plan: ${normalizedPlanId}, pricing profile: ${pricingProfile}`);
 
-    // ========== IYZICO SUBSCRIPTION API ==========
-    if (provider === 'iyzico') {
-      // Use iyzicoSubscription service for checkout form initialization
-      const result = await iyzicoSubscription.initializeCheckoutForm(businessId, normalizedPlanId);
-
-      if (!result.success) {
-        console.error('iyzico subscription error:', result.error);
-        return res.status(500).json({ error: result.error || 'Abonelik başlatılamadı' });
-      }
-
-      // Save pending subscription info
-      await prisma.subscription.upsert({
-        where: { businessId },
-        create: {
-          businessId,
-          paymentProvider: 'iyzico',
-          plan: 'FREE',
-          status: 'INCOMPLETE',
-          pendingSubscriptionToken: result.token,
-          pendingPlanId: normalizedPlanId
-        },
-        update: {
-          pendingSubscriptionToken: result.token,
-          pendingPlanId: normalizedPlanId
-        }
-      });
-
-      return res.json({
-        provider: 'iyzico',
-        checkoutFormContent: result.checkoutFormContent,
-        token: result.token,
-        tokenExpireTime: result.tokenExpireTime
-      });
-    }
-
-    // ========== STRIPE CHECKOUT ==========
     // Check if user already has an active subscription
     let currentSubscription = await prisma.subscription.findUnique({
       where: { businessId }
@@ -2764,7 +2710,25 @@ router.post('/upgrade', verifyBusinessAccess, async (req, res) => {
         priceId: priceId,
         planId: normalizedPlanId
       },
-      locale: stripeService.resolveCheckoutLocale(checkoutLocale, user.business.country || 'TR')
+      locale: resolveStripeCheckoutLocale(checkoutLocale, user.business.country || 'TR')
+    });
+
+    await recordBillingCheckoutSession({
+      businessId,
+      subscriptionId: currentSubscription?.id || null,
+      provider: 'stripe',
+      checkoutType: 'SUBSCRIPTION',
+      stripeCheckoutSessionId: session.id,
+      stripeCustomerId,
+      planId: normalizedPlanId,
+      amount: null,
+      currency: user.business.country === 'TR' ? 'TRY' : user.business.country === 'BR' ? 'BRL' : 'USD',
+      checkoutUrl: session.url,
+      successUrl: `${frontendUrl}/dashboard/subscription?success=true&session_id={CHECKOUT_SESSION_ID}`,
+      cancelUrl: `${frontendUrl}/pricing?canceled=true`,
+      metadata: {
+        priceId
+      }
     });
 
     return res.json({
@@ -2786,7 +2750,7 @@ router.post('/upgrade', verifyBusinessAccess, async (req, res) => {
 router.get('/verify-session', authenticateToken, async (req, res) => {
   try {
     const { session_id } = req.query;
-    const { businessId } = req;
+    const businessId = req.user?.businessId || req.businessId;
 
     if (!session_id) {
       return res.status(400).json({ error: 'Session ID required' });
@@ -2799,61 +2763,18 @@ router.get('/verify-session', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Payment not completed' });
     }
 
-    // Get subscription details
-    const stripeSubscription = await getStripe().subscriptions.retrieve(session.subscription);
-    const planId = session.metadata.planId;
-    const planConfig = PLAN_CONFIG[planId];
-
-    if (!planConfig) {
-      return res.status(400).json({ error: 'Invalid plan' });
+    const metadataBusinessId = parseInt(String(session.metadata?.businessId || ''), 10);
+    if (!metadataBusinessId || metadataBusinessId !== businessId) {
+      return res.status(403).json({ error: 'Checkout session does not belong to this business' });
     }
 
-    // Convert Unix timestamps to Date objects
-    const periodStart = stripeSubscription.current_period_start
-      ? new Date(stripeSubscription.current_period_start * 1000)
-      : new Date();
-    const periodEnd = stripeSubscription.current_period_end
-      ? new Date(stripeSubscription.current_period_end * 1000)
-      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const finalized = await finalizeRegularStripeCheckoutSession(session, { sendEmail: false });
 
-    console.log('📅 Subscription dates:', { periodStart, periodEnd });
-
-    // Activate subscription in database
-    await prisma.subscription.upsert({
-      where: { businessId },
-      create: {
-        businessId,
-        plan: planId,
-        status: 'ACTIVE',
-        paymentProvider: 'stripe',
-        stripeCustomerId: session.customer,
-        stripeSubscriptionId: session.subscription,
-        currentPeriodStart: periodStart,
-        currentPeriodEnd: periodEnd,
-        minutesLimit: planConfig.minutesLimit,
-        callsLimit: planConfig.callsLimit,
-        assistantsLimit: planConfig.assistantsLimit,
-        phoneNumbersLimit: planConfig.phoneNumbersLimit
-      },
-      update: {
-        plan: planId,
-        status: 'ACTIVE',
-        paymentProvider: 'stripe',
-        stripeSubscriptionId: session.subscription,
-        currentPeriodStart: periodStart,
-        currentPeriodEnd: periodEnd,
-        minutesLimit: planConfig.minutesLimit,
-        callsLimit: planConfig.callsLimit,
-        assistantsLimit: planConfig.assistantsLimit,
-        phoneNumbersLimit: planConfig.phoneNumbersLimit
-      }
-    });
-
-    console.log(`✅ Subscription activated for business ${businessId}, plan: ${planId}`);
+    console.log(`✅ Subscription activated for business ${businessId}, plan: ${finalized.planId}`);
 
     return res.json({
       success: true,
-      plan: planId,
+      plan: finalized.planId,
       status: 'ACTIVE'
     });
   } catch (error) {
@@ -2890,59 +2811,12 @@ router.post('/create-portal-session', verifyBusinessAccess, async (req, res) => 
   }
 });
 
-// Cancel subscription (schedules cancellation at period end)
-router.post('/cancel', authenticateToken, async (req, res) => {
-  try {
-    const { businessId } = req;
-
-    const subscription = await prisma.subscription.findUnique({
-      where: { businessId }
-    });
-
-    if (!subscription) {
-      return res.status(404).json({ error: 'No subscription found' });
-    }
-
-    if (!subscription.stripeSubscriptionId) {
-      return res.status(400).json({ error: 'No Stripe subscription found' });
-    }
-
-    // Cancel at period end (user keeps access until current period ends)
-    const canceledSubscription = await getStripe().subscriptions.update(
-      subscription.stripeSubscriptionId,
-      {
-        cancel_at_period_end: true
-      }
-    );
-
-    // Update database
-    await prisma.subscription.update({
-      where: { businessId },
-      data: {
-        cancelAtPeriodEnd: true
-      }
-    });
-
-    console.log(`✅ Subscription canceled at period end for business ${businessId}`);
-
-    return res.json({
-      success: true,
-      message: 'Subscription will be canceled at period end',
-      cancelAt: new Date(canceledSubscription.current_period_end * 1000)
-    });
-  } catch (error) {
-    console.error('Cancel subscription error:', error);
-    return res.status(500).json({
-      error: 'Failed to cancel subscription',
-      details: error.message
-    });
-  }
-});
-
 // GET /api/subscription/billing-history
-router.get('/billing-history', authenticateToken, async (req, res) => {
+router.get('/billing-history', verifyBusinessAccess, async (req, res) => {
   try {
-    const { businessId } = req;
+    const { businessId } = req.user;
+
+    await reconcileOpenSubscriptionCheckouts(businessId);
 
     const subscription = await findSubscriptionWithBillingFallback(businessId);
 
@@ -2950,27 +2824,15 @@ router.get('/billing-history', authenticateToken, async (req, res) => {
       return res.json({ history: [] });
     }
 
-    // Mock billing history for now (Stripe webhook'tan gelecek)
-    const pricedPlan = getPlanWithPricing(
-      subscription.plan,
-      subscription.business?.country || 'TR'
-    );
-    const enterprisePrice = Number.parseFloat(subscription.enterprisePrice);
-    const amount = Number.isFinite(enterprisePrice)
-      ? enterprisePrice
-      : (pricedPlan?.price ?? 0);
+    const countryCode = subscription.business?.country || 'TR';
+    const [invoiceEntries, localEntries] = await Promise.all([
+      getStripeInvoiceHistoryEntries(subscription, countryCode),
+      getLocalBillingHistoryEntries(subscription, countryCode)
+    ]);
 
-    const history = [
-      {
-        id: 1,
-        date: new Date().toISOString(),
-        amount,
-        currency: pricedPlan?.currency || 'TRY',
-        status: 'paid',
-        plan: subscription.plan,
-        period: 'monthly'
-      }
-    ];
+    const history = [...invoiceEntries, ...localEntries]
+      .sort((left, right) => new Date(right.date).getTime() - new Date(left.date).getTime())
+      .slice(0, 50);
 
     res.json({ history });
   } catch (error) {
@@ -2986,7 +2848,8 @@ router.get('/billing-history', authenticateToken, async (req, res) => {
 // POST /api/subscription/start-trial - Start trial for new user
 router.post('/start-trial', verifyBusinessAccess, async (req, res) => {
   try {
-    const { businessId } = req.user;
+    const { businessId, id: userId } = req.user;
+    const ownerEmail = String(req.user?.email || '').trim();
 
     // Check if trial already used (check if trialMinutesUsed > 0 or trialChatExpiry passed)
     const existingSub = await prisma.subscription.findUnique({
@@ -2996,6 +2859,18 @@ router.post('/start-trial', verifyBusinessAccess, async (req, res) => {
     // Trial is "used" if minutes are exhausted or chat trial has expired
     if (existingSub?.trialMinutesUsed >= 15) {
       return res.status(400).json({ error: 'Trial already used' });
+    }
+
+    const eligibility = await resolveBillingTrialEligibility({
+      businessId,
+      email: ownerEmail
+    });
+
+    if (!eligibility.allowed) {
+      return res.status(409).json({
+        error: 'Trial already claimed for this owner email',
+        code: 'TRIAL_ALREADY_CLAIMED'
+      });
     }
 
     const now = new Date();
@@ -3020,6 +2895,15 @@ router.post('/start-trial', verifyBusinessAccess, async (req, res) => {
         trialChatExpiry,
         currentPeriodStart: now,
         currentPeriodEnd: trialChatExpiry
+      }
+    });
+
+    await registerBillingTrialClaim({
+      businessId,
+      userId,
+      email: ownerEmail,
+      metadata: {
+        source: 'subscription.start-trial'
       }
     });
 
