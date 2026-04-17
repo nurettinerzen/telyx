@@ -177,6 +177,10 @@ function resolveProviderFirstMessage({
   return normalized || undefined;
 }
 
+function isElevenLabsNotFound(error) {
+  return Number(error?.response?.status) === 404;
+}
+
 // ============================================================
 // ASSISTANT DEFAULTS BY LANGUAGE
 // ============================================================
@@ -1414,10 +1418,6 @@ router.post('/:id/sync', authenticateToken, checkPermission('assistants:edit'), 
       return res.status(400).json({ error: 'Text assistants do not support 11Labs sync' });
     }
 
-    if (!assistant.elevenLabsAgentId) {
-      return res.status(400).json({ error: 'Assistant has no 11Labs agent ID' });
-    }
-
     // Get business with integrations
     const business = await prisma.business.findUnique({
       where: { id: businessId },
@@ -1450,61 +1450,50 @@ router.post('/:id/sync', authenticateToken, checkPermission('assistants:edit'), 
       assistant.firstMessage = normalizedFirstMessage;
     }
 
-    // First, check current agent state
-    try {
-      const currentAgent = await elevenLabsService.getAgent(assistant.elevenLabsAgentId);
-      const currentToolIds = currentAgent.tool_ids || [];
-      const currentInlineTools = currentAgent.conversation_config?.agent?.prompt?.tools || [];
-      console.log('📊 CURRENT AGENT STATE:');
-      console.log('   - tool_ids:', currentToolIds.length > 0 ? currentToolIds : 'none');
-      console.log('   - inline_tools:', currentInlineTools.length > 0 ? currentInlineTools.map(t => t.name) : 'none');
-      if (currentToolIds.length > 0) {
-        console.log('   ⚠️ PROBLEM: Agent has tool_ids which may be broken!');
-      }
-    } catch (checkErr) {
-      console.warn('⚠️ Could not check current agent state:', checkErr.message);
-    }
-
     const systemTools = buildPhoneSystemTools({ callDirection: assistant.callDirection });
 
-    // Webhook tools - inline in agent config
     const backendUrl = runtimeConfig.backendUrl;
-    const webhookUrl = `${backendUrl}/api/elevenlabs/webhook?agentId=${assistant.elevenLabsAgentId}`;
     const activeToolDefinitions = getActiveTools(business);
+    const buildWebhookToolsForAgent = (agentIdForWebhook = null) => {
+      const webhookUrl = agentIdForWebhook
+        ? `${backendUrl}/api/elevenlabs/webhook?agentId=${agentIdForWebhook}`
+        : `${backendUrl}/api/elevenlabs/webhook`;
 
-    const webhookTools = activeToolDefinitions.map(tool => ({
-      type: 'webhook',
-      name: tool.function.name,
-      description: tool.function.description,
-      api_schema: {
-        url: webhookUrl,
-        method: 'POST',
-        request_body_schema: {
-          type: 'object',
-          properties: {
-            tool_name: {
-              type: 'string',
-              constant_value: tool.function.name
+      return activeToolDefinitions.map(tool => ({
+        type: 'webhook',
+        name: tool.function.name,
+        description: tool.function.description,
+        api_schema: {
+          url: webhookUrl,
+          method: 'POST',
+          request_body_schema: {
+            type: 'object',
+            properties: {
+              tool_name: {
+                type: 'string',
+                constant_value: tool.function.name
+              },
+              ...Object.fromEntries(
+                Object.entries(tool.function.parameters.properties || {}).map(([key, value]) => [
+                  key,
+                  {
+                    type: value.type || 'string',
+                    description: value.description || '',
+                    ...(value.enum ? { enum: value.enum } : {})
+                  }
+                ])
+              )
             },
-            ...Object.fromEntries(
-              Object.entries(tool.function.parameters.properties || {}).map(([key, value]) => [
-                key,
-                {
-                  type: value.type || 'string',
-                  description: value.description || '',
-                  ...(value.enum ? { enum: value.enum } : {})
-                }
-              ])
-            )
-          },
-          required: tool.function.parameters.required || []
+            required: tool.function.parameters.required || []
+          }
         }
-      }
-    }));
+      }));
+    };
 
-    // All tools: system + webhook (inline)
-    const allTools = [...systemTools, ...webhookTools];
-    console.log('🔧 Tools to sync:', allTools.map(t => t.name));
+    const buildAllToolsForAgent = (agentIdForWebhook = null) => [
+      ...systemTools,
+      ...buildWebhookToolsForAgent(agentIdForWebhook)
+    ];
 
     // Language-specific analysis prompts
     const analysisPrompts = {
@@ -1519,8 +1508,7 @@ router.post('/:id/sync', authenticateToken, checkPermission('assistants:edit'), 
     };
     const langAnalysis = analysisPrompts[elevenLabsLang] || analysisPrompts.en;
 
-    // Build the update config - this replaces tool_ids with inline tools
-    const agentUpdateConfig = {
+    const buildAgentSyncConfig = ({ agentIdForWebhook = null, postCallWebhookId = null } = {}) => ({
       name: assistant.name,
       conversation_config: {
         agent: {
@@ -1528,7 +1516,7 @@ router.post('/:id/sync', authenticateToken, checkPermission('assistants:edit'), 
             prompt: assistant.systemPrompt,
             llm: 'gemini-2.5-flash',
             temperature: 0.1,
-            tools: allTools  // Inline tools replace tool_ids
+            tools: buildAllToolsForAgent(agentIdForWebhook)
           },
           ...(providerFirstMessage !== undefined ? { first_message: providerFirstMessage } : {}),
           language: elevenLabsLang
@@ -1556,28 +1544,135 @@ router.post('/:id/sync', authenticateToken, checkPermission('assistants:edit'), 
           transcript_summary_prompt: langAnalysis.transcript_summary,
           success_evaluation_prompt: langAnalysis.success_evaluation
         }
-      }
-    };
+      },
+      ...(postCallWebhookId ? {
+        platform_settings: {
+          workspace_overrides: {
+            conversation_initiation_client_data_webhook: {
+              url: `${backendUrl}/api/elevenlabs/webhook`,
+              request_headers: {}
+            },
+            webhooks: {
+              post_call_webhook_id: postCallWebhookId,
+              events: ['transcript', 'call_initiation_failure'],
+              send_audio: false
+            }
+          }
+        }
+      } : {})
+    });
 
-    // Also clear any existing tool_ids to ensure clean switch to inline tools
-    try {
-      // First, try to clear tool_ids
-      await elevenLabsService.updateAgent(assistant.elevenLabsAgentId, {
-        tool_ids: []  // Clear external tool references
-      });
-      console.log('✅ Cleared tool_ids from agent');
-    } catch (clearError) {
-      console.warn('⚠️ Could not clear tool_ids (may not exist):', clearError.message);
+    let targetAgentId = assistant.elevenLabsAgentId || null;
+    let agentMissingInElevenLabs = !targetAgentId;
+    let recreated = false;
+
+    if (targetAgentId) {
+      try {
+        const currentAgent = await elevenLabsService.getAgent(targetAgentId);
+        const currentToolIds = currentAgent.tool_ids || [];
+        const currentInlineTools = currentAgent.conversation_config?.agent?.prompt?.tools || [];
+        console.log('📊 CURRENT AGENT STATE:');
+        console.log('   - tool_ids:', currentToolIds.length > 0 ? currentToolIds : 'none');
+        console.log('   - inline_tools:', currentInlineTools.length > 0 ? currentInlineTools.map(t => t.name) : 'none');
+        if (currentToolIds.length > 0) {
+          console.log('   ⚠️ PROBLEM: Agent has tool_ids which may be broken!');
+        }
+      } catch (checkErr) {
+        if (isElevenLabsNotFound(checkErr)) {
+          agentMissingInElevenLabs = true;
+          console.warn(`⚠️ 11Labs agent not found during sync, will recreate: ${targetAgentId}`);
+        } else {
+          console.warn('⚠️ Could not check current agent state:', checkErr.message);
+        }
+      }
     }
 
-    // Now update with inline tools
-    await elevenLabsService.updateAgent(assistant.elevenLabsAgentId, agentUpdateConfig);
-    console.log('✅ 11Labs Agent synced with inline tools');
+    if (!agentMissingInElevenLabs && targetAgentId) {
+      try {
+        await elevenLabsService.updateAgent(targetAgentId, {
+          tool_ids: []
+        });
+        console.log('✅ Cleared tool_ids from agent');
+      } catch (clearError) {
+        if (isElevenLabsNotFound(clearError)) {
+          agentMissingInElevenLabs = true;
+          console.warn(`⚠️ 11Labs agent disappeared while clearing tool_ids, will recreate: ${targetAgentId}`);
+        } else {
+          console.warn('⚠️ Could not clear tool_ids (may not exist):', clearError.message);
+        }
+      }
+    }
+
+    if (!agentMissingInElevenLabs && targetAgentId) {
+      try {
+        const agentUpdateConfig = buildAgentSyncConfig({ agentIdForWebhook: targetAgentId });
+        const allTools = buildAllToolsForAgent(targetAgentId);
+        console.log('🔧 Tools to sync:', allTools.map(t => t.name));
+        await elevenLabsService.updateAgent(targetAgentId, agentUpdateConfig);
+        console.log('✅ 11Labs Agent synced with inline tools');
+      } catch (syncError) {
+        if (isElevenLabsNotFound(syncError)) {
+          agentMissingInElevenLabs = true;
+          console.warn(`⚠️ 11Labs agent not found during sync update, will recreate: ${targetAgentId}`);
+        } else {
+          throw syncError;
+        }
+      }
+    }
+
+    if (agentMissingInElevenLabs) {
+      let postCallWebhookId = process.env.ELEVENLABS_POST_CALL_WEBHOOK_ID || null;
+      try {
+        const workspaceSync = await elevenLabsService.ensureWorkspaceWebhookRouting({ backendUrl });
+        if (workspaceSync.ok) {
+          postCallWebhookId = postCallWebhookId || workspaceSync.postCallWebhookId || null;
+          console.log(`✅ [11Labs] Workspace webhook pre-sync ${workspaceSync.changed ? 'updated' : 'verified'} (postCallWebhookId=${postCallWebhookId || 'none'})`);
+        } else {
+          console.warn('⚠️ [11Labs] Workspace webhook pre-sync failed during recreate:', workspaceSync.error);
+        }
+      } catch (syncErr) {
+        console.warn('⚠️ [11Labs] Workspace webhook pre-sync error during recreate:', syncErr.message);
+      }
+
+      const createConfig = buildAgentSyncConfig({
+        agentIdForWebhook: null,
+        postCallWebhookId
+      });
+
+      const createdAgent = await elevenLabsService.createAgent(createConfig);
+      targetAgentId = createdAgent.agent_id;
+      recreated = true;
+      console.log(`✅ Recreated 11Labs agent during sync: ${targetAgentId}`);
+
+      if (activeToolDefinitions.length > 0) {
+        await elevenLabsService.updateAgent(targetAgentId, {
+          conversation_config: {
+            agent: {
+              prompt: {
+                tools: buildAllToolsForAgent(targetAgentId)
+              }
+            }
+          }
+        });
+        console.log('✅ Recreated agent webhook URLs updated with agentId');
+      }
+
+      await prisma.assistant.update({
+        where: { id: assistant.id },
+        data: { elevenLabsAgentId: targetAgentId }
+      });
+      assistant.elevenLabsAgentId = targetAgentId;
+    }
+
+    const finalTools = buildAllToolsForAgent(targetAgentId);
 
     res.json({
       success: true,
-      message: 'Assistant synced to 11Labs successfully',
-      tools: allTools.map(t => t.name)
+      message: recreated
+        ? 'Assistant recreated and synced to 11Labs successfully'
+        : 'Assistant synced to 11Labs successfully',
+      recreated,
+      tools: finalTools.map(t => t.name)
     });
 
   } catch (error) {

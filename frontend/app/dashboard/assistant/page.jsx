@@ -485,8 +485,8 @@ export default function AssistantsPage() {
   const handleSync = async (assistant) => {
     setSyncing(assistant.id);
     try {
-      const response = await syncAssistant.mutateAsync(assistant.id);
-      toast.success(t('dashboard.assistantsPage.syncSuccess').replace('{tools}', response.data.tools?.join(', ') || 'tools updated'));
+      await syncAssistant.mutateAsync(assistant.id);
+      toast.success(t('dashboard.assistantsPage.syncSuccess'));
     } catch (error) {
       toast.error(error.response?.data?.error || t('errors.generic'));
     } finally {

@@ -1234,7 +1234,7 @@
       "customNotesPlaceholder": "Add custom information about your business (working hours, address, special rules, etc.)",
       "enterAssistantName": "Please enter assistant name",
       "confirmDelete": "Are you sure you want to delete this assistant?",
-      "syncSuccess": "11Labs synced: {tools}",
+      "syncSuccess": "Assistant synced with 11Labs.",
       "assistantNameCol": "Assistant Name",
       "directionCol": "Direction",
       "purposeCol": "Purpose",

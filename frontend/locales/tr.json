@@ -1234,7 +1234,7 @@
       "customNotesPlaceholder": "İşletmenize özel bilgiler ekleyin (çalışma saatleri, adres, özel kurallar vb.)",
       "enterAssistantName": "Lütfen asistan adı girin",
       "confirmDelete": "Bu asistanı silmek istediğinize emin misiniz?",
-      "syncSuccess": "11Labs senkronize edildi: {tools}",
+      "syncSuccess": "Asistan 11Labs ile senkronize edildi.",
       "assistantNameCol": "Asistan Adı",
       "directionCol": "Yön",
       "purposeCol": "Amaç",
