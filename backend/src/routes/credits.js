@@ -9,7 +9,7 @@
 import express from 'express';
 import prisma from '../prismaClient.js';
 import { authenticateToken } from '../middleware/auth.js';
-import { getCreditUnitPrice, calculateCreditPrice, getRegionalPricing, getPlanConfig } from '../config/plans.js';
+import { calculateCreditPrice, getRegionalPricing } from '../config/plans.js';
 
 const router = express.Router();
 
@@ -28,7 +28,6 @@ const CREDITS_SUBSCRIPTION_SELECT = {
   overageLimitReached: true,
   packageWarningAt80: true,
   creditWarningAt80: true,
-  iyzicoCardToken: true,
   business: {
     select: { country: true }
   }
@@ -143,149 +142,11 @@ router.get('/pricing', async (req, res) => {
 // POST /api/credits/purchase - Kredi satın al
 // ============================================================================
 router.post('/purchase', async (req, res) => {
-  try {
-    const { minutes } = req.body;
-    const businessId = req.businessId;
-
-    if (!minutes || minutes < 1) {
-      return res.status(400).json({ error: 'Geçersiz dakika miktarı' });
-    }
-
-    const unitPrice = getCreditUnitPrice(minutes);
-    const totalAmount = minutes * unitPrice;
-
-    // Business ve kayıtlı kart bilgisini al
-    const business = await prisma.business.findUnique({
-      where: { id: businessId },
-      select: {
-        id: true,
-        subscription: {
-          select: {
-            id: true,
-            iyzicoCardToken: true,
-            creditMinutes: true,
-            creditMinutesUsed: true
-          }
-        }
-      }
-    });
-
-    if (!business?.subscription) {
-      return res.status(400).json({ error: 'Abonelik bulunamadı' });
-    }
-
-    // Kayıtlı kart kontrolü
-    if (!business.subscription.iyzicoCardToken) {
-      return res.status(400).json({
-        error: 'Kayıtlı kart bulunamadı',
-        requiresCard: true,
-        message: 'Kredi satın almak için önce bir kart kaydetmeniz gerekiyor.'
-      });
-    }
-
-    // CreditPurchase kaydı oluştur (PENDING)
-    const purchase = await prisma.creditPurchase.create({
-      data: {
-        businessId,
-        minutes,
-        amount: totalAmount,
-        unitPrice,
-        status: 'PENDING'
-      }
-    });
-
-    // TODO: iyzico ile ödeme al
-    // const Iyzipay = (await import('iyzipay')).default;
-    // const iyzipay = new Iyzipay({
-    //   apiKey: process.env.IYZICO_API_KEY,
-    //   secretKey: process.env.IYZICO_SECRET_KEY,
-    //   uri: process.env.IYZICO_BASE_URL || 'https://sandbox-api.iyzipay.com'
-    // });
-    //
-    // const paymentResult = await new Promise((resolve, reject) => {
-    //   iyzipay.threedsPayment.create({
-    //     locale: Iyzipay.LOCALE.TR,
-    //     conversationId: purchase.id,
-    //     price: totalAmount.toFixed(2),
-    //     paidPrice: totalAmount.toFixed(2),
-    //     currency: Iyzipay.CURRENCY.TRY,
-    //     paymentCard: {
-    //       cardToken: business.subscription.iyzicoCardToken,
-    //       cardUserKey: business.subscription.iyzicoCustomerId
-    //     },
-    //     // ... diğer parametreler
-    //   }, (err, result) => {
-    //     if (err) reject(err);
-    //     else resolve(result);
-    //   });
-    // });
-
-    // Şimdilik direkt başarılı say (iyzico entegrasyonu sonra)
-    const paymentSuccess = true;
-
-    if (paymentSuccess) {
-      // Purchase güncelle
-      await prisma.creditPurchase.update({
-        where: { id: purchase.id },
-        data: {
-          status: 'COMPLETED',
-          paymentId: 'manual-' + Date.now()
-        }
-      });
-
-      // Kredileri ekle ve aşım limitini sıfırla (eğer aşıldıysa)
-      const updatedSubscription = await prisma.subscription.update({
-        where: { businessId },
-        data: {
-          creditMinutes: { increment: minutes },
-          // Aşım limiti aşıldıysa ve kredi alındıysa sıfırla
-          overageLimitReached: false
-        }
-      });
-
-      // Usage log kaydet
-      await prisma.usageLog.create({
-        data: {
-          businessId,
-          type: 'CREDIT_PURCHASE',
-          minutes: minutes,
-          source: 'PURCHASE',
-          metadata: {
-            purchaseId: purchase.id,
-            amount: totalAmount,
-            unitPrice
-          }
-        }
-      });
-
-      console.log(`💰 Kredi satın alındı: Business ${businessId}, ${minutes} dk, ${totalAmount} TL`);
-
-      res.json({
-        success: true,
-        message: `${minutes} dakika krediniz eklendi!`,
-        purchase: {
-          id: purchase.id,
-          minutes,
-          amount: totalAmount,
-          unitPrice
-        },
-        newBalance: {
-          creditMinutes: updatedSubscription.creditMinutes,
-          creditRemaining: updatedSubscription.creditMinutes - updatedSubscription.creditMinutesUsed
-        }
-      });
-    } else {
-      await prisma.creditPurchase.update({
-        where: { id: purchase.id },
-        data: { status: 'FAILED' }
-      });
-
-      res.status(400).json({ error: 'Ödeme başarısız' });
-    }
-  } catch (error) {
-    console.error('❌ Credit purchase error:', error);
-    res.status(500).json({ error: error.message });
-  }
+  return res.status(410).json({
+    error: 'LEGACY_CREDITS_DISABLED',
+    message: 'Legacy credit purchases are disabled. Use Stripe wallet top-up on the PAYG plan instead.',
+    upgradePath: '/api/balance/topup'
+  });
 });
 
 // ============================================================================

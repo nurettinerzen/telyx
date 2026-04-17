@@ -61,14 +61,6 @@ export const config = {
     proPriceId: process.env.STRIPE_PRO_PRICE_ID,
     enterprisePriceId: process.env.STRIPE_ENTERPRISE_PRICE_ID,
   },
-  iyzico: {
-    apiKey: process.env.IYZICO_API_KEY,
-    secretKey: process.env.IYZICO_SECRET_KEY,
-    baseUrl: process.env.IYZICO_BASE_URL || 'https://sandbox-api.iyzipay.com',
-    starterPlanRef: process.env.IYZICO_STARTER_PLAN_REF,
-    proPlanRef: process.env.IYZICO_PRO_PLAN_REF,
-    enterprisePlanRef: process.env.IYZICO_ENTERPRISE_PLAN_REF,
-  },
   resend: {
     apiKey: process.env.RESEND_API_KEY,
     fromEmail: process.env.EMAIL_FROM || 'Telyx.AI <info@telyx.ai>',

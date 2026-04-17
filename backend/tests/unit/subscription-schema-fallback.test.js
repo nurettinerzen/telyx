@@ -41,10 +41,6 @@ jest.unstable_mockModule('../../src/services/emailService.js', () => ({
   default: {}
 }));
 
-jest.unstable_mockModule('../../src/services/iyzicoSubscription.js', () => ({
-  default: {}
-}));
-
 jest.unstable_mockModule('../../src/services/paymentProvider.js', () => ({
   default: {}
 }));
@@ -199,12 +195,6 @@ describe('Subscription routes billing schema fallback', () => {
     const response = await request(app).get('/api/subscription/billing-history');
 
     expect(response.status).toBe(200);
-    expect(response.body.history).toHaveLength(1);
-    expect(response.body.history[0]).toEqual(
-      expect.objectContaining({
-        plan: 'STARTER',
-        currency: 'TRY'
-      })
-    );
+    expect(response.body.history).toEqual([]);
   });
 });

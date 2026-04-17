@@ -35,7 +35,6 @@ export const EXTERNAL_SERVICE = {
   GMAIL: 'gmail',
   OUTLOOK: 'outlook',
   GOOGLE_CALENDAR: 'google_calendar',
-  IYZICO: 'iyzico',
 };
 
 export const SEVERITY = {

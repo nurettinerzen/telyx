@@ -23,8 +23,7 @@ export default function SubscriptionCallback() {
       const message = searchParams.get('message');
       toast.error(message || t('dashboard.subscriptionPage.upgradeFailed') || 'Odeme islemi basarisiz oldu.');
     } else {
-      // No status in URL, might be direct iyzico POST callback
-      // Check if we have a token in the URL
+      // No explicit state in the URL; keep a short processing state before redirect.
       setStatus('processing');
     }
 

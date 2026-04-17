@@ -128,9 +128,6 @@ export default function TrialExpiredModal({
       if (response.data?.sessionUrl) {
         // Stripe checkout
         window.location.href = response.data.sessionUrl;
-      } else if (response.data?.checkoutFormContent) {
-        // iyzico - redirect to subscription page
-        router.push('/dashboard/subscription?upgrade=STARTER');
       } else {
         toast.success(txt.successStarter);
         onClose();

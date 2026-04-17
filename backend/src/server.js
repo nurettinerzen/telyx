@@ -39,7 +39,6 @@ import chatLegacyRoutes from './routes/chat-legacy.js'; // DEPRECATED: Legacy ch
 import chatRoutes from './routes/chat-refactored.js'; // Main chat implementation (uses core/orchestrator)
 import chatLogRoutes from './routes/chatLogs.js';
 import whatsappRoutes from './routes/whatsapp.js';
-import iyzicoRoutes from './routes/iyzico.js';
 import emailRoutes from './routes/email.js';
 import emailSnippetRoutes from './routes/email-snippets.js';
 import marketplaceQaRoutes from './routes/marketplace-qa.js';
@@ -59,8 +58,6 @@ import waitlistRoutes from './routes/waitlist.js';
 import contactRoutes from './routes/contact.js';
 // Onboarding
 import onboardingRoutes from './routes/onboarding.js';
-// Credits
-import creditsRoutes from './routes/credits.js';
 // Balance (new pricing system)
 import balanceRoutes from './routes/balance.js';
 // Usage (new pricing system)
@@ -403,7 +400,6 @@ app.use('/api/chat', apiRateLimiter.middleware(), chatRoutes); // Main endpoint 
 app.use('/api/chat-v2', apiRateLimiter.middleware(), chatRoutes); // Alias for backward compatibility
 app.use('/api/chat-logs', chatLogRoutes);
 app.use('/api/whatsapp', whatsappRoutes);
-app.use('/api/iyzico', iyzicoRoutes);
 app.use('/api/email', emailRoutes);
 app.use('/api/email-snippets', emailSnippetRoutes);
 app.use('/api/marketplace-qa', marketplaceQaRoutes);
@@ -420,7 +416,6 @@ app.use('/api/team', teamRoutes);
 app.use('/api/waitlist', waitlistRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/onboarding', onboardingRoutes);
-app.use('/api/credits', creditsRoutes);
 app.use('/api/metrics', metricsRoutes); // Internal metrics (protected)
 app.use('/api/concurrent-metrics', concurrentMetricsRoutes); // P0.5: Concurrent call metrics
 app.use('/api/media', mediaRoutes); // Signed URL media access (secure)

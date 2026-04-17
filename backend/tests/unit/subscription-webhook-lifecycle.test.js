@@ -69,10 +69,6 @@ jest.unstable_mockModule('../../src/services/emailService.js', () => ({
   default: emailServiceMock
 }));
 
-jest.unstable_mockModule('../../src/services/iyzicoSubscription.js', () => ({
-  default: {}
-}));
-
 jest.unstable_mockModule('../../src/services/paymentProvider.js', () => ({
   default: {}
 }));

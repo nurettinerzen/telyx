@@ -166,7 +166,7 @@ router.post('/register', strictRateLimit, async (req, res) => {
           name: businessName,
           chatEmbedKey: generateChatEmbedKey(),
           businessType: req.body.businessType || 'OTHER',
-          country: req.body.country?.toUpperCase() || 'TR', // Default to TR for iyzico
+          country: req.body.country?.toUpperCase() || 'TR',
           users: {
             create: {
               email,

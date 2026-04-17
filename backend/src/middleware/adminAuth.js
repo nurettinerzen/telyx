@@ -150,8 +150,6 @@ const SENSITIVE_FIELDS = {
   Assistant: [], // systemPrompt will be truncated, not removed
   Subscription: [
     'stripeCustomerId',
-    'iyzicoCardToken',
-    'iyzicoPaymentId',
     'stripeSubscriptionId'
   ],
   Integration: ['credentials'],

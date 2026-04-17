@@ -8,6 +8,10 @@ const prismaMock = {
     update: jest.fn(),
     upsert: jest.fn()
   },
+  billingTrialClaim: {
+    findUnique: jest.fn(),
+    upsert: jest.fn()
+  },
   user: {
     findFirst: jest.fn()
   },
@@ -44,7 +48,8 @@ const stripeClientMock = {
 
 const stripeServiceMock = {
   ensureCustomer: jest.fn(),
-  createWrittenOverageInvoice: jest.fn()
+  createWrittenOverageInvoice: jest.fn(),
+  resolveCheckoutLocale: jest.fn(() => 'tr')
 };
 
 const paymentProviderMock = {
@@ -85,13 +90,6 @@ jest.unstable_mockModule('../../src/middleware/auth.js', () => ({
 
 jest.unstable_mockModule('../../src/services/emailService.js', () => ({
   default: {}
-}));
-
-jest.unstable_mockModule('../../src/services/iyzicoSubscription.js', () => ({
-  default: {
-    cancelSubscription: jest.fn(),
-    initializeCheckoutForm: jest.fn()
-  }
 }));
 
 jest.unstable_mockModule('../../src/services/paymentProvider.js', () => ({
@@ -170,6 +168,8 @@ describe('Subscription lifecycle routes', () => {
     });
     prismaMock.subscription.upsert.mockResolvedValue({});
     prismaMock.subscription.update.mockResolvedValue({});
+    prismaMock.billingTrialClaim.findUnique.mockResolvedValue(null);
+    prismaMock.billingTrialClaim.upsert.mockResolvedValue({});
     prismaMock.chatLog.count.mockResolvedValue(0);
     prismaMock.emailMessage.count.mockResolvedValue(0);
 
@@ -262,22 +262,15 @@ describe('Subscription lifecycle routes', () => {
   });
 
   it('applies Stripe proration immediately for upgrades', async () => {
-    prismaMock.subscription.findUnique
-      .mockResolvedValueOnce({
-        id: 33,
-        businessId: 11,
-        plan: 'STARTER',
-        status: 'ACTIVE',
-        stripeCustomerId: 'cus_test_123',
-        paymentProvider: 'stripe'
-      })
-      .mockResolvedValueOnce({
-        id: 33,
-        businessId: 11,
-        plan: 'STARTER',
-        status: 'ACTIVE',
-        stripeSubscriptionId: 'sub_test_123'
-      });
+    prismaMock.subscription.findUnique.mockResolvedValue({
+      id: 33,
+      businessId: 11,
+      plan: 'STARTER',
+      status: 'ACTIVE',
+      stripeCustomerId: 'cus_test_123',
+      stripeSubscriptionId: 'sub_test_123',
+      paymentProvider: 'stripe'
+    });
 
     const response = await request(app)
       .post('/api/subscription/upgrade')
@@ -302,22 +295,15 @@ describe('Subscription lifecycle routes', () => {
   });
 
   it('schedules downgrades for the next billing period', async () => {
-    prismaMock.subscription.findUnique
-      .mockResolvedValueOnce({
-        id: 33,
-        businessId: 11,
-        plan: 'PRO',
-        status: 'ACTIVE',
-        stripeCustomerId: 'cus_test_123',
-        paymentProvider: 'stripe'
-      })
-      .mockResolvedValueOnce({
-        id: 33,
-        businessId: 11,
-        plan: 'PRO',
-        status: 'ACTIVE',
-        stripeSubscriptionId: 'sub_test_123'
-      });
+    prismaMock.subscription.findUnique.mockResolvedValue({
+      id: 33,
+      businessId: 11,
+      plan: 'PRO',
+      status: 'ACTIVE',
+      stripeCustomerId: 'cus_test_123',
+      stripeSubscriptionId: 'sub_test_123',
+      paymentProvider: 'stripe'
+    });
     stripeClientMock.subscriptions.retrieve.mockResolvedValue({
       id: 'sub_test_123',
       cancel_at_period_end: false,
@@ -481,6 +467,27 @@ describe('Subscription lifecycle routes', () => {
     );
     expect(response.body.subscription.plan).toBe('TRIAL');
     expect(response.body.subscription.trialMinutes).toBe(15);
+  });
+
+  it('blocks repeated trial claims for owner emails already used in another business', async () => {
+    prismaMock.subscription.findUnique.mockResolvedValue({
+      id: 44,
+      businessId: 11,
+      plan: 'FREE',
+      status: 'ACTIVE',
+      trialMinutesUsed: 0
+    });
+    prismaMock.billingTrialClaim.findUnique.mockResolvedValue({
+      id: 'trial_claim_1',
+      normalizedEmail: 'owner@example.com',
+      firstBusinessId: 99
+    });
+
+    const response = await request(app).post('/api/subscription/start-trial').send({});
+
+    expect(response.status).toBe(409);
+    expect(response.body.code).toBe('TRIAL_ALREADY_CLAIMED');
+    expect(prismaMock.subscription.upsert).not.toHaveBeenCalled();
   });
 
   it('switches free or trial users to PAYG immediately', async () => {

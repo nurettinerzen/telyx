@@ -56,8 +56,7 @@ const BASE_BALANCE_SUBSCRIPTION_SELECT = {
   autoReloadEnabled: true,
   autoReloadThreshold: true,
   autoReloadAmount: true,
-  stripeCustomerId: true,
-  iyzicoCardToken: true
+  stripeCustomerId: true
 };
 
 /**
@@ -66,7 +65,6 @@ const BASE_BALANCE_SUBSCRIPTION_SELECT = {
  * @param {number} amountTL - Eklenecek TL miktarı
  * @param {object} paymentInfo - Ödeme bilgileri
  * @param {string} paymentInfo.stripePaymentIntentId - Stripe payment intent ID
- * @param {string} paymentInfo.iyzicoPaymentId - iyzico payment ID
  * @param {string} description - Açıklama
  * @returns {object} { success, balance, balanceMinutes, transaction }
  */
@@ -113,7 +111,6 @@ export async function topUp(subscriptionId, amountTL, paymentInfo = {}, descript
           balanceBefore,
           balanceAfter,
           stripePaymentIntentId: paymentInfo.stripePaymentIntentId || null,
-          iyzicoPaymentId: paymentInfo.iyzicoPaymentId || null,
           description: txDescription
         }
       })
@@ -319,21 +316,6 @@ export async function processAutoReload(subscriptionId, amountTL) {
         reason: 'RECENT_AUTO_RELOAD',
         balance: Number(subscription.balance || 0)
       };
-    }
-
-    // Check if we have a saved card token for iyzico
-    if (subscription.iyzicoCardToken) {
-      try {
-        // TODO: Implement iyzico card charge
-        // const iyzicoService = (await import('./iyzico.js')).default;
-        // const result = await iyzicoService.chargeWithToken(subscription.iyzicoCardToken, amountTL);
-        // paymentInfo.iyzicoPaymentId = result.paymentId;
-        // paymentSuccess = true;
-
-        console.log('⚠️ iyzico auto-charge not implemented yet');
-      } catch (chargeError) {
-        console.error('❌ iyzico charge failed:', chargeError);
-      }
     }
 
     // Check if we have Stripe customer ID

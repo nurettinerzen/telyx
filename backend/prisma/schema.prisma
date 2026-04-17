@@ -9,34 +9,34 @@ datasource db {
 }
 
 model User {
-  id                  Int                      @id @default(autoincrement())
-  email               String                   @unique
-  password            String
-  name                String?
-  role                UserRole                 @default(STAFF)
-  businessId          Int
-  invitedById         Int?
-  invitedAt           DateTime?
-  acceptedAt          DateTime?
-  onboardingCompleted Boolean                  @default(false)
-  emailVerified       Boolean                  @default(false)
-  emailVerifiedAt     DateTime?
+  id                             Int                             @id @default(autoincrement())
+  email                          String                          @unique
+  password                       String
+  name                           String?
+  role                           UserRole                        @default(STAFF)
+  businessId                     Int
+  invitedById                    Int?
+  invitedAt                      DateTime?
+  acceptedAt                     DateTime?
+  onboardingCompleted            Boolean                         @default(false)
+  emailVerified                  Boolean                         @default(false)
+  emailVerifiedAt                DateTime?
   // Suspension fields (Admin Panel)
-  suspended           Boolean                  @default(false)
-  suspendedAt         DateTime?
-  suspendReason       String?
-  deletedAt           DateTime?
-  tokenVersion        Int                      @default(0)
-  createdAt           DateTime                 @default(now())
-  updatedAt           DateTime                 @updatedAt
-  business            Business                 @relation(fields: [businessId], references: [id])
-  invitedBy           User?                    @relation("UserInvitations", fields: [invitedById], references: [id])
-  invitedUsers        User[]                   @relation("UserInvitations")
-  sentInvitations     Invitation[]             @relation("InvitedByUser")
-  verificationTokens  EmailVerificationToken[]
-  passwordResetTokens PasswordResetToken[]
-  auditLogsAsActor    BusinessAuditLog[]       @relation("AuditActor")
-  auditLogsAsTarget   BusinessAuditLog[]       @relation("AuditTarget")
+  suspended                      Boolean                         @default(false)
+  suspendedAt                    DateTime?
+  suspendReason                  String?
+  deletedAt                      DateTime?
+  tokenVersion                   Int                             @default(0)
+  createdAt                      DateTime                        @default(now())
+  updatedAt                      DateTime                        @updatedAt
+  business                       Business                        @relation(fields: [businessId], references: [id])
+  invitedBy                      User?                           @relation("UserInvitations", fields: [invitedById], references: [id])
+  invitedUsers                   User[]                          @relation("UserInvitations")
+  sentInvitations                Invitation[]                    @relation("InvitedByUser")
+  verificationTokens             EmailVerificationToken[]
+  passwordResetTokens            PasswordResetToken[]
+  auditLogsAsActor               BusinessAuditLog[]              @relation("AuditActor")
+  auditLogsAsTarget              BusinessAuditLog[]              @relation("AuditTarget")
   whatsappEmbeddedSignupSessions WhatsappEmbeddedSignupSession[]
 
   @@index([businessId])
@@ -87,98 +87,98 @@ model PasswordResetToken {
 }
 
 model Business {
-  id                       Int                     @id @default(autoincrement())
-  name                     String
-  chatEmbedKey             String?                 @unique // Unique key for chat widget embedding
-  chatWidgetEnabled        Boolean                 @default(false) // Is chat widget active for this business
-  chatAssistantId          String?                 // Preferred assistant for chat-capable channels (chat/wa/email)
-  phoneInboundEnabled      Boolean                 @default(false) // Admin toggle: false=V1 outbound-only, true=FULL V2 inbound
-  onboardingCompletedAt    DateTime?               // Business-level onboarding completion timestamp
-  language                 String                  @default("TR") // Uygulama dili (TR, EN, PR, DE, ES, FR...)
-  aliases                  String[]                @default([]) // Tenant-defined alternative business spellings for resolver
-  identitySummary          String?                 @db.Text // Optional short description used as business identity context
-  country                  String                  @default("TR") // Bölge kodu (TR, BR, US, DE...)
-  currency                 String                  @default("TRY") // Para birimi (TRY, BRL, USD, EUR...)
-  timezone                 String                  @default("Europe/Istanbul")
-  phoneNumbers             String[]                @default([])
-  businessType             BusinessType            @default(OTHER)
-  customGreeting           String?
-  customInstructions       String?
-  bookingDuration          Int?                    @default(30)
-  bufferTime               Int?                    @default(15)
-  googleSheetId            String?
-  googleSheetLastSync      DateTime?
-  googleSheetName          String?
+  id                             Int                             @id @default(autoincrement())
+  name                           String
+  chatEmbedKey                   String?                         @unique // Unique key for chat widget embedding
+  chatWidgetEnabled              Boolean                         @default(false) // Is chat widget active for this business
+  chatAssistantId                String? // Preferred assistant for chat-capable channels (chat/wa/email)
+  phoneInboundEnabled            Boolean                         @default(false) // Admin toggle: false=V1 outbound-only, true=FULL V2 inbound
+  onboardingCompletedAt          DateTime? // Business-level onboarding completion timestamp
+  language                       String                          @default("TR") // Uygulama dili (TR, EN, PR, DE, ES, FR...)
+  aliases                        String[]                        @default([]) // Tenant-defined alternative business spellings for resolver
+  identitySummary                String?                         @db.Text // Optional short description used as business identity context
+  country                        String                          @default("TR") // Bölge kodu (TR, BR, US, DE...)
+  currency                       String                          @default("TRY") // Para birimi (TRY, BRL, USD, EUR...)
+  timezone                       String                          @default("Europe/Istanbul")
+  phoneNumbers                   String[]                        @default([])
+  businessType                   BusinessType                    @default(OTHER)
+  customGreeting                 String?
+  customInstructions             String?
+  bookingDuration                Int?                            @default(30)
+  bufferTime                     Int?                            @default(15)
+  googleSheetId                  String?
+  googleSheetLastSync            DateTime?
+  googleSheetName                String?
   // Google Sheets OAuth fields
-  googleSheetsAccessToken  String?                 @db.Text
-  googleSheetsRefreshToken String?                 @db.Text
-  googleSheetsTokenExpiry  DateTime?
-  googleSheetsConnected    Boolean                 @default(false)
-  whatsappPhoneNumberId    String?
-  whatsappAccessToken      String?
-  whatsappVerifyToken      String?
-  whatsappWebhookUrl       String?
+  googleSheetsAccessToken        String?                         @db.Text
+  googleSheetsRefreshToken       String?                         @db.Text
+  googleSheetsTokenExpiry        DateTime?
+  googleSheetsConnected          Boolean                         @default(false)
+  whatsappPhoneNumberId          String?
+  whatsappAccessToken            String?
+  whatsappVerifyToken            String?
+  whatsappWebhookUrl             String?
   // Suspension fields (Admin Panel)
-  suspended                Boolean                 @default(false)
-  suspendedAt              DateTime?
-  suspendReason            String?
-  deletedAt                DateTime?
-  createdAt                DateTime                @default(now())
-  updatedAt                DateTime                @updatedAt
-  ownerPhone               String?
-  ownerWhatsApp            String?
+  suspended                      Boolean                         @default(false)
+  suspendedAt                    DateTime?
+  suspendReason                  String?
+  deletedAt                      DateTime?
+  createdAt                      DateTime                        @default(now())
+  updatedAt                      DateTime                        @updatedAt
+  ownerPhone                     String?
+  ownerWhatsApp                  String?
   // Email RAG Settings
-  emailRagEnabled          Boolean                 @default(true)
-  emailSnippetsEnabled     Boolean                 @default(true)
-  emailRagMaxExamples      Int                     @default(3)
-  emailRagMaxSnippets      Int                     @default(2)
-  emailRagMinConfidence    Float                   @default(0.7) // Min classification confidence for RAG (0.0-1.0)
-  crmVersion               Int                     @default(0) // Cache invalidation for CRM data changes (P0.3b)
+  emailRagEnabled                Boolean                         @default(true)
+  emailSnippetsEnabled           Boolean                         @default(true)
+  emailRagMaxExamples            Int                             @default(3)
+  emailRagMaxSnippets            Int                             @default(2)
+  emailRagMinConfidence          Float                           @default(0.7) // Min classification confidence for RAG (0.0-1.0)
+  crmVersion                     Int                             @default(0) // Cache invalidation for CRM data changes (P0.3b)
   // Legacy per-channel behavior config. Runtime no longer uses channel-specific assistant modes.
-  channelConfig            Json?
-  helpLinks                Json?                   // {"order_status_url":"...","returns_url":"...","account_url":"...","contact_url":"...","support_email":"..."}
-  aiTrainings              AiTraining[]
-  appointments             Appointment[]
-  assistants               Assistant[]
-  bookingIntegration       BookingIntegration?
-  businessHours            BusinessHours?
-  callLogs                 CallLog[]
-  activeCallSessions       ActiveCallSession[]
-  erpIntegration           ErpIntegration?
-  integrations             Integration[]
-  knowledgeBase            KnowledgeBase[]
-  provisionedPhoneNumbers  PhoneNumber[]           @relation("BusinessPhoneNumbers")
-  products                 Product[]
-  reservationIntegration   ReservationIntegration?
-  shippingInfos            ShippingInfo[]
-  subscription             Subscription?
-  users                    User[]
-  emailIntegration         EmailIntegration?
-  emailThreads             EmailThread[]
-  emailDrafts              EmailDraft[]
-  emailEmbeddings          EmailEmbedding[]
-  emailSnippets            EmailSnippet[]
-  marketplaceQuestions     MarketplaceQuestion[]
-  complaintThreads         ComplaintThread[]
-  webhookConfig            WebhookConfig?
-  invitations              Invitation[]
-  creditPurchases          CreditPurchase[]
-  usageLogs                UsageLog[]
-  crmWebhook               CrmWebhook?
-  crmWebhookEvents         CrmWebhookEvent[] @relation("CrmWebhookEvents")
-  crmOrders                CrmOrder[]
-  crmStocks                CrmStock[]
-  crmTickets               CrmTicket[]
-  auditLogs                BusinessAuditLog[]
-  batchCalls               BatchCall[]
-  customerData             CustomerData[]
-  customerDataFiles        CustomerDataFile[]
-  callbackRequests         CallbackRequest[]
-  doNotCalls              DoNotCall[]
-  chatLogs                 ChatLog[]
-  pilotBusinesses          PilotBusiness[]         @relation("PilotBusinesses")
-  emailPairs               EmailPair[]             @relation("EmailPairs")
-  oauthStates              OAuthState[]            @relation("OAuthStates")
+  channelConfig                  Json?
+  helpLinks                      Json? // {"order_status_url":"...","returns_url":"...","account_url":"...","contact_url":"...","support_email":"..."}
+  aiTrainings                    AiTraining[]
+  appointments                   Appointment[]
+  assistants                     Assistant[]
+  bookingIntegration             BookingIntegration?
+  businessHours                  BusinessHours?
+  callLogs                       CallLog[]
+  activeCallSessions             ActiveCallSession[]
+  erpIntegration                 ErpIntegration?
+  integrations                   Integration[]
+  knowledgeBase                  KnowledgeBase[]
+  provisionedPhoneNumbers        PhoneNumber[]                   @relation("BusinessPhoneNumbers")
+  products                       Product[]
+  reservationIntegration         ReservationIntegration?
+  shippingInfos                  ShippingInfo[]
+  subscription                   Subscription?
+  users                          User[]
+  emailIntegration               EmailIntegration?
+  emailThreads                   EmailThread[]
+  emailDrafts                    EmailDraft[]
+  emailEmbeddings                EmailEmbedding[]
+  emailSnippets                  EmailSnippet[]
+  marketplaceQuestions           MarketplaceQuestion[]
+  complaintThreads               ComplaintThread[]
+  webhookConfig                  WebhookConfig?
+  invitations                    Invitation[]
+  creditPurchases                CreditPurchase[]
+  usageLogs                      UsageLog[]
+  crmWebhook                     CrmWebhook?
+  crmWebhookEvents               CrmWebhookEvent[]               @relation("CrmWebhookEvents")
+  crmOrders                      CrmOrder[]
+  crmStocks                      CrmStock[]
+  crmTickets                     CrmTicket[]
+  auditLogs                      BusinessAuditLog[]
+  batchCalls                     BatchCall[]
+  customerData                   CustomerData[]
+  customerDataFiles              CustomerDataFile[]
+  callbackRequests               CallbackRequest[]
+  doNotCalls                     DoNotCall[]
+  chatLogs                       ChatLog[]
+  pilotBusinesses                PilotBusiness[]                 @relation("PilotBusinesses")
+  emailPairs                     EmailPair[]                     @relation("EmailPairs")
+  oauthStates                    OAuthState[]                    @relation("OAuthStates")
   whatsappEmbeddedSignupSessions WhatsappEmbeddedSignupSession[]
 
   @@index([name])
@@ -187,31 +187,31 @@ model Business {
 }
 
 model Assistant {
-  id                String            @id @default(cuid())
-  businessId        Int
-  name              String
-  assistantType     String            @default("phone") // "text" | "phone"
-  voiceId           String? // null for text assistants
-  systemPrompt      String            @db.Text
-  model             String            @default("gpt-4")
-  elevenLabsAgentId String?           @unique // 11Labs Conversational AI Agent ID
-  isActive          Boolean           @default(true)
-  timezone          String? // Business timezone for date/time context
-  firstMessage      String? // Custom first message
-  tone              String            @default("professional") // "friendly" or "professional"
-  customNotes       String?           @db.Text // Business-specific notes
-  userInstructions  String?           @db.Text // User's original instructions (kept separate from auto-generated systemPrompt)
-  callDirection     String            @default("outbound") // phone-only: "inbound" | "outbound" | "outbound_*"
-  channelCapabilities String[]        @default(["phone_outbound"]) // ["chat","whatsapp","email","phone_outbound","phone_inbound"]
-  callPurpose       String? // For outbound: "collection", "reminder", "survey", "info", "custom"
-  dynamicVariables  String[]          @default([]) // Dynamic variable names for outbound calls
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  business          Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  phoneNumbers      PhoneNumber[]
-  batchCalls        BatchCall[]
-  callbackRequests  CallbackRequest[]
-  chatLogs          ChatLog[]
+  id                  String            @id @default(cuid())
+  businessId          Int
+  name                String
+  assistantType       String            @default("phone") // "text" | "phone"
+  voiceId             String? // null for text assistants
+  systemPrompt        String            @db.Text
+  model               String            @default("gpt-4")
+  elevenLabsAgentId   String?           @unique // 11Labs Conversational AI Agent ID
+  isActive            Boolean           @default(true)
+  timezone            String? // Business timezone for date/time context
+  firstMessage        String? // Custom first message
+  tone                String            @default("professional") // "friendly" or "professional"
+  customNotes         String?           @db.Text // Business-specific notes
+  userInstructions    String?           @db.Text // User's original instructions (kept separate from auto-generated systemPrompt)
+  callDirection       String            @default("outbound") // phone-only: "inbound" | "outbound" | "outbound_*"
+  channelCapabilities String[]          @default(["phone_outbound"]) // ["chat","whatsapp","email","phone_outbound","phone_inbound"]
+  callPurpose         String? // For outbound: "collection", "reminder", "survey", "info", "custom"
+  dynamicVariables    String[]          @default([]) // Dynamic variable names for outbound calls
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  business            Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  phoneNumbers        PhoneNumber[]
+  batchCalls          BatchCall[]
+  callbackRequests    CallbackRequest[]
+  chatLogs            ChatLog[]
 
   @@index([businessId])
   @@index([isActive])
@@ -255,18 +255,11 @@ model Subscription {
   businessId               Int                @unique
   plan                     SubscriptionPlan   @default(FREE)
   status                   SubscriptionStatus @default(TRIAL)
-  paymentProvider          String?            @default("stripe") // "stripe" or "iyzico"
+  paymentProvider          String?            @default("stripe")
   // Stripe fields
   stripeCustomerId         String?
   stripeSubscriptionId     String?            @unique
   stripePriceId            String?
-  // iyzico fields
-  iyzicoCustomerId         String?
-  iyzicoSubscriptionId     String?            @unique
-  iyzicoReferenceCode      String?            @unique
-  iyzicoPricingPlanId      String?
-  iyzicoCardToken          String?
-  iyzicoPaymentId          String? // For checkout form payments
   // Pending subscription fields (for callback)
   pendingSubscriptionToken String?
   pendingPlanId            String?
@@ -305,11 +298,11 @@ model Subscription {
   autoReloadAmount    Float   @default(5) // Kaç dakika yükle
 
   // Kredi sistemi (YENİ) - Legacy, bakiye sistemi ile değiştirildi
-  creditMinutes     Int @default(0) // Satın alınan toplam kredi dakikaları
-  creditMinutesUsed Int @default(0) // Krediden kullanılan dakikalar
-  voiceAddOnMinutesBalance Float @default(0) // Mevcut dönem için kalan ses dakikası add-on bakiyesi
-  writtenInteractionAddOnBalance Int @default(0) // Mevcut dönem için kalan yazılı etkileşim add-on bakiyesi
-  writtenOverageBilledAt DateTime? // Son yazılı aşım faturası tarihi
+  creditMinutes                  Int       @default(0) // Satın alınan toplam kredi dakikaları
+  creditMinutesUsed              Int       @default(0) // Krediden kullanılan dakikalar
+  voiceAddOnMinutesBalance       Float     @default(0) // Mevcut dönem için kalan ses dakikası add-on bakiyesi
+  writtenInteractionAddOnBalance Int       @default(0) // Mevcut dönem için kalan yazılı etkileşim add-on bakiyesi
+  writtenOverageBilledAt         DateTime? // Son yazılı aşım faturası tarihi
 
   // Aşım sistemi (YENİ) - POSTPAID model için
   overageMinutes  Int       @default(0) // Bu ay aşım dakikaları
@@ -330,24 +323,24 @@ model Subscription {
   // ============================================================================
   // CHAT/WHATSAPP KULLANIM TAKIBI (Anti-abuse)
   // ============================================================================
-  chatTokensUsed       Int       @default(0) // Bu dönem kullanılan toplam token
-  chatTokensResetAt    DateTime? // Token sayacı sıfırlama tarihi
-  chatTokensLimit      Int       @default(0) // Aylık token limiti (0 = sınırsız ama ücretli)
-  chatDailyMessageDate DateTime? // Son mesaj tarih (rate limit için)
-  chatDailyMessageCount Int      @default(0) // Bugün gönderilen mesaj sayısı
+  chatTokensUsed        Int       @default(0) // Bu dönem kullanılan toplam token
+  chatTokensResetAt     DateTime? // Token sayacı sıfırlama tarihi
+  chatTokensLimit       Int       @default(0) // Aylık token limiti (0 = sınırsız ama ücretli)
+  chatDailyMessageDate  DateTime? // Son mesaj tarih (rate limit için)
+  chatDailyMessageCount Int       @default(0) // Bugün gönderilen mesaj sayısı
 
   // ============================================================================
   // KURUMSAL PLAN ALANLARI
   // ============================================================================
-  enterpriseMinutes       Int? // Özel dakika limiti
+  enterpriseMinutes             Int? // Özel dakika limiti
   enterpriseSupportInteractions Int? // Özel yazılı destek etkileşimi limiti
-  enterprisePrice         Float? // Özel aylık fiyat (TL)
-  enterpriseConcurrent    Int? // Özel eş zamanlı çağrı limiti
-  enterpriseAssistants    Int? // Özel asistan limiti (null = sınırsız)
-  enterpriseStartDate     DateTime? // Kurumsal plan başlangıç
-  enterpriseEndDate       DateTime? // Kurumsal plan bitiş
-  enterprisePaymentStatus String? // 'pending', 'paid', 'overdue'
-  enterpriseNotes         String?   @db.Text // Admin notları
+  enterprisePrice               Float? // Özel aylık fiyat (TL)
+  enterpriseConcurrent          Int? // Özel eş zamanlı çağrı limiti
+  enterpriseAssistants          Int? // Özel asistan limiti (null = sınırsız)
+  enterpriseStartDate           DateTime? // Kurumsal plan başlangıç
+  enterpriseEndDate             DateTime? // Kurumsal plan bitiş
+  enterprisePaymentStatus       String? // 'pending', 'paid', 'overdue'
+  enterpriseNotes               String?   @db.Text // Admin notları
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -462,24 +455,24 @@ model CallLog {
 // P0.3: Active call session tracking for concurrent call management
 // Real-time tracking of active calls for reconciliation and cleanup
 model ActiveCallSession {
-  id         Int      @id @default(autoincrement())
-  callId     String   @unique // 11Labs conversation ID or VAPI call ID
+  id         Int    @id @default(autoincrement())
+  callId     String @unique // 11Labs conversation ID or VAPI call ID
   businessId Int
   plan       String // PAYG, STARTER, PRO, ENTERPRISE
   direction  String // "inbound" or "outbound"
-  status     String   @default("active") // active, ended, failed
-  provider   String   @default("elevenlabs") // elevenlabs, vapi
+  status     String @default("active") // active, ended, failed
+  provider   String @default("elevenlabs") // elevenlabs, vapi
 
   // Timing
-  startedAt  DateTime @default(now())
-  endedAt    DateTime?
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
 
   // Metadata for debugging
-  metadata   Json?    // { assistantId, phoneNumber, etc. }
+  metadata Json? // { assistantId, phoneNumber, etc. }
 
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  business   Business @relation(fields: [businessId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  business  Business @relation(fields: [businessId], references: [id])
 
   @@index([callId])
   @@index([businessId])
@@ -525,7 +518,7 @@ model Integration {
 }
 
 model MarketplaceQuestion {
-  id              Int      @id @default(autoincrement())
+  id              Int       @id @default(autoincrement())
   businessId      Int
   platform        String
   externalId      String
@@ -534,20 +527,20 @@ model MarketplaceQuestion {
   productUrl      String?
   productImageUrl String?
   customerName    String?
-  questionText    String   @db.Text
-  generatedAnswer String?  @db.Text
-  finalAnswer     String?  @db.Text
-  status          String   @default("PENDING")
-  answerMode      String   @default("MANUAL")
+  questionText    String    @db.Text
+  generatedAnswer String?   @db.Text
+  finalAnswer     String?   @db.Text
+  status          String    @default("PENDING")
+  answerMode      String    @default("MANUAL")
   rejectionReason String?
   platformStatus  String?
   expiresAt       DateTime?
   answeredAt      DateTime?
   postedAt        DateTime?
   errorMessage    String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  business        Business @relation(fields: [businessId], references: [id])
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  business        Business  @relation(fields: [businessId], references: [id])
 
   @@unique([businessId, platform, externalId])
   @@index([businessId, status])
@@ -556,33 +549,33 @@ model MarketplaceQuestion {
 }
 
 model ComplaintThread {
-  id              Int      @id @default(autoincrement())
-  businessId      Int
-  platform        String
-  externalId      String
+  id               Int       @id @default(autoincrement())
+  businessId       Int
+  platform         String
+  externalId       String
   externalAnswerId String?
-  title           String
-  complaintText   String   @db.Text
-  generatedReply  String?  @db.Text
-  finalReply      String?  @db.Text
-  status          String   @default("PENDING")
-  approvalMode    String   @default("MANUAL")
-  customerName    String?
-  customerEmail   String?
-  customerPhone   String?
-  customerCity    String?
-  complaintUrl    String?
-  platformStatus  String?
-  sourceCreatedAt DateTime?
-  answeredAt      DateTime?
-  postedAt        DateTime?
-  closedAt        DateTime?
-  published       Boolean?
-  errorMessage    String?
-  rawPayload      Json?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  business        Business @relation(fields: [businessId], references: [id])
+  title            String
+  complaintText    String    @db.Text
+  generatedReply   String?   @db.Text
+  finalReply       String?   @db.Text
+  status           String    @default("PENDING")
+  approvalMode     String    @default("MANUAL")
+  customerName     String?
+  customerEmail    String?
+  customerPhone    String?
+  customerCity     String?
+  complaintUrl     String?
+  platformStatus   String?
+  sourceCreatedAt  DateTime?
+  answeredAt       DateTime?
+  postedAt         DateTime?
+  closedAt         DateTime?
+  published        Boolean?
+  errorMessage     String?
+  rawPayload       Json?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  business         Business  @relation(fields: [businessId], references: [id])
 
   @@unique([businessId, platform, externalId])
   @@index([businessId, status])
@@ -591,18 +584,18 @@ model ComplaintThread {
 }
 
 model WhatsappEmbeddedSignupSession {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   businessId   Int
   userId       Int
   configId     String
-  status       String   @default("PENDING")
+  status       String    @default("PENDING")
   sessionInfo  Json?
   errorCode    String?
   errorMessage String?
   expiresAt    DateTime
   completedAt  DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1436,7 +1429,6 @@ model CreditPurchase {
   minutes    Int // Satın alınan dakika miktarı
   amount     Float // Ödenen tutar (TL)
   unitPrice  Float // Birim fiyat (TL/dk)
-  paymentId  String? // iyzico payment ID
   status     String   @default("PENDING") // PENDING, COMPLETED, FAILED
   createdAt  DateTime @default(now())
 
@@ -1445,6 +1437,50 @@ model CreditPurchase {
   @@index([businessId])
   @@index([status])
   @@index([createdAt])
+}
+
+model BillingTrialClaim {
+  id              String   @id @default(cuid())
+  normalizedEmail String   @unique
+  emailDomain     String?
+  firstBusinessId Int
+  firstUserId     Int?
+  claimedAt       DateTime @default(now())
+  lastSeenAt      DateTime @updatedAt
+  metadata        Json?
+
+  @@index([emailDomain, claimedAt])
+  @@index([firstBusinessId, claimedAt])
+}
+
+model BillingCheckoutSession {
+  id                      String    @id @default(cuid())
+  businessId              Int
+  subscriptionId          Int?
+  provider                String    @default("stripe")
+  checkoutType            String
+  status                  String    @default("OPEN")
+  stripeCheckoutSessionId String?   @unique
+  stripePaymentIntentId   String?
+  stripeCustomerId        String?
+  stripeSubscriptionId    String?
+  planId                  String?
+  addonKind               String?
+  packageId               String?
+  amount                  Float?
+  currency                String?
+  checkoutUrl             String?
+  successUrl              String?
+  cancelUrl               String?
+  metadata                Json?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  completedAt             DateTime?
+  expiresAt               DateTime?
+
+  @@index([businessId, checkoutType, createdAt])
+  @@index([subscriptionId, createdAt])
+  @@index([status, createdAt])
 }
 
 model UsageLog {
@@ -1504,7 +1540,6 @@ model BalanceTransaction {
   balanceBefore         Float
   balanceAfter          Float
   stripePaymentIntentId String? // Stripe ile yükleme için
-  iyzicoPaymentId       String? // iyzico ile yükleme için
   usageRecordId         String?  @unique // Kullanım için
   description           String?
   createdAt             DateTime @default(now())
@@ -1540,7 +1575,7 @@ model WrittenUsageEvent {
 }
 
 model AddOnPurchase {
-  id                    String   @id @default(cuid())
+  id                    String    @id @default(cuid())
   subscriptionId        Int
   businessId            Int
   kind                  String // WRITTEN, VOICE
@@ -1548,10 +1583,10 @@ model AddOnPurchase {
   quantity              Float
   amount                Float
   unitPrice             Float
-  stripePaymentIntentId String?  @unique
-  stripeSessionId       String?  @unique
-  status                String   @default("PENDING") // PENDING, COMPLETED, FAILED, REFUNDED
-  createdAt             DateTime @default(now())
+  stripePaymentIntentId String?   @unique
+  stripeSessionId       String?   @unique
+  status                String    @default("PENDING") // PENDING, COMPLETED, FAILED, REFUNDED
+  createdAt             DateTime  @default(now())
   completedAt           DateTime?
 
   subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
@@ -1580,13 +1615,13 @@ model CrmWebhook {
 
 // CRM Webhook Event (Idempotency tracking)
 model CrmWebhookEvent {
-  id              String   @id @default(cuid())
-  idempotencyKey  String   @unique  // Format: businessId-type-eventId
-  businessId      Int
-  eventType       String   // order, stock, ticket
-  eventId         String   // External event ID from CRM system
-  recordId        String   // ID of created CrmOrder/CrmStock/CrmTicket
-  processedAt     DateTime @default(now())
+  id             String   @id @default(cuid())
+  idempotencyKey String   @unique // Format: businessId-type-eventId
+  businessId     Int
+  eventType      String // order, stock, ticket
+  eventId        String // External event ID from CRM system
+  recordId       String // ID of created CrmOrder/CrmStock/CrmTicket
+  processedAt    DateTime @default(now())
 
   business Business @relation("CrmWebhookEvents", fields: [businessId], references: [id], onDelete: Cascade)
 
@@ -1750,11 +1785,11 @@ model CallbackRequest {
 }
 
 model DoNotCall {
-  id        String   @id @default(cuid())
+  id         String   @id @default(cuid())
   businessId Int
-  phoneE164 String
-  source    String   @default("PHONE_OUTBOUND_V1")
-  createdAt DateTime @default(now())
+  phoneE164  String
+  source     String   @default("PHONE_OUTBOUND_V1")
+  createdAt  DateTime @default(now())
 
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
@@ -1871,15 +1906,15 @@ model CustomerData {
 // ============================================================================
 
 model AdminUser {
-  id        String     @id @default(cuid())
-  email     String     @unique
-  name      String
-  role      AdminRole  @default(ADMIN)
-  isActive  Boolean    @default(true)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  lastLogin DateTime?
-  auditLogs AuditLog[]
+  id            String              @id @default(cuid())
+  email         String              @unique
+  name          String
+  role          AdminRole           @default(ADMIN)
+  isActive      Boolean             @default(true)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  lastLogin     DateTime?
+  auditLogs     AuditLog[]
   mfaChallenges AdminMfaChallenge[]
 
   @@index([email])
@@ -1887,15 +1922,15 @@ model AdminUser {
 }
 
 model AdminMfaChallenge {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   adminId    String
   adminEmail String
   userId     Int
   codeHash   String
   expiresAt  DateTime
   usedAt     DateTime?
-  attempts   Int      @default(0)
-  createdAt  DateTime @default(now())
+  attempts   Int       @default(0)
+  createdAt  DateTime  @default(now())
   admin      AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
 
   @@index([adminId, expiresAt])
@@ -2151,8 +2186,8 @@ model OAuthState {
   id         Int      @id @default(autoincrement())
   state      String   @unique // Cryptographically random token
   businessId Int
-  provider   String   // google, microsoft, hubspot, etc.
-  metadata   Json?    // Additional data (redirectUrl, integrationId, etc.)
+  provider   String // google, microsoft, hubspot, etc.
+  metadata   Json? // Additional data (redirectUrl, integrationId, etc.)
   expiresAt  DateTime // 10-minute expiry
   createdAt  DateTime @default(now())
 
@@ -2167,18 +2202,18 @@ model OAuthState {
 // SECURITY EVENT TRACKING (For Red Alert & Monitoring)
 // ============================================================================
 model SecurityEvent {
-  id          Int      @id @default(autoincrement())
-  type        String   // cross_tenant_attempt, firewall_block, content_safety_block, ssrf_block, auth_failure, rate_limit_hit
-  severity    String   // low, medium, high, critical
-  businessId  Int?     // null if request before auth
-  userId      Int?     // null if request before auth
-  ipAddress   String?
-  userAgent   String?
-  endpoint    String?
-  method      String?  // GET, POST, etc.
-  statusCode  Int?     // Response status
-  details     Json?    // Additional context (blocked reason, attempted action, etc.)
-  createdAt   DateTime @default(now())
+  id         Int      @id @default(autoincrement())
+  type       String // cross_tenant_attempt, firewall_block, content_safety_block, ssrf_block, auth_failure, rate_limit_hit
+  severity   String // low, medium, high, critical
+  businessId Int? // null if request before auth
+  userId     Int? // null if request before auth
+  ipAddress  String?
+  userAgent  String?
+  endpoint   String?
+  method     String? // GET, POST, etc.
+  statusCode Int? // Response status
+  details    Json? // Additional context (blocked reason, attempted action, etc.)
+  createdAt  DateTime @default(now())
 
   @@index([type, createdAt])
   @@index([severity, createdAt])
@@ -2192,49 +2227,49 @@ model SecurityEvent {
 // Captures all application errors: tool failures, chat errors, API errors, etc.
 // Separate from SecurityEvent — different dedup logic, different fields, different retention.
 model ErrorLog {
-  id              Int      @id @default(autoincrement())
+  id Int @id @default(autoincrement())
 
   // Classification (SSOT enums in errorLogger.js)
-  category        String   // tool_failure, chat_error, assistant_error, api_error, system_error, webhook_error
-  severity        String   // low, medium, high, critical
-  errorCode       String?  // Application-specific: GEMINI_TIMEOUT, 11LABS_RATE_LIMIT, etc.
+  category  String // tool_failure, chat_error, assistant_error, api_error, system_error, webhook_error
+  severity  String // low, medium, high, critical
+  errorCode String? // Application-specific: GEMINI_TIMEOUT, 11LABS_RATE_LIMIT, etc.
 
   // Error details (PII-redacted by redact.js before insert)
-  message         String   // Sanitized error message
-  stackTrace      String?  @db.Text  // Sanitized stack trace (max 2000 chars)
+  message    String // Sanitized error message
+  stackTrace String? @db.Text // Sanitized stack trace (max 2000 chars)
 
   // Context
-  businessId      Int?
-  userId          Int?
-  requestId       String?  // Correlation with req.requestId
-  sessionId       String?  // Chat/WhatsApp session ID
+  businessId Int?
+  userId     Int?
+  requestId  String? // Correlation with req.requestId
+  sessionId  String? // Chat/WhatsApp session ID
 
   // Source identification
-  source          String   // Where error occurred: chat-refactored, tools/index, routes/assistant, etc.
-  endpoint        String?
-  method          String?
+  source   String // Where error occurred: chat-refactored, tools/index, routes/assistant, etc.
+  endpoint String?
+  method   String?
 
   // Tool-specific
-  toolName        String?
+  toolName String?
 
   // External API-specific
-  externalService String?  // SSOT enum: gemini, elevenlabs, gmail, etc.
-  externalStatus  Int?     // HTTP status from external API
+  externalService String? // SSOT enum: gemini, elevenlabs, gmail, etc.
+  externalStatus  Int? // HTTP status from external API
   responseTimeMs  Int?
 
   // Deduplication
-  fingerprint     String?  // Hash of (category+source+errorCode+normalizedMessage)
+  fingerprint     String? // Hash of (category+source+errorCode+normalizedMessage)
   occurrenceCount Int      @default(1)
-  firstSeenAt     DateTime @default(now())  // First occurrence (never updated on dedup)
-  lastSeenAt      DateTime @default(now())  // Latest occurrence (updated on dedup)
-  latestRequestId String?  // RequestId of most recent occurrence
+  firstSeenAt     DateTime @default(now()) // First occurrence (never updated on dedup)
+  lastSeenAt      DateTime @default(now()) // Latest occurrence (updated on dedup)
+  latestRequestId String? // RequestId of most recent occurrence
 
   // Resolution
-  resolved        Boolean  @default(false)
-  resolvedAt      DateTime?
-  resolvedBy      String?  // Admin email
+  resolved   Boolean   @default(false)
+  resolvedAt DateTime?
+  resolvedBy String? // Admin email
 
-  createdAt       DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([category, createdAt])
   @@index([severity, createdAt])
@@ -2250,20 +2285,20 @@ model ErrorLog {
 // RESPONSE TRACE (Unified per-turn operational telemetry)
 // ============================================================================
 model ResponseTrace {
-  id               String   @id @default(cuid())
-  createdAt        DateTime @default(now())
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
 
   // Correlation
-  traceId          String
-  requestId        String?
-  channel          String // WHATSAPP | CHAT | EMAIL | ADMIN_DRAFT
-  businessId       Int
-  userId           String?
-  sessionId        String?
-  messageId        String?
+  traceId    String
+  requestId  String?
+  channel    String // WHATSAPP | CHAT | EMAIL | ADMIN_DRAFT
+  businessId Int
+  userId     String?
+  sessionId  String?
+  messageId  String?
 
   // Raw trace payload (TRACE_SCHEMA-compliant object)
-  payload          Json
+  payload Json
 
   // Fast-query fields for Red Alert panels
   latencyMs        Int?
@@ -2271,9 +2306,9 @@ model ResponseTrace {
   responsePreview  String?
   toolOutcomeHash  String?
   responseSource   String?
-  llmUsed          Boolean  @default(false)
-  toolsCalledCount Int      @default(0)
-  toolSuccess      Boolean  @default(false)
+  llmUsed          Boolean @default(false)
+  toolsCalledCount Int     @default(0)
+  toolSuccess      Boolean @default(false)
 
   @@index([businessId, createdAt])
   @@index([channel, createdAt])
@@ -2284,31 +2319,31 @@ model ResponseTrace {
 // OPERATIONAL INCIDENTS (Red Alert operational anomaly feed)
 // ============================================================================
 model OperationalIncident {
-  id              String   @id @default(cuid())
-  createdAt       DateTime @default(now())
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
 
-  severity        String // LOW | MEDIUM | HIGH | CRITICAL
-  category        String // LLM_BYPASSED | TEMPLATE_FALLBACK_USED | ...
-  channel         String // WHATSAPP | CHAT | EMAIL | ADMIN_DRAFT
+  severity String // LOW | MEDIUM | HIGH | CRITICAL
+  category String // LLM_BYPASSED | TEMPLATE_FALLBACK_USED | ...
+  channel  String // WHATSAPP | CHAT | EMAIL | ADMIN_DRAFT
 
-  traceId         String
-  requestId       String?
-  businessId      Int
-  userId          String?
-  sessionId       String?
-  messageId       String?
+  traceId    String
+  requestId  String?
+  businessId Int
+  userId     String?
+  sessionId  String?
+  messageId  String?
 
-  summary         String
-  details         Json?
+  summary String
+  details Json?
 
   // Dedup helpers
   fingerprint     String?
   responseHash    String?
   toolOutcomeHash String?
 
-  resolved        Boolean  @default(false)
-  resolvedAt      DateTime?
-  resolvedBy      String?
+  resolved   Boolean   @default(false)
+  resolvedAt DateTime?
+  resolvedBy String?
 
   @@index([category, createdAt])
   @@index([businessId, createdAt])

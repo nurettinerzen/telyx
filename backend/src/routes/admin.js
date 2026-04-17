@@ -1541,7 +1541,7 @@ router.get('/subscriptions', async (req, res) => {
 
     // Sanitize subscriptions (remove sensitive fields)
     const sanitizedSubscriptions = subscriptions.map(sub => {
-      const { stripeCustomerId, iyzicoCardToken, iyzicoPaymentId, stripeSubscriptionId, ...safe } = sub;
+      const { stripeCustomerId, stripeSubscriptionId, ...safe } = sub;
       return {
         ...safe,
         businessName: sub.business?.name,

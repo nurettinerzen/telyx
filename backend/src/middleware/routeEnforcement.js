@@ -38,10 +38,6 @@ const PUBLIC_PATHS = [
   '/api/send',  // Alt pattern
   '/api/webhooks/*',
   '/api/webhook/*',
-  '/api/iyzico-webhook',
-  '/api/iyzico-payment-callback',
-  '/api/iyzico-subscription-callback',
-  '/api/iyzico-callback',
   '/api/stripe',
   '/api/whatsapp/webhook',
   // REMOVED: /api/whatsapp/conversations, /api/whatsapp/send — now require admin auth

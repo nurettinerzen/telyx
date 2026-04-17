@@ -36,7 +36,7 @@ export const SUPPORTED_COUNTRIES = {
     // Available channels in this region
     channels: ['phone', 'whatsapp_messaging', 'chat_widget', 'email'],
     // Payment methods available
-    paymentMethods: ['card', 'iyzico'],
+    paymentMethods: ['card'],
     // Date format preferences
     dateFormat: 'DD.MM.YYYY',
     timeFormat: '24h'

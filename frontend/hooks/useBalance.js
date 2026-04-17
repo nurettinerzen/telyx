@@ -9,15 +9,8 @@ export function useBalance() {
   return useQuery({
     queryKey: ['balance'],
     queryFn: async () => {
-      // Try new balance API first, fall back to credits API
-      try {
-        const response = await apiClient.get('/api/balance');
-        return { ...response.data, isNewSystem: true };
-      } catch (err) {
-        // Fallback to old credits API
-        const response = await apiClient.get('/api/credits/balance');
-        return { ...response.data, isNewSystem: false };
-      }
+      const response = await apiClient.get('/api/balance');
+      return response.data;
     },
     staleTime: 0,
     refetchOnMount: 'always',

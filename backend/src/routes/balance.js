@@ -21,6 +21,10 @@ import stripeService from '../services/stripe.js';
 import { getWrittenUsageSummary } from '../services/writtenUsageService.js';
 import { getBillingPlanDefinition } from '../config/billingCatalog.js';
 import {
+  markBillingCheckoutSessionCompleted,
+  recordBillingCheckoutSession
+} from '../services/billingAudit.js';
+import {
   getPricePerMinute,
   getMinTopupMinutes,
   calculateTLToMinutes,
@@ -35,14 +39,13 @@ import runtimeConfig from '../config/runtime.js';
 
 const router = express.Router();
 
-const BALANCE_SUBSCRIPTION_SELECT = {
+const BALANCE_LEGACY_SUBSCRIPTION_SELECT = {
   id: true,
   businessId: true,
   plan: true,
   status: true,
   paymentProvider: true,
   stripeCustomerId: true,
-  iyzicoCardToken: true,
   currentPeriodStart: true,
   currentPeriodEnd: true,
   balance: true,
@@ -69,8 +72,6 @@ const BALANCE_SUBSCRIPTION_SELECT = {
   enterpriseStartDate: true,
   enterpriseEndDate: true,
   enterprisePaymentStatus: true,
-  voiceAddOnMinutesBalance: true,
-  writtenInteractionAddOnBalance: true,
   business: {
     select: {
       country: true,
@@ -83,6 +84,49 @@ const BALANCE_SUBSCRIPTION_SELECT = {
     }
   }
 };
+
+const BALANCE_BILLING_EXTENSION_SELECT = {
+  voiceAddOnMinutesBalance: true,
+  writtenInteractionAddOnBalance: true
+};
+
+function isMissingBalanceExtensionError(error) {
+  const code = String(error?.code || '').toUpperCase();
+  const message = String(error?.message || '');
+  return code === 'P2021'
+    || code === 'P2022'
+    || message.includes('voiceAddOnMinutesBalance')
+    || message.includes('writtenInteractionAddOnBalance');
+}
+
+function resolveStripeCheckoutLocale(checkoutLocale, countryCode) {
+  if (typeof stripeService.resolveCheckoutLocale === 'function') {
+    return stripeService.resolveCheckoutLocale(checkoutLocale, countryCode);
+  }
+
+  return undefined;
+}
+
+async function findBalanceSubscriptionWithFallback(businessId) {
+  try {
+    return await prisma.subscription.findUnique({
+      where: { businessId },
+      select: {
+        ...BALANCE_LEGACY_SUBSCRIPTION_SELECT,
+        ...BALANCE_BILLING_EXTENSION_SELECT
+      }
+    });
+  } catch (error) {
+    if (!isMissingBalanceExtensionError(error)) {
+      throw error;
+    }
+
+    return prisma.subscription.findUnique({
+      where: { businessId },
+      select: BALANCE_LEGACY_SUBSCRIPTION_SELECT
+    });
+  }
+}
 
 async function ensureStripeCustomerForSubscription(subscription, ownerEmail) {
   if (!process.env.STRIPE_SECRET_KEY) {
@@ -199,10 +243,7 @@ router.post('/topup', async (req, res) => {
     }
 
     // Get subscription
-    const subscription = await prisma.subscription.findUnique({
-      where: { businessId },
-      select: BALANCE_SUBSCRIPTION_SELECT
-    });
+    const subscription = await findBalanceSubscriptionWithFallback(businessId);
 
     if (!subscription) {
       return res.status(404).json({ error: 'Abonelik bulunamadı' });
@@ -246,6 +287,24 @@ router.post('/topup', async (req, res) => {
       cancelUrl: `${frontendUrl}/dashboard/subscription?wallet_topup=cancel`,
       businessId: businessId.toString(),
       checkoutLocale
+    });
+
+    await recordBillingCheckoutSession({
+      businessId,
+      subscriptionId: subscription.id,
+      provider: 'stripe',
+      checkoutType: 'BALANCE_TOPUP',
+      stripeCheckoutSessionId: session.id,
+      stripeCustomerId,
+      amount,
+      currency: country === 'TR' ? 'TRY' : country === 'BR' ? 'BRL' : 'USD',
+      checkoutUrl: session.url,
+      successUrl: `${frontendUrl}/dashboard/subscription?wallet_topup=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancelUrl: `${frontendUrl}/dashboard/subscription?wallet_topup=cancel`,
+      metadata: {
+        minutes,
+        requestedAmount: amount
+      }
     });
 
     res.json({
@@ -304,6 +363,7 @@ router.get('/verify-topup-session', async (req, res) => {
       }
     }
 
+    const amountPaid = Number.isFinite(session.amount_total) ? session.amount_total / 100 : 0;
     const existingTopup = paymentIntentId
       ? await prisma.balanceTransaction.findFirst({
         where: {
@@ -323,7 +383,6 @@ router.get('/verify-topup-session', async (req, res) => {
         return res.status(404).json({ error: 'Subscription not found' });
       }
 
-      const amountPaid = Number.isFinite(session.amount_total) ? session.amount_total / 100 : 0;
       const minutes = session.metadata?.minutes || '0';
 
       await balanceService.topUp(
@@ -333,6 +392,17 @@ router.get('/verify-topup-session', async (req, res) => {
         `${minutes} dakika bakiye yüklendi`
       );
     }
+
+    await markBillingCheckoutSessionCompleted(sessionId, {
+      completedAt: new Date(),
+      stripePaymentIntentId: paymentIntentId,
+      stripeCustomerId: session.customer ? String(session.customer) : null,
+      metadata: {
+        businessId,
+        minutes: session.metadata?.minutes || null,
+        amountPaid
+      }
+    });
 
     const refreshedSubscription = await prisma.subscription.findUnique({
       where: { businessId },
@@ -363,10 +433,7 @@ router.get('/', async (req, res) => {
   try {
     const { businessId } = req.user;
 
-    const subscription = await prisma.subscription.findUnique({
-      where: { businessId },
-      select: BALANCE_SUBSCRIPTION_SELECT
-    });
+    const subscription = await findBalanceSubscriptionWithFallback(businessId);
 
     if (!subscription) {
       return res.status(404).json({ error: 'Abonelik bulunamadı' });
@@ -595,7 +662,7 @@ router.put('/auto-reload', async (req, res) => {
 router.post('/create-checkout', async (req, res) => {
   try {
     const { businessId } = req.user;
-    const { minutes, paymentProvider = 'stripe' } = req.body;
+    const { minutes } = req.body;
     const checkoutLocale = req.body?.locale;
 
     if (!minutes || minutes <= 0) {
@@ -604,7 +671,10 @@ router.post('/create-checkout', async (req, res) => {
 
     const subscription = await prisma.subscription.findUnique({
       where: { businessId },
-      select: BALANCE_SUBSCRIPTION_SELECT
+      select: {
+        ...BALANCE_LEGACY_SUBSCRIPTION_SELECT,
+        ...BALANCE_BILLING_EXTENSION_SELECT
+      }
     });
 
     if (!subscription) {
@@ -634,43 +704,47 @@ router.post('/create-checkout', async (req, res) => {
     const pricePerMinute = getPricePerMinute(subscription.plan, country);
     const amountTL = minutes * pricePerMinute;
 
-    // Create payment session based on provider
-    if (paymentProvider === 'stripe') {
-      const stripeCustomerId = await ensureStripeCustomerForSubscription(
-        subscription,
-        subscription.business?.users?.[0]?.email || req.user?.email
-      );
-      const frontendUrl = runtimeConfig.frontendUrl;
-      const session = await stripeService.createCreditPurchaseSession({
-        stripeCustomerId,
+    const stripeCustomerId = await ensureStripeCustomerForSubscription(
+      subscription,
+      subscription.business?.users?.[0]?.email || req.user?.email
+    );
+    const frontendUrl = runtimeConfig.frontendUrl;
+    const session = await stripeService.createCreditPurchaseSession({
+      stripeCustomerId,
+      minutes,
+      amount: amountTL,
+      currency: country === 'TR' ? 'TRY' : country === 'BR' ? 'BRL' : 'USD',
+      countryCode: country,
+      successUrl: `${frontendUrl}/dashboard/subscription?wallet_topup=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancelUrl: `${frontendUrl}/dashboard/subscription?wallet_topup=cancel`,
+      businessId: businessId.toString(),
+      checkoutLocale
+    });
+
+    await recordBillingCheckoutSession({
+      businessId,
+      subscriptionId: subscription.id,
+      provider: 'stripe',
+      checkoutType: 'BALANCE_TOPUP',
+      stripeCheckoutSessionId: session.id,
+      stripeCustomerId,
+      amount: amountTL,
+      currency: country === 'TR' ? 'TRY' : country === 'BR' ? 'BRL' : 'USD',
+      checkoutUrl: session.url,
+      successUrl: `${frontendUrl}/dashboard/subscription?wallet_topup=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancelUrl: `${frontendUrl}/dashboard/subscription?wallet_topup=cancel`,
+      metadata: {
         minutes,
-        amount: amountTL,
-        currency: country === 'TR' ? 'TRY' : country === 'BR' ? 'BRL' : 'USD',
-        countryCode: country,
-        successUrl: `${frontendUrl}/dashboard/subscription?wallet_topup=success&session_id={CHECKOUT_SESSION_ID}`,
-        cancelUrl: `${frontendUrl}/dashboard/subscription?wallet_topup=cancel`,
-        businessId: businessId.toString(),
-        checkoutLocale
-      });
+        requestedAmount: amountTL
+      }
+    });
 
-      return res.json({
-        success: true,
-        provider: 'stripe',
-        sessionUrl: session.url,
-        sessionId: session.id
-      });
-    }
-
-    if (paymentProvider === 'iyzico') {
-      // TODO: Implement iyzico checkout form
-      // const iyzico = (await import('../services/iyzicoSubscription.js')).default;
-      // const checkoutForm = await iyzico.createCheckoutForm({...});
-      // return res.json({ checkoutFormContent: checkoutForm.content });
-
-      return res.status(501).json({ error: 'iyzico ödeme henüz aktif değil' });
-    }
-
-    return res.status(400).json({ error: 'Geçersiz ödeme sağlayıcısı' });
+    return res.json({
+      success: true,
+      provider: 'stripe',
+      sessionUrl: session.url,
+      sessionId: session.id
+    });
 
   } catch (error) {
     console.error('❌ Create checkout error:', error);

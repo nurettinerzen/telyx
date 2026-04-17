@@ -371,9 +371,8 @@ export const INTEGRATION_FEATURE_MAP = {
   'IKAS': FEATURES.ECOMMERCE_INTEGRATION,
   'IDEASOFT': FEATURES.ECOMMERCE_INTEGRATION,
   'TICIMAX': FEATURES.ECOMMERCE_INTEGRATION,
-  // WhatsApp and iyzico are special - handled separately
-  'WHATSAPP': null,
-  'IYZICO': null
+  // WhatsApp is handled separately from generic integration gating
+  'WHATSAPP': null
 };
 
 /**

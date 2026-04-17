@@ -1,22 +1,22 @@
 /**
- * UNIFIED CHARGE CALCULATOR - PAYG Balance as Active Wallet
+ * UNIFIED CHARGE CALCULATOR
  *
- * Payment Priority (P0-3 Implementation):
- * 1. PAYG Balance (if available) - PREPAID
- * 2. Included Minutes (STARTER/PRO/ENTERPRISE) - FREE
- * 3. Overage (POSTPAID) - Billed at month end
+ * Payment Priority (current product policy):
+ * 1. PAYG wallet balance - PREPAID
+ * 2. Recurring-plan included minutes
+ * 3. Cycle-scoped add-ons
+ * 4. Postpaid overage
  *
  * Key Features:
  * - Split billing support (balance + included + overage in same call)
  * - Idempotency (callId-based)
  * - Transaction-safe
- * - PAYG balance works as wallet even in paid plans
+ * - Wallet top-up is a PAYG-only payment surface
  *
  * IMPORTANT:
- * - Balance is NOT an entitlement, it's a payment method
- * - Call authorization ≠ balance check (for paid plans)
- * - PAYG plan ONLY: balance < 1 minute blocks call
- * - STARTER/PRO/ENTERPRISE: balance is optional payment source
+ * - Balance is only consulted on the PAYG plan
+ * - Call authorization ≠ balance check for recurring plans
+ * - PAYG plan only: balance < required charge blocks call
  */
 
 import prisma from '../prismaClient.js';
@@ -97,7 +97,7 @@ export async function calculateChargeWithBalance(subscription, durationMinutes, 
   // ===== PAID PLANS (STARTER/PRO/ENTERPRISE) =====
   // Payment priority: INCLUDED → ADDON → OVERAGE
 
-  const pricePerMinute = getPricePerMinute(plan, country); // For balance calculation
+  const pricePerMinute = getPricePerMinute(plan, country);
   const includedMinutes = billingPlan.includedVoiceMinutes ?? getIncludedMinutes(plan, country);
   const usedIncluded = subscription.includedMinutesUsed || 0;
   const remainingIncluded = Math.max(0, includedMinutes - usedIncluded);
@@ -108,7 +108,7 @@ export async function calculateChargeWithBalance(subscription, durationMinutes, 
   let fromIncluded = 0;
   let fromAddOn = 0;
   let overageMinutes = 0;
-  let balanceCharge = 0;
+  const balanceCharge = 0;
 
   // STEP 1: Use included minutes
   if (remainingIncluded > 0 && minutesLeft > 0) {
