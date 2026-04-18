@@ -84,26 +84,6 @@ const CALL_PURPOSES = {
   }
 };
 
-// Default first messages
-const DEFAULT_FIRST_MESSAGES = {
-  outbound: {
-    tr: () => '',
-    en: () => ''
-  },
-  inbound: {
-    tr: (_businessName, assistantName) => {
-      const name = assistantName || '';
-      if (name) return `Merhaba, ben ${name}. Size nasıl yardımcı olabilirim?`;
-      return 'Merhaba, size nasıl yardımcı olabilirim?';
-    },
-    en: (_businessName, assistantName) => {
-      const name = assistantName || '';
-      if (name) return `Hello, I'm ${name}. How can I help you today?`;
-      return 'Hello, how can I help you today?';
-    }
-  }
-};
-
 // Default system prompts based on call purpose
 const DEFAULT_SYSTEM_PROMPTS = {
   inbound: {
@@ -125,6 +105,43 @@ const DEFAULT_SYSTEM_PROMPTS = {
 };
 
 const usesSilentStart = (direction) => typeof direction === 'string' && direction.startsWith('outbound');
+
+const buildDefaultOutboundFirstMessage = ({
+  language = 'tr',
+  businessName = '',
+  assistantName = '',
+  purpose = 'sales'
+} = {}) => {
+  const lang = language === 'tr' ? 'tr' : 'en';
+  const name = assistantName || (lang === 'tr' ? 'Asistan' : 'Assistant');
+  const company = businessName || (lang === 'tr' ? 'İşletme' : 'the company');
+  const isTelyx = /telyx|telix/i.test(businessName || '');
+
+  if (lang === 'tr') {
+    if (purpose === 'sales') {
+      if (isTelyx) {
+        return `Merhaba, ben ${name}. Telyx adına arıyorum. Telyx, işletmelerin telefon, canlı chat, WhatsApp ve e-posta üzerinden gelen müşteri taleplerini tek yerden yönetmesini sağlayan bir müşteri hizmetleri platformu. Şu an seçili işletmelere Pro paketi kısa süreli ücretsiz deneme ile sunuyoruz. Uygunsanız 20 saniyede kısaca anlatayım.`;
+      }
+      return `Merhaba, ben ${name}. ${company} adına arıyorum. Şu an seçili işletmelere kısa süreli ücretsiz deneme sunuyoruz. Uygunsanız 20 saniyede kısaca anlatayım.`;
+    }
+
+    if (purpose === 'collection') {
+      return `Merhaba, ben ${name}. ${company} adına arıyorum. Kısa bir bilgilendirme için uygun musunuz?`;
+    }
+
+    return `Merhaba, ben ${name}. ${company} adına arıyorum. Size kısa bir bilgilendirme aktarmak istiyorum. Uygunsanız hemen paylaşayım.`;
+  }
+
+  if (purpose === 'sales') {
+    return `Hello, I'm ${name} calling on behalf of ${company}. We are offering a short complimentary trial to selected businesses. If now is a good time, I can explain it in 20 seconds.`;
+  }
+
+  if (purpose === 'collection') {
+    return `Hello, I'm ${name} calling on behalf of ${company}. Is now a good time for a brief update?`;
+  }
+
+  return `Hello, I'm ${name} calling on behalf of ${company}. I have a brief update to share if now is a good time.`;
+};
 
 export default function AssistantsPage() {
   const { t, locale } = useLanguage();
@@ -181,6 +198,7 @@ export default function AssistantsPage() {
   const [updating, setUpdating] = useState(false);
   const [syncing, setSyncing] = useState(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [isFirstMessageCustomized, setIsFirstMessageCustomized] = useState(false);
 
   // Business identity — business-level fields shown in assistant wizard
   const [bizIdentity, setBizIdentity] = useState({
@@ -201,6 +219,7 @@ export default function AssistantsPage() {
 
   const isTextMode = formData.assistantType === 'text';
   const isSilentStartMode = !isTextMode && usesSilentStart(formData.callDirection);
+  const isOutboundPhoneMode = !isTextMode && isOutboundDirection(formData.callDirection);
 
   // Handle "Yazı Asistanı" button click
   const handleNewTextAssistant = () => {
@@ -224,6 +243,7 @@ export default function AssistantsPage() {
       callPurpose: '',
       assistantType: 'text',
     });
+    setIsFirstMessageCustomized(false);
     setEditingAssistant(null);
     setShowCreateModal(true);
   };
@@ -241,7 +261,7 @@ export default function AssistantsPage() {
       name: '',
       voiceId: defaultVoiceId,
       systemPrompt: getDefaultSystemPrompt('outbound', defaultPurpose),
-      firstMessage: getDefaultFirstMessage('outbound', ''),
+      firstMessage: getDefaultFirstMessage('outbound', '', businessLanguage || 'tr', defaultPurpose),
       language: businessLanguage || 'tr',
       tone: 'formal',
       customNotes: '',
@@ -249,6 +269,7 @@ export default function AssistantsPage() {
       callPurpose: defaultPurpose,
       assistantType: 'phone',
     });
+    setIsFirstMessageCustomized(false);
     setEditingAssistant(null);
     setShowCreateModal(true);
   };
@@ -260,11 +281,30 @@ export default function AssistantsPage() {
     }));
   };
 
-  // Get default first message based on call direction
-  const getDefaultFirstMessage = (direction, assistantName, language = formData.language || businessLanguage) => {
+  // Get default first/response message based on call direction
+  const getDefaultFirstMessage = (
+    direction,
+    assistantName,
+    language = formData.language || businessLanguage,
+    purpose = formData.callPurpose
+  ) => {
+    if (usesSilentStart(direction)) {
+      return buildDefaultOutboundFirstMessage({
+        language,
+        businessName,
+        assistantName,
+        purpose
+      });
+    }
+
     const lang = language === 'tr' ? 'tr' : 'en';
-    const messageFn = DEFAULT_FIRST_MESSAGES[direction]?.[lang];
-    return messageFn ? messageFn(businessName, assistantName) : '';
+    const name = assistantName || '';
+    if (lang === 'tr') {
+      if (name) return `Merhaba, ben ${name}. Size nasıl yardımcı olabilirim?`;
+      return 'Merhaba, size nasıl yardımcı olabilirim?';
+    }
+    if (name) return `Hello, I'm ${name}. How can I help you today?`;
+    return 'Hello, how can I help you today?';
   };
 
   // Get default system prompt for a call purpose
@@ -276,9 +316,9 @@ export default function AssistantsPage() {
     return DEFAULT_SYSTEM_PROMPTS[purpose]?.[lang] || '';
   };
 
-  const shouldRefreshFirstMessage = (currentFirstMessage, direction, assistantName, language) => {
-    if (!currentFirstMessage?.trim()) return true;
-    return currentFirstMessage === getDefaultFirstMessage(direction, assistantName, language);
+  const isDefaultFirstMessage = (message, direction, assistantName, language, purpose = formData.callPurpose) => {
+    if (!message?.trim()) return true;
+    return message === getDefaultFirstMessage(direction, assistantName, language, purpose);
   };
 
   // Handle call purpose change
@@ -287,6 +327,9 @@ export default function AssistantsPage() {
       ...prev,
       callPurpose: purpose,
       systemPrompt: getDefaultSystemPrompt(prev.callDirection, purpose, prev.language),
+      firstMessage: prev.assistantType !== 'text' && (!isFirstMessageCustomized || !prev.firstMessage?.trim())
+        ? getDefaultFirstMessage(prev.callDirection, prev.name, prev.language, purpose)
+        : prev.firstMessage,
     }));
   };
 
@@ -295,13 +338,9 @@ export default function AssistantsPage() {
       ...prev,
       callDirection: direction,
       systemPrompt: getDefaultSystemPrompt(direction, prev.callPurpose, prev.language),
-      firstMessage: usesSilentStart(direction)
-        ? ''
-        : (
-          shouldRefreshFirstMessage(prev.firstMessage, prev.callDirection, prev.name, prev.language)
-            ? getDefaultFirstMessage(direction, prev.name, prev.language)
-            : prev.firstMessage
-        ),
+      firstMessage: !isFirstMessageCustomized || !prev.firstMessage?.trim()
+        ? getDefaultFirstMessage(direction, prev.name, prev.language, prev.callPurpose)
+        : prev.firstMessage,
     }));
   };
 
@@ -410,10 +449,18 @@ export default function AssistantsPage() {
         callPurpose: '',
         assistantType: 'text',
       });
+      setIsFirstMessageCustomized(false);
     } else {
       // Phone assistant edit
       const voice = voices.find(v => v.id === assistant.voiceId);
       const inferredLang = voice?.language || businessLanguage || 'en';
+      const assistantDirection = assistant.callDirection || 'outbound';
+      const initialFirstMessage = assistant.firstMessage || getDefaultFirstMessage(
+        assistantDirection,
+        assistant.name,
+        assistant.language || inferredLang,
+        assistant.callPurpose || 'sales'
+      );
 
       let displayPrompt = '';
       if (assistant.callDirection === 'inbound') {
@@ -426,16 +473,23 @@ export default function AssistantsPage() {
         name: assistant.name,
         voiceId: assistant.voiceId || '',
         systemPrompt: displayPrompt,
-        firstMessage: usesSilentStart(assistant.callDirection || 'outbound')
-          ? ''
-          : (assistant.firstMessage || getDefaultFirstMessage(assistant.callDirection || 'outbound', assistant.name, assistant.language || inferredLang)),
+        firstMessage: initialFirstMessage,
         language: assistant.language || inferredLang,
         tone: assistant.tone || 'formal',
         customNotes: assistant.customNotes || '',
-        callDirection: assistant.callDirection || 'outbound',
+        callDirection: assistantDirection,
         callPurpose: assistant.callPurpose || 'collection',
         assistantType: 'phone',
       });
+      setIsFirstMessageCustomized(
+        !isDefaultFirstMessage(
+          initialFirstMessage,
+          assistantDirection,
+          assistant.name,
+          assistant.language || inferredLang,
+          assistant.callPurpose || 'sales'
+        )
+      );
     }
     setShowCreateModal(true);
   };
@@ -506,6 +560,7 @@ export default function AssistantsPage() {
       callPurpose: 'collection',
       assistantType: 'phone',
     });
+    setIsFirstMessageCustomized(false);
     setEditingAssistant(null);
   };
 
@@ -749,8 +804,8 @@ export default function AssistantsPage() {
                     setFormData((prev) => ({
                       ...prev,
                       name: nextName,
-                      firstMessage: prev.assistantType !== 'text' && !usesSilentStart(prev.callDirection) && shouldRefreshFirstMessage(prev.firstMessage, prev.callDirection, prev.name, prev.language)
-                        ? getDefaultFirstMessage(prev.callDirection, nextName, prev.language)
+                      firstMessage: prev.assistantType !== 'text' && (!isFirstMessageCustomized || !prev.firstMessage?.trim())
+                        ? getDefaultFirstMessage(prev.callDirection, nextName, prev.language, prev.callPurpose)
                         : prev.firstMessage,
                     }));
                   }
@@ -815,8 +870,8 @@ export default function AssistantsPage() {
                       ...prev,
                       language: value,
                       voiceId: '',
-                      firstMessage: prev.assistantType !== 'text' && !usesSilentStart(prev.callDirection) && shouldRefreshFirstMessage(prev.firstMessage, prev.callDirection, prev.name, prev.language)
-                        ? getDefaultFirstMessage(prev.callDirection, prev.name, value)
+                      firstMessage: prev.assistantType !== 'text' && (!isFirstMessageCustomized || !prev.firstMessage?.trim())
+                        ? getDefaultFirstMessage(prev.callDirection, prev.name, value, prev.callPurpose)
                         : prev.firstMessage,
                     }))}
                   >
@@ -875,26 +930,45 @@ export default function AssistantsPage() {
                 {/* First Message */}
                 <div>
                   <Label htmlFor="firstMessage">
-                    {t('dashboard.assistantsPage.greetingMessage')}
+                    {isOutboundPhoneMode
+                      ? (locale === 'tr' ? 'İlk Yanıt Mesajı' : 'First Response Message')
+                      : t('dashboard.assistantsPage.greetingMessage')}
                   </Label>
-                  {isSilentStartMode ? (
-                    <div className="p-3 bg-neutral-50 border border-neutral-200 rounded-md text-sm text-neutral-700 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300">
+                  <Input
+                    id="firstMessage"
+                    value={formData.firstMessage}
+                    onChange={(e) => {
+                      const nextValue = e.target.value;
+                      setFormData({ ...formData, firstMessage: nextValue });
+                      setIsFirstMessageCustomized(
+                        !isDefaultFirstMessage(
+                          nextValue,
+                          formData.callDirection,
+                          formData.name,
+                          formData.language,
+                          formData.callPurpose
+                        )
+                      );
+                    }}
+                    placeholder={
+                      isOutboundPhoneMode
+                        ? (locale === 'tr'
+                          ? 'örn: Merhaba, ben Ali. Telyx adına arıyorum...'
+                          : 'e.g., Hello, I\'m Ali calling on behalf of Telyx...')
+                        : t('dashboard.assistantsPage.greetingPlaceholder')
+                    }
+                  />
+                  {isSilentStartMode && (
+                    <div className="mt-2 p-3 bg-neutral-50 border border-neutral-200 rounded-md text-sm text-neutral-700 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300">
                       {t('dashboard.assistantsPage.silentStartEnabled')}
                     </div>
-                  ) : (
-                    <Textarea
-                      id="firstMessage"
-                      rows={3}
-                      value={formData.firstMessage}
-                      onChange={(e) => setFormData({ ...formData, firstMessage: e.target.value })}
-                      placeholder={t('dashboard.assistantsPage.greetingPlaceholder')}
-                    />
                   )}
                   <p className="text-xs text-neutral-500 mt-1">
-                    {isSilentStartMode
-                      ? t('dashboard.assistantsPage.silentStartHint')
-                      : t('dashboard.assistantsPage.greetingHint')
-                    }
+                    {isOutboundPhoneMode
+                      ? (locale === 'tr'
+                        ? 'Karşı taraf telefonu açıp konuştuğunda asistanın vereceği ilk yanıt. Sessiz başlangıçta ilk sözü yine karşı taraf söyler; bu metin o ilk cevabınız için kullanılır.'
+                        : 'The first response the assistant gives after the other side answers and speaks. With silent start, the other side still speaks first; this text is used for your first reply.')
+                      : t('dashboard.assistantsPage.greetingHint')}
                   </p>
                 </div>
               </>
