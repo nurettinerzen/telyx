@@ -1236,6 +1236,34 @@ export function buildAgentConfig(assistant, business, tools = [], integrations =
         success_evaluation: 'Was the conversation successful? Was the customer\'s request fulfilled?'
       };
 
+  const isExpressiveSalesVoice = normalizedDirection === 'outbound_sales';
+  const ttsConfig = isExpressiveSalesVoice
+    ? {
+        voice_id: assistant.voiceId,
+        model_id: 'eleven_v3_conversational',
+        expressive_mode: true,
+        suggested_audio_tags: [
+          {
+            tag: 'warmly',
+            description: 'Use for greetings, thanks, reassurance, and smooth transitions. Keep it natural and professional.'
+          },
+          {
+            tag: 'excitedly',
+            description: 'Use sparingly only when the customer shows clear interest or agrees to a next step. Avoid in the opening, objections, or pricing.'
+          }
+        ]
+      }
+    : {
+        voice_id: assistant.voiceId,
+        model_id: 'eleven_turbo_v2',
+        stability: 0.4,
+        similarity_boost: 0.6,
+        style: 0.15,
+        speed: 1.1,
+        optimize_streaming_latency: 3,
+        text_normalization: 'elevenlabs'
+      };
+
   // NOTE: Do NOT include 'tools' array here - webhook tools are created separately via
   // /convai/tools endpoint and linked via tool_ids. Including inline tools here may conflict.
   return {
@@ -1252,16 +1280,7 @@ export function buildAgentConfig(assistant, business, tools = [], integrations =
         } : {}),
         language: language
       },
-      tts: {
-        voice_id: assistant.voiceId,
-        model_id: 'eleven_turbo_v2',
-        stability: 0.4,                   // 0.4 daha doğal tonlama için (0.5'ten düşük)
-        similarity_boost: 0.6,            // 0.6 daha doğal konuşma için
-        style: 0.15,                      // Hafif stil varyasyonu
-        speed: 1.1,                       // Biraz daha hızlı konuşma
-        optimize_streaming_latency: 3,
-        text_normalization: 'elevenlabs'
-      },
+      tts: ttsConfig,
       stt: {
         provider: 'elevenlabs',
         model: 'scribe_v1',

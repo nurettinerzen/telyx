@@ -189,6 +189,43 @@ function getDefaultPhoneFirstMessage({
   return localizedDefaultFirstMessage || defaults.firstMessage.replace('{name}', assistantName);
 }
 
+function shouldUseExpressiveVoice(callDirection, assistantType = 'phone') {
+  return assistantType !== 'text' && callDirection === 'outbound_sales';
+}
+
+function getSuggestedAudioTags() {
+  return [
+    {
+      tag: 'warmly',
+      description: 'Use for greetings, thanks, reassurance, and smooth transitions. Keep it natural and professional.'
+    },
+    {
+      tag: 'excitedly',
+      description: 'Use sparingly only when the customer shows clear interest or agrees to a next step. Avoid in the opening, objections, or pricing.'
+    }
+  ];
+}
+
+function buildPhoneTtsConfig({ voiceId, callDirection, assistantType = 'phone' } = {}) {
+  if (shouldUseExpressiveVoice(callDirection, assistantType)) {
+    return {
+      voice_id: voiceId,
+      model_id: 'eleven_v3_conversational',
+      expressive_mode: true,
+      suggested_audio_tags: getSuggestedAudioTags()
+    };
+  }
+
+  return {
+    voice_id: voiceId,
+    model_id: 'eleven_turbo_v2_5',
+    stability: 0.4,
+    similarity_boost: 0.6,
+    style: 0.15,
+    optimize_streaming_latency: 3
+  };
+}
+
 function resolveProviderFirstMessage({
   callDirection,
   assistantType = 'phone',
@@ -624,14 +661,11 @@ router.post('/', authenticateToken, checkPermission('assistants:create'), async 
             ...(providerFirstMessage !== undefined ? { first_message: providerFirstMessage } : {}),
             language: elevenLabsLang
           },
-          tts: {
-            voice_id: elevenLabsVoiceId,
-            model_id: 'eleven_turbo_v2_5',
-            stability: 0.4,                      // Daha doğal tonlama için
-            similarity_boost: 0.6,               // Daha doğal konuşma için
-            style: 0.15,                         // Hafif stil varyasyonu
-            optimize_streaming_latency: 3
-          },
+          tts: buildPhoneTtsConfig({
+            voiceId: elevenLabsVoiceId,
+            callDirection: effectiveCallDirection,
+            assistantType
+          }),
           stt: {
             provider: 'elevenlabs',
             model: 'scribe_v1',
@@ -1250,14 +1284,11 @@ router.put('/:id', authenticateToken, checkPermission('assistants:edit'), async 
               ...(providerFirstMessage !== undefined ? { first_message: providerFirstMessage } : {}),
               language: elevenLabsLang
             },
-            tts: {
-              voice_id: elevenLabsVoiceId,
-              model_id: 'eleven_turbo_v2_5',
-              stability: 0.4,
-              similarity_boost: 0.6,
-              style: 0.15,
-              optimize_streaming_latency: 3
-            },
+            tts: buildPhoneTtsConfig({
+              voiceId: elevenLabsVoiceId,
+              callDirection: effectiveCallDirection,
+              assistantType: assistant.assistantType
+            }),
             stt: {
               provider: 'elevenlabs',
               model: 'scribe_v1',
@@ -1592,14 +1623,11 @@ router.post('/:id/sync', authenticateToken, checkPermission('assistants:edit'), 
           ...(providerFirstMessage !== undefined ? { first_message: providerFirstMessage } : {}),
           language: elevenLabsLang
         },
-        tts: {
-          voice_id: elevenLabsVoiceId,
-          model_id: 'eleven_turbo_v2_5',
-          stability: 0.4,
-          similarity_boost: 0.6,
-          style: 0.15,
-          optimize_streaming_latency: 3
-        },
+        tts: buildPhoneTtsConfig({
+          voiceId: elevenLabsVoiceId,
+          callDirection: assistant.callDirection,
+          assistantType: assistant.assistantType
+        }),
         stt: {
           provider: 'elevenlabs',
           model: 'scribe_v1',
