@@ -126,16 +126,6 @@ ONLY provide information from these sources:
   return prompt;
 }
 
-// Outbound Collection (Tahsilat) için özel kurallar
-const OUTBOUND_IVR_RULES = `
-## IVR / SANTRAL
-- Otomatik karşılama veya IVR duyarsan satış konuşmasına başlama; önce insana ulaş.
-- Gerekirse uygun departman için tuşlama yap veya kısa sesli komut ver.
-- Her adımda tek hamle yap, sonra sonucu bekle.
-- Bilmediğin dahili, PIN veya müşteri numarası gibi bilgileri uydurma.
-- 3 denemede insana ulaşılamazsa görüşmeyi kapat.
-`;
-
 const OUTBOUND_COLLECTION_RULES = `
 ## GİDEN ARAMA KURALLARI - TAHSİLAT
 Sen bir giden arama asistanısın. Müşteriyi SEN arıyorsun, tahsilat/hatırlatma amacıyla.
@@ -196,11 +186,11 @@ Sen müşteriyi arayan bir satış asistanısın. Kısa, doğal ve güven veren 
 - Kanal isimlerini liste okur gibi değil, tek akışta doğal söyle.
 
 ## SORULAR VE İTİRAZLAR
-- "Pro paket nedir?" gibi sorularda önce sonucu anlat, sonra en ilgili 1-2 özelliği söyle, en sonda deneme/teklif bilgisini ver.
+- Paket, fiyat veya deneme sorularında önce sonucu anlat, sonra en ilgili 1-2 özelliği söyle, en sonda teklif/deneme bilgisini ver.
 - Böyle cevaplar 3 kısa cümleyi geçmesin.
 - Müşteri yalnızca tek bir şey soruyorsa gereksiz satış paragrafı açma.
 - "Düşüneyim" veya "şimdilik gerek yok" dendiğinde aynı satışı tekrar etme; kısa demo, geri arama veya teklif paylaşımı öner.
-- Müşteri takip isterse create_callback aracını kullan.
+- Müşteri takip isterse geri arama talebi oluştur.
 - Müşteri net biçimde kapatıyorsa kibarca sonlandır.
 `;
 
@@ -445,7 +435,6 @@ function buildOutboundCollectionPrompt(assistant, business) {
   const assistantName = assistant.name || 'Asistan';
 
   let prompt = OUTBOUND_COLLECTION_RULES;
-  prompt += '\n\n' + OUTBOUND_IVR_RULES;
 
   // Değişkenleri yerine koy
   prompt = prompt.replace(/{{business_name}}/g, businessName);
@@ -475,20 +464,10 @@ function buildOutboundSalesPrompt(assistant, business) {
   const assistantName = assistant.name || 'Asistan';
 
   let prompt = OUTBOUND_SALES_RULES;
-  prompt += '\n\n' + OUTBOUND_IVR_RULES;
 
   // Değişkenleri yerine koy
   prompt = prompt.replace(/{{business_name}}/g, businessName);
   prompt = prompt.replace(/{{assistant_name}}/g, assistantName);
-
-  const openingReference = String(assistant.firstMessage || '').trim();
-  if (openingReference) {
-    prompt += `\n\n## İLK CANLI TEMAS REFERANSI\nKarşı taraf telefonu açıp "alo" dediğinde ilk yanıtında bu açılışa yakın ilerle:\n${openingReference}`;
-  }
-
-  if (/telyx|telix/i.test(businessName)) {
-    prompt += `\n\n## TELYX KISA TANIMI\nTelyx'i tek cümlede şöyle anlat:\n- "Telyx, işletmelerin telefon, canlı chat, WhatsApp ve e-posta üzerinden gelen müşteri taleplerini tek yerden yönetmesini sağlayan bir müşteri hizmetleri platformu."`;
-  }
 
   // Kullanıcının ek talimatlarını kampanya bağlamı olarak ekle
   if (assistant.systemPrompt && assistant.systemPrompt.trim()) {
@@ -514,7 +493,6 @@ function buildOutboundGeneralPrompt(assistant, business) {
   const assistantName = assistant.name || 'Asistan';
 
   let prompt = OUTBOUND_GENERAL_RULES;
-  prompt += '\n\n' + OUTBOUND_IVR_RULES;
 
   // Değişkenleri yerine koy
   prompt = prompt.replace(/{{business_name}}/g, businessName);
