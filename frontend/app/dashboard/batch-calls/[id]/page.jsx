@@ -97,22 +97,6 @@ export default function BatchCallDetailPage() {
   const [loading, setLoading] = useState(true);
   const [restarting, setRestarting] = useState(false);
 
-  useEffect(() => {
-    if (id) {
-      loadBatchCall();
-    }
-  }, [id, loadBatchCall]);
-
-  // Auto-refresh when campaign is in progress
-  useEffect(() => {
-    if (batchCall?.status === 'IN_PROGRESS' || batchCall?.status === 'PENDING') {
-      const interval = setInterval(() => {
-        loadBatchCall(true); // silent refresh
-      }, 5000); // Poll every 5 seconds
-      return () => clearInterval(interval);
-    }
-  }, [batchCall?.status, loadBatchCall]);
-
   const loadBatchCall = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
@@ -128,6 +112,22 @@ export default function BatchCallDetailPage() {
       if (!silent) setLoading(false);
     }
   }, [id, router, t]);
+
+  useEffect(() => {
+    if (id) {
+      loadBatchCall();
+    }
+  }, [id, loadBatchCall]);
+
+  // Auto-refresh when campaign is in progress
+  useEffect(() => {
+    if (batchCall?.status === 'IN_PROGRESS' || batchCall?.status === 'PENDING') {
+      const interval = setInterval(() => {
+        loadBatchCall(true); // silent refresh
+      }, 5000); // Poll every 5 seconds
+      return () => clearInterval(interval);
+    }
+  }, [batchCall?.status, loadBatchCall]);
 
   const handleCancel = async () => {
     if (!confirm(t('dashboard.batchCallDetailPage.confirmCancelCampaign'))) {
