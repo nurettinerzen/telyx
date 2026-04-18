@@ -493,10 +493,35 @@ function readMappedValue(row = {}, mapping = {}, key, defaultValue = null) {
   return String(rawValue);
 }
 
+const RESTART_NAME_SUFFIX_PATTERNS = [
+  /(?:\s*-\s*)?Retry \d{4}-\d{2}-\d{2}(?: \d{2}:\d{2})?$/i,
+  /(?:\s*-\s*)?Tekrar Arama$/i,
+  /(?:\s*-\s*)?Repeat Call$/i,
+  /(?:\s*-\s*)?Restarted$/i,
+  /(?:\s*-\s*)?Restart$/i
+];
+
+function stripRestartBatchCallSuffixes(name = '') {
+  let baseName = String(name || '').trim();
+  let changed = true;
+
+  while (baseName && changed) {
+    changed = false;
+
+    for (const pattern of RESTART_NAME_SUFFIX_PATTERNS) {
+      if (pattern.test(baseName)) {
+        baseName = baseName.replace(pattern, '').trim();
+        changed = true;
+      }
+    }
+  }
+
+  return baseName;
+}
+
 function buildRestartBatchCallName(name = '') {
-  const baseName = String(name || '').trim() || 'Campaign';
-  const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
-  return `${baseName} - Retry ${timestamp}`;
+  const baseName = stripRestartBatchCallSuffixes(name) || 'Campaign';
+  return `${baseName} - Tekrar Arama`;
 }
 
 function buildElevenLabsRecipients({ recipients = [], assistant, businessId, batchCallId }) {
@@ -1823,7 +1848,8 @@ router.post('/:id/restart', checkPermission('campaigns:view'), async (req, res) 
           startedAt: new Date()
         },
         skippedDoNotCall: blockedRecipients.length,
-        message: 'Campaign restarted successfully'
+        message: 'Campaign restarted successfully',
+        messageTR: 'Kampanya yeniden başlatıldı'
       });
     } catch (elevenLabsError) {
       console.error('❌ Restart batch call error:', elevenLabsError.response?.data || elevenLabsError.message);
@@ -1835,12 +1861,16 @@ router.post('/:id/restart', checkPermission('campaigns:view'), async (req, res) 
 
       return res.status(500).json({
         error: 'Failed to restart campaign',
+        errorTR: 'Kampanya yeniden başlatılamadı',
         details: elevenLabsError.response?.data || elevenLabsError.message
       });
     }
   } catch (error) {
     console.error('Restart batch call error:', error);
-    res.status(500).json({ error: 'Failed to restart batch call' });
+    res.status(500).json({
+      error: 'Failed to restart batch call',
+      errorTR: 'Kampanya yeniden başlatılamadı'
+    });
   }
 });
 
@@ -1901,16 +1931,25 @@ router.post('/:id/cancel', checkPermission('campaigns:view'), async (req, res) =
     res.json({
       success: true,
       message: elevenLabsCancelled
+        ? 'Campaign cancelled. Remaining queued calls will not be placed.'
+        : 'Campaign cancelled locally.',
+      messageTR: elevenLabsCancelled
         ? 'Kampanya iptal edildi. Sıradaki aramalar yapılmayacak.'
         : 'Kampanya yerel olarak iptal edildi.',
       warning: elevenLabsError
+        ? `Call provider cancellation issue: ${elevenLabsError}. Active calls may still finish.`
+        : (batchCall.status === 'IN_PROGRESS' ? 'Note: Any active call can continue until it naturally ends.' : null),
+      warningTR: elevenLabsError
         ? `Arama servisi iptal hatası: ${elevenLabsError}. Devam eden aramalar tamamlanabilir.`
         : (batchCall.status === 'IN_PROGRESS' ? 'Not: Şu anda devam eden arama varsa, o arama tamamlanana kadar sürecektir.' : null)
     });
 
   } catch (error) {
     console.error('Cancel batch call error:', error);
-    res.status(500).json({ error: 'Failed to cancel batch call' });
+    res.status(500).json({
+      error: 'Failed to cancel batch call',
+      errorTR: 'Kampanya iptal edilemedi'
+    });
   }
 });
 
