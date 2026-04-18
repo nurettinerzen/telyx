@@ -15,6 +15,7 @@ import { resolvePhoneOutboundAccessForBusinessId } from '../services/phoneOutbou
 import { isPhoneInboundEnabledForBusinessRecord } from '../services/phoneInboundGate.js';
 import {
   hasBrandPhoneOverride,
+  isPhoneRoutingFlagColumnMissingError,
   reconcilePhoneNumberUsage,
   resolveEffectivePhoneNumberLimit,
   setPhoneNumberRoutingFlags,
@@ -59,6 +60,83 @@ const PHONE_INBOUND_ASSIGNMENT_DISABLED_ERROR = {
   message: 'Bu işletmede gelen arama asistanı ataması kapalıdır.'
 };
 
+async function listPhoneNumbersWithCompatibility(businessId) {
+  try {
+    const phoneNumbers = await prisma.phoneNumber.findMany({
+      where: { businessId },
+      select: {
+        id: true,
+        phoneNumber: true,
+        countryCode: true,
+        provider: true,
+        status: true,
+        assistantId: true,
+        monthlyCost: true,
+        nextBillingDate: true,
+        createdAt: true,
+        elevenLabsPhoneId: true,
+        isDefaultInbound: true,
+        isDefaultOutbound: true,
+        isPublicContact: true,
+        assistant: {
+          select: {
+            id: true,
+            name: true,
+            isActive: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    return { phoneNumbers, routingFlagsAvailable: true };
+  } catch (error) {
+    if (!isPhoneRoutingFlagColumnMissingError(error)) {
+      throw error;
+    }
+
+    console.warn('⚠️ /api/phone-numbers is using legacy compatibility because routing flag columns are missing.');
+
+    const phoneNumbers = await prisma.phoneNumber.findMany({
+      where: { businessId },
+      select: {
+        id: true,
+        phoneNumber: true,
+        countryCode: true,
+        provider: true,
+        status: true,
+        assistantId: true,
+        monthlyCost: true,
+        nextBillingDate: true,
+        createdAt: true,
+        elevenLabsPhoneId: true,
+        assistant: {
+          select: {
+            id: true,
+            name: true,
+            isActive: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    return {
+      routingFlagsAvailable: false,
+      phoneNumbers: phoneNumbers.map((phoneNumber) => ({
+        ...phoneNumber,
+        isDefaultInbound: false,
+        isDefaultOutbound: false,
+        isPublicContact: false
+      }))
+    };
+  }
+}
+
 // ============================================================================
 // GET ALL PHONE NUMBERS
 // ============================================================================
@@ -70,22 +148,8 @@ router.get('/', async (req, res) => {
       return res.json({ phoneNumbers: [], count: 0, limit: 0, canAddMore: false, hasAdminPhoneOverride: false });
     }
 
-    const [phoneNumbers, limit, hasAdminPhoneOverride] = await Promise.all([
-      prisma.phoneNumber.findMany({
-        where: { businessId },
-        include: {
-          assistant: {
-            select: {
-              id: true,
-              name: true,
-              isActive: true
-            }
-          }
-        },
-        orderBy: {
-          createdAt: 'desc'
-        }
-      }),
+    const [{ phoneNumbers, routingFlagsAvailable }, limit, hasAdminPhoneOverride] = await Promise.all([
+      listPhoneNumbersWithCompatibility(businessId),
       resolveEffectivePhoneNumberLimit(prisma, businessId),
       hasBrandPhoneOverride(prisma, businessId)
     ]);
@@ -114,6 +178,7 @@ router.get('/', async (req, res) => {
       limit,
       canAddMore,
       hasAdminPhoneOverride,
+      routingFlagsAvailable,
       inboundEnabled: isPhoneInboundEnabledForBusinessRecord(req.user?.business)
     });
 
@@ -784,6 +849,13 @@ router.patch('/:id/routing', async (req, res) => {
   } catch (error) {
     if (error.message === 'PHONE_NUMBER_NOT_FOUND') {
       return res.status(404).json({ error: 'Phone number not found' });
+    }
+
+    if (error.message === 'PHONE_ROUTING_FLAGS_UNAVAILABLE') {
+      return res.status(503).json({
+        error: 'PHONE_ROUTING_FLAGS_UNAVAILABLE',
+        message: 'Phone routing flags are unavailable until the database migration is applied.'
+      });
     }
 
     console.error('❌ Update phone routing error:', error);

@@ -4,6 +4,42 @@ export const BRAND_OWNER_EMAIL = String(
   process.env.PUBLIC_CONTACT_OWNER_EMAIL || 'info@telyx.ai'
 ).trim().toLowerCase();
 
+const PHONE_ROUTING_FLAG_FIELDS = new Set([
+  'isDefaultInbound',
+  'isDefaultOutbound',
+  'isPublicContact'
+]);
+
+let hasLoggedMissingRoutingFlagWarning = false;
+
+export function isPhoneRoutingFlagColumnMissingError(error) {
+  const missingColumn = error?.meta?.column;
+  if (error?.code !== 'P2022' || typeof missingColumn !== 'string') {
+    return false;
+  }
+
+  return Array.from(PHONE_ROUTING_FLAG_FIELDS).some((field) => (
+    missingColumn === field || missingColumn === `PhoneNumber.${field}`
+  ));
+}
+
+function logMissingRoutingFlagFallback() {
+  if (hasLoggedMissingRoutingFlagWarning) return;
+  hasLoggedMissingRoutingFlagWarning = true;
+  console.warn(
+    '⚠️ Phone routing flag columns are missing in the current database. Falling back to legacy phone-number behavior until the routing-flags migration is applied.'
+  );
+}
+
+function withLegacyRoutingFlags(number = {}) {
+  return {
+    ...number,
+    isDefaultInbound: false,
+    isDefaultOutbound: false,
+    isPublicContact: false
+  };
+}
+
 function sortPhoneNumbers(numbers = []) {
   return [...numbers].sort((a, b) => (
     Number(Boolean(b.isDefaultInbound)) - Number(Boolean(a.isDefaultInbound))
@@ -14,32 +50,60 @@ function sortPhoneNumbers(numbers = []) {
 }
 
 async function getActivePhoneNumbers(tx, businessId) {
-  return tx.phoneNumber.findMany({
-    where: { businessId, status: 'ACTIVE' },
-    select: {
-      id: true,
-      phoneNumber: true,
-      isDefaultInbound: true,
-      isDefaultOutbound: true,
-      isPublicContact: true,
-      createdAt: true,
-    },
-    orderBy: { createdAt: 'asc' }
-  });
+  try {
+    return await tx.phoneNumber.findMany({
+      where: { businessId, status: 'ACTIVE' },
+      select: {
+        id: true,
+        phoneNumber: true,
+        isDefaultInbound: true,
+        isDefaultOutbound: true,
+        isPublicContact: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'asc' }
+    });
+  } catch (error) {
+    if (!isPhoneRoutingFlagColumnMissingError(error)) {
+      throw error;
+    }
+
+    logMissingRoutingFlagFallback();
+
+    const legacyNumbers = await tx.phoneNumber.findMany({
+      where: { businessId, status: 'ACTIVE' },
+      select: {
+        id: true,
+        phoneNumber: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'asc' }
+    });
+
+    return legacyNumbers.map(withLegacyRoutingFlags);
+  }
 }
 
 async function enforceSingleFlag(tx, businessId, field, selectedId) {
-  await tx.phoneNumber.updateMany({
-    where: { businessId, status: 'ACTIVE' },
-    data: { [field]: false }
-  });
+  try {
+    await tx.phoneNumber.updateMany({
+      where: { businessId, status: 'ACTIVE' },
+      data: { [field]: false }
+    });
 
-  if (!selectedId) return;
+    if (!selectedId) return;
 
-  await tx.phoneNumber.update({
-    where: { id: selectedId },
-    data: { [field]: true }
-  });
+    await tx.phoneNumber.update({
+      where: { id: selectedId },
+      data: { [field]: true }
+    });
+  } catch (error) {
+    if (!isPhoneRoutingFlagColumnMissingError(error)) {
+      throw error;
+    }
+
+    logMissingRoutingFlagFallback();
+  }
 }
 
 export async function hasBrandPhoneOverride(tx, businessId) {
@@ -144,6 +208,9 @@ export async function setPhoneNumberRoutingFlags(
       id: phoneNumberId,
       businessId,
       status: 'ACTIVE'
+    },
+    select: {
+      id: true
     }
   });
 
@@ -153,45 +220,54 @@ export async function setPhoneNumberRoutingFlags(
 
   const updateData = {};
 
-  if (typeof isDefaultInbound === 'boolean') {
-    if (isDefaultInbound) {
-      await tx.phoneNumber.updateMany({
-        where: { businessId, status: 'ACTIVE' },
-        data: {
-          isDefaultInbound: false,
-          isPublicContact: false
-        }
-      });
-      updateData.isPublicContact = true;
+  try {
+    if (typeof isDefaultInbound === 'boolean') {
+      if (isDefaultInbound) {
+        await tx.phoneNumber.updateMany({
+          where: { businessId, status: 'ACTIVE' },
+          data: {
+            isDefaultInbound: false,
+            isPublicContact: false
+          }
+        });
+        updateData.isPublicContact = true;
+      }
+      updateData.isDefaultInbound = isDefaultInbound;
     }
-    updateData.isDefaultInbound = isDefaultInbound;
-  }
 
-  if (typeof isDefaultOutbound === 'boolean') {
-    if (isDefaultOutbound) {
-      await tx.phoneNumber.updateMany({
-        where: { businessId, status: 'ACTIVE' },
-        data: { isDefaultOutbound: false }
+    if (typeof isDefaultOutbound === 'boolean') {
+      if (isDefaultOutbound) {
+        await tx.phoneNumber.updateMany({
+          where: { businessId, status: 'ACTIVE' },
+          data: { isDefaultOutbound: false }
+        });
+      }
+      updateData.isDefaultOutbound = isDefaultOutbound;
+    }
+
+    if (typeof isPublicContact === 'boolean') {
+      if (isPublicContact) {
+        await tx.phoneNumber.updateMany({
+          where: { businessId, status: 'ACTIVE' },
+          data: { isPublicContact: false }
+        });
+      }
+      updateData.isPublicContact = isPublicContact;
+    }
+
+    if (Object.keys(updateData).length > 0) {
+      await tx.phoneNumber.update({
+        where: { id: phoneNumberId },
+        data: updateData
       });
     }
-    updateData.isDefaultOutbound = isDefaultOutbound;
-  }
-
-  if (typeof isPublicContact === 'boolean') {
-    if (isPublicContact) {
-      await tx.phoneNumber.updateMany({
-        where: { businessId, status: 'ACTIVE' },
-        data: { isPublicContact: false }
-      });
+  } catch (error) {
+    if (!isPhoneRoutingFlagColumnMissingError(error)) {
+      throw error;
     }
-    updateData.isPublicContact = isPublicContact;
-  }
 
-  if (Object.keys(updateData).length > 0) {
-    await tx.phoneNumber.update({
-      where: { id: phoneNumberId },
-      data: updateData
-    });
+    logMissingRoutingFlagFallback();
+    throw new Error('PHONE_ROUTING_FLAGS_UNAVAILABLE');
   }
 
   const ordered = await syncLegacyBusinessPhoneFields(tx, businessId);
@@ -229,16 +305,34 @@ export async function getPublicContactProfile(tx = prisma) {
     };
   }
 
-  const activeNumbers = await tx.phoneNumber.findMany({
-    where: { businessId: owner.businessId, status: 'ACTIVE' },
-    select: {
-      phoneNumber: true,
-      isPublicContact: true,
-      isDefaultInbound: true,
-      isDefaultOutbound: true,
-      createdAt: true
+  let activeNumbers;
+  try {
+    activeNumbers = await tx.phoneNumber.findMany({
+      where: { businessId: owner.businessId, status: 'ACTIVE' },
+      select: {
+        phoneNumber: true,
+        isPublicContact: true,
+        isDefaultInbound: true,
+        isDefaultOutbound: true,
+        createdAt: true
+      }
+    });
+  } catch (error) {
+    if (!isPhoneRoutingFlagColumnMissingError(error)) {
+      throw error;
     }
-  });
+
+    logMissingRoutingFlagFallback();
+
+    const legacyNumbers = await tx.phoneNumber.findMany({
+      where: { businessId: owner.businessId, status: 'ACTIVE' },
+      select: {
+        phoneNumber: true,
+        createdAt: true
+      }
+    });
+    activeNumbers = legacyNumbers.map(withLegacyRoutingFlags);
+  }
 
   const ordered = sortPhoneNumbers(activeNumbers);
 

@@ -2441,7 +2441,7 @@
       "callTableHeader": "Call",
       "assistantTableHeader": "Assistant",
       "statusTableHeader": "Status",
-      "progressTableHeader": "Progress",
+      "progressTableHeader": "Successful Calls",
       "dateTableHeader": "Date",
       "actionsTableHeader": "Actions",
       "recipients": "recipients",

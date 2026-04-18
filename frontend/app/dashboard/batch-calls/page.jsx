@@ -109,6 +109,21 @@ const TEMPLATE_VARIABLE_KEYS = {
   }
 };
 
+function getBatchSuccessMetrics(batch) {
+  const totalRecipients = Number(batch?.totalRecipients) || 0;
+  const completedCalls = Number(batch?.completedCalls) || 0;
+  const failedCalls = Number(batch?.failedCalls) || 0;
+  const rawSuccessfulCalls = Number(batch?.successfulCalls);
+  const successfulCalls = Number.isFinite(rawSuccessfulCalls)
+    ? Math.max(rawSuccessfulCalls, 0)
+    : Math.max(completedCalls - failedCalls, 0);
+  const successRate = totalRecipients > 0
+    ? Math.min(Math.round((successfulCalls / totalRecipients) * 100), 100)
+    : 0;
+
+  return { totalRecipients, successfulCalls, successRate };
+}
+
 export default function BatchCallsPage() {
   const { t, locale } = useLanguage();
   const { can } = usePermissions();
@@ -587,9 +602,7 @@ export default function BatchCallsPage() {
               {filteredBatchCalls.map((batch) => {
                 const statusConfig = STATUS_CONFIG[batch.status] || STATUS_CONFIG.PENDING;
                 const StatusIcon = statusConfig.icon;
-                const progress = batch.totalRecipients > 0
-                  ? Math.round((batch.completedCalls / batch.totalRecipients) * 100)
-                  : 0;
+                const { totalRecipients, successfulCalls, successRate } = getBatchSuccessMetrics(batch);
 
                 return (
                   <tr key={batch.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800">
@@ -598,7 +611,7 @@ export default function BatchCallsPage() {
                         <div>
                           <div className="text-sm font-medium text-neutral-900 dark:text-white">{batch.name}</div>
                           <div className="text-xs text-neutral-500">
-                            {batch.totalRecipients} {t('dashboard.batchCallsPage.recipients')}
+                            {totalRecipients} {t('dashboard.batchCallsPage.recipients')}
                           </div>
                         </div>
                       </div>
@@ -616,12 +629,12 @@ export default function BatchCallsPage() {
                       <div className="flex items-center gap-2">
                         <div className="w-24 h-2 bg-neutral-200 dark:bg-neutral-700 rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-primary-600 rounded-full transition-all"
-                            style={{ width: `${progress}%` }}
+                            className="h-full bg-green-500 dark:bg-green-400 rounded-full transition-all"
+                            style={{ width: `${successRate}%` }}
                           />
                         </div>
                         <span className="text-xs text-neutral-600 dark:text-neutral-400">
-                          {batch.completedCalls}/{batch.totalRecipients}
+                          {successfulCalls}/{totalRecipients}
                         </span>
                       </div>
                     </td>
