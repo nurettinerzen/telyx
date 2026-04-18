@@ -23,6 +23,15 @@ import { apiClient } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useLanguage } from '@/contexts/LanguageContext';
+import {
+  getLocalizedApiErrorMessage,
+  getLocalizedApiMessage,
+  getLocalizedApiWarning
+} from '@/lib/api-messages';
+import {
+  formatBatchCallDisplayName,
+  normalizeBatchTerminationReason
+} from '@/lib/batch-calls';
 
 const STATUS_CONFIG = {
   PENDING: {
@@ -84,7 +93,18 @@ const TERMINATION_KEYS = {
   agent_goodbye: 'dashboard.batchCallDetailPage.termination.agentGoodbye',
   user_goodbye: 'dashboard.batchCallDetailPage.termination.userGoodbye',
   voicemail_detected: 'dashboard.batchCallDetailPage.termination.voicemailDetected',
-  no_input: 'dashboard.batchCallDetailPage.termination.noInput'
+  no_input: 'dashboard.batchCallDetailPage.termination.noInput',
+  completed: 'dashboard.batchCallDetailPage.termination.completed',
+  failed: 'dashboard.batchCallDetailPage.termination.failed'
+};
+
+const TERMINATION_BADGE_STYLES = {
+  agent_goodbye: 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800',
+  user_goodbye: 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800',
+  voicemail_detected: 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800',
+  no_input: 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800',
+  completed: 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800',
+  failed: 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800'
 };
 
 export default function BatchCallDetailPage() {
@@ -136,16 +156,17 @@ export default function BatchCallDetailPage() {
 
     try {
       const response = await apiClient.post(`/api/batch-calls/${id}/cancel`);
-      toast.success(response.data.message || t('dashboard.batchCallDetailPage.campaignCancelled'));
+      toast.success(getLocalizedApiMessage(response.data, locale, t('dashboard.batchCallDetailPage.campaignCancelled')));
 
       // Show warning if there's one (e.g., active call will continue)
-      if (response.data.warning) {
-        toast.info(response.data.warning, { duration: 6000 });
+      const warningMessage = getLocalizedApiWarning(response.data, locale);
+      if (warningMessage) {
+        toast.info(warningMessage, { duration: 6000 });
       }
 
       loadBatchCall();
     } catch (error) {
-      toast.error(error.response?.data?.error || t('dashboard.batchCallDetailPage.errorOccurred'));
+      toast.error(getLocalizedApiErrorMessage(error, t('dashboard.batchCallDetailPage.errorOccurred'), locale));
     }
   };
 
@@ -159,7 +180,7 @@ export default function BatchCallDetailPage() {
       const response = await apiClient.post(`/api/batch-calls/${id}/restart`);
       const restartedBatchCall = response.data?.batchCall;
 
-      toast.success(response.data?.message || t('dashboard.batchCallDetailPage.campaignRestarted'));
+      toast.success(getLocalizedApiMessage(response.data, locale, t('dashboard.batchCallDetailPage.campaignRestarted')));
 
       if (response.data?.skippedDoNotCall > 0) {
         toast.info(t('dashboard.batchCallDetailPage.skippedDoNotCall', {
@@ -174,7 +195,7 @@ export default function BatchCallDetailPage() {
 
       loadBatchCall();
     } catch (error) {
-      toast.error(error.response?.data?.error || t('dashboard.batchCallDetailPage.errorOccurred'));
+      toast.error(getLocalizedApiErrorMessage(error, t('dashboard.batchCallDetailPage.errorOccurred'), locale));
     } finally {
       setRestarting(false);
     }
@@ -199,6 +220,9 @@ export default function BatchCallDetailPage() {
     : 0;
 
   const recipients = batchCall.recipients || [];
+  const displayName = formatBatchCallDisplayName(batchCall.name, {
+    restartLabel: t('common.repeatCall')
+  });
 
   return (
     <div className="space-y-6">
@@ -214,7 +238,7 @@ export default function BatchCallDetailPage() {
         <div className="flex items-center gap-4">
           <Megaphone className="h-8 w-8 text-neutral-600 dark:text-neutral-400" />
           <div>
-            <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">{batchCall.name}</h1>
+            <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">{displayName}</h1>
             <div className="flex items-center gap-2 mt-1">
               <Badge className={`${statusConfig.color} flex items-center gap-1`}>
                 <StatusIcon className={`h-3 w-3 ${batchCall.status === 'IN_PROGRESS' ? 'animate-spin' : ''}`} />
@@ -346,7 +370,12 @@ export default function BatchCallDetailPage() {
               {recipients.length > 0 ? (
                 recipients.map((recipient, index) => {
                   const callStatus = CALL_STATUS_CONFIG[recipient.status] || CALL_STATUS_CONFIG.pending;
-                  const CallStatusIcon = callStatus.icon;
+                  const normalizedTerminationReason = normalizeBatchTerminationReason(recipient.terminationReason);
+                  const terminationBadgeClass = TERMINATION_BADGE_STYLES[normalizedTerminationReason]
+                    || 'bg-neutral-50 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 border-neutral-200 dark:border-neutral-600';
+                  const terminationLabel = TERMINATION_KEYS[normalizedTerminationReason]
+                    ? t(TERMINATION_KEYS[normalizedTerminationReason])
+                    : recipient.terminationReason;
 
                   return (
                     <tr key={index} className="hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
@@ -387,16 +416,8 @@ export default function BatchCallDetailPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="text-sm text-neutral-600 dark:text-neutral-400">
                           {recipient.terminationReason ? (
-                            <Badge variant="outline" className={
-                              recipient.terminationReason === 'agent_goodbye' ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800' :
-                              recipient.terminationReason === 'user_goodbye' ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800' :
-                              recipient.terminationReason === 'voicemail_detected' ? 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800' :
-                              recipient.terminationReason === 'no_input' ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800' :
-                              'bg-neutral-50 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 border-neutral-200 dark:border-neutral-600'
-                            }>
-                              {TERMINATION_KEYS[recipient.terminationReason]
-                                ? t(TERMINATION_KEYS[recipient.terminationReason])
-                                : recipient.terminationReason}
+                            <Badge variant="outline" className={terminationBadgeClass}>
+                              {terminationLabel}
                             </Badge>
                           ) : '-'}
                         </span>

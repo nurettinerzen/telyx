@@ -51,6 +51,7 @@
     "apply": "Apply",
     "test": "Test",
     "retry": "Retry",
+    "repeatCall": "Repeat Call",
     "continue": "Continue",
     "start": "Start",
     "stop": "Stop",
@@ -2569,7 +2570,9 @@
         "agentGoodbye": "Agent Ended",
         "userGoodbye": "User Ended",
         "voicemailDetected": "Voicemail",
-        "noInput": "No Input"
+        "noInput": "No Input",
+        "completed": "Completed",
+        "failed": "Failed"
       },
       "callStatus": {
         "pending": "Pending",

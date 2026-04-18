@@ -51,6 +51,8 @@ import Link from 'next/link';
 import { useBatchCalls, useBatchCallsAccess } from '@/hooks/useBatchCalls';
 import { useAssistants } from '@/hooks/useAssistants';
 import { usePhoneNumbers } from '@/hooks/usePhoneNumbers';
+import { getLocalizedApiErrorMessage } from '@/lib/api-messages';
+import { formatBatchCallDisplayName } from '@/lib/batch-calls';
 
 const STATUS_CONFIG = {
   PENDING: {
@@ -188,7 +190,10 @@ export default function BatchCallsPage() {
     // Search filter
     if (searchQuery) {
       filtered = filtered.filter(call =>
-        call.name?.toLowerCase().includes(searchQuery.toLowerCase())
+        formatBatchCallDisplayName(call.name, {
+          restartLabel: t('common.repeatCall')
+        }).toLowerCase().includes(searchQuery.toLowerCase())
+        || call.name?.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
@@ -227,7 +232,7 @@ export default function BatchCallsPage() {
     }
 
     return filtered;
-  }, [batchCalls, searchQuery, statusFilter, assistantFilter, dateFilter]);
+  }, [batchCalls, searchQuery, statusFilter, assistantFilter, dateFilter, t]);
 
   // Auto-refresh when there are in-progress campaigns
   useEffect(() => {
@@ -377,7 +382,7 @@ export default function BatchCallsPage() {
       refetchBatchCalls();
     } catch (error) {
       console.error('Submit error:', error);
-      toast.error(error.response?.data?.error || error.response?.data?.errorTR || t('errors.generic'));
+      toast.error(getLocalizedApiErrorMessage(error, t('errors.generic'), locale));
     } finally {
       setSubmitting(false);
     }
@@ -393,7 +398,7 @@ export default function BatchCallsPage() {
       toast.success(t('dashboard.batchCallsPage.callCancelled'));
       refetchBatchCalls();
     } catch (error) {
-      toast.error(error.response?.data?.error || t('errors.generic'));
+      toast.error(getLocalizedApiErrorMessage(error, t('errors.generic'), locale));
     }
   };
 
@@ -603,13 +608,16 @@ export default function BatchCallsPage() {
                 const statusConfig = STATUS_CONFIG[batch.status] || STATUS_CONFIG.PENDING;
                 const StatusIcon = statusConfig.icon;
                 const { totalRecipients, successfulCalls, successRate } = getBatchSuccessMetrics(batch);
+                const displayName = formatBatchCallDisplayName(batch.name, {
+                  restartLabel: t('common.repeatCall')
+                });
 
                 return (
                   <tr key={batch.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800">
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="flex items-center">
                         <div>
-                          <div className="text-sm font-medium text-neutral-900 dark:text-white">{batch.name}</div>
+                          <div className="text-sm font-medium text-neutral-900 dark:text-white">{displayName}</div>
                           <div className="text-xs text-neutral-500">
                             {totalRecipients} {t('dashboard.batchCallsPage.recipients')}
                           </div>

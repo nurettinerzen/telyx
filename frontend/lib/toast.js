@@ -4,6 +4,7 @@
  */
 
 import { toast as sonnerToast } from 'sonner';
+import { getCurrentLocale, getLocalizedApiErrorMessage } from './api-messages';
 
 export const toast = {
   /**
@@ -59,8 +60,12 @@ export const toast = {
    * @param {string} message - Loading message
    * @param {object} options - Additional options
    */
-  loading: (message = 'Loading...', options = {}) => {
-    return sonnerToast.loading(message, options);
+  loading: (message, options = {}) => {
+    const locale = getCurrentLocale();
+    return sonnerToast.loading(
+      message || (locale === 'tr' ? 'Yükleniyor...' : 'Loading...'),
+      options
+    );
   },
 
   /**
@@ -105,7 +110,9 @@ export const toastHelpers = {
    * @param {Error} error - Error object from API
    */
   apiError: (error) => {
-    const message = error.response?.data?.message || error.message || 'An error occurred';
+    const locale = getCurrentLocale();
+    const fallback = locale === 'tr' ? 'Bir hata oluştu' : 'An error occurred';
+    const message = getLocalizedApiErrorMessage(error, fallback, locale);
     toast.error(message);
   },
 
@@ -113,21 +120,32 @@ export const toastHelpers = {
    * Show save success toast
    */
   saveSuccess: (itemName = 'Changes') => {
-    toast.success(`${itemName} saved successfully!`);
+    const locale = getCurrentLocale();
+    toast.success(
+      locale === 'tr'
+        ? `${itemName} başarıyla kaydedildi`
+        : `${itemName} saved successfully!`
+    );
   },
 
   /**
    * Show delete success toast
    */
   deleteSuccess: (itemName = 'Item') => {
-    toast.success(`${itemName} deleted successfully!`);
+    const locale = getCurrentLocale();
+    toast.success(
+      locale === 'tr'
+        ? `${itemName} başarıyla silindi`
+        : `${itemName} deleted successfully!`
+    );
   },
 
   /**
    * Show copy to clipboard toast
    */
   copied: () => {
-    toast.success('Copied to clipboard!');
+    const locale = getCurrentLocale();
+    toast.success(locale === 'tr' ? 'Panoya kopyalandı!' : 'Copied to clipboard!');
   },
 
   /**
@@ -136,13 +154,16 @@ export const toastHelpers = {
    * @param {string} loadingMsg - Loading message
    * @param {string} successMsg - Success message
    */
-  async: async (promise, loadingMsg = 'Processing...', successMsg = 'Done!') => {
-    const toastId = toast.loading(loadingMsg);
+  async: async (promise, loadingMsg, successMsg) => {
+    const locale = getCurrentLocale();
+    const resolvedLoadingMsg = loadingMsg || (locale === 'tr' ? 'İşleniyor...' : 'Processing...');
+    const resolvedSuccessMsg = successMsg || (locale === 'tr' ? 'Tamamlandı!' : 'Done!');
+    const toastId = toast.loading(resolvedLoadingMsg);
     
     try {
       const result = await promise;
       toast.dismiss(toastId);
-      toast.success(successMsg);
+      toast.success(resolvedSuccessMsg);
       return result;
     } catch (error) {
       toast.dismiss(toastId);

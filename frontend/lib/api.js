@@ -5,6 +5,7 @@
 
 import axios from 'axios';
 import { toast } from 'sonner';
+import { getCurrentLocale } from './api-messages';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -38,7 +39,12 @@ function isPublicAuthPath(pathname = '') {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    const message = error.response?.data?.message || error.message || 'An error occurred';
+    const locale = getCurrentLocale();
+    const copy = {
+      accessDenied: locale === 'tr' ? 'Erişim reddedildi' : 'Access denied',
+      tooManyRequests: locale === 'tr' ? 'Çok fazla istek gönderildi. Lütfen daha sonra tekrar deneyin.' : 'Too many requests. Please try again later.',
+      serverError: locale === 'tr' ? 'Sunucu hatası oluştu. Lütfen daha sonra tekrar deneyin.' : 'Server error. Please try again later.'
+    };
     
     // Handle specific status codes
     if (error.response?.status === 401) {
@@ -54,12 +60,12 @@ api.interceptors.response.use(
     } else if (error.response?.status === 403) {
       // Some locked-plan checks intentionally return 403 and should stay silent in UI.
       if (!error.config?.suppressExpected403) {
-        toast.error('Access denied');
+        toast.error(copy.accessDenied);
       }
     } else if (error.response?.status === 429) {
-      toast.error('Too many requests. Please try again later.');
+      toast.error(copy.tooManyRequests);
     } else if (error.response?.status >= 500) {
-      toast.error('Server error. Please try again later.');
+      toast.error(copy.serverError);
     }
     
     return Promise.reject(error);

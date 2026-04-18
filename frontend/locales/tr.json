@@ -51,6 +51,7 @@
     "apply": "Uygula",
     "test": "Test Et",
     "retry": "Tekrar Deneyin",
+    "repeatCall": "Tekrar Arama",
     "continue": "Devam Et",
     "start": "Başlat",
     "stop": "Durdur",
@@ -2569,7 +2570,9 @@
         "agentGoodbye": "Asistan Kapattı",
         "userGoodbye": "Müşteri Kapattı",
         "voicemailDetected": "Sesli Yanıt",
-        "noInput": "Yanıt Yok"
+        "noInput": "Yanıt Yok",
+        "completed": "Tamamlandı",
+        "failed": "Başarısız"
       },
       "callStatus": {
         "pending": "Bekliyor",
