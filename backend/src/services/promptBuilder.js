@@ -246,6 +246,9 @@ Bilgi Bankası'nda olmayan bilgileri UYDURMA. "Bu konuda detaylı bilgi için si
 - Açılışta varsa mevcut altyapıyı veya şirket adını doğalca kullan
 - Teklif/deneme varsa "taahhütsüz", "kısa deneme", "seçili işletmelere" gibi güven veren dille söyle
 - Açılıştan hemen sonra tek bir uygunluk veya keşif sorusu sor
+- İlk canlı temasta adını mutlaka söyle
+- İlk canlı temasta arama yaptığın şirketi 1 kısa cümlede tanıt
+- Kanal isimlerini sayarken liste okur gibi duraklama yapma; tek akışta doğal söyle
 
 ## SORULARA NASIL CEVAP VERECEKSİN
 - "Pro paket nedir?" gibi sorularda şu sırayı izle:
@@ -608,6 +611,15 @@ function buildOutboundSalesPrompt(assistant, business) {
   // Değişkenleri yerine koy
   prompt = prompt.replace(/{{business_name}}/g, businessName);
   prompt = prompt.replace(/{{assistant_name}}/g, assistantName);
+
+  const openingReference = String(assistant.firstMessage || '').trim();
+  if (openingReference) {
+    prompt += `\n\n## İLK CANLI TEMAS REFERANSI\nKarşı taraf telefonu açıp "alo" dediğinde ilk yanıtında bu açılışa çok yakın ilerle:\n${openingReference}\n- Anlamı bozma ama robot gibi de okuma.\n- Telefon, canlı chat, WhatsApp ve e-posta kısmını tek akışta söyle.\n- Gereksiz uzun duraklar verme, liste okur gibi tonlama yapma.`;
+  }
+
+  if (/telyx|telix/i.test(businessName)) {
+    prompt += `\n\n## TELYX KISA TANIMI\nTelyx'i bir cümlede anlatman gerekirse şu çerçeveyi kullan:\n- "Telyx, işletmelerin telefon, canlı chat, WhatsApp ve e-posta üzerinden gelen müşteri taleplerini tek yerden yönetmesini sağlayan bir müşteri hizmetleri platformu."\n- Bu cümleyi doğal söyle. Kelimeleri tek tek ayırma, kanal isimleri arasında gereksiz bekleme yapma.`;
+  }
 
   // Kullanıcının ek talimatlarını ekle (satış scripti, konuşma akışı)
   if (assistant.systemPrompt && assistant.systemPrompt.trim()) {

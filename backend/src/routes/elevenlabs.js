@@ -174,6 +174,31 @@ function normalizeDirection(rawDirection = '') {
   return direction;
 }
 
+function shouldUsePhoneOutboundV1({ businessId, direction, assistant } = {}) {
+  return direction === 'outbound'
+    && isPhoneOutboundV1Enabled({ businessId })
+    && assistant?.callDirection !== 'outbound_sales';
+}
+
+function buildOutboundSalesOpeningOverride(assistant, business = {}) {
+  const assistantName = assistant?.name || 'Asistan';
+  const businessName = business?.name || 'İşletme';
+  const explicitOpening = String(assistant?.firstMessage || '').trim();
+
+  const fallbackOpening = /telyx|telix/i.test(businessName)
+    ? `Merhaba, ben ${assistantName}. Telyx adına arıyorum. Telyx, işletmelerin telefon, canlı chat, WhatsApp ve e-posta üzerinden gelen müşteri taleplerini tek yerden yönetmesini sağlayan bir müşteri hizmetleri platformu. Şu an seçili işletmelere Pro paketi kısa süreli ücretsiz deneme ile sunuyoruz. Uygunsanız 20 saniyede kısaca anlatayım.`
+    : `Merhaba, ben ${assistantName}. ${businessName} adına arıyorum. Şu an seçili işletmelere kısa süreli ücretsiz deneme sunuyoruz. Uygunsanız 20 saniyede kısaca anlatayım.`;
+
+  const openingText = explicitOpening || fallbackOpening;
+
+  return `## İLK CANLI TEMAS
+- Eğer bu, telefonu açan kişiye verdiğin ilk canlı yanıtsa şu açılışa çok yakın başla:
+"${openingText}"
+- İlk yanıtta adını mutlaka söyle.
+- Kanal isimlerini liste okur gibi ayırma. "telefon, canlı chat, WhatsApp ve e-posta" kısmını tek akışta söyle.
+- Bu açılışı yalnızca ilk canlı temasta kullan. Sonraki turlarda kendini yeniden tanıtma.`;
+}
+
 function inferCallType({ metadata = {}, assistant = null } = {}) {
   const directType = metadata.call_type || metadata.callType;
   if (directType) {
@@ -552,8 +577,10 @@ router.post('/webhook', async (req, res) => {
               return res.status(200).json({});
             }
 
-            const outboundV1Enabled = sessionDirection === 'outbound' && isPhoneOutboundV1Enabled({
-              businessId: assistant.business.id
+            const outboundV1Enabled = shouldUsePhoneOutboundV1({
+              businessId: assistant.business.id,
+              direction: sessionDirection,
+              assistant
             });
 
             if (outboundV1Enabled && activeSession?.metadata?.phoneOutboundV1?.enabled) {
@@ -576,8 +603,11 @@ router.post('/webhook', async (req, res) => {
 
             const dynamicContext = getDynamicDateTimeContext(assistant.business);
             console.log('📅 Injecting dynamic date/time for business:', assistant.business.name);
+            const salesOpeningOverride = sessionDirection === 'outbound' && assistant.callDirection === 'outbound_sales'
+              ? `\n\n${buildOutboundSalesOpeningOverride(assistant, assistant.business)}`
+              : '';
             return res.json({
-              prompt_override: dynamicContext
+              prompt_override: `${dynamicContext}${salesOpeningOverride}`
             });
           }
         }
@@ -1008,8 +1038,10 @@ async function handleToolCall(event, agentIdFromQuery = null) {
       };
     }
 
-    const outboundV1Enabled = sessionDirection === 'outbound' && isPhoneOutboundV1Enabled({
-      businessId: business.id
+    const outboundV1Enabled = shouldUsePhoneOutboundV1({
+      businessId: business.id,
+      direction: sessionDirection,
+      assistant
     });
 
     if (outboundV1Enabled) {
@@ -1133,7 +1165,11 @@ async function handleConversationStarted(event) {
       business: assistant.business,
       businessId
     });
-    const outboundV1Enabled = direction === 'outbound' && isPhoneOutboundV1Enabled({ businessId });
+    const outboundV1Enabled = shouldUsePhoneOutboundV1({
+      businessId,
+      direction,
+      assistant
+    });
 
     // Structured call-started log for monitoring
     console.log(`[CALL_STARTED] ${JSON.stringify({

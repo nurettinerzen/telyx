@@ -145,15 +145,9 @@ function normalizeFirstMessageValue(value) {
 }
 
 function resolveStoredFirstMessage({
-  callDirection,
-  assistantType = 'phone',
   providedFirstMessage,
   fallbackFirstMessage
 } = {}) {
-  if (shouldUseSilentStart(callDirection, assistantType)) {
-    return null;
-  }
-
   const explicitFirstMessage = normalizeFirstMessageValue(providedFirstMessage);
   if (explicitFirstMessage) {
     return explicitFirstMessage;
@@ -161,6 +155,42 @@ function resolveStoredFirstMessage({
 
   const fallback = normalizeFirstMessageValue(fallbackFirstMessage);
   return fallback || null;
+}
+
+function getDefaultPhoneFirstMessage({
+  language = 'TR',
+  name,
+  callDirection,
+  businessName
+} = {}) {
+  const lang = String(language || 'TR').toUpperCase();
+  const assistantName = name || 'Asistan';
+  const companyName = businessName || 'İşletme';
+
+  if (callDirection === 'outbound_sales') {
+    if (lang === 'TR') {
+      if (/telyx|telix/i.test(companyName)) {
+        return `Merhaba, ben ${assistantName}. Telyx adına arıyorum. Telyx, işletmelerin telefon, canlı chat, WhatsApp ve e-posta üzerinden gelen müşteri taleplerini tek yerden yönetmesini sağlayan bir müşteri hizmetleri platformu. Şu an seçili işletmelere Pro paketi kısa süreli ücretsiz deneme ile sunuyoruz. Uygunsanız 20 saniyede kısaca anlatayım.`;
+      }
+
+      return `Merhaba, ben ${assistantName}. ${companyName} adına arıyorum. Şu an seçili işletmelere kısa süreli ücretsiz deneme sunuyoruz. Uygunsanız 20 saniyede kısaca anlatayım.`;
+    }
+
+    return `Hello, I'm ${assistantName} calling on behalf of ${companyName}. We are offering a short complimentary trial to selected businesses. If now is a good time, I can explain it in 20 seconds.`;
+  }
+
+  const localizedDefaultFirstMessage = ['TR', 'EN'].includes(lang)
+    ? getMessageVariant('ASSISTANT_DEFAULT_FIRST_MESSAGE', {
+      language: lang,
+      directiveType: 'GREETING',
+      severity: 'info',
+      seedHint: assistantName,
+      variables: { name: assistantName }
+    }).text
+    : '';
+
+  const defaults = ASSISTANT_DEFAULTS[lang] || ASSISTANT_DEFAULTS.TR;
+  return localizedDefaultFirstMessage || defaults.firstMessage.replace('{name}', assistantName);
 }
 
 function resolveProviderFirstMessage({
@@ -231,7 +261,8 @@ function buildPhoneAssistantPromptFromState(assistant, business, integrations = 
     systemPrompt: assistant?.userInstructions || null,
     tone: assistant?.tone || 'professional',
     customNotes: assistant?.customNotes || null,
-    callDirection: assistant?.callDirection
+    callDirection: assistant?.callDirection,
+    firstMessage: assistant?.firstMessage || null
   };
 
   return buildAssistantPrompt(tempAssistant, business, getPromptBuilderTools(business, integrations));
@@ -462,24 +493,6 @@ router.post('/', authenticateToken, checkPermission('assistants:create'), async 
       ? [ASSISTANT_CHANNEL_CAPABILITIES.CHAT, ASSISTANT_CHANNEL_CAPABILITIES.WHATSAPP, ASSISTANT_CHANNEL_CAPABILITIES.EMAIL]
       : normalizeChannelCapabilities(channelCapabilities, getDefaultCapabilitiesForCallDirection(effectiveCallDirection));
 
-    // Build full system prompt using promptBuilder
-    // Create temporary assistant object for promptBuilder
-    const tempAssistant = {
-      name,
-      assistantType,
-      systemPrompt: systemPrompt,
-      tone: tone || 'professional',
-      customNotes: customNotes || null,
-      callDirection: effectiveCallDirection
-    };
-
-    // Get active tools list for prompt builder
-    const activeToolsList = getPromptBuilderTools(business, business.integrations || []);
-
-    // Use central prompt builder to create the full system prompt
-    const fullSystemPrompt = buildAssistantPrompt(tempAssistant, business, activeToolsList);
-
-    // Default first message based on language (deterministic variant for TR/EN)
     let finalFirstMessage = null;
     let elevenLabsAgentId = null;
 
@@ -487,23 +500,35 @@ router.post('/', authenticateToken, checkPermission('assistants:create'), async 
       // Text assistants: no voice, no 11Labs, no firstMessage
       console.log('💬 [Create] Text assistant — skipping 11Labs agent creation');
     } else {
-    // Phone assistant: full 11Labs flow
-    const localizedDefaultFirstMessage = ['TR', 'EN'].includes(lang)
-      ? getMessageVariant('ASSISTANT_DEFAULT_FIRST_MESSAGE', {
+      const defaultFirstMessage = getDefaultPhoneFirstMessage({
         language: lang,
-        directiveType: 'GREETING',
-        severity: 'info',
-        seedHint: name,
-        variables: { name }
-      }).text
-      : '';
-    const defaultFirstMessage = localizedDefaultFirstMessage || defaults.firstMessage.replace('{name}', name);
-    finalFirstMessage = resolveStoredFirstMessage({
-      callDirection: effectiveCallDirection,
+        name,
+        callDirection: effectiveCallDirection,
+        businessName: business?.name
+      });
+
+      finalFirstMessage = resolveStoredFirstMessage({
+        providedFirstMessage: firstMessage,
+        fallbackFirstMessage: defaultFirstMessage
+      });
+    }
+
+    // Build full system prompt using promptBuilder
+    const tempAssistant = {
+      name,
       assistantType,
-      providedFirstMessage: firstMessage,
-      fallbackFirstMessage: defaultFirstMessage
-    });
+      systemPrompt: systemPrompt,
+      tone: tone || 'professional',
+      customNotes: customNotes || null,
+      callDirection: effectiveCallDirection,
+      firstMessage: finalFirstMessage
+    };
+
+    // Get active tools list for prompt builder
+    const activeToolsList = getPromptBuilderTools(business, business.integrations || []);
+
+    // Use central prompt builder to create the full system prompt
+    const fullSystemPrompt = buildAssistantPrompt(tempAssistant, business, activeToolsList);
 
     // Get active tools based on business integrations (using central tool system)
     const activeToolsElevenLabs = getActiveToolsForElevenLabs(business);
@@ -730,7 +755,7 @@ router.post('/', authenticateToken, checkPermission('assistants:create'), async 
         error: 'Failed to create assistant connection',
         details: elevenLabsError.response?.data || elevenLabsError.message
       });
-    }
+    
     } // end if (!isTextAssistant) — 11Labs block
 
     // ✅ Database'e kaydet (text veya phone)
@@ -1073,6 +1098,18 @@ router.put('/:id', authenticateToken, checkPermission('assistants:edit'), async 
       ? (systemPrompt || null)
       : (assistant.userInstructions || null);
 
+    const defaultFirstMessage = getDefaultPhoneFirstMessage({
+      language: business.language || 'TR',
+      name,
+      callDirection: effectiveCallDirection,
+      businessName: business?.name
+    });
+
+    const resolvedFirstMessage = resolveStoredFirstMessage({
+      providedFirstMessage: firstMessage,
+      fallbackFirstMessage: assistant.firstMessage || defaultFirstMessage
+    });
+
     // Build full system prompt using promptBuilder
     const tempAssistant = {
       name,
@@ -1080,7 +1117,8 @@ router.put('/:id', authenticateToken, checkPermission('assistants:edit'), async 
       systemPrompt: baseUserInstructions,
       tone: tone || assistant.tone || 'professional',
       customNotes: customNotes !== undefined ? customNotes : assistant.customNotes,
-      callDirection: effectiveCallDirection
+      callDirection: effectiveCallDirection,
+      firstMessage: resolvedFirstMessage
     };
 
     // Get active tools list for prompt builder
@@ -1088,13 +1126,6 @@ router.put('/:id', authenticateToken, checkPermission('assistants:edit'), async 
 
     // Keep the phone prompt lean; ElevenLabs knowledge base already handles KB retrieval.
     const fullSystemPrompt = buildAssistantPrompt(tempAssistant, business, activeToolsList);
-
-    const resolvedFirstMessage = resolveStoredFirstMessage({
-      callDirection: effectiveCallDirection,
-      assistantType: assistant.assistantType,
-      providedFirstMessage: firstMessage,
-      fallbackFirstMessage: assistant.firstMessage
-    });
 
     // Update in database
     const updateData = {
