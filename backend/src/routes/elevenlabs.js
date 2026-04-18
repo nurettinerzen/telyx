@@ -466,6 +466,11 @@ router.post('/webhook', async (req, res) => {
         console.warn('⚠️ [11Labs] call initiation failure webhook:', failureData);
 
         const conversationId = failureData.conversation_id || failureData.call_id || null;
+        const failureReason = failureData.failure_reason || failureData.reason || 'unknown';
+        const providerMetadata = failureData.metadata || {};
+        const providerBody = providerMetadata.body || {};
+        const targetPhone = providerBody.To || providerBody.Called || providerBody.to_number || null;
+        const providerErrorReason = providerBody.error_reason || providerBody.Error || providerBody.ErrorMessage || null;
         const assistant = failureData.agent_id
           ? await prisma.assistant.findFirst({
             where: { elevenLabsAgentId: failureData.agent_id },
@@ -474,21 +479,31 @@ router.post('/webhook', async (req, res) => {
           : null;
 
         if (conversationId && assistant?.business?.id) {
+          const failureSummary = providerErrorReason
+            ? `11Labs call initiation failure: ${failureReason} (${providerErrorReason})`
+            : `11Labs call initiation failure: ${failureReason}`;
+
           await prisma.callLog.upsert({
             where: { callId: conversationId },
             update: {
               businessId: assistant.business.id,
+              callerId: targetPhone || undefined,
               status: 'failed',
               direction: 'outbound',
-              summary: `11Labs call initiation failure: ${failureData.reason || 'unknown'}`,
+              duration: 0,
+              summary: failureSummary,
+              endReason: failureReason,
               updatedAt: new Date()
             },
             create: {
               businessId: assistant.business.id,
               callId: conversationId,
+              callerId: targetPhone || 'Unknown',
               status: 'failed',
               direction: 'outbound',
-              summary: `11Labs call initiation failure: ${failureData.reason || 'unknown'}`,
+              duration: 0,
+              summary: failureSummary,
+              endReason: failureReason,
               createdAt: new Date()
             }
           });

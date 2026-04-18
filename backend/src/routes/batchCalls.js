@@ -133,6 +133,37 @@ async function filterDoNotCallRecipients(businessId, recipients) {
   return { allowedRecipients, blockedRecipients };
 }
 
+function deriveBatchStatusFromElevenLabs({ currentStatus, totalScheduled, totalDispatched, totalFinished, elevenLabsStatus, successfulCalls, failedCalls }) {
+  const scheduled = Number(totalScheduled) || 0;
+  const dispatched = Number(totalDispatched) || 0;
+  const finished = Number(totalFinished) || 0;
+  const success = Number(successfulCalls) || 0;
+  const failed = Number(failedCalls) || 0;
+
+  const allCallsFinished = scheduled > 0 && finished >= scheduled;
+
+  if (allCallsFinished) {
+    if (failed > 0 && success === 0) {
+      return 'FAILED';
+    }
+    return 'COMPLETED';
+  }
+
+  if (elevenLabsStatus === 'failed' && finished === 0) {
+    return 'FAILED';
+  }
+
+  if (elevenLabsStatus === 'cancelled') {
+    return 'CANCELLED';
+  }
+
+  if (dispatched > 0 || elevenLabsStatus === 'in_progress') {
+    return 'IN_PROGRESS';
+  }
+
+  return currentStatus;
+}
+
 /**
  * Parse CSV/Excel file and return rows
  * Uses UTF-8 encoding to preserve Turkish characters (ğ, ü, ş, ı, ö, ç)
@@ -1237,13 +1268,22 @@ router.get('/', checkPermission('campaigns:view'), async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
 
-    // Fetch status updates from 11Labs for in-progress campaigns
+    // Fetch status updates from 11Labs for active campaigns and repair incomplete metrics
     const elevenLabsApiKey = process.env.ELEVENLABS_API_KEY;
 
     const updatedBatchCalls = await Promise.all(
       batchCalls.map(async (batch) => {
-        // Check status for both PENDING and IN_PROGRESS batches
-        if (batch.elevenLabsBatchId && (batch.status === 'IN_PROGRESS' || batch.status === 'PENDING')) {
+        const persistedSuccessCount = Number(batch.successfulCalls) || 0;
+        const persistedFailedCount = Number(batch.failedCalls) || 0;
+        const persistedCompletedCount = Number(batch.completedCalls) || 0;
+        const needsMetricsRepair = persistedCompletedCount > 0
+          && persistedCompletedCount !== (persistedSuccessCount + persistedFailedCount);
+
+        if (batch.elevenLabsBatchId && (
+          batch.status === 'IN_PROGRESS'
+          || batch.status === 'PENDING'
+          || needsMetricsRepair
+        )) {
           try {
             const response = await axios.get(
               `https://api.elevenlabs.io/v1/convai/batch-calling/${batch.elevenLabsBatchId}`,
@@ -1257,45 +1297,41 @@ router.get('/', checkPermission('campaigns:view'), async (req, res) => {
               `dispatched: ${elevenLabsData.total_calls_dispatched}/${elevenLabsData.total_calls_scheduled}`,
               `finished: ${elevenLabsData.total_calls_finished}/${elevenLabsData.total_calls_scheduled}`);
 
-            // Update local status based on 11Labs status
-            // 11Labs returns: pending, in_progress, completed, done, failed, cancelled
-            // Fields: total_calls_scheduled, total_calls_dispatched, total_calls_finished
-            let newStatus = batch.status;
-
             const totalScheduled = elevenLabsData.total_calls_scheduled || 0;
             const totalDispatched = elevenLabsData.total_calls_dispatched || 0;
             const totalFinished = elevenLabsData.total_calls_finished || 0;
 
-            // All calls are truly done when finished == scheduled
-            const allCallsFinished = totalFinished === totalScheduled && totalScheduled > 0;
-
-            // IMPORTANT: Only mark as COMPLETED when ALL calls are actually finished
-            // Don't trust 11Labs status alone - verify with totalFinished
-            if (allCallsFinished) {
-              newStatus = 'COMPLETED';
-            } else if (elevenLabsData.status === 'failed' && totalFinished === 0) {
-              newStatus = 'FAILED';
-            } else if (elevenLabsData.status === 'cancelled') {
-              newStatus = 'CANCELLED';
-            } else if (totalDispatched > 0 || elevenLabsData.status === 'in_progress') {
-              newStatus = 'IN_PROGRESS';
-            }
-            // If 11Labs says completed/done but totalFinished < totalScheduled, keep as IN_PROGRESS
+            const failedCalls = elevenLabsData.failed_calls || 0;
+            const successfulCalls = elevenLabsData.successful_calls || 0;
+            const newStatus = deriveBatchStatusFromElevenLabs({
+              currentStatus: batch.status,
+              totalScheduled,
+              totalDispatched,
+              totalFinished,
+              elevenLabsStatus: elevenLabsData.status,
+              successfulCalls,
+              failedCalls
+            });
 
             // Calculate completed calls from 11Labs data
             // Note: 11Labs uses total_calls_finished for completed calls
             const completedCalls = totalFinished;
+            const normalizedSuccessCount = successfulCalls || Math.max(totalFinished - failedCalls, 0);
 
-            // Update in database if status or progress changed
+            // Update in database if status or outcome metrics changed
             const statusChanged = newStatus !== batch.status;
-            const progressChanged = completedCalls !== batch.completedCalls;
+            const metricsChanged = completedCalls !== batch.completedCalls
+              || normalizedSuccessCount !== batch.successfulCalls
+              || failedCalls !== batch.failedCalls;
 
-            if (statusChanged || progressChanged) {
+            if (statusChanged || metricsChanged) {
               await prisma.batchCall.update({
                 where: { id: batch.id },
                 data: {
                   status: newStatus,
                   completedCalls: completedCalls,
+                  successfulCalls: normalizedSuccessCount,
+                  failedCalls: failedCalls,
                   ...(newStatus === 'COMPLETED' && { completedAt: new Date() })
                 }
               });
@@ -1304,7 +1340,9 @@ router.get('/', checkPermission('campaigns:view'), async (req, res) => {
             return {
               ...batch,
               status: newStatus,
-              completedCalls: completedCalls
+              completedCalls: completedCalls,
+              successfulCalls: normalizedSuccessCount,
+              failedCalls: failedCalls
             };
           } catch (error) {
             console.error(`Failed to fetch 11Labs status for batch ${batch.id}:`, error.message);
@@ -1375,30 +1413,27 @@ router.get('/:id', checkPermission('campaigns:view'), async (req, res) => {
         // 11Labs can return: pending, in_progress, completed, done, failed, cancelled
         let newStatus = batchCall.status;
 
-        // Check if all calls are done - use total_calls_finished for accuracy
         const totalScheduled = elevenLabsData.total_calls_scheduled || 0;
         const totalFinished = elevenLabsData.total_calls_finished || 0;
-        const allCallsDone = totalFinished >= totalScheduled && totalScheduled > 0;
+        const totalDispatched = elevenLabsData.total_calls_dispatched || 0;
+        const failedCount = elevenLabsData.failed_calls || 0;
+        const successCount = elevenLabsData.successful_calls || 0;
 
         console.log(`📊 Batch ${batchCall.id}: scheduled=${totalScheduled}, finished=${totalFinished}, 11Labs status=${elevenLabsData.status}`);
 
-        // IMPORTANT: Only mark as COMPLETED when ALL calls are actually finished
-        // Don't trust 11Labs status alone - verify with totalFinished
-        if (allCallsDone) {
-          newStatus = 'COMPLETED';
-        } else if (elevenLabsData.status === 'failed' && totalFinished === 0) {
-          newStatus = 'FAILED';
-        } else if (elevenLabsData.status === 'cancelled') {
-          newStatus = 'CANCELLED';
-        } else if (elevenLabsData.total_calls_dispatched > 0 || elevenLabsData.status === 'in_progress') {
-          newStatus = 'IN_PROGRESS';
-        }
-        // If 11Labs says completed/done but totalFinished < totalScheduled, keep as IN_PROGRESS
+        newStatus = deriveBatchStatusFromElevenLabs({
+          currentStatus: batchCall.status,
+          totalScheduled,
+          totalDispatched,
+          totalFinished,
+          elevenLabsStatus: elevenLabsData.status,
+          successfulCalls: successCount,
+          failedCalls: failedCount
+        });
 
         // Use total_calls_finished for completed count
         const completedCount = totalFinished;
-        const successCount = elevenLabsData.successful_calls || totalFinished; // Assume success if not specified
-        const failedCount = elevenLabsData.failed_calls || 0;
+        const normalizedSuccessCount = successCount || Math.max(totalFinished - failedCount, 0);
 
         if (newStatus !== batchCall.status || completedCount !== batchCall.completedCalls) {
           await prisma.batchCall.update({
@@ -1406,14 +1441,14 @@ router.get('/:id', checkPermission('campaigns:view'), async (req, res) => {
             data: {
               status: newStatus,
               completedCalls: completedCount,
-              successfulCalls: successCount,
+              successfulCalls: normalizedSuccessCount,
               failedCalls: failedCount,
               ...(newStatus === 'COMPLETED' && { completedAt: new Date() })
             }
           });
           batchCall.status = newStatus;
           batchCall.completedCalls = completedCount;
-          batchCall.successfulCalls = successCount;
+          batchCall.successfulCalls = normalizedSuccessCount;
           batchCall.failedCalls = failedCount;
         }
       } catch (error) {

@@ -441,7 +441,10 @@ router.post('/elevenlabs/call-ended', async (req, res) => {
     });
 
     // 4. Update BatchCall recipient with ALL data including callLogId
-    const callStatus = status === 'done' ? 'completed' : 'failed';
+    const normalizedLifecycleStatus = String(status || '').toLowerCase();
+    const callStatus = ['done', 'completed', 'success'].includes(normalizedLifecycleStatus)
+      ? 'completed'
+      : 'failed';
 
     // Method A: Use our custom metadata (batch_call_id, recipient_id)
     if (customMetadata?.batch_call_id) {
@@ -605,7 +608,7 @@ async function updateBatchCallProgress(batchCallId) {
     let batchStatus = batchCall.status;
 
     if (totalProcessed >= recipients.length) {
-      batchStatus = 'COMPLETED';
+      batchStatus = failedCount === recipients.length ? 'FAILED' : 'COMPLETED';
     }
 
     // Update batch call
