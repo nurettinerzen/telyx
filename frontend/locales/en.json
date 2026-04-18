@@ -2543,9 +2543,13 @@
     "batchCallDetailPage": {
       "campaignNotFound": "Campaign not found",
       "confirmCancelCampaign": "Are you sure you want to cancel this campaign?",
+      "confirmRestartCampaign": "Are you sure you want to restart this campaign with the same recipients?",
       "campaignCancelled": "Campaign cancelled",
+      "campaignRestarted": "Campaign restarted",
       "errorOccurred": "An error occurred",
       "cancelCampaign": "Cancel Campaign",
+      "restartCampaign": "Restart Campaign",
+      "skippedDoNotCall": "{count} recipients were skipped due to the do-not-call list",
       "total": "Total",
       "successful": "Successful",
       "failed": "Failed",

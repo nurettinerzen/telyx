@@ -2543,9 +2543,13 @@
     "batchCallDetailPage": {
       "campaignNotFound": "Kampanya bulunamadı",
       "confirmCancelCampaign": "Bu kampanyayı iptal etmek istediğinize emin misiniz?",
+      "confirmRestartCampaign": "Bu kampanyayı aynı alıcı listesiyle yeniden başlatmak istediğinize emin misiniz?",
       "campaignCancelled": "Kampanya iptal edildi",
+      "campaignRestarted": "Kampanya yeniden başlatıldı",
       "errorOccurred": "Bir hata oluştu",
       "cancelCampaign": "Kampanyayı İptal Et",
+      "restartCampaign": "Yeniden Başlat",
+      "skippedDoNotCall": "{count} kişi aranmayacaklar listesi nedeniyle atlandı",
       "total": "Toplam",
       "successful": "Başarılı",
       "failed": "Başarısız",

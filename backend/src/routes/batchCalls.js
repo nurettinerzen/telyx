@@ -493,6 +493,122 @@ function readMappedValue(row = {}, mapping = {}, key, defaultValue = null) {
   return String(rawValue);
 }
 
+function buildRestartBatchCallName(name = '') {
+  const baseName = String(name || '').trim() || 'Campaign';
+  const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+  return `${baseName} - Retry ${timestamp}`;
+}
+
+function buildElevenLabsRecipients({ recipients = [], assistant, businessId, batchCallId }) {
+  return recipients.map((recipient) => {
+    const dynamicVars = {};
+
+    if (recipient.customer_name) dynamicVars.customer_name = recipient.customer_name;
+    if (recipient.debt_amount) dynamicVars.debt_amount = recipient.debt_amount;
+    if (recipient.due_date) dynamicVars.due_date = recipient.due_date;
+    if (recipient.currency) dynamicVars.currency = recipient.currency;
+    if (recipient.product_name) dynamicVars.product_name = recipient.product_name;
+    if (recipient.product_price) dynamicVars.product_price = recipient.product_price;
+    if (recipient.campaign_name) dynamicVars.campaign_name = recipient.campaign_name;
+    if (recipient.customer_company) dynamicVars.customer_company = recipient.customer_company;
+    if (recipient.interest_area) dynamicVars.interest_area = recipient.interest_area;
+    if (recipient.previous_product) dynamicVars.previous_product = recipient.previous_product;
+    if (recipient.info_type) dynamicVars.info_type = recipient.info_type;
+    if (recipient.custom_data) dynamicVars.custom_data = recipient.custom_data;
+    if (recipient.custom_info) dynamicVars.custom_info = recipient.custom_info;
+    if (recipient.custom_notes) dynamicVars.custom_notes = recipient.custom_notes;
+    if (recipient.appointment_date) dynamicVars.appointment_date = recipient.appointment_date;
+    if (recipient.custom_1) dynamicVars.custom_1 = recipient.custom_1;
+    if (recipient.custom_2) dynamicVars.custom_2 = recipient.custom_2;
+
+    const callType = inferCallType(assistant, dynamicVars);
+
+    return {
+      id: recipient.id,
+      phone_number: recipient.phone_number,
+      conversation_initiation_client_data: {
+        dynamic_variables: dynamicVars,
+        metadata: {
+          business_id: businessId.toString(),
+          batch_call_id: batchCallId,
+          recipient_id: recipient.id,
+          channel: 'outbound',
+          phone_outbound_v1: true,
+          call_type: callType
+        }
+      }
+    };
+  });
+}
+
+async function submitBatchCallToElevenLabs({
+  batchCallId,
+  businessId,
+  name,
+  assistant,
+  phoneNumber,
+  recipients,
+  scheduledAt = null
+}) {
+  const elevenLabsApiKey = process.env.ELEVENLABS_API_KEY;
+  const elevenLabsRecipients = buildElevenLabsRecipients({
+    recipients,
+    assistant,
+    businessId,
+    batchCallId
+  });
+
+  const batchPayload = {
+    call_name: name,
+    agent_id: assistant.elevenLabsAgentId,
+    agent_phone_number_id: phoneNumber.elevenLabsPhoneId,
+    recipients: elevenLabsRecipients,
+    ...(scheduledAt && { scheduled_time_unix: Math.floor(new Date(scheduledAt).getTime() / 1000) })
+  };
+
+  if (elevenLabsRecipients.length > 0) {
+    console.log('📤 Sample recipient dynamic_variables:', JSON.stringify(
+      elevenLabsRecipients[0].conversation_initiation_client_data.dynamic_variables
+    ));
+  }
+
+  console.log('📤 Submitting batch call to 11Labs:', {
+    call_name: name,
+    agent_id: assistant.elevenLabsAgentId,
+    agent_phone_number_id: phoneNumber.elevenLabsPhoneId,
+    recipientCount: elevenLabsRecipients.length
+  });
+
+  const response = await axios.post(
+    'https://api.elevenlabs.io/v1/convai/batch-calling/submit',
+    batchPayload,
+    {
+      headers: {
+        'xi-api-key': elevenLabsApiKey,
+        'Content-Type': 'application/json; charset=utf-8'
+      }
+    }
+  );
+
+  console.log('✅ 11Labs batch call created:', response.data);
+
+  const elevenLabsBatchId = response.data.id || response.data.batch_id;
+
+  await prisma.batchCall.update({
+    where: { id: batchCallId },
+    data: {
+      elevenLabsBatchId,
+      status: scheduledAt ? 'PENDING' : 'IN_PROGRESS',
+      startedAt: scheduledAt ? null : new Date()
+    }
+  });
+
+  return {
+    elevenLabsBatchId,
+    responseData: response.data
+  };
+}
+
 /**
  * Check if plan allows batch calls
  */
@@ -1113,99 +1229,14 @@ router.post('/', upload.single('file'), checkPermission('campaigns:view'), async
 
     // Submit to 11Labs Batch Calling API
     try {
-      const elevenLabsApiKey = process.env.ELEVENLABS_API_KEY;
-
-      // Transform recipients to 11Labs format with dynamic_variables and metadata
-      const elevenLabsRecipients = recipients.map((r) => {
-        const dynamicVars = {};
-        // Collection variables
-        if (r.customer_name) dynamicVars.customer_name = r.customer_name;
-        if (r.debt_amount) dynamicVars.debt_amount = r.debt_amount;
-        if (r.due_date) dynamicVars.due_date = r.due_date;
-        if (r.currency) dynamicVars.currency = r.currency;
-        // Sales variables
-        if (r.product_name) dynamicVars.product_name = r.product_name;
-        if (r.product_price) dynamicVars.product_price = r.product_price;
-        if (r.campaign_name) dynamicVars.campaign_name = r.campaign_name;
-        if (r.customer_company) dynamicVars.customer_company = r.customer_company;
-        if (r.interest_area) dynamicVars.interest_area = r.interest_area;
-        if (r.previous_product) dynamicVars.previous_product = r.previous_product;
-        // General variables
-        if (r.info_type) dynamicVars.info_type = r.info_type;
-        if (r.custom_data) dynamicVars.custom_data = r.custom_data;
-        if (r.custom_info) dynamicVars.custom_info = r.custom_info;
-        if (r.custom_notes) dynamicVars.custom_notes = r.custom_notes;
-        // Legacy general variables
-        if (r.appointment_date) dynamicVars.appointment_date = r.appointment_date;
-        if (r.custom_1) dynamicVars.custom_1 = r.custom_1;
-        if (r.custom_2) dynamicVars.custom_2 = r.custom_2;
-
-        const callType = inferCallType(assistant, dynamicVars);
-
-        return {
-          id: r.id,  // Use the same ID stored in DB
-          phone_number: r.phone_number,
-          conversation_initiation_client_data: {
-            dynamic_variables: dynamicVars,
-            // Metadata for webhook processing
-            metadata: {
-              business_id: businessId.toString(),
-              batch_call_id: batchCall.id,
-              recipient_id: r.id,  // Use the same ID stored in DB
-              channel: 'outbound',
-              phone_outbound_v1: true,
-              call_type: callType
-            }
-          }
-        };
-      });
-
-      const batchPayload = {
-        call_name: name,
-        agent_id: assistant.elevenLabsAgentId,
-        agent_phone_number_id: phoneNumber.elevenLabsPhoneId,
-        recipients: elevenLabsRecipients,
-        ...(scheduledAt && { scheduled_time_unix: Math.floor(new Date(scheduledAt).getTime() / 1000) })
-      };
-
-      // Log first recipient for debugging Turkish characters
-      if (elevenLabsRecipients.length > 0) {
-        console.log('📤 Sample recipient dynamic_variables:', JSON.stringify(
-          elevenLabsRecipients[0].conversation_initiation_client_data.dynamic_variables
-        ));
-      }
-
-      console.log('📤 Submitting batch call to 11Labs:', {
-        call_name: name,
-        agent_id: assistant.elevenLabsAgentId,
-        agent_phone_number_id: phoneNumber.elevenLabsPhoneId,
-        recipientCount: elevenLabsRecipients.length
-      });
-
-      const response = await axios.post(
-        'https://api.elevenlabs.io/v1/convai/batch-calling/submit',
-        batchPayload,
-        {
-          headers: {
-            'xi-api-key': elevenLabsApiKey,
-            'Content-Type': 'application/json; charset=utf-8'  // Explicit UTF-8 for Turkish chars
-          }
-        }
-      );
-
-      console.log('✅ 11Labs batch call created:', response.data);
-
-      // 11Labs returns 'id' not 'batch_id'
-      const elevenLabsBatchId = response.data.id || response.data.batch_id;
-
-      // Update batch call with 11Labs ID
-      await prisma.batchCall.update({
-        where: { id: batchCall.id },
-        data: {
-          elevenLabsBatchId: elevenLabsBatchId,
-          status: scheduledAt ? 'PENDING' : 'IN_PROGRESS',
-          startedAt: scheduledAt ? null : new Date()
-        }
+      const { elevenLabsBatchId } = await submitBatchCallToElevenLabs({
+        batchCallId: batchCall.id,
+        businessId,
+        name,
+        assistant,
+        phoneNumber,
+        recipients,
+        scheduledAt
       });
 
       res.json({
@@ -1630,6 +1661,186 @@ router.get('/:id', checkPermission('campaigns:view'), async (req, res) => {
   } catch (error) {
     console.error('Get batch call error:', error);
     res.status(500).json({ error: 'Failed to fetch batch call details' });
+  }
+});
+
+/**
+ * POST /api/batch-calls/:id/restart
+ * Create and immediately start a new campaign using the same recipients/configuration
+ */
+router.post('/:id/restart', checkPermission('campaigns:view'), async (req, res) => {
+  try {
+    const businessId = req.businessId;
+    const { id } = req.params;
+
+    const access = await checkBatchCallAccess(businessId);
+    if (!access.hasAccess) {
+      return sendBatchCallAccessDenied(res, access);
+    }
+
+    const sourceBatchCall = await prisma.batchCall.findFirst({
+      where: {
+        id,
+        businessId
+      }
+    });
+
+    if (!sourceBatchCall) {
+      return res.status(404).json({ error: 'Batch call not found' });
+    }
+
+    if (sourceBatchCall.status === 'PENDING' || sourceBatchCall.status === 'IN_PROGRESS') {
+      return res.status(400).json({
+        error: 'Active campaigns cannot be restarted',
+        errorTR: 'Devam eden kampanyalar yeniden başlatılamaz'
+      });
+    }
+
+    let recipients = [];
+    let mapping = {};
+
+    try {
+      recipients = JSON.parse(sourceBatchCall.recipients || '[]');
+      mapping = JSON.parse(sourceBatchCall.columnMapping || '{}');
+    } catch (error) {
+      console.error('Restart batch parse error:', error);
+      return res.status(400).json({
+        error: 'Campaign data is invalid',
+        errorTR: 'Kampanya verisi geçersiz'
+      });
+    }
+
+    if (!Array.isArray(recipients) || recipients.length === 0) {
+      return res.status(400).json({
+        error: 'Campaign has no recipients to restart',
+        errorTR: 'Kampanyada yeniden aranacak alıcı bulunamadı'
+      });
+    }
+
+    const assistant = await prisma.assistant.findFirst({
+      where: {
+        id: sourceBatchCall.assistantId,
+        businessId,
+        isActive: true,
+        OR: [
+          { callDirection: 'outbound' },
+          { callDirection: 'outbound_sales' },
+          { callDirection: 'outbound_collection' },
+          { callDirection: 'outbound_general' }
+        ]
+      }
+    });
+
+    if (!assistant) {
+      return res.status(404).json({
+        error: 'Outbound assistant not found',
+        errorTR: 'Giden arama asistanı bulunamadı'
+      });
+    }
+
+    if (!assistant.elevenLabsAgentId) {
+      return res.status(400).json({
+        error: 'Assistant is not ready for calls',
+        errorTR: 'Asistan aramalar için hazır değil'
+      });
+    }
+
+    const phoneNumber = await prisma.phoneNumber.findFirst({
+      where: {
+        id: sourceBatchCall.phoneNumberId,
+        businessId,
+        status: 'ACTIVE'
+      }
+    });
+
+    if (!phoneNumber) {
+      return res.status(404).json({
+        error: 'Phone number not found',
+        errorTR: 'Telefon numarası bulunamadı'
+      });
+    }
+
+    if (!phoneNumber.elevenLabsPhoneId) {
+      return res.status(400).json({
+        error: 'Phone number is not ready for calls',
+        errorTR: 'Telefon numarası aramalar için hazır değil'
+      });
+    }
+
+    let blockedRecipients = [];
+    try {
+      const filtered = await filterDoNotCallRecipients(businessId, recipients);
+      recipients = filtered.allowedRecipients;
+      blockedRecipients = filtered.blockedRecipients;
+    } catch (dncError) {
+      if (dncError.message === 'DNC_PRECHECK_UNAVAILABLE') {
+        return res.status(503).json({
+          error: 'DNC precheck is unavailable',
+          errorTR: 'DNC ön kontrolü kullanılamıyor, kampanya yeniden başlatılamadı'
+        });
+      }
+      throw dncError;
+    }
+
+    if (recipients.length === 0) {
+      return res.status(400).json({
+        error: 'All recipients are blocked by do-not-call list',
+        errorTR: 'Tüm alıcılar aranmayacaklar listesinde olduğu için kampanya yeniden başlatılamadı'
+      });
+    }
+
+    const restartedBatchCall = await prisma.batchCall.create({
+      data: {
+        businessId,
+        assistantId: sourceBatchCall.assistantId,
+        phoneNumberId: sourceBatchCall.phoneNumberId,
+        name: buildRestartBatchCallName(sourceBatchCall.name),
+        status: 'PENDING',
+        totalRecipients: recipients.length,
+        recipients: JSON.stringify(recipients),
+        columnMapping: JSON.stringify(mapping),
+        scheduledAt: null
+      }
+    });
+
+    try {
+      const { elevenLabsBatchId } = await submitBatchCallToElevenLabs({
+        batchCallId: restartedBatchCall.id,
+        businessId,
+        name: restartedBatchCall.name,
+        assistant,
+        phoneNumber,
+        recipients,
+        scheduledAt: null
+      });
+
+      return res.json({
+        success: true,
+        batchCall: {
+          ...restartedBatchCall,
+          elevenLabsBatchId,
+          status: 'IN_PROGRESS',
+          startedAt: new Date()
+        },
+        skippedDoNotCall: blockedRecipients.length,
+        message: 'Campaign restarted successfully'
+      });
+    } catch (elevenLabsError) {
+      console.error('❌ Restart batch call error:', elevenLabsError.response?.data || elevenLabsError.message);
+
+      await prisma.batchCall.update({
+        where: { id: restartedBatchCall.id },
+        data: { status: 'FAILED' }
+      });
+
+      return res.status(500).json({
+        error: 'Failed to restart campaign',
+        details: elevenLabsError.response?.data || elevenLabsError.message
+      });
+    }
+  } catch (error) {
+    console.error('Restart batch call error:', error);
+    res.status(500).json({ error: 'Failed to restart batch call' });
   }
 });
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,7 +16,8 @@ import {
   Users,
   PhoneCall,
   PhoneOff,
-  ExternalLink
+  ExternalLink,
+  RotateCcw
 } from 'lucide-react';
 import { apiClient } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
@@ -94,12 +95,13 @@ export default function BatchCallDetailPage() {
 
   const [batchCall, setBatchCall] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [restarting, setRestarting] = useState(false);
 
   useEffect(() => {
     if (id) {
       loadBatchCall();
     }
-  }, [id]);
+  }, [id, loadBatchCall]);
 
   // Auto-refresh when campaign is in progress
   useEffect(() => {
@@ -109,9 +111,9 @@ export default function BatchCallDetailPage() {
       }, 5000); // Poll every 5 seconds
       return () => clearInterval(interval);
     }
-  }, [batchCall?.status]);
+  }, [batchCall?.status, loadBatchCall]);
 
-  const loadBatchCall = async (silent = false) => {
+  const loadBatchCall = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
       const response = await apiClient.get(`/api/batch-calls/${id}`);
@@ -125,7 +127,7 @@ export default function BatchCallDetailPage() {
     } finally {
       if (!silent) setLoading(false);
     }
-  };
+  }, [id, router, t]);
 
   const handleCancel = async () => {
     if (!confirm(t('dashboard.batchCallDetailPage.confirmCancelCampaign'))) {
@@ -144,6 +146,37 @@ export default function BatchCallDetailPage() {
       loadBatchCall();
     } catch (error) {
       toast.error(error.response?.data?.error || t('dashboard.batchCallDetailPage.errorOccurred'));
+    }
+  };
+
+  const handleRestart = async () => {
+    if (!confirm(t('dashboard.batchCallDetailPage.confirmRestartCampaign'))) {
+      return;
+    }
+
+    setRestarting(true);
+    try {
+      const response = await apiClient.post(`/api/batch-calls/${id}/restart`);
+      const restartedBatchCall = response.data?.batchCall;
+
+      toast.success(response.data?.message || t('dashboard.batchCallDetailPage.campaignRestarted'));
+
+      if (response.data?.skippedDoNotCall > 0) {
+        toast.info(t('dashboard.batchCallDetailPage.skippedDoNotCall', {
+          count: response.data.skippedDoNotCall
+        }), { duration: 5000 });
+      }
+
+      if (restartedBatchCall?.id) {
+        router.push(`/dashboard/batch-calls/${restartedBatchCall.id}`);
+        return;
+      }
+
+      loadBatchCall();
+    } catch (error) {
+      toast.error(error.response?.data?.error || t('dashboard.batchCallDetailPage.errorOccurred'));
+    } finally {
+      setRestarting(false);
     }
   };
 
@@ -194,12 +227,24 @@ export default function BatchCallDetailPage() {
           </div>
         </div>
 
-        {(batchCall.status === 'PENDING' || batchCall.status === 'IN_PROGRESS') && (
-          <Button variant="outline" onClick={handleCancel} className="text-red-600">
-            <XCircle className="h-4 w-4 mr-2" />
-            {t('dashboard.batchCallDetailPage.cancelCampaign')}
-          </Button>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {batchCall.status !== 'PENDING' && batchCall.status !== 'IN_PROGRESS' && (
+            <Button variant="outline" onClick={handleRestart} disabled={restarting}>
+              {restarting ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <RotateCcw className="h-4 w-4 mr-2" />
+              )}
+              {t('dashboard.batchCallDetailPage.restartCampaign')}
+            </Button>
+          )}
+          {(batchCall.status === 'PENDING' || batchCall.status === 'IN_PROGRESS') && (
+            <Button variant="outline" onClick={handleCancel} className="text-red-600">
+              <XCircle className="h-4 w-4 mr-2" />
+              {t('dashboard.batchCallDetailPage.cancelCampaign')}
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Stats Cards */}
