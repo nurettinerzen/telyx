@@ -185,9 +185,7 @@ function buildOutboundSalesOpeningOverride(assistant, business = {}) {
   const businessName = business?.name || 'İşletme';
   const explicitOpening = String(assistant?.firstMessage || '').trim();
 
-  const fallbackOpening = /telyx|telix/i.test(businessName)
-    ? `Merhaba, ben ${assistantName}. Telyx adına arıyorum. Telyx, işletmelerin telefon, canlı chat, WhatsApp ve e-posta üzerinden gelen müşteri taleplerini tek yerden yönetmesini sağlayan bir müşteri hizmetleri platformu. Şu an seçili işletmelere Pro paketi kısa süreli ücretsiz deneme ile sunuyoruz. Uygunsanız 20 saniyede kısaca anlatayım.`
-    : `Merhaba, ben ${assistantName}. ${businessName} adına arıyorum. Şu an seçili işletmelere kısa süreli ücretsiz deneme sunuyoruz. Uygunsanız 20 saniyede kısaca anlatayım.`;
+  const fallbackOpening = `Merhaba, ben ${assistantName}. ${businessName} adına arıyorum. Şu an seçili işletmelere kısa süreli ücretsiz deneme sunuyoruz. Uygunsanız 20 saniyede kısaca anlatayım.`;
 
   const openingText = explicitOpening || fallbackOpening;
 
