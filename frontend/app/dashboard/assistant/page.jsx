@@ -115,14 +115,10 @@ const buildDefaultOutboundFirstMessage = ({
   const lang = language === 'tr' ? 'tr' : 'en';
   const name = assistantName || (lang === 'tr' ? 'Asistan' : 'Assistant');
   const company = businessName || (lang === 'tr' ? 'İşletme' : 'the company');
-  const isTelyx = /telyx|telix/i.test(businessName || '');
 
   if (lang === 'tr') {
     if (purpose === 'sales') {
-      if (isTelyx) {
-        return `Merhaba, ben ${name}. Telyx adına arıyorum. Telyx, işletmelerin telefon, canlı chat, WhatsApp ve e-posta üzerinden gelen müşteri taleplerini tek yerden yönetmesini sağlayan bir müşteri hizmetleri platformu. Şu an seçili işletmelere Pro paketi kısa süreli ücretsiz deneme ile sunuyoruz. Uygunsanız 20 saniyede kısaca anlatayım.`;
-      }
-      return `Merhaba, ben ${name}. ${company} adına arıyorum. Şu an seçili işletmelere kısa süreli ücretsiz deneme sunuyoruz. Uygunsanız 20 saniyede kısaca anlatayım.`;
+      return `Merhaba, ben ${name}. ${company} adına arıyorum. Uygunsanız arama sebebimi kısaca paylaşayım.`;
     }
 
     if (purpose === 'collection') {
@@ -133,7 +129,7 @@ const buildDefaultOutboundFirstMessage = ({
   }
 
   if (purpose === 'sales') {
-    return `Hello, I'm ${name} calling on behalf of ${company}. We are offering a short complimentary trial to selected businesses. If now is a good time, I can explain it in 20 seconds.`;
+    return `Hello, I'm ${name} calling on behalf of ${company}. If now is a good time, I can briefly explain why I'm calling.`;
   }
 
   if (purpose === 'collection') {
@@ -953,8 +949,8 @@ export default function AssistantsPage() {
                     placeholder={
                       isOutboundPhoneMode
                         ? (locale === 'tr'
-                          ? 'örn: Merhaba, ben Ali. Telyx adına arıyorum...'
-                          : 'e.g., Hello, I\'m Ali calling on behalf of Telyx...')
+                          ? 'örn: Merhaba, ben Ali. ABC firması adına arıyorum...'
+                          : 'e.g., Hello, I\'m Ali calling on behalf of ABC Company...')
                         : t('dashboard.assistantsPage.greetingPlaceholder')
                     }
                   />
@@ -1073,7 +1069,7 @@ export default function AssistantsPage() {
                 value={bizIdentity.identitySummary}
                 onChange={(e) => setBizIdentity({ ...bizIdentity, identitySummary: e.target.value })}
                 placeholder={locale === 'tr'
-                  ? 'İşletmenizi 1-2 cümleyle tanımlayın. Örn: "Telyx, yapay zeka destekli müşteri iletişim platformudur."'
+                  ? 'İşletmenizi 1-2 cümleyle tanımlayın. Örn: "ABC Lojistik, şehir içi kurye ve dağıtım hizmeti sunar."'
                   : 'Describe your business in 1-2 sentences.'
                 }
               />
@@ -1107,8 +1103,8 @@ export default function AssistantsPage() {
                     value={bizIdentity.aliases}
                     onChange={(e) => setBizIdentity({ ...bizIdentity, aliases: e.target.value })}
                     placeholder={locale === 'tr'
-                      ? 'Kısaltma, eski isim veya şube adı varsa ekleyin. Örn: Telix, Telyx AI, Telyx İstanbul'
-                      : 'Add abbreviations, old names, or branch names. E.g.: Telix, Telyx AI'
+                      ? 'Kısaltma, eski isim veya şube adı varsa ekleyin. Örn: ABC, ABC Teknoloji, ABC İstanbul'
+                      : 'Add abbreviations, old names, or branch names. E.g.: ABC, ABC Tech'
                     }
                   />
                   <p className="text-xs text-neutral-500 mt-1">

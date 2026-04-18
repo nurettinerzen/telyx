@@ -169,14 +169,10 @@ function getDefaultPhoneFirstMessage({
 
   if (callDirection === 'outbound_sales') {
     if (lang === 'TR') {
-      if (/telyx|telix/i.test(companyName)) {
-        return `Merhaba, ben ${assistantName}. Telyx adına arıyorum. Telyx, işletmelerin telefon, canlı chat, WhatsApp ve e-posta üzerinden gelen müşteri taleplerini tek yerden yönetmesini sağlayan bir müşteri hizmetleri platformu. Şu an seçili işletmelere Pro paketi kısa süreli ücretsiz deneme ile sunuyoruz. Uygunsanız 20 saniyede kısaca anlatayım.`;
-      }
-
-      return `Merhaba, ben ${assistantName}. ${companyName} adına arıyorum. Şu an seçili işletmelere kısa süreli ücretsiz deneme sunuyoruz. Uygunsanız 20 saniyede kısaca anlatayım.`;
+      return `Merhaba, ben ${assistantName}. ${companyName} adına arıyorum. Uygunsanız arama sebebimi kısaca paylaşayım.`;
     }
 
-    return `Hello, I'm ${assistantName} calling on behalf of ${companyName}. We are offering a short complimentary trial to selected businesses. If now is a good time, I can explain it in 20 seconds.`;
+    return `Hello, I'm ${assistantName} calling on behalf of ${companyName}. If now is a good time, I can briefly explain why I'm calling.`;
   }
 
   const localizedDefaultFirstMessage = ['TR', 'EN'].includes(lang)

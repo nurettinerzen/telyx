@@ -185,7 +185,7 @@ function buildOutboundSalesOpeningOverride(assistant, business = {}) {
   const businessName = business?.name || 'İşletme';
   const explicitOpening = String(assistant?.firstMessage || '').trim();
 
-  const fallbackOpening = `Merhaba, ben ${assistantName}. ${businessName} adına arıyorum. Şu an seçili işletmelere kısa süreli ücretsiz deneme sunuyoruz. Uygunsanız 20 saniyede kısaca anlatayım.`;
+  const fallbackOpening = `Merhaba, ben ${assistantName}. ${businessName} adına arıyorum. Uygunsanız arama sebebimi kısaca paylaşayım.`;
 
   const openingText = explicitOpening || fallbackOpening;
 
@@ -193,7 +193,6 @@ function buildOutboundSalesOpeningOverride(assistant, business = {}) {
 - Eğer bu, telefonu açan kişiye verdiğin ilk canlı yanıtsa şu açılışa çok yakın başla:
 "${openingText}"
 - İlk yanıtta adını mutlaka söyle.
-- Kanal isimlerini liste okur gibi ayırma. "telefon, canlı chat, WhatsApp ve e-posta" kısmını tek akışta söyle.
 - Bu açılışı yalnızca ilk canlı temasta kullan. Sonraki turlarda kendini yeniden tanıtma.`;
 }
 
