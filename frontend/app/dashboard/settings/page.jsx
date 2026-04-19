@@ -85,7 +85,7 @@ export default function SettingsPage() {
   const [showEmailChangeModal, setShowEmailChangeModal] = useState(false);
   const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
   const [hasDeletePassword, setHasDeletePassword] = useState(false);
-  const [emailChange, setEmailChange] = useState({ newEmail: '' });
+  const [emailChange, setEmailChange] = useState({ newEmail: '', confirmEmail: '' });
 
   // Password values stored in refs to avoid React DevTools exposure
   const passwordValues = useRef({
@@ -205,13 +205,20 @@ export default function SettingsPage() {
     const nextEmail = String(emailChange.newEmail || '').trim().toLowerCase();
     const currentEmail = String(profile.email || '').trim().toLowerCase();
 
-    if (!nextEmail || !emailPasswordRef.current) {
+    const confirmEmail = String(emailChange.confirmEmail || '').trim().toLowerCase();
+
+    if (!nextEmail || !confirmEmail || !emailPasswordRef.current) {
       toast.error(t('dashboard.settingsPage.emailFieldsRequired'));
       return;
     }
 
     if (nextEmail === currentEmail) {
       toast.error(t('dashboard.settingsPage.emailMustBeDifferent'));
+      return;
+    }
+
+    if (nextEmail !== confirmEmail) {
+      toast.error(t('dashboard.settingsPage.emailConfirmationMismatch'));
       return;
     }
 
@@ -232,7 +239,7 @@ export default function SettingsPage() {
       );
 
       emailPasswordRef.current = '';
-      setEmailChange({ newEmail: '' });
+      setEmailChange({ newEmail: '', confirmEmail: '' });
       setEmailInputNonce((current) => current + 1);
       setShowEmailChangeModal(false);
       setProfile((current) => ({ ...current, email: result?.data?.email || nextEmail }));
@@ -245,7 +252,7 @@ export default function SettingsPage() {
     setShowEmailChangeModal(open);
     if (!open) {
       emailPasswordRef.current = '';
-      setEmailChange({ newEmail: '' });
+      setEmailChange({ newEmail: '', confirmEmail: '' });
       setEmailInputNonce((current) => current + 1);
     }
   };
@@ -369,7 +376,12 @@ export default function SettingsPage() {
             />
           </div>
           <div>
-            <Label htmlFor="email">{t('dashboard.settingsPage.emailAddressLabel')}</Label>
+            <div className="flex items-center justify-between gap-3">
+              <Label htmlFor="email">{t('dashboard.settingsPage.emailAddressLabel')}</Label>
+              <Button variant="outline" size="sm" onClick={() => setShowEmailChangeModal(true)}>
+                {t('auth.changeEmail')}
+              </Button>
+            </div>
             <Input
               id="email"
               type="email"
@@ -381,11 +393,6 @@ export default function SettingsPage() {
             <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
               {t('dashboard.settingsPage.emailChangeHint')}
             </p>
-            <div className="mt-3 flex justify-end">
-              <Button variant="outline" onClick={() => setShowEmailChangeModal(true)}>
-                {t('auth.changeEmail')}
-              </Button>
-            </div>
           </div>
           <div>
             <Label htmlFor="company">{t('dashboard.settingsPage.companyNameOptional')}</Label>
@@ -728,6 +735,19 @@ export default function SettingsPage() {
                 autoComplete="email"
                 value={emailChange.newEmail}
                 onChange={(e) => setEmailChange({ newEmail: e.target.value })}
+                placeholder="name@company.com"
+                className={editableFieldClass}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="confirmEmailAddress">{t('dashboard.settingsPage.confirmNewEmailLabel')}</Label>
+              <Input
+                id="confirmEmailAddress"
+                type="email"
+                autoComplete="email"
+                value={emailChange.confirmEmail}
+                onChange={(e) => setEmailChange((current) => ({ ...current, confirmEmail: e.target.value }))}
                 placeholder="name@company.com"
                 className={editableFieldClass}
               />
