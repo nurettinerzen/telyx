@@ -14,7 +14,8 @@ const DEFAULT_WRITTEN_LIMITS = {
   TRIAL: parsePositiveInt(process.env.TRIAL_WRITTEN_INTERACTIONS, 50),
   PAYG: 0,
   STARTER: parsePositiveInt(process.env.STARTER_WRITTEN_INTERACTIONS, 500),
-  PRO: parsePositiveInt(process.env.PRO_WRITTEN_INTERACTIONS, 2000)
+  PRO: parsePositiveInt(process.env.PRO_WRITTEN_INTERACTIONS, 2000),
+  ENTERPRISE: parsePositiveInt(process.env.ENTERPRISE_WRITTEN_INTERACTIONS, 10000)
 };
 
 const DEFAULT_WRITTEN_PRICES = {
@@ -121,7 +122,7 @@ function getBasePlanDefinition(planName, country = 'TR') {
     ENTERPRISE: {
       plan: 'ENTERPRISE',
       billingModel: 'enterprise',
-      includedWrittenInteractions: null,
+      includedWrittenInteractions: DEFAULT_WRITTEN_LIMITS.ENTERPRISE,
       includedVoiceMinutes: null,
       concurrentCallLimit: 5,
       assistantLimit: 25,
@@ -171,7 +172,7 @@ export function getBillingPlanDefinition(subscriptionOrPlan, country = null) {
 
   return {
     ...base,
-    includedWrittenInteractions: customWritten,
+    includedWrittenInteractions: customWritten ?? base.includedWrittenInteractions,
     includedVoiceMinutes: customVoice,
     concurrentCallLimit: customConcurrent,
     assistantLimit: customAssistants,

@@ -447,7 +447,9 @@ export default function SubscriptionPage() {
       label: locale === 'tr' ? 'Yazılı etkileşim' : 'Written interactions',
       value: (() => {
         if (subscription.plan === 'PAYG') return locale === 'tr' ? 'Bakiyeden düşer' : 'Wallet-based';
-        const limit = subscription.enterpriseSupportInteractions ?? currentPlanPricing?.writtenInteractions;
+        const limit = subscription.enterpriseSupportInteractions
+          ?? subscription.writtenInteractionsIncluded
+          ?? currentPlanPricing?.writtenInteractions;
         if (limit === null || limit === undefined) return locale === 'tr' ? 'Özel' : 'Custom';
         if (Number(limit) === 0) return locale === 'tr' ? 'Yok' : 'Not included';
         return `${Number(limit).toLocaleString(regionConfig.locale)} ${locale === 'tr' ? 'etkileşim' : 'interactions'}`;

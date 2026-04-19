@@ -248,14 +248,16 @@ export default function CreditBalance({ onBuyCredit, refreshTrigger }) {
       ? Math.min((balance.trialMinutes.used / balance.trialMinutes.limit) * 100, 100)
       : 0;
 
-    const writtenLimit = Number(balance.writtenInteractions?.limit || 0);
+    const writtenLimitRaw = balance.writtenInteractions?.limit;
+    const writtenRemainingRaw = balance.writtenInteractions?.remaining;
+    const writtenLimit = Number.isFinite(writtenLimitRaw) ? Number(writtenLimitRaw) : 0;
     const writtenUsed = Number(balance.writtenInteractions?.used || 0);
-    const writtenRemaining = Number.isFinite(Number(balance.writtenInteractions?.remaining))
-      ? Number(balance.writtenInteractions?.remaining)
+    const writtenRemaining = Number.isFinite(writtenRemainingRaw)
+      ? Number(writtenRemainingRaw)
       : null;
     const writtenDisplayTotal = writtenLimit > 0
       ? writtenLimit
-      : (writtenRemaining !== null ? writtenUsed + writtenRemaining : null);
+      : (writtenRemaining !== null && writtenRemaining > 0 ? writtenUsed + writtenRemaining : null);
     const writtenPercent = writtenDisplayTotal > 0
       ? Math.min((writtenUsed / writtenDisplayTotal) * 100, 100)
       : 0;

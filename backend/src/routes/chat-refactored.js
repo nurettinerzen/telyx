@@ -1689,12 +1689,21 @@ router.post('/widget', async (req, res) => {
     }
 
     if (writtenUsageKey) {
-      await commitWrittenInteraction(writtenUsageKey, {
-        channel: 'CHAT',
-        requestId: req.requestId || null,
-        clientSessionId,
-        finalReplyLength: finalReply.length
-      });
+      const bypassReason = result?.metadata?.llmBypassReason || null;
+      const shouldRollbackWrittenUsage = result?.outcome === ToolOutcome.INFRA_ERROR
+        || bypassReason === 'BYPASS_LLM_PROVIDER_ERROR'
+        || bypassReason === 'BYPASS_ORCHESTRATOR_FATAL';
+
+      if (shouldRollbackWrittenUsage) {
+        await releaseWrittenInteraction(writtenUsageKey, bypassReason || 'CHAT_WIDGET_BYPASS').catch(() => null);
+      } else {
+        await commitWrittenInteraction(writtenUsageKey, {
+          channel: 'CHAT',
+          requestId: req.requestId || null,
+          clientSessionId,
+          finalReplyLength: finalReply.length
+        });
+      }
       writtenUsageKey = null;
     }
 
