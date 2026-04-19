@@ -670,7 +670,7 @@ export default function BlogPostPage() {
               <Link
                 href="/blog"
                 className="inline-flex items-center gap-2 text-sm font-medium mb-8 hover:text-primary-700 dark:hover:text-primary-300 transition-colors duration-200"
-                style={{ color: 'var(--ft-text-muted)' }}
+                style={{ color: 'var(--ft-text-soft)' }}
               >
                 <ArrowLeft className="w-4 h-4" />
                 {t('blog.allPosts')}
@@ -705,7 +705,7 @@ export default function BlogPostPage() {
               viewport={{ once: true }}
               transition={{ ...transition, delay: 0.12 }}
               className="flex flex-wrap items-center gap-5 text-sm"
-              style={{ color: 'var(--ft-text-muted)' }}
+              style={{ color: 'var(--ft-text-soft)' }}
             >
               <span className="flex items-center gap-1.5">
                 <Calendar className="w-4 h-4" />
@@ -810,7 +810,7 @@ export default function BlogPostPage() {
                           >
                             {isTR ? relPost.excerpt.tr : relPost.excerpt.en}
                           </p>
-                          <div className="flex items-center gap-3 text-xs" style={{ color: 'var(--ft-text-muted)' }}>
+                          <div className="flex items-center gap-3 text-xs" style={{ color: 'var(--ft-text-soft)' }}>
                             <span className="flex items-center gap-1">
                               <Calendar className="w-3.5 h-3.5" />
                               {formatDate(relPost.date, isTR)}

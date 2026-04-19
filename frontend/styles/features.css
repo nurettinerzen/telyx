@@ -5,6 +5,7 @@
 .features-page {
   --ft-accent: #051752;
   --ft-accent-light: #00c4e6;
+  --ft-accent-contrast: var(--ft-accent);
   --ft-accent-glow: rgba(0, 111, 235, 0.25);
   --ft-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
@@ -15,6 +16,7 @@
   --ft-text-primary: #0f172a;
   --ft-text-secondary: #475569;
   --ft-text-muted: #94a3b8;
+  --ft-text-soft: var(--ft-text-muted);
   --ft-card-bg: rgba(255, 255, 255, 0.85);
 }
 
@@ -26,17 +28,9 @@
   --ft-text-primary: #f1f5f9;
   --ft-text-secondary: #94a3b8;
   --ft-text-muted: #64748b;
+  --ft-text-soft: #94a3b8;
+  --ft-accent-contrast: #7dd3fc;
   --ft-card-bg: rgba(255, 255, 255, 0.03);
-}
-
-.about-page {
-  --about-accent-contrast: var(--ft-accent);
-  --about-text-soft: var(--ft-text-muted);
-}
-
-:is(.dark) .about-page {
-  --about-accent-contrast: #7dd3fc;
-  --about-text-soft: #cbd5e1;
 }
 
 /* ── Keyframes ── */

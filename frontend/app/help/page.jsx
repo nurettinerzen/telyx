@@ -277,7 +277,7 @@ export default function HelpPage() {
                       className={`w-5 h-5 flex-shrink-0 transition-transform duration-300 ${
                         openIndex === index ? 'rotate-180' : ''
                       }`}
-                      style={{ color: 'var(--ft-text-muted)' }}
+                      style={{ color: 'var(--ft-text-soft)' }}
                     />
                   </button>
                   <AnimatePresence>
@@ -364,7 +364,7 @@ export default function HelpPage() {
                         </p>
                         <span
                           className="inline-flex items-center gap-1 text-sm font-medium transition-all duration-200 group-hover:gap-2"
-                          style={{ color: 'var(--ft-accent)' }}
+                          style={{ color: 'var(--ft-accent-contrast)' }}
                         >
                           {t('help.topicExplore')}
                           <ArrowRight className="w-4 h-4" />

@@ -238,7 +238,7 @@ export default function BlogPage() {
                         </p>
 
                         {/* Meta */}
-                        <div className="flex items-center gap-4 text-xs pt-4" style={{ color: 'var(--ft-text-muted)', borderTop: '1px solid var(--ft-border)' }}>
+                        <div className="flex items-center gap-4 text-xs pt-4" style={{ color: 'var(--ft-text-soft)', borderTop: '1px solid var(--ft-border)' }}>
                           <span className="flex items-center gap-1">
                             <Calendar className="w-3.5 h-3.5" />
                             {formatDate(post.date, isTR)}

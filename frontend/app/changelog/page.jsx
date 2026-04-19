@@ -214,7 +214,7 @@ export default function ChangelogPage() {
                   <div className="flex flex-wrap items-center gap-2 mb-3">
                     <span
                       className="text-sm font-medium"
-                      style={{ color: 'var(--ft-text-muted)' }}
+                      style={{ color: 'var(--ft-text-soft)' }}
                     >
                       {isTR ? entry.dateTR : entry.dateEN}
                     </span>

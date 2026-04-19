@@ -374,7 +374,7 @@ export default function FeaturesPage() {
               <div className="grid lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x divide-[var(--ft-border)]">
                 {/* Left - Overview */}
                 <div className="p-6 md:p-8">
-                  <div className="flex items-center gap-2 text-xs mb-4" style={{ color: 'var(--ft-text-muted)' }}>
+                  <div className="flex items-center gap-2 text-xs mb-4" style={{ color: 'var(--ft-text-soft)' }}>
                     <span className="px-2.5 py-1 rounded-full bg-primary-50 text-primary-700 font-medium dark:bg-primary-950/50 dark:text-primary-300">{t('features.sectorFlows.solutionLabel')}</span>
                     <span className="px-2.5 py-1 rounded-full" style={{ background: 'var(--ft-glass)' }}>{t('features.sectorFlows.ecommerceLabel')}</span>
                   </div>
@@ -409,7 +409,7 @@ export default function FeaturesPage() {
                   <h4 className="text-lg font-bold mb-1" style={{ color: 'var(--ft-text-primary)' }}>
                     {t('features.sectorFlows.sampleFlow')}
                   </h4>
-                  <p className="text-xs mb-5" style={{ color: 'var(--ft-text-muted)' }}>
+                  <p className="text-xs mb-5" style={{ color: 'var(--ft-text-soft)' }}>
                     {t('features.sectorFlows.sampleFlowDesc')}
                   </p>
                   <div className="space-y-3">
@@ -418,13 +418,13 @@ export default function FeaturesPage() {
                         <div className={`text-sm font-semibold mb-1 ${i === 2 ? 'text-white' : ''}`} style={i !== 2 ? { color: 'var(--ft-text-primary)' } : undefined}>
                           {i + 1}) {t(`features.sectorFlows.ecommerce.flow.${step}`)}
                         </div>
-                        <p className={`text-xs leading-relaxed ${i === 2 ? 'text-blue-100 dark:text-neutral-300' : ''}`} style={i !== 2 ? { color: 'var(--ft-text-muted)' } : undefined}>
+                        <p className={`text-xs leading-relaxed ${i === 2 ? 'text-blue-100 dark:text-neutral-300' : ''}`} style={i !== 2 ? { color: 'var(--ft-text-soft)' } : undefined}>
                           {t(`features.sectorFlows.ecommerce.flow.${step}Desc`)}
                         </p>
                       </div>
                     ))}
                   </div>
-                  <p className="text-xs mt-4" style={{ color: 'var(--ft-text-muted)' }}>
+                  <p className="text-xs mt-4" style={{ color: 'var(--ft-text-soft)' }}>
                     {t('features.sectorFlows.ecommerce.flowNote')}
                   </p>
                 </div>
@@ -434,7 +434,7 @@ export default function FeaturesPage() {
                   <h4 className="text-lg font-bold mb-1" style={{ color: 'var(--ft-text-primary)' }}>
                     {t('features.sectorFlows.kpis')}
                   </h4>
-                  <p className="text-xs mb-5" style={{ color: 'var(--ft-text-muted)' }}>
+                  <p className="text-xs mb-5" style={{ color: 'var(--ft-text-soft)' }}>
                     {t('features.sectorFlows.kpisDesc')}
                   </p>
                   <ul className="space-y-2 mb-6">
@@ -448,7 +448,7 @@ export default function FeaturesPage() {
                     ))}
                   </ul>
                   <div className="pt-4" style={{ borderTop: '1px solid var(--ft-border)' }}>
-                    <p className="text-xs mb-2" style={{ color: 'var(--ft-text-muted)' }}>{t('features.sectorFlows.suggestedIntegrations')}</p>
+                    <p className="text-xs mb-2" style={{ color: 'var(--ft-text-soft)' }}>{t('features.sectorFlows.suggestedIntegrations')}</p>
                     <div className="flex gap-2 flex-wrap">
                       {(t('features.sectorFlows.ecommerce.integrations') || []).map((integration) => (
                         <span key={integration} className="px-3 py-1 text-xs rounded-full" style={{ border: '1px solid var(--ft-border)', color: 'var(--ft-text-secondary)', background: 'var(--ft-glass)' }}>
