@@ -318,7 +318,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="space-y-8 max-w-4xl">
+    <div className="w-full space-y-8">
       {/* Header */}
       <PageIntro
         title={pageHelp?.title || t('dashboard.settingsPage.title')}
@@ -339,7 +339,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
           <div>
             <Label htmlFor="name">{t('dashboard.settingsPage.fullNameLabel')}</Label>
             <Input
@@ -362,7 +362,7 @@ export default function SettingsPage() {
               {t('dashboard.settingsPage.emailChangeHint')}
             </p>
           </div>
-          <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800/50">
+          <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800/50 xl:col-span-2">
             <div className="space-y-3">
               <div>
                 <p className="text-sm font-medium text-neutral-900 dark:text-white">
@@ -617,7 +617,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
           <div>
             <Label htmlFor="currentPassword">{t('dashboard.settingsPage.currentPasswordLabel')}</Label>
             <SecurePasswordInput
