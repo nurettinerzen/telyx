@@ -5,7 +5,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import {
   Shield,
   Search,
@@ -44,6 +44,7 @@ import {
 } from '@/components/ui/dialog';
 import { apiClient } from '@/lib/api';
 import { toast } from 'sonner';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 
 const ACTION_COLORS = {
@@ -85,11 +86,13 @@ const ENTITY_LABELS = {
   Assistant: 'Asistan',
   Subscription: 'Abonelik',
   CallLog: 'Arama',
-  CallbackRequest: 'Callback',
+  CallbackRequest: 'Geri Arama',
   PhoneNumber: 'Telefon No',
 };
 
 export default function AdminAuditLogPage() {
+  const { locale } = useLanguage();
+  const isTr = locale === 'tr';
   const [loading, setLoading] = useState(true);
   const [logs, setLogs] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, pages: 0 });
@@ -102,11 +105,28 @@ export default function AdminAuditLogPage() {
   // Detail modal
   const [detailModal, setDetailModal] = useState({ open: false, log: null });
 
-  useEffect(() => {
-    loadLogs();
-  }, [pagination.page, actionFilter, entityFilter]);
+  const copy = useMemo(() => ({
+    title: isTr ? 'Denetim Kaydı' : 'Audit Log',
+    description: isTr ? 'Admin işlem geçmişi' : 'Admin activity history',
+    searchPlaceholder: isTr ? 'Admin e-postası ara...' : 'Search admin email...',
+    search: isTr ? 'Ara' : 'Search',
+    actionType: isTr ? 'İşlem Tipi' : 'Action Type',
+    entityType: isTr ? 'Varlık Tipi' : 'Entity Type',
+    allActions: isTr ? 'Tüm İşlemler' : 'All Actions',
+    allEntities: isTr ? 'Tüm Varlıklar' : 'All Entities',
+    notFound: isTr ? 'Denetim kaydı bulunamadı' : 'No audit log found',
+    loadFailed: isTr ? 'Denetim kayıtları yüklenemedi' : 'Failed to load audit logs',
+    table: {
+      date: isTr ? 'Tarih' : 'Date',
+      admin: isTr ? 'Admin' : 'Admin',
+      action: isTr ? 'İşlem' : 'Action',
+      entity: isTr ? 'Varlık' : 'Entity',
+      id: 'ID',
+      detail: isTr ? 'Detay' : 'Details',
+    },
+  }), [isTr]);
 
-  const loadLogs = async () => {
+  const loadLogs = useCallback(async () => {
     setLoading(true);
     try {
       const params = {
@@ -125,11 +145,15 @@ export default function AdminAuditLogPage() {
       }));
     } catch (error) {
       console.error('Failed to load audit logs:', error);
-      toast.error('Audit loglar yüklenemedi');
+      toast.error(copy.loadFailed);
     } finally {
       setLoading(false);
     }
-  };
+  }, [actionFilter, copy.loadFailed, entityFilter, pagination.limit, pagination.page, search]);
+
+  useEffect(() => {
+    loadLogs();
+  }, [loadLogs]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -138,7 +162,7 @@ export default function AdminAuditLogPage() {
   };
 
   const formatDate = (date) => {
-    return new Date(date).toLocaleString('tr-TR', {
+    return new Date(date).toLocaleString(isTr ? 'tr-TR' : 'en-US', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -167,9 +191,9 @@ export default function AdminAuditLogPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Audit Log</h1>
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">{copy.title}</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Admin işlem geçmişi ({pagination.total})
+            {copy.description} ({pagination.total})
           </p>
         </div>
       </div>
@@ -180,21 +204,21 @@ export default function AdminAuditLogPage() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <Input
-              placeholder="Admin email ara..."
+              placeholder={copy.searchPlaceholder}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-10 w-64"
             />
           </div>
-          <Button type="submit" variant="outline">Ara</Button>
+          <Button type="submit" variant="outline">{copy.search}</Button>
         </form>
 
         <Select value={actionFilter} onValueChange={setActionFilter}>
           <SelectTrigger className="w-40">
-            <SelectValue placeholder="İşlem tipi" />
+            <SelectValue placeholder={copy.actionType} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="ALL">Tüm İşlemler</SelectItem>
+            <SelectItem value="ALL">{copy.allActions}</SelectItem>
             <SelectItem value="VIEW">Görüntüleme</SelectItem>
             <SelectItem value="CREATE">Oluşturma</SelectItem>
             <SelectItem value="UPDATE">Güncelleme</SelectItem>
@@ -207,15 +231,15 @@ export default function AdminAuditLogPage() {
 
         <Select value={entityFilter} onValueChange={setEntityFilter}>
           <SelectTrigger className="w-40">
-            <SelectValue placeholder="Varlık tipi" />
+            <SelectValue placeholder={copy.entityType} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="ALL">Tüm Varlıklar</SelectItem>
+            <SelectItem value="ALL">{copy.allEntities}</SelectItem>
             <SelectItem value="User">Kullanıcı</SelectItem>
             <SelectItem value="Business">İşletme</SelectItem>
             <SelectItem value="Assistant">Asistan</SelectItem>
             <SelectItem value="Subscription">Abonelik</SelectItem>
-            <SelectItem value="CallbackRequest">Callback</SelectItem>
+            <SelectItem value="CallbackRequest">{isTr ? 'Geri Arama' : 'Callback'}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -229,18 +253,18 @@ export default function AdminAuditLogPage() {
         ) : logs.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64">
             <FileText className="w-12 h-12 text-gray-400 mb-4" />
-            <p className="text-gray-500">Audit log bulunamadı</p>
+            <p className="text-gray-500">{copy.notFound}</p>
           </div>
         ) : (
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Tarih</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Admin</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">İşlem</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Varlık</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">ID</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">Detay</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.table.date}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.table.admin}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.table.action}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.table.entity}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.table.id}</th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.table.detail}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
@@ -323,7 +347,7 @@ export default function AdminAuditLogPage() {
       <Dialog open={detailModal.open} onOpenChange={(open) => setDetailModal({ ...detailModal, open })}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Audit Log Detayı</DialogTitle>
+            <DialogTitle>{isTr ? 'Denetim Kaydı Detayı' : 'Audit Log Detail'}</DialogTitle>
             <DialogDescription>
               {detailModal.log && formatDate(detailModal.log.createdAt)}
             </DialogDescription>

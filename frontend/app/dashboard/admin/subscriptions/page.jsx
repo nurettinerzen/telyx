@@ -5,7 +5,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import {
@@ -60,16 +60,9 @@ const STATUS_COLORS = {
   pending_payment: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
 };
 
-const LIFECYCLE_LABELS = {
-  ACTIVE: 'Aktif abonelik',
-  TRIAL_EXPIRED: 'Denemesi biten',
-  PAID_LAPSED: 'Yenilenmeyen paket',
-  CANCEL_SCHEDULED: 'İptal planlı',
-  NONE: 'Abonelik yok',
-};
-
 export default function AdminSubscriptionsPage() {
   const { t, locale } = useLanguage();
+  const isTr = locale === 'tr';
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [subscriptions, setSubscriptions] = useState([]);
@@ -94,6 +87,33 @@ export default function AdminSubscriptionsPage() {
     unpaid: t('dashboard.adminSubscriptionsPage.statusUnpaid'),
     pending_payment: t('dashboard.adminSubscriptionsPage.statusPendingPayment'),
   };
+
+  const lifecycleLabels = useMemo(() => ({
+    ACTIVE: isTr ? 'Aktif Abonelik' : 'Active Subscription',
+    TRIAL_EXPIRED: isTr ? 'Denemesi Biten' : 'Expired Trial',
+    PAID_LAPSED: isTr ? 'Yenilenmeyen Paket' : 'Unrenewed Plan',
+    CANCEL_SCHEDULED: isTr ? 'İptal Planlı' : 'Cancellation Scheduled',
+    NONE: isTr ? 'Abonelik Yok' : 'No Subscription',
+  }), [isTr]);
+
+  const copy = useMemo(() => ({
+    planLabels: {
+      ENTERPRISE: isTr ? 'Kurumsal' : 'Enterprise',
+      PRO: 'Pro',
+      STARTER: 'Starter',
+      PAYG: isTr ? 'Kullandıkça Öde' : 'Pay As You Go',
+      TRIAL: isTr ? 'Deneme' : 'Trial',
+      FREE: isTr ? 'Ücretsiz' : 'Free',
+    },
+    accountColumn: isTr ? 'İşletme' : 'Business',
+    lifecyclePlaceholder: isTr ? 'Yaşam Döngüsü' : 'Lifecycle',
+    allLifecycles: isTr ? 'Tüm Yaşam Döngüleri' : 'All Lifecycles',
+    lifecycleExpired: isTr ? 'Denemesi Biten' : 'Expired Trial',
+    lifecycleLapsed: isTr ? 'Yenilenmeyen Paket' : 'Unrenewed Plan',
+    lifecycleCancel: isTr ? 'İptal Planlı' : 'Cancellation Scheduled',
+    minutesUsed: isTr ? 'dakika kullanıldı' : 'minutes used',
+    ownerFallback: isTr ? 'Sahip bilgisi yok' : 'No owner info',
+  }), [isTr]);
 
   const loadSubscriptions = useCallback(async () => {
     setLoading(true);
@@ -218,12 +238,12 @@ export default function AdminSubscriptionsPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">{t('dashboard.adminSubscriptionsPage.allPlans')}</SelectItem>
-            <SelectItem value="ENTERPRISE">Enterprise</SelectItem>
-            <SelectItem value="PRO">Pro</SelectItem>
-            <SelectItem value="STARTER">Starter</SelectItem>
-            <SelectItem value="PAYG">PAYG</SelectItem>
-            <SelectItem value="TRIAL">Trial</SelectItem>
-            <SelectItem value="FREE">Free</SelectItem>
+            <SelectItem value="ENTERPRISE">{copy.planLabels.ENTERPRISE}</SelectItem>
+            <SelectItem value="PRO">{copy.planLabels.PRO}</SelectItem>
+            <SelectItem value="STARTER">{copy.planLabels.STARTER}</SelectItem>
+            <SelectItem value="PAYG">{copy.planLabels.PAYG}</SelectItem>
+            <SelectItem value="TRIAL">{copy.planLabels.TRIAL}</SelectItem>
+            <SelectItem value="FREE">{copy.planLabels.FREE}</SelectItem>
           </SelectContent>
         </Select>
 
@@ -243,13 +263,13 @@ export default function AdminSubscriptionsPage() {
 
         <Select value={lifecycleFilter} onValueChange={setLifecycleFilter}>
           <SelectTrigger className="w-48">
-            <SelectValue placeholder="Yaşam döngüsü" />
+            <SelectValue placeholder={copy.lifecyclePlaceholder} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="ALL">Tüm yaşam döngüleri</SelectItem>
-            <SelectItem value="TRIAL_EXPIRED">Denemesi biten</SelectItem>
-            <SelectItem value="PAID_LAPSED">Yenilenmeyen paket</SelectItem>
-            <SelectItem value="CANCEL_SCHEDULED">İptal planlı</SelectItem>
+            <SelectItem value="ALL">{copy.allLifecycles}</SelectItem>
+            <SelectItem value="TRIAL_EXPIRED">{copy.lifecycleExpired}</SelectItem>
+            <SelectItem value="PAID_LAPSED">{copy.lifecycleLapsed}</SelectItem>
+            <SelectItem value="CANCEL_SCHEDULED">{copy.lifecycleCancel}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -269,7 +289,7 @@ export default function AdminSubscriptionsPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{t('dashboard.adminSubscriptionsPage.user')}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.accountColumn}</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{t('dashboard.adminSubscriptionsPage.plan')}</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{t('dashboard.adminSubscriptionsPage.status')}</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{t('dashboard.adminSubscriptionsPage.minutes')}</th>
@@ -285,8 +305,12 @@ export default function AdminSubscriptionsPage() {
                     <div className="flex items-center gap-3">
                       <Building2 className="w-5 h-5 text-gray-400" />
                       <div>
-                        <p className="font-medium text-gray-900 dark:text-white">{sub.businessName || '-'}</p>
-                        <p className="text-sm text-gray-500">{sub.ownerEmail || '-'}</p>
+                        <p className="font-medium text-gray-900 dark:text-white">
+                          {sub.businessName || sub.ownerName || sub.ownerEmail || '-'}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          {sub.ownerEmail || sub.ownerName || copy.ownerFallback}
+                        </p>
                       </div>
                     </div>
                   </td>
@@ -296,7 +320,7 @@ export default function AdminSubscriptionsPage() {
                     </Badge>
                     {sub.subscriptionLifecycle && (
                       <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                        {LIFECYCLE_LABELS[sub.subscriptionLifecycle] || sub.subscriptionLifecycle}
+                        {lifecycleLabels[sub.subscriptionLifecycle] || sub.subscriptionLifecycle}
                       </p>
                     )}
                   </td>
@@ -311,14 +335,14 @@ export default function AdminSubscriptionsPage() {
                   <td className="px-4 py-3">
                     <div className="text-sm">
                       <p className="text-gray-900 dark:text-white">{sub.minutesUsed || 0} / {sub.minutesIncluded || 0}</p>
-                      <p className="text-gray-500">{t('dashboard.adminSubscriptionsPage.minutesUsed')}</p>
+                      <p className="text-gray-500">{copy.minutesUsed}</p>
                     </div>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-gray-400" />
                       <span className="text-sm text-gray-700 dark:text-gray-300">
-                        {formatDate(sub.currentPeriodEnd)}
+                        {formatDate(sub.currentPeriodEnd || sub.trialChatExpiry)}
                       </span>
                     </div>
                   </td>
@@ -413,7 +437,7 @@ export default function AdminSubscriptionsPage() {
                   <SelectItem value="PAYG">PAYG</SelectItem>
                   <SelectItem value="STARTER">Starter</SelectItem>
                   <SelectItem value="PRO">Pro</SelectItem>
-                  <SelectItem value="ENTERPRISE">Enterprise</SelectItem>
+                  <SelectItem value="ENTERPRISE">{copy.planLabels.ENTERPRISE}</SelectItem>
                 </SelectContent>
               </Select>
             </div>

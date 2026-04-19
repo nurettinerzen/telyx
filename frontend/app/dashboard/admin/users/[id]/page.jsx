@@ -4,7 +4,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -81,13 +81,7 @@ export default function AdminUserDetailPage() {
   });
   const [suspendReason, setSuspendReason] = useState('');
 
-  useEffect(() => {
-    if (userId) {
-      loadUser();
-    }
-  }, [userId]);
-
-  const loadUser = async () => {
+  const loadUser = useCallback(async () => {
     setLoading(true);
     try {
       const response = await apiClient.admin.getUser(userId);
@@ -108,7 +102,13 @@ export default function AdminUserDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId]);
+
+  useEffect(() => {
+    if (userId) {
+      loadUser();
+    }
+  }, [loadUser, userId]);
 
   const handleSaveEdit = async () => {
     setActionLoading(true);
@@ -469,7 +469,7 @@ export default function AdminUserDetailPage() {
                   <SelectItem value="PAYG">PAYG</SelectItem>
                   <SelectItem value="STARTER">Starter</SelectItem>
                   <SelectItem value="PRO">Pro</SelectItem>
-                  <SelectItem value="ENTERPRISE">Enterprise</SelectItem>
+                  <SelectItem value="ENTERPRISE">Kurumsal</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -496,7 +496,7 @@ export default function AdminUserDetailPage() {
             </div>
             <div className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-800 p-3">
               <div>
-                <Label className="text-sm">Phone Inbound (V2)</Label>
+                <Label className="text-sm">Telefon Inbound (V2)</Label>
                 <p className="text-xs text-gray-500 mt-1">
                   Global V1 outbound-only modunda kilitli. V2 için backend toggle açılmalıdır.
                 </p>
@@ -511,7 +511,7 @@ export default function AdminUserDetailPage() {
               <>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label>Enterprise Dakika</Label>
+                    <Label>Kurumsal Dakika</Label>
                     <Input
                       type="number"
                       className="mt-1"
@@ -520,7 +520,7 @@ export default function AdminUserDetailPage() {
                     />
                   </div>
                   <div>
-                    <Label>Enterprise Yazılı Limit</Label>
+                    <Label>Kurumsal Yazılı Limit</Label>
                     <Input
                       type="number"
                       className="mt-1"
@@ -531,7 +531,7 @@ export default function AdminUserDetailPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label>Enterprise Fiyat (TL/ay)</Label>
+                    <Label>Kurumsal Fiyat (TL/ay)</Label>
                     <Input
                       type="number"
                       className="mt-1"
@@ -541,7 +541,7 @@ export default function AdminUserDetailPage() {
                   </div>
                 </div>
                 <div>
-                  <Label>Enterprise Notlar</Label>
+                  <Label>Kurumsal Notlar</Label>
                   <Textarea
                     className="mt-1"
                     value={editForm.enterpriseNotes}

@@ -5,14 +5,12 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
+import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import {
   Phone,
   Search,
   ChevronLeft,
   ChevronRight,
-  Shield,
   Loader2,
   Building2,
   Clock,
@@ -34,7 +32,7 @@ import {
 } from '@/components/ui/select';
 import { apiClient } from '@/lib/api';
 import { toast } from 'sonner';
-
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const STATUS_COLORS = {
   completed: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
@@ -45,16 +43,9 @@ const STATUS_COLORS = {
   no_answer: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400',
 };
 
-const STATUS_LABELS = {
-  completed: 'Tamamlandı',
-  ongoing: 'Devam Ediyor',
-  failed: 'Başarısız',
-  missed: 'Cevapsız',
-  busy: 'Meşgul',
-  no_answer: 'Cevaplanmadı',
-};
-
 export default function AdminCallsPage() {
+  const { locale } = useLanguage();
+  const isTr = locale === 'tr';
   const [loading, setLoading] = useState(true);
   const [calls, setCalls] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, pages: 0 });
@@ -64,11 +55,41 @@ export default function AdminCallsPage() {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [directionFilter, setDirectionFilter] = useState('ALL');
 
-  useEffect(() => {
-    loadCalls();
-  }, [pagination.page, statusFilter, directionFilter]);
+  const copy = useMemo(() => ({
+    title: isTr ? 'Aramalar' : 'Calls',
+    description: isTr ? 'Tüm platform aramaları' : 'All platform calls',
+    searchPlaceholder: isTr ? 'Telefon numarası veya işletme ara...' : 'Search by phone number or business...',
+    search: isTr ? 'Ara' : 'Search',
+    status: isTr ? 'Durum' : 'Status',
+    direction: isTr ? 'Yön' : 'Direction',
+    allStatuses: isTr ? 'Tüm Durumlar' : 'All Statuses',
+    all: isTr ? 'Tümü' : 'All',
+    directions: {
+      inbound: isTr ? 'Gelen' : 'Inbound',
+      outbound: isTr ? 'Giden' : 'Outbound',
+    },
+    noCalls: isTr ? 'Arama bulunamadı' : 'No calls found',
+    loadFailed: isTr ? 'Aramalar yüklenemedi' : 'Failed to load calls',
+    table: {
+      date: isTr ? 'Tarih' : 'Date',
+      direction: isTr ? 'Yön' : 'Direction',
+      phone: isTr ? 'Telefon' : 'Phone',
+      business: isTr ? 'İşletme' : 'Business',
+      assistant: isTr ? 'Asistan' : 'Assistant',
+      duration: isTr ? 'Süre' : 'Duration',
+      status: isTr ? 'Durum' : 'Status',
+    },
+    statuses: {
+      completed: isTr ? 'Tamamlandı' : 'Completed',
+      ongoing: isTr ? 'Devam Ediyor' : 'Ongoing',
+      failed: isTr ? 'Başarısız' : 'Failed',
+      missed: isTr ? 'Cevapsız' : 'Missed',
+      busy: isTr ? 'Meşgul' : 'Busy',
+      no_answer: isTr ? 'Cevaplanmadı' : 'No Answer',
+    },
+  }), [isTr]);
 
-  const loadCalls = async () => {
+  const loadCalls = useCallback(async () => {
     setLoading(true);
     try {
       const params = {
@@ -87,11 +108,15 @@ export default function AdminCallsPage() {
       }));
     } catch (error) {
       console.error('Failed to load calls:', error);
-      toast.error('Aramalar yüklenemedi');
+      toast.error(copy.loadFailed);
     } finally {
       setLoading(false);
     }
-  };
+  }, [copy.loadFailed, directionFilter, pagination.limit, pagination.page, search, statusFilter]);
+
+  useEffect(() => {
+    loadCalls();
+  }, [loadCalls]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -107,7 +132,7 @@ export default function AdminCallsPage() {
   };
 
   const formatDate = (date) => {
-    return new Date(date).toLocaleString('tr-TR', {
+    return new Date(date).toLocaleString(isTr ? 'tr-TR' : 'en-US', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -134,7 +159,7 @@ export default function AdminCallsPage() {
         <div>
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Aramalar</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Tüm platform aramaları ({pagination.total})
+            {copy.description} ({pagination.total})
           </p>
         </div>
       </div>
@@ -145,36 +170,36 @@ export default function AdminCallsPage() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <Input
-              placeholder="Telefon numarası veya işletme ara..."
+              placeholder={copy.searchPlaceholder}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-10 w-64"
             />
           </div>
-          <Button type="submit" variant="outline">Ara</Button>
+          <Button type="submit" variant="outline">{copy.search}</Button>
         </form>
 
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-40">
-            <SelectValue placeholder="Durum" />
+            <SelectValue placeholder={copy.status} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="ALL">Tüm Durumlar</SelectItem>
-            <SelectItem value="completed">Tamamlandı</SelectItem>
-            <SelectItem value="ongoing">Devam Ediyor</SelectItem>
-            <SelectItem value="failed">Başarısız</SelectItem>
-            <SelectItem value="missed">Cevapsız</SelectItem>
+            <SelectItem value="ALL">{copy.allStatuses}</SelectItem>
+            <SelectItem value="completed">{copy.statuses.completed}</SelectItem>
+            <SelectItem value="ongoing">{copy.statuses.ongoing}</SelectItem>
+            <SelectItem value="failed">{copy.statuses.failed}</SelectItem>
+            <SelectItem value="missed">{copy.statuses.missed}</SelectItem>
           </SelectContent>
         </Select>
 
         <Select value={directionFilter} onValueChange={setDirectionFilter}>
           <SelectTrigger className="w-40">
-            <SelectValue placeholder="Yön" />
+            <SelectValue placeholder={copy.direction} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="ALL">Tümü</SelectItem>
-            <SelectItem value="inbound">Gelen</SelectItem>
-            <SelectItem value="outbound">Giden</SelectItem>
+            <SelectItem value="ALL">{copy.all}</SelectItem>
+            <SelectItem value="inbound">{copy.directions.inbound}</SelectItem>
+            <SelectItem value="outbound">{copy.directions.outbound}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -188,19 +213,19 @@ export default function AdminCallsPage() {
         ) : calls.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64">
             <Phone className="w-12 h-12 text-gray-400 mb-4" />
-            <p className="text-gray-500">Arama bulunamadı</p>
+            <p className="text-gray-500">{copy.noCalls}</p>
           </div>
         ) : (
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Tarih</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Yön</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Telefon</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">İşletme</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Asistan</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Süre</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Durum</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.table.date}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.table.direction}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.table.phone}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.table.business}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.table.assistant}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.table.duration}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.table.status}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
@@ -216,7 +241,7 @@ export default function AdminCallsPage() {
                     <div className="flex items-center gap-2">
                       {getDirectionIcon(call.direction)}
                       <span className="text-sm text-gray-700 dark:text-gray-300">
-                        {call.direction === 'inbound' ? 'Gelen' : 'Giden'}
+                        {call.direction === 'inbound' ? copy.directions.inbound : copy.directions.outbound}
                       </span>
                     </div>
                   </td>
@@ -248,7 +273,7 @@ export default function AdminCallsPage() {
                   </td>
                   <td className="px-4 py-3">
                     <Badge className={STATUS_COLORS[call.status] || STATUS_COLORS.completed}>
-                      {STATUS_LABELS[call.status] || call.status}
+                      {copy.statuses[call.status] || call.status}
                     </Badge>
                   </td>
                 </tr>

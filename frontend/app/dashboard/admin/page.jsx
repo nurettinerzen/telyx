@@ -29,20 +29,20 @@ function getAdminDashboardCopy(locale) {
   const isTr = locale === 'tr';
 
   return {
-    title: isTr ? 'Admin paneli' : 'Admin panel',
+    title: isTr ? 'Admin Paneli' : 'Admin Panel',
     stats: {
-      totalUsers: isTr ? 'Toplam kullanıcı' : 'Total users',
-      activeBusinesses: isTr ? 'Aktif işletme' : 'Active businesses',
-      todayCalls: isTr ? 'Bugün arama' : 'Calls today',
-      assistants: isTr ? 'Asistan sayısı' : 'Assistant count',
-      expiredTrials: isTr ? 'Denemesi biten' : 'Expired trials',
-      paidLapsed: isTr ? 'Yenilenmeyen paket' : 'Unrenewed plans',
+      totalUsers: isTr ? 'Toplam Kullanıcı' : 'Total Users',
+      activeBusinesses: isTr ? 'Aktif İşletme' : 'Active Businesses',
+      todayCalls: isTr ? 'Bugün Arama' : 'Calls Today',
+      assistants: isTr ? 'Asistan Sayısı' : 'Assistant Count',
+      expiredTrials: isTr ? 'Denemesi Biten' : 'Expired Trials',
+      paidLapsed: isTr ? 'Yenilenmeyen Paket' : 'Unrenewed Plans',
     },
-    plansTitle: isTr ? 'Plan dağılımı' : 'Plan distribution',
+    plansTitle: isTr ? 'Plan Dağılımı' : 'Plan Distribution',
     plans: {
       FREE: isTr ? 'Ücretsiz' : 'Free',
       TRIAL: isTr ? 'Deneme' : 'Trial',
-      PAYG: isTr ? 'Kullandıkça öde' : 'Pay as you go',
+      PAYG: isTr ? 'Kullandıkça Öde' : 'Pay As You Go',
       STARTER: 'Starter',
       PRO: 'Pro',
       ENTERPRISE: isTr ? 'Kurumsal' : 'Enterprise',
@@ -51,7 +51,7 @@ function getAdminDashboardCopy(locale) {
       users: isTr ? 'Kullanıcılar' : 'Users',
       enterprise: isTr ? 'Kurumsal' : 'Enterprise',
       cancellations: isTr ? 'İptaller' : 'Cancellations',
-      auditLog: isTr ? 'Admin işlem logu' : 'Admin audit log',
+      auditLog: isTr ? 'Admin İşlem Logu' : 'Admin Audit Log',
     },
   };
 }
@@ -203,10 +203,10 @@ export default function AdminDashboardPage() {
         </h2>
 
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
-          {orderedPlans.map((plan) => (
+              {orderedPlans.map((plan) => (
             <Link
               key={plan.key}
-              href={`/dashboard/admin/users?plan=${encodeURIComponent(plan.key)}`}
+              href={`/dashboard/admin/subscriptions?plan=${encodeURIComponent(plan.key)}`}
               className="rounded-2xl bg-gray-50 p-5 text-center transition-colors hover:bg-gray-100 dark:bg-gray-800/80 dark:hover:bg-gray-800"
             >
               <p className={`text-3xl font-semibold ${plan.tone}`}>{formatNumber(plan.value, locale)}</p>

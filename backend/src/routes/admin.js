@@ -29,13 +29,13 @@ const router = express.Router();
 const PAID_RENEWAL_PLANS = ['STARTER', 'PRO', 'ENTERPRISE', 'BASIC'];
 const CANCELLATION_REASON_LABELS = Object.freeze({
   UNSPECIFIED: 'Belirtilmedi',
-  LOW_USAGE: 'Cok kullanmiyor',
-  NO_NEED: 'Artik ihtiyac yok',
-  TOO_EXPENSIVE: 'Pahali',
-  LOW_QUALITY: 'Kalite dusuk',
-  MISSING_FEATURES: 'Ozellikler yetersiz',
-  TOO_COMPLEX: 'Karmasik',
-  OTHER: 'Diger',
+  LOW_USAGE: 'Çok kullanmıyor',
+  NO_NEED: 'Artık ihtiyaç yok',
+  TOO_EXPENSIVE: 'Pahalı',
+  LOW_QUALITY: 'Kalite düşük',
+  MISSING_FEATURES: 'Özellikler yetersiz',
+  TOO_COMPLEX: 'Karmaşık',
+  OTHER: 'Diğer',
 });
 
 function buildTrialExpiredSubscriptionWhere(now = new Date()) {

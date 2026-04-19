@@ -4,7 +4,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import {
   Bot,
@@ -45,19 +45,11 @@ import {
 } from '@/components/ui/dialog';
 import { apiClient } from '@/lib/api';
 import { toast } from 'sonner';
-
-const ASSISTANT_TYPE_LABELS = {
-  phone: 'Telefon',
-  text: 'Yazılı',
-};
-
-const CALL_DIRECTION_LABELS = {
-  inbound: 'Gelen',
-  outbound: 'Giden',
-  outbound_campaign: 'Giden kampanya',
-};
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function AdminAssistantsPage() {
+  const { locale } = useLanguage();
+  const isTr = locale === 'tr';
   const [loading, setLoading] = useState(true);
   const [assistants, setAssistants] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, pages: 0 });
@@ -70,6 +62,50 @@ export default function AdminAssistantsPage() {
   // Delete modal
   const [deleteModal, setDeleteModal] = useState({ open: false, assistant: null });
   const [actionLoading, setActionLoading] = useState(false);
+
+  const copy = useMemo(() => ({
+    title: isTr ? 'Asistanlar' : 'Assistants',
+    description: isTr ? 'Tüm platform asistanları' : 'All platform assistants',
+    searchPlaceholder: isTr ? 'Asistan adı veya işletme ara...' : 'Search by assistant or business...',
+    search: isTr ? 'Ara' : 'Search',
+    statusFilter: isTr ? 'Durum Filtrele' : 'Filter Status',
+    all: isTr ? 'Tümü' : 'All',
+    active: isTr ? 'Aktif' : 'Active',
+    passive: isTr ? 'Pasif' : 'Inactive',
+    noAssistants: isTr ? 'Asistan bulunamadı' : 'No assistants found',
+    loadFailed: isTr ? 'Asistanlar yüklenemedi' : 'Failed to load assistants',
+    deleteSuccess: isTr ? 'Asistan silindi' : 'Assistant deleted',
+    deleteFailed: isTr ? 'Asistan silinemedi' : 'Failed to delete assistant',
+    ownerView: isTr ? 'Sahibi Gör' : 'View Owner',
+    table: {
+      assistant: isTr ? 'Asistan' : 'Assistant',
+      business: isTr ? 'İşletme' : 'Business',
+      status: isTr ? 'Durum' : 'Status',
+      channel: isTr ? 'Kanal' : 'Channel',
+      lines: isTr ? 'Hat' : 'Lines',
+      conversations: isTr ? 'Konuşma' : 'Conversations',
+      action: isTr ? 'İşlem' : 'Action',
+    },
+    assistantType: {
+      phone: isTr ? 'Telefon' : 'Phone',
+      text: isTr ? 'Yazılı' : 'Text',
+    },
+    direction: {
+      inbound: isTr ? 'Gelen' : 'Inbound',
+      outbound: isTr ? 'Giden' : 'Outbound',
+      outbound_campaign: isTr ? 'Giden Kampanya' : 'Outbound Campaign',
+    },
+    lineCount: (count) => isTr ? `${count} hat` : `${count} lines`,
+    conversationSummary: (callbacks, chats) => isTr
+      ? `${callbacks} geri arama, ${chats} sohbet`
+      : `${callbacks} callbacks, ${chats} chats`,
+    deleteTitle: isTr ? 'Asistanı Sil' : 'Delete Assistant',
+    deleteDescription: (name) => isTr
+      ? `"${name}" asistanını silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`
+      : `Are you sure you want to delete "${name}"? This action cannot be undone.`,
+    cancel: isTr ? 'İptal' : 'Cancel',
+    delete: isTr ? 'Sil' : 'Delete',
+  }), [isTr]);
 
   const loadAssistants = useCallback(async () => {
     setLoading(true);
@@ -89,11 +125,11 @@ export default function AdminAssistantsPage() {
       }));
     } catch (error) {
       console.error('Failed to load assistants:', error);
-      toast.error('Asistanlar yüklenemedi');
+      toast.error(copy.loadFailed);
     } finally {
       setLoading(false);
     }
-  }, [pagination.limit, pagination.page, searchQuery, statusFilter]);
+  }, [copy.loadFailed, pagination.limit, pagination.page, searchQuery, statusFilter]);
 
   useEffect(() => {
     loadAssistants();
@@ -121,12 +157,12 @@ export default function AdminAssistantsPage() {
     setActionLoading(true);
     try {
       await apiClient.admin.deleteAssistant(deleteModal.assistant.id);
-      toast.success('Asistan silindi');
+      toast.success(copy.deleteSuccess);
       setDeleteModal({ open: false, assistant: null });
       loadAssistants();
     } catch (error) {
       console.error('Failed to delete assistant:', error);
-      toast.error('Asistan silinemedi');
+      toast.error(copy.deleteFailed);
     } finally {
       setActionLoading(false);
     }
@@ -137,9 +173,9 @@ export default function AdminAssistantsPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Asistanlar</h1>
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">{copy.title}</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Tüm platform asistanları ({pagination.total})
+            {copy.description} ({pagination.total})
           </p>
         </div>
       </div>
@@ -150,23 +186,23 @@ export default function AdminAssistantsPage() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <Input
-              placeholder="Asistan adı veya işletme ara..."
+              placeholder={copy.searchPlaceholder}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-10 w-64"
             />
           </div>
-          <Button type="submit" variant="outline">Ara</Button>
+          <Button type="submit" variant="outline">{copy.search}</Button>
         </form>
 
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-40">
-            <SelectValue placeholder="Durum filtrele" />
+            <SelectValue placeholder={copy.statusFilter} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="ALL">Tümü</SelectItem>
-            <SelectItem value="true">Aktif</SelectItem>
-            <SelectItem value="false">Pasif</SelectItem>
+            <SelectItem value="ALL">{copy.all}</SelectItem>
+            <SelectItem value="true">{copy.active}</SelectItem>
+            <SelectItem value="false">{copy.passive}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -180,19 +216,19 @@ export default function AdminAssistantsPage() {
         ) : assistants.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64">
             <Bot className="w-12 h-12 text-gray-400 mb-4" />
-            <p className="text-gray-500">Asistan bulunamadı</p>
+            <p className="text-gray-500">{copy.noAssistants}</p>
           </div>
         ) : (
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Asistan</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">İşletme</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Durum</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Kanal</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Hat</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Konuşma</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">İşlem</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.table.assistant}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.table.business}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.table.status}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.table.channel}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.table.lines}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.table.conversations}</th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.table.action}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
@@ -220,27 +256,27 @@ export default function AdminAssistantsPage() {
                   </td>
                   <td className="px-4 py-3">
                     <Badge variant={assistant.isActive ? 'outline' : 'secondary'} className={assistant.isActive ? 'text-green-600 border-green-600' : ''}>
-                      {assistant.isActive ? 'Aktif' : 'Pasif'}
+                      {assistant.isActive ? copy.active : copy.passive}
                     </Badge>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <Waves className="w-4 h-4 text-gray-400" />
                       <span className="text-sm text-gray-700 dark:text-gray-300">
-                        {ASSISTANT_TYPE_LABELS[assistant.assistantType] || assistant.assistantType || '-'}
+                        {copy.assistantType[assistant.assistantType] || assistant.assistantType || '-'}
                         {' / '}
-                        {CALL_DIRECTION_LABELS[assistant.callDirection] || assistant.callDirection || '-'}
+                        {copy.direction[assistant.callDirection] || assistant.callDirection || '-'}
                       </span>
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <Badge variant="outline">{assistant.phoneNumbersCount || 0} hat</Badge>
+                    <Badge variant="outline">{copy.lineCount(assistant.phoneNumbersCount || 0)}</Badge>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <PhoneCall className="w-4 h-4 text-gray-400" />
                       <span className="text-sm text-gray-700 dark:text-gray-300">
-                        {assistant.callbacksCount || 0} geri arama, {assistant.conversationsCount || 0} sohbet
+                        {copy.conversationSummary(assistant.callbacksCount || 0, assistant.conversationsCount || 0)}
                       </span>
                     </div>
                   </td>
@@ -255,7 +291,7 @@ export default function AdminAssistantsPage() {
                           <DropdownMenuItem asChild>
                           <Link href={assistant.ownerUserId ? `/dashboard/admin/users/${assistant.ownerUserId}` : `/dashboard/admin/users?search=${encodeURIComponent(assistant.ownerEmail || assistant.businessName || assistant.name)}`}>
                             <Eye className="w-4 h-4 mr-2" />
-                            Sahibi gör
+                            {copy.ownerView}
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem
@@ -263,7 +299,7 @@ export default function AdminAssistantsPage() {
                           className="text-red-600"
                         >
                           <Trash2 className="w-4 h-4 mr-2" />
-                          Sil
+                          {copy.delete}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -306,14 +342,14 @@ export default function AdminAssistantsPage() {
       <Dialog open={deleteModal.open} onOpenChange={(open) => setDeleteModal({ ...deleteModal, open })}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Asistanı Sil</DialogTitle>
+            <DialogTitle>{copy.deleteTitle}</DialogTitle>
             <DialogDescription>
-              &quot;{deleteModal.assistant?.name}&quot; asistanını silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+              {copy.deleteDescription(deleteModal.assistant?.name)}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteModal({ open: false, assistant: null })}>
-              İptal
+              {copy.cancel}
             </Button>
             <Button
               variant="destructive"
@@ -321,7 +357,7 @@ export default function AdminAssistantsPage() {
               disabled={actionLoading}
             >
               {actionLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Sil
+              {copy.delete}
             </Button>
           </DialogFooter>
         </DialogContent>

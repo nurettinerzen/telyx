@@ -4,7 +4,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import {
@@ -47,16 +47,11 @@ import {
 import { apiClient } from '@/lib/api';
 import { toast } from 'sonner';
 import { PLAN_COLORS } from '@/lib/planConfig';
-
-const SUBSCRIPTION_LIFECYCLE_LABELS = {
-  ACTIVE: 'Aktif abonelik',
-  TRIAL_EXPIRED: 'Trial bitmis',
-  PAID_LAPSED: 'Suresi bitmis paket',
-  CANCEL_SCHEDULED: 'Donem sonu iptal planli',
-  NONE: 'Abonelik yok',
-};
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function AdminUsersPage() {
+  const { locale } = useLanguage();
+  const isTr = locale === 'tr';
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState([]);
@@ -72,6 +67,64 @@ export default function AdminUsersPage() {
   const [suspendModal, setSuspendModal] = useState({ open: false, user: null, action: 'suspend' });
   const [suspendReason, setSuspendReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+
+  const copy = useMemo(() => ({
+    title: isTr ? 'Kullanıcılar' : 'Users',
+    description: isTr ? 'Tüm platform kullanıcıları' : 'All platform users',
+    searchPlaceholder: isTr ? 'E-posta, isim veya işletme ara...' : 'Search by email, name, or business...',
+    search: isTr ? 'Ara' : 'Search',
+    filterPlan: isTr ? 'Plan Filtrele' : 'Filter Plan',
+    allPlans: isTr ? 'Tüm Planlar' : 'All Plans',
+    active: isTr ? 'Aktif' : 'Active',
+    suspended: isTr ? 'Dondurulmuş' : 'Suspended',
+    status: isTr ? 'Durum' : 'Status',
+    all: isTr ? 'Tümü' : 'All',
+    lifecyclePlaceholder: isTr ? 'Abonelik Yaşam Döngüsü' : 'Subscription Lifecycle',
+    allLifecycles: isTr ? 'Tüm Yaşam Döngüleri' : 'All Lifecycles',
+    lifecycleLabels: {
+      ACTIVE: isTr ? 'Aktif Abonelik' : 'Active Subscription',
+      TRIAL_EXPIRED: isTr ? 'Denemesi Biten' : 'Expired Trial',
+      PAID_LAPSED: isTr ? 'Süresi Biten Paket' : 'Expired Paid Plan',
+      CANCEL_SCHEDULED: isTr ? 'Dönem Sonu İptal Planlı' : 'Cancellation Scheduled',
+      NONE: isTr ? 'Abonelik Yok' : 'No Subscription',
+    },
+    lifecycleOptions: {
+      TRIAL_EXPIRED: isTr ? 'Denemesi Biten' : 'Expired Trial',
+      PAID_LAPSED: isTr ? 'Yenilenmeyen Paket' : 'Unrenewed Plan',
+      CANCEL_SCHEDULED: isTr ? 'İptal Planlı' : 'Cancellation Scheduled',
+    },
+    planLabels: {
+      ENTERPRISE: isTr ? 'Kurumsal' : 'Enterprise',
+      PRO: 'Pro',
+      STARTER: 'Starter',
+      PAYG: isTr ? 'Kullandıkça Öde' : 'Pay As You Go',
+      TRIAL: isTr ? 'Deneme' : 'Trial',
+      FREE: isTr ? 'Ücretsiz' : 'Free',
+    },
+    noUsers: isTr ? 'Kullanıcı bulunamadı' : 'No users found',
+    loadFailed: isTr ? 'Kullanıcılar yüklenemedi' : 'Failed to load users',
+    suspendSuccess: isTr ? 'Kullanıcı donduruldu' : 'User suspended',
+    activateSuccess: isTr ? 'Kullanıcı aktif edildi' : 'User activated',
+    actionFailed: isTr ? 'İşlem başarısız' : 'Action failed',
+    deleteConfirm: isTr ? 'kullanıcısını silmek istediğinize emin misiniz?' : 'Are you sure you want to delete this user?',
+    deleteSuccess: isTr ? 'Kullanıcı silindi' : 'User deleted',
+    deleteFailed: isTr ? 'Kullanıcı silinemedi' : 'Failed to delete user',
+    periodEnd: isTr ? 'Dönem Sonu' : 'Period End',
+    assistantCallSummary: (assistants, calls) => isTr ? `${assistants} asistan, ${calls} arama` : `${assistants} assistants, ${calls} calls`,
+    detail: isTr ? 'Detay' : 'Details',
+    activate: isTr ? 'Aktif Et' : 'Activate',
+    suspend: isTr ? 'Dondur' : 'Suspend',
+    delete: isTr ? 'Sil' : 'Delete',
+    suspendTitle: isTr ? 'Kullanıcıyı Dondur' : 'Suspend User',
+    activateTitle: isTr ? 'Kullanıcıyı Aktif Et' : 'Activate User',
+    suspendReason: isTr ? 'Dondurma Nedeni (Opsiyonel)' : 'Suspend Reason (Optional)',
+    reasonPlaceholder: isTr ? 'Neden...' : 'Reason...',
+    businessColumn: isTr ? 'İşletme' : 'Business',
+    userColumn: isTr ? 'Kullanıcı' : 'User',
+    planColumn: isTr ? 'Plan' : 'Plan',
+    usageColumn: isTr ? 'Kullanım' : 'Usage',
+    actionColumn: isTr ? 'İşlem' : 'Action',
+  }), [isTr]);
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -93,11 +146,11 @@ export default function AdminUsersPage() {
       }));
     } catch (error) {
       console.error('Failed to load users:', error);
-      toast.error('Kullanıcılar yüklenemedi');
+      toast.error(copy.loadFailed);
     } finally {
       setLoading(false);
     }
-  }, [lifecycleFilter, pagination.limit, pagination.page, planFilter, search, suspendedFilter]);
+  }, [copy.loadFailed, lifecycleFilter, pagination.limit, pagination.page, planFilter, search, suspendedFilter]);
 
   useEffect(() => {
     loadUsers();
@@ -114,7 +167,7 @@ export default function AdminUsersPage() {
 
   const formatDate = (date) => {
     if (!date) return '-';
-    return new Date(date).toLocaleDateString('tr-TR', {
+    return new Date(date).toLocaleDateString(isTr ? 'tr-TR' : 'en-US', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -131,28 +184,28 @@ export default function AdminUsersPage() {
         suspended: isSuspending,
         reason: isSuspending ? suspendReason : null,
       });
-      toast.success(isSuspending ? 'Kullanıcı donduruldu' : 'Kullanıcı aktif edildi');
+      toast.success(isSuspending ? copy.suspendSuccess : copy.activateSuccess);
       setSuspendModal({ open: false, user: null, action: 'suspend' });
       setSuspendReason('');
       loadUsers();
     } catch (error) {
       console.error('Failed to suspend/activate user:', error);
-      toast.error('İşlem başarısız');
+      toast.error(copy.actionFailed);
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleDeleteUser = async (user) => {
-    if (!confirm(`${user.email} kullanıcısını silmek istediğinize emin misiniz?`)) return;
+    if (!confirm(`${user.email} ${copy.deleteConfirm}`)) return;
 
     try {
       await apiClient.admin.deleteUser(user.id);
-      toast.success('Kullanıcı silindi');
+      toast.success(copy.deleteSuccess);
       loadUsers();
     } catch (error) {
       console.error('Failed to delete user:', error);
-      toast.error('Kullanıcı silinemedi');
+      toast.error(copy.deleteFailed);
     }
   };
 
@@ -161,9 +214,9 @@ export default function AdminUsersPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Kullanıcılar</h1>
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">{copy.title}</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Tüm platform kullanıcıları ({pagination.total})
+            {copy.description} ({pagination.total})
           </p>
         </div>
       </div>
@@ -174,50 +227,50 @@ export default function AdminUsersPage() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <Input
-              placeholder="Email, isim veya işletme ara..."
+              placeholder={copy.searchPlaceholder}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-10 w-64"
             />
           </div>
-          <Button type="submit" variant="outline">Ara</Button>
+          <Button type="submit" variant="outline">{copy.search}</Button>
         </form>
 
         <Select value={planFilter} onValueChange={setPlanFilter}>
           <SelectTrigger className="w-40">
-            <SelectValue placeholder="Plan filtrele" />
+            <SelectValue placeholder={copy.filterPlan} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="ALL">Tüm Planlar</SelectItem>
-            <SelectItem value="ENTERPRISE">Enterprise</SelectItem>
-            <SelectItem value="PRO">Pro</SelectItem>
-            <SelectItem value="STARTER">Starter</SelectItem>
-            <SelectItem value="PAYG">PAYG</SelectItem>
-            <SelectItem value="TRIAL">Trial</SelectItem>
-            <SelectItem value="FREE">Free</SelectItem>
+            <SelectItem value="ALL">{copy.allPlans}</SelectItem>
+            <SelectItem value="ENTERPRISE">{copy.planLabels.ENTERPRISE}</SelectItem>
+            <SelectItem value="PRO">{copy.planLabels.PRO}</SelectItem>
+            <SelectItem value="STARTER">{copy.planLabels.STARTER}</SelectItem>
+            <SelectItem value="PAYG">{copy.planLabels.PAYG}</SelectItem>
+            <SelectItem value="TRIAL">{copy.planLabels.TRIAL}</SelectItem>
+            <SelectItem value="FREE">{copy.planLabels.FREE}</SelectItem>
           </SelectContent>
         </Select>
 
         <Select value={suspendedFilter || 'ALL'} onValueChange={(v) => setSuspendedFilter(v === 'ALL' ? '' : v)}>
           <SelectTrigger className="w-40">
-            <SelectValue placeholder="Durum" />
+            <SelectValue placeholder={copy.status} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="ALL">Tümü</SelectItem>
-            <SelectItem value="false">Aktif</SelectItem>
-            <SelectItem value="true">Dondurulmuş</SelectItem>
+            <SelectItem value="ALL">{copy.all}</SelectItem>
+            <SelectItem value="false">{copy.active}</SelectItem>
+            <SelectItem value="true">{copy.suspended}</SelectItem>
           </SelectContent>
         </Select>
 
         <Select value={lifecycleFilter} onValueChange={setLifecycleFilter}>
           <SelectTrigger className="w-52">
-            <SelectValue placeholder="Abonelik yasam dongusu" />
+            <SelectValue placeholder={copy.lifecyclePlaceholder} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="ALL">Tum yasam donguleri</SelectItem>
-            <SelectItem value="TRIAL_EXPIRED">Trial bitmis</SelectItem>
-            <SelectItem value="PAID_LAPSED">Yenilenmeyen paket</SelectItem>
-            <SelectItem value="CANCEL_SCHEDULED">Iptal planli</SelectItem>
+            <SelectItem value="ALL">{copy.allLifecycles}</SelectItem>
+            <SelectItem value="TRIAL_EXPIRED">{copy.lifecycleOptions.TRIAL_EXPIRED}</SelectItem>
+            <SelectItem value="PAID_LAPSED">{copy.lifecycleOptions.PAID_LAPSED}</SelectItem>
+            <SelectItem value="CANCEL_SCHEDULED">{copy.lifecycleOptions.CANCEL_SCHEDULED}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -231,18 +284,18 @@ export default function AdminUsersPage() {
         ) : users.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64">
             <Users className="w-12 h-12 text-gray-400 mb-4" />
-            <p className="text-gray-500">Kullanıcı bulunamadı</p>
+            <p className="text-gray-500">{copy.noUsers}</p>
           </div>
         ) : (
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Kullanıcı</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">İşletme</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Plan</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Kullanım</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Durum</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">İşlem</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.userColumn}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.businessColumn}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.planColumn}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.usageColumn}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.status}</th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.actionColumn}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
@@ -266,11 +319,11 @@ export default function AdminUsersPage() {
                         {user.plan}
                       </Badge>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {SUBSCRIPTION_LIFECYCLE_LABELS[user.subscriptionLifecycle] || user.subscriptionStatus || 'Bilinmiyor'}
+                        {copy.lifecycleLabels[user.subscriptionLifecycle] || user.subscriptionStatus || '-'}
                       </p>
                       {user.currentPeriodEnd && (
                         <p className="text-xs text-gray-500 dark:text-gray-400">
-                          Donem sonu: {formatDate(user.currentPeriodEnd)}
+                          {copy.periodEnd}: {formatDate(user.currentPeriodEnd)}
                         </p>
                       )}
                     </div>
@@ -278,14 +331,14 @@ export default function AdminUsersPage() {
                   <td className="px-4 py-3">
                     <div className="text-sm">
                       <p className="text-gray-700 dark:text-gray-300">{user.minutesUsed || 0} dk</p>
-                      <p className="text-gray-500">{user.assistantsCount} asistan, {user.callsCount} arama</p>
+                      <p className="text-gray-500">{copy.assistantCallSummary(user.assistantsCount, user.callsCount)}</p>
                     </div>
                   </td>
                   <td className="px-4 py-3">
                     {user.suspended ? (
-                      <Badge variant="destructive">Dondurulmuş</Badge>
+                      <Badge variant="destructive">{copy.suspended}</Badge>
                     ) : (
-                      <Badge variant="outline" className="text-green-600 border-green-600">Aktif</Badge>
+                      <Badge variant="outline" className="text-green-600 border-green-600">{copy.active}</Badge>
                     )}
                   </td>
                   <td className="px-4 py-3 text-right">
@@ -299,7 +352,7 @@ export default function AdminUsersPage() {
                         <DropdownMenuItem asChild>
                           <Link href={`/dashboard/admin/users/${user.id}`}>
                             <Eye className="w-4 h-4 mr-2" />
-                            Detay
+                            {copy.detail}
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem
@@ -312,12 +365,12 @@ export default function AdminUsersPage() {
                           {user.suspended ? (
                             <>
                               <CheckCircle className="w-4 h-4 mr-2" />
-                              Aktif Et
+                              {copy.activate}
                             </>
                           ) : (
                             <>
                               <Ban className="w-4 h-4 mr-2" />
-                              Dondur
+                              {copy.suspend}
                             </>
                           )}
                         </DropdownMenuItem>
@@ -326,7 +379,7 @@ export default function AdminUsersPage() {
                           className="text-red-600"
                         >
                           <Trash2 className="w-4 h-4 mr-2" />
-                          Sil
+                          {copy.delete}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -370,7 +423,7 @@ export default function AdminUsersPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {suspendModal.action === 'suspend' ? 'Kullanıcıyı Dondur' : 'Kullanıcıyı Aktif Et'}
+              {suspendModal.action === 'suspend' ? copy.suspendTitle : copy.activateTitle}
             </DialogTitle>
             <DialogDescription>
               {suspendModal.user?.email}
@@ -379,11 +432,11 @@ export default function AdminUsersPage() {
           {suspendModal.action === 'suspend' && (
             <div className="py-4">
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Dondurma Nedeni (opsiyonel)
+                {copy.suspendReason}
               </label>
               <Input
                 className="mt-2"
-                placeholder="Neden..."
+                placeholder={copy.reasonPlaceholder}
                 value={suspendReason}
                 onChange={(e) => setSuspendReason(e.target.value)}
               />
@@ -399,7 +452,7 @@ export default function AdminUsersPage() {
               disabled={actionLoading}
             >
               {actionLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {suspendModal.action === 'suspend' ? 'Dondur' : 'Aktif Et'}
+              {suspendModal.action === 'suspend' ? copy.suspend : copy.activate}
             </Button>
           </DialogFooter>
         </DialogContent>

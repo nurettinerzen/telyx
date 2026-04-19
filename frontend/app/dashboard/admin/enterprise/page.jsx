@@ -100,7 +100,7 @@ export default function EnterpriseAdminPage() {
 
   const handleAddCustomer = async () => {
     if (!formData.businessId) {
-      toast.error('Kullanici secin');
+      toast.error('Kullanıcı seçin');
       return;
     }
 
@@ -118,13 +118,13 @@ export default function EnterpriseAdminPage() {
         notes: formData.notes
       });
 
-      toast.success('Kurumsal musteri eklendi');
+      toast.success('Kurumsal müşteri eklendi');
       setShowAddModal(false);
       resetForm();
       loadData();
     } catch (error) {
       console.error('Failed to add customer:', error);
-      toast.error('Musteri eklenemedi');
+      toast.error('Müşteri eklenemedi');
     } finally {
       setActionLoading(false);
     }
@@ -151,7 +151,7 @@ export default function EnterpriseAdminPage() {
       if (formData.paymentStatus === 'paid' && !selectedCustomer.isActive) {
         toast.success('Kurumsal plan aktif edildi!');
       } else {
-        toast.success('Musteri guncellendi');
+        toast.success('Müşteri güncellendi');
       }
 
       setShowEditModal(false);
@@ -160,7 +160,7 @@ export default function EnterpriseAdminPage() {
       loadData();
     } catch (error) {
       console.error('Failed to update customer:', error);
-      toast.error('Musteri guncellenemedi');
+      toast.error('Müşteri güncellenemedi');
     } finally {
       setActionLoading(false);
     }
@@ -173,11 +173,11 @@ export default function EnterpriseAdminPage() {
 
       if (response.data?.url) {
         await navigator.clipboard.writeText(response.data.url);
-        toast.success('Odeme linki kopyalandi!');
+        toast.success('Ödeme linki kopyalandı!');
       }
     } catch (error) {
       console.error('Failed to generate payment link:', error);
-      toast.error('Odeme linki olusturulamadi');
+      toast.error('Ödeme linki oluşturulamadı');
     } finally {
       setActionLoading(false);
     }
@@ -231,7 +231,7 @@ export default function EnterpriseAdminPage() {
   const getPaymentStatusBadge = (status) => {
     const statusConfig = {
       pending: { label: 'Bekliyor', variant: 'secondary' },
-      paid: { label: 'Odendi', variant: 'default' },
+      paid: { label: 'Ödendi', variant: 'default' },
       overdue: { label: 'Gecikti', variant: 'destructive' }
     };
     const config = statusConfig[status] || statusConfig.pending;
@@ -273,10 +273,10 @@ export default function EnterpriseAdminPage() {
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Kurumsal Musteri Yonetimi
+          Kurumsal Müşteri Yönetimi
         </h1>
         <p className="text-gray-500 dark:text-gray-400 mt-1">
-          Enterprise musterileri ve ozel fiyatlandirma
+          Kurumsal müşteriler ve özel fiyatlandırma
         </p>
       </div>
 
@@ -289,7 +289,7 @@ export default function EnterpriseAdminPage() {
                 <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Toplam Isletme</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Toplam İşletme</p>
                 <p className="text-xl font-semibold text-gray-900 dark:text-white">{stats.totalBusinesses}</p>
               </div>
             </div>
@@ -313,7 +313,7 @@ export default function EnterpriseAdminPage() {
                 <Phone className="w-5 h-5 text-green-600 dark:text-green-400" />
               </div>
               <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Toplam Cagri</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Toplam Çağrı</p>
                 <p className="text-xl font-semibold text-gray-900 dark:text-white">{stats.calls?.total || 0}</p>
               </div>
             </div>
@@ -325,7 +325,7 @@ export default function EnterpriseAdminPage() {
                 <BarChart3 className="w-5 h-5 text-amber-600 dark:text-amber-400" />
               </div>
               <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Bugun</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Bugün</p>
                 <p className="text-xl font-semibold text-gray-900 dark:text-white">{stats.calls?.today || 0}</p>
               </div>
             </div>
@@ -341,7 +341,7 @@ export default function EnterpriseAdminPage() {
             size="sm"
             onClick={() => setFilter('all')}
           >
-            Tumu ({customers.length})
+            Tümü ({customers.length})
           </Button>
           <Button
             variant={filter === 'active' ? 'default' : 'outline'}
@@ -364,7 +364,7 @@ export default function EnterpriseAdminPage() {
         </div>
         <Button onClick={() => setShowAddModal(true)}>
           <Plus className="w-4 h-4 mr-2" />
-          Kurumsal Musteri Ekle
+          Kurumsal Müşteri Ekle
         </Button>
       </div>
 
@@ -374,23 +374,23 @@ export default function EnterpriseAdminPage() {
           <table className="w-full">
             <thead className="bg-gray-50 dark:bg-gray-900">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Isletme</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">İşletme</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Durum</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Dakika</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Yazili Limit</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Yazılı Limit</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Fiyat</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Kullanim</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Odeme</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Islemler</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Kullanım</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Ödeme</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">İşlemler</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {filteredCustomers.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
-                    {filter === 'all' ? 'Henuz kurumsal musteri yok' :
-                     filter === 'active' ? 'Aktif kurumsal musteri yok' :
-                     'Bekleyen kurumsal musteri yok'}
+                    {filter === 'all' ? 'Henüz kurumsal müşteri yok' :
+                     filter === 'active' ? 'Aktif kurumsal müşteri yok' :
+                     'Bekleyen kurumsal müşteri yok'}
                   </td>
                 </tr>
               ) : (
@@ -399,7 +399,7 @@ export default function EnterpriseAdminPage() {
                     <td className="px-4 py-3">
                       <div>
                         <p className="font-medium text-gray-900 dark:text-white">
-                          {customer.businessName || 'Isletme #' + customer.businessId}
+                          {customer.businessName || 'İşletme #' + customer.businessId}
                         </p>
                         <p className="text-sm text-gray-500 dark:text-gray-400">
                           {customer.ownerEmail}
@@ -465,7 +465,7 @@ export default function EnterpriseAdminPage() {
                             size="sm"
                             onClick={() => handleGeneratePaymentLink(customer.id)}
                             disabled={actionLoading}
-                            title="Odeme linki olustur"
+                            title="Ödeme linki oluştur"
                           >
                             <LinkIcon className="w-4 h-4" />
                           </Button>
@@ -484,21 +484,21 @@ export default function EnterpriseAdminPage() {
       <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Kurumsal Musteri Ekle</DialogTitle>
+            <DialogTitle>Kurumsal Müşteri Ekle</DialogTitle>
             <DialogDescription>
-              Mevcut kullaniciyi kurumsal plana yukselt
+              Mevcut kullanıcıyı kurumsal plana yükselt
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div>
-              <Label>Kullanici Sec</Label>
+              <Label>Kullanıcı Seç</Label>
               <Select
                 value={formData.businessId}
                 onValueChange={(value) => setFormData({ ...formData, businessId: value })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Kullanici secin..." />
+                  <SelectValue placeholder="Kullanıcı seçin..." />
                 </SelectTrigger>
                 <SelectContent>
                   {users.map((user) => (
@@ -532,7 +532,7 @@ export default function EnterpriseAdminPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Aylik Fiyat (TL)</Label>
+                <Label>Aylık Fiyat (TL)</Label>
                 <Input
                   type="number"
                   value={formData.price}
@@ -543,7 +543,7 @@ export default function EnterpriseAdminPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Es Zamanli Cagri</Label>
+                <Label>Eş Zamanlı Çağrı</Label>
                 <Input
                   type="number"
                   value={formData.concurrent}
@@ -563,7 +563,7 @@ export default function EnterpriseAdminPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Baslangic Tarihi</Label>
+                <Label>Başlangıç Tarihi</Label>
                 <Input
                   type="date"
                   value={formData.startDate}
@@ -571,7 +571,7 @@ export default function EnterpriseAdminPage() {
                 />
               </div>
               <div>
-                <Label>Bitis Tarihi (opsiyonel)</Label>
+                <Label>Bitiş Tarihi (opsiyonel)</Label>
                 <Input
                   type="date"
                   value={formData.endDate}
@@ -585,14 +585,14 @@ export default function EnterpriseAdminPage() {
               <Input
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                placeholder="Ozel anlasmalar, iletisim bilgileri..."
+                placeholder="Özel anlaşmalar, iletişim bilgileri..."
               />
             </div>
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddModal(false)}>
-              Iptal
+              İptal
             </Button>
             <Button onClick={handleAddCustomer} disabled={actionLoading}>
               {actionLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
@@ -606,9 +606,9 @@ export default function EnterpriseAdminPage() {
       <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Kurumsal Musteri Duzenle</DialogTitle>
+            <DialogTitle>Kurumsal Müşteri Düzenle</DialogTitle>
             <DialogDescription>
-              {selectedCustomer?.businessName || 'Musteri'} bilgilerini guncelle
+              {selectedCustomer?.businessName || 'Müşteri'} bilgilerini güncelle
             </DialogDescription>
           </DialogHeader>
 
@@ -635,7 +635,7 @@ export default function EnterpriseAdminPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Aylik Fiyat (TL)</Label>
+                <Label>Aylık Fiyat (TL)</Label>
                 <Input
                   type="number"
                   value={formData.price}
@@ -646,7 +646,7 @@ export default function EnterpriseAdminPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Es Zamanli Cagri</Label>
+                <Label>Eş Zamanlı Çağrı</Label>
                 <Input
                   type="number"
                   value={formData.concurrent}
@@ -666,7 +666,7 @@ export default function EnterpriseAdminPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Baslangic Tarihi</Label>
+                <Label>Başlangıç Tarihi</Label>
                 <Input
                   type="date"
                   value={formData.startDate}
@@ -674,7 +674,7 @@ export default function EnterpriseAdminPage() {
                 />
               </div>
               <div>
-                <Label>Bitis Tarihi (opsiyonel)</Label>
+                <Label>Bitiş Tarihi (opsiyonel)</Label>
                 <Input
                   type="date"
                   value={formData.endDate}
@@ -684,7 +684,7 @@ export default function EnterpriseAdminPage() {
             </div>
 
             <div>
-              <Label>Odeme Durumu</Label>
+              <Label>Ödeme Durumu</Label>
               <Select
                 value={formData.paymentStatus}
                 onValueChange={(value) => setFormData({ ...formData, paymentStatus: value })}
@@ -694,7 +694,7 @@ export default function EnterpriseAdminPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="pending">Bekliyor</SelectItem>
-                  <SelectItem value="paid">Odendi</SelectItem>
+                  <SelectItem value="paid">Ödendi</SelectItem>
                   <SelectItem value="overdue">Gecikti</SelectItem>
                 </SelectContent>
               </Select>
@@ -705,18 +705,18 @@ export default function EnterpriseAdminPage() {
               <Input
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                placeholder="Ozel anlasmalar, iletisim bilgileri..."
+                placeholder="Özel anlaşmalar, iletişim bilgileri..."
               />
             </div>
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEditModal(false)}>
-              Iptal
+              İptal
             </Button>
             <Button onClick={handleUpdateCustomer} disabled={actionLoading}>
               {actionLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Guncelle
+              Güncelle
             </Button>
           </DialogFooter>
         </DialogContent>

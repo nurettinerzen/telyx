@@ -5,22 +5,19 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
+import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import {
   PhoneForwarded,
   Search,
   ChevronLeft,
   ChevronRight,
   MoreHorizontal,
-  Shield,
   Loader2,
   Building2,
   Clock,
   Calendar,
   CheckCircle,
   XCircle,
-  AlertCircle,
   MessageSquare,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -51,7 +48,7 @@ import {
 } from '@/components/ui/dialog';
 import { apiClient } from '@/lib/api';
 import { toast } from 'sonner';
-
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const STATUS_COLORS = {
   pending: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
@@ -59,14 +56,6 @@ const STATUS_COLORS = {
   completed: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
   cancelled: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400',
   failed: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-};
-
-const STATUS_LABELS = {
-  pending: 'Bekliyor',
-  in_progress: 'İşlemde',
-  completed: 'Tamamlandı',
-  cancelled: 'İptal',
-  failed: 'Başarısız',
 };
 
 const PRIORITY_COLORS = {
@@ -77,6 +66,8 @@ const PRIORITY_COLORS = {
 };
 
 export default function AdminCallbacksPage() {
+  const { locale } = useLanguage();
+  const isTr = locale === 'tr';
   const [loading, setLoading] = useState(true);
   const [callbacks, setCallbacks] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, pages: 0 });
@@ -90,11 +81,42 @@ export default function AdminCallbacksPage() {
   const [updateData, setUpdateData] = useState({ status: '', notes: '' });
   const [actionLoading, setActionLoading] = useState(false);
 
-  useEffect(() => {
-    loadCallbacks();
-  }, [pagination.page, statusFilter]);
+  const copy = useMemo(() => ({
+    title: isTr ? 'Callback İstekleri' : 'Callback Requests',
+    description: isTr ? 'Geri arama talepleri' : 'Callback requests',
+    searchPlaceholder: isTr ? 'Telefon veya isim ara...' : 'Search by phone or name...',
+    search: isTr ? 'Ara' : 'Search',
+    status: isTr ? 'Durum' : 'Status',
+    allStatuses: isTr ? 'Tüm Durumlar' : 'All Statuses',
+    statuses: {
+      pending: isTr ? 'Bekliyor' : 'Pending',
+      in_progress: isTr ? 'İşlemde' : 'In Progress',
+      completed: isTr ? 'Tamamlandı' : 'Completed',
+      cancelled: isTr ? 'İptal' : 'Cancelled',
+      failed: isTr ? 'Başarısız' : 'Failed',
+    },
+    noData: isTr ? 'Callback isteği bulunamadı' : 'No callback requests found',
+    loadFailed: isTr ? 'Callback istekleri yüklenemedi' : 'Failed to load callback requests',
+    updateSuccess: isTr ? 'Callback güncellendi' : 'Callback updated',
+    updateFailed: isTr ? 'Güncelleme başarısız' : 'Update failed',
+    statusUpdated: isTr ? 'Durum güncellendi' : 'Status updated',
+    statusUpdateFailed: isTr ? 'Durum güncellenemedi' : 'Failed to update status',
+    table: {
+      date: isTr ? 'Tarih' : 'Date',
+      customer: isTr ? 'Müşteri' : 'Customer',
+      business: isTr ? 'İşletme' : 'Business',
+      subject: isTr ? 'Konu' : 'Subject',
+      priority: isTr ? 'Öncelik' : 'Priority',
+      status: isTr ? 'Durum' : 'Status',
+      action: isTr ? 'İşlem' : 'Action',
+    },
+    updateTitle: isTr ? 'Callback Güncelle' : 'Update Callback',
+    cancelAction: isTr ? 'İptal' : 'Cancel',
+    save: isTr ? 'Kaydet' : 'Save',
+    adminNotes: isTr ? 'Admin Notları' : 'Admin Notes',
+  }), [isTr]);
 
-  const loadCallbacks = async () => {
+  const loadCallbacks = useCallback(async () => {
     setLoading(true);
     try {
       const params = {
@@ -112,11 +134,15 @@ export default function AdminCallbacksPage() {
       }));
     } catch (error) {
       console.error('Failed to load callbacks:', error);
-      toast.error('Callback istekleri yüklenemedi');
+      toast.error(copy.loadFailed);
     } finally {
       setLoading(false);
     }
-  };
+  }, [copy.loadFailed, pagination.limit, pagination.page, search, statusFilter]);
+
+  useEffect(() => {
+    loadCallbacks();
+  }, [loadCallbacks]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -135,12 +161,12 @@ export default function AdminCallbacksPage() {
     setActionLoading(true);
     try {
       await apiClient.admin.updateCallback(updateModal.callback.id, updateData);
-      toast.success('Callback güncellendi');
+      toast.success(copy.updateSuccess);
       setUpdateModal({ open: false, callback: null });
       loadCallbacks();
     } catch (error) {
       console.error('Failed to update callback:', error);
-      toast.error('Güncelleme başarısız');
+      toast.error(copy.updateFailed);
     } finally {
       setActionLoading(false);
     }
@@ -149,16 +175,16 @@ export default function AdminCallbacksPage() {
   const quickUpdateStatus = async (callback, newStatus) => {
     try {
       await apiClient.admin.updateCallback(callback.id, { status: newStatus });
-      toast.success('Durum güncellendi');
+      toast.success(copy.statusUpdated);
       loadCallbacks();
     } catch (error) {
       console.error('Failed to update status:', error);
-      toast.error('Durum güncellenemedi');
+      toast.error(copy.statusUpdateFailed);
     }
   };
 
   const formatDate = (date) => {
-    return new Date(date).toLocaleString('tr-TR', {
+    return new Date(date).toLocaleString(isTr ? 'tr-TR' : 'en-US', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -174,7 +200,7 @@ export default function AdminCallbacksPage() {
         <div>
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Callback İstekleri</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Geri arama talepleri ({pagination.total})
+            {copy.description} ({pagination.total})
           </p>
         </div>
       </div>
@@ -185,26 +211,26 @@ export default function AdminCallbacksPage() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <Input
-              placeholder="Telefon veya isim ara..."
+              placeholder={copy.searchPlaceholder}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-10 w-64"
             />
           </div>
-          <Button type="submit" variant="outline">Ara</Button>
+          <Button type="submit" variant="outline">{copy.search}</Button>
         </form>
 
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-40">
-            <SelectValue placeholder="Durum" />
+            <SelectValue placeholder={copy.status} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="ALL">Tüm Durumlar</SelectItem>
-            <SelectItem value="pending">Bekliyor</SelectItem>
-            <SelectItem value="in_progress">İşlemde</SelectItem>
-            <SelectItem value="completed">Tamamlandı</SelectItem>
-            <SelectItem value="cancelled">İptal</SelectItem>
-            <SelectItem value="failed">Başarısız</SelectItem>
+            <SelectItem value="ALL">{copy.allStatuses}</SelectItem>
+            <SelectItem value="pending">{copy.statuses.pending}</SelectItem>
+            <SelectItem value="in_progress">{copy.statuses.in_progress}</SelectItem>
+            <SelectItem value="completed">{copy.statuses.completed}</SelectItem>
+            <SelectItem value="cancelled">{copy.statuses.cancelled}</SelectItem>
+            <SelectItem value="failed">{copy.statuses.failed}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -218,19 +244,19 @@ export default function AdminCallbacksPage() {
         ) : callbacks.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64">
             <PhoneForwarded className="w-12 h-12 text-gray-400 mb-4" />
-            <p className="text-gray-500">Callback isteği bulunamadı</p>
+            <p className="text-gray-500">{copy.noData}</p>
           </div>
         ) : (
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Tarih</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Müşteri</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">İşletme</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Konu</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Öncelik</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Durum</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">İşlem</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.table.date}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.table.customer}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.table.business}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.table.subject}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.table.priority}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.table.status}</th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.table.action}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
@@ -269,7 +295,7 @@ export default function AdminCallbacksPage() {
                   </td>
                   <td className="px-4 py-3">
                     <Badge className={STATUS_COLORS[callback.status] || STATUS_COLORS.pending}>
-                      {STATUS_LABELS[callback.status] || callback.status}
+                      {copy.statuses[callback.status] || callback.status}
                     </Badge>
                   </td>
                   <td className="px-4 py-3 text-right">

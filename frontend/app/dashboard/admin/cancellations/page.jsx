@@ -4,7 +4,7 @@
 
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   Building2,
@@ -25,25 +25,7 @@ import {
 } from '@/components/ui/select';
 import { apiClient } from '@/lib/api';
 import { toast } from 'sonner';
-
-const REASON_OPTIONS = [
-  { value: 'ALL', label: 'Tum nedenler' },
-  { value: 'LOW_USAGE', label: 'Cok kullanmiyor' },
-  { value: 'NO_NEED', label: 'Artik ihtiyac yok' },
-  { value: 'TOO_EXPENSIVE', label: 'Pahali' },
-  { value: 'LOW_QUALITY', label: 'Kalite dusuk' },
-  { value: 'MISSING_FEATURES', label: 'Ozellikler yetersiz' },
-  { value: 'TOO_COMPLEX', label: 'Karmasik' },
-  { value: 'OTHER', label: 'Diger' },
-  { value: 'UNSPECIFIED', label: 'Belirtilmedi' },
-];
-
-const LIFECYCLE_OPTIONS = [
-  { value: 'ALL', label: 'Tum durumlar' },
-  { value: 'SCHEDULED', label: 'Planli iptal' },
-  { value: 'ENDED', label: 'Donemi bitmis' },
-  { value: 'REACTIVATED', label: 'Geri alinmis' },
-];
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const LIFECYCLE_TONES = {
   SCHEDULED: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
@@ -53,6 +35,8 @@ const LIFECYCLE_TONES = {
 };
 
 export default function AdminCancellationsPage() {
+  const { locale } = useLanguage();
+  const isTr = locale === 'tr';
   const [loading, setLoading] = useState(true);
   const [cancellations, setCancellations] = useState([]);
   const [summary, setSummary] = useState({
@@ -66,6 +50,55 @@ export default function AdminCancellationsPage() {
   const [search, setSearch] = useState('');
   const [reasonFilter, setReasonFilter] = useState('ALL');
   const [lifecycleFilter, setLifecycleFilter] = useState('ALL');
+
+  const copy = useMemo(() => ({
+    title: isTr ? 'İptaller' : 'Cancellations',
+    description: isTr ? 'Kullanıcı iptalleri, dönem sonu çıkışları ve bırakılan nedenler.' : 'User cancellations, period-end exits, and submitted reasons.',
+    summary: {
+      total: isTr ? 'Toplam Talep' : 'Total Requests',
+      scheduled: isTr ? 'Planlı İptal' : 'Scheduled Cancellations',
+      ended: isTr ? 'Dönemi Biten' : 'Ended Subscriptions',
+      feedback: isTr ? 'Geri Bildirim Gelen' : 'Feedback Received',
+    },
+    searchPlaceholder: isTr ? 'Şirket, sahip veya e-posta ara...' : 'Search by business, owner, or email...',
+    search: isTr ? 'Ara' : 'Search',
+    reasonPlaceholder: isTr ? 'İptal Nedeni' : 'Cancellation Reason',
+    lifecyclePlaceholder: isTr ? 'Durum' : 'Status',
+    noData: isTr ? 'Filtreye uyan iptal kaydı bulunamadı.' : 'No cancellation records matched the filter.',
+    loadFailed: isTr ? 'İptal kayıtları yüklenemedi' : 'Failed to load cancellation records',
+    table: {
+      business: isTr ? 'Şirket' : 'Business',
+      plan: isTr ? 'Plan' : 'Plan',
+      status: isTr ? 'Durum' : 'Status',
+      reason: isTr ? 'Neden' : 'Reason',
+      note: isTr ? 'Not' : 'Note',
+      requested: isTr ? 'Talep' : 'Requested',
+      periodEnd: isTr ? 'Dönem Sonu' : 'Period End',
+    },
+    reasons: [
+      { value: 'ALL', label: isTr ? 'Tüm Nedenler' : 'All Reasons' },
+      { value: 'LOW_USAGE', label: isTr ? 'Çok kullanmıyor' : 'Low usage' },
+      { value: 'NO_NEED', label: isTr ? 'Artık ihtiyaç yok' : 'No longer needed' },
+      { value: 'TOO_EXPENSIVE', label: isTr ? 'Pahalı' : 'Too expensive' },
+      { value: 'LOW_QUALITY', label: isTr ? 'Kalite düşük' : 'Low quality' },
+      { value: 'MISSING_FEATURES', label: isTr ? 'Özellikler yetersiz' : 'Missing features' },
+      { value: 'TOO_COMPLEX', label: isTr ? 'Karmaşık' : 'Too complex' },
+      { value: 'OTHER', label: isTr ? 'Diğer' : 'Other' },
+      { value: 'UNSPECIFIED', label: isTr ? 'Belirtilmedi' : 'Unspecified' },
+    ],
+    lifecycles: [
+      { value: 'ALL', label: isTr ? 'Tüm Durumlar' : 'All Statuses' },
+      { value: 'SCHEDULED', label: isTr ? 'Planlı İptal' : 'Scheduled' },
+      { value: 'ENDED', label: isTr ? 'Dönemi Biten' : 'Ended' },
+      { value: 'REACTIVATED', label: isTr ? 'Geri Alınmış' : 'Reactivated' },
+    ],
+    lifecycleLabels: {
+      SCHEDULED: isTr ? 'Planlı İptal' : 'Scheduled',
+      ENDED: isTr ? 'Dönemi Biten' : 'Ended',
+      REACTIVATED: isTr ? 'Geri Alınmış' : 'Reactivated',
+      UNKNOWN: isTr ? 'Bilinmiyor' : 'Unknown',
+    },
+  }), [isTr]);
 
   const loadCancellations = useCallback(async () => {
     setLoading(true);
@@ -88,11 +121,11 @@ export default function AdminCancellationsPage() {
       }));
     } catch (error) {
       console.error('Failed to load cancellations:', error);
-      toast.error('Iptal kayitlari yuklenemedi');
+      toast.error(copy.loadFailed);
     } finally {
       setLoading(false);
     }
-  }, [lifecycleFilter, pagination.limit, pagination.page, reasonFilter, search]);
+  }, [copy.loadFailed, lifecycleFilter, pagination.limit, pagination.page, reasonFilter, search]);
 
   useEffect(() => {
     loadCancellations();
@@ -109,7 +142,7 @@ export default function AdminCancellationsPage() {
 
   const formatDate = (date) => {
     if (!date) return '-';
-    return new Date(date).toLocaleString('tr-TR', {
+    return new Date(date).toLocaleString(isTr ? 'tr-TR' : 'en-US', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -121,28 +154,28 @@ export default function AdminCancellationsPage() {
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Iptaller</h1>
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">{copy.title}</h1>
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Kullanici iptalleri, donem sonu cikislari ve sonrasinda birakilan nedenler.
+          {copy.description}
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        {[
-          { label: 'Toplam talep', value: summary.total || 0 },
-          { label: 'Planli iptal', value: summary.scheduled || 0 },
-          { label: 'Donemi biten', value: summary.ended || 0 },
-          { label: 'Geri bildirim gelen', value: summary.feedbackProvided || 0 },
+          {[
+          { label: copy.summary.total, value: summary.total || 0 },
+          { label: copy.summary.scheduled, value: summary.scheduled || 0 },
+          { label: copy.summary.ended, value: summary.ended || 0 },
+          { label: copy.summary.feedback, value: summary.feedbackProvided || 0 },
         ].map((item) => (
           <div
             key={item.label}
             className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900"
           >
-            <p className="text-xs font-medium uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
               {item.label}
             </p>
             <p className="mt-2 text-3xl font-semibold text-gray-900 dark:text-white">
-              {Number(item.value || 0).toLocaleString('tr-TR')}
+              {Number(item.value || 0).toLocaleString(isTr ? 'tr-TR' : 'en-US')}
             </p>
           </div>
         ))}
@@ -153,21 +186,21 @@ export default function AdminCancellationsPage() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <Input
-              placeholder="Sirket, sahip veya e-posta ara..."
+              placeholder={copy.searchPlaceholder}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               className="pl-10 w-72"
             />
           </div>
-          <Button type="submit" variant="outline">Ara</Button>
+          <Button type="submit" variant="outline">{copy.search}</Button>
         </form>
 
         <Select value={reasonFilter} onValueChange={setReasonFilter}>
           <SelectTrigger className="w-52">
-            <SelectValue placeholder="Iptal nedeni" />
+            <SelectValue placeholder={copy.reasonPlaceholder} />
           </SelectTrigger>
           <SelectContent>
-            {REASON_OPTIONS.map((option) => (
+            {copy.reasons.map((option) => (
               <SelectItem key={option.value} value={option.value}>
                 {option.label}
               </SelectItem>
@@ -177,10 +210,10 @@ export default function AdminCancellationsPage() {
 
         <Select value={lifecycleFilter} onValueChange={setLifecycleFilter}>
           <SelectTrigger className="w-44">
-            <SelectValue placeholder="Durum" />
+            <SelectValue placeholder={copy.lifecyclePlaceholder} />
           </SelectTrigger>
           <SelectContent>
-            {LIFECYCLE_OPTIONS.map((option) => (
+            {copy.lifecycles.map((option) => (
               <SelectItem key={option.value} value={option.value}>
                 {option.label}
               </SelectItem>
@@ -198,7 +231,7 @@ export default function AdminCancellationsPage() {
           <div className="flex h-64 flex-col items-center justify-center text-center">
             <AlertTriangle className="mb-4 h-10 w-10 text-gray-400" />
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Filtreye uyan iptal kaydi bulunamadi.
+              {copy.noData}
             </p>
           </div>
         ) : (
@@ -206,13 +239,13 @@ export default function AdminCancellationsPage() {
             <table className="w-full min-w-[980px]">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-800/50">
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Sirket</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Plan</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Durum</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Neden</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Not</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Talep</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Donem sonu</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">{copy.table.business}</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">{copy.table.plan}</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">{copy.table.status}</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">{copy.table.reason}</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">{copy.table.note}</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">{copy.table.requested}</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">{copy.table.periodEnd}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
@@ -232,7 +265,7 @@ export default function AdminCancellationsPage() {
                     </td>
                     <td className="px-4 py-3">
                       <Badge className={LIFECYCLE_TONES[item.lifecycle] || LIFECYCLE_TONES.UNKNOWN}>
-                        {item.lifecycle}
+                        {copy.lifecycleLabels[item.lifecycle] || item.lifecycle}
                       </Badge>
                     </td>
                     <td className="px-4 py-3">
