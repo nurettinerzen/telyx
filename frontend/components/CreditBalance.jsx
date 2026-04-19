@@ -266,6 +266,7 @@ export default function CreditBalance({ onBuyCredit, refreshTrigger }) {
       ?? balance.includedMinutes?.addOnRemaining
       ?? 0
     );
+    const concurrentLimit = Number(balance.concurrent?.limit ?? balance.enterprise?.concurrent ?? 0);
     const voiceOverageMinutes = Number(balance.overage?.minutes || 0);
     const voiceOverageAmount = Number(balance.overage?.amount || 0);
     const voiceOverageRate = Number(balance.overage?.rate || 0);
@@ -450,6 +451,12 @@ export default function CreditBalance({ onBuyCredit, refreshTrigger }) {
                   <span>{voiceAddOnRemaining} {txt.min}</span>
                 </div>
               )}
+              {concurrentLimit > 0 && (
+                <div className="text-xs text-neutral-500 dark:text-neutral-400 flex items-center justify-between">
+                  <span>{txt.enterpriseConcurrent}</span>
+                  <span className="font-medium text-neutral-700 dark:text-neutral-300">{concurrentLimit}</span>
+                </div>
+              )}
               {includedPercent >= 80 && includedPercent < 100 && (
                 <p className="text-xs text-orange-600 flex items-center gap-1">
                   <AlertTriangle className="h-3 w-3" />
@@ -465,58 +472,6 @@ export default function CreditBalance({ onBuyCredit, refreshTrigger }) {
             </div>
 
             {renderWrittenUsage()}
-
-            {/* Enterprise Payment Status */}
-            {isEnterprise && balance.enterprise && (
-              <div className={`rounded-lg p-4 ${
-                balance.enterprise.paymentStatus === 'paid'
-                  ? 'bg-green-50 dark:bg-green-900/20'
-                  : balance.enterprise.paymentStatus === 'overdue'
-                  ? 'bg-red-50 dark:bg-red-900/20'
-                  : 'bg-amber-50 dark:bg-amber-900/20'
-              }`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Wallet className={`h-4 w-4 ${
-                      balance.enterprise.paymentStatus === 'paid'
-                        ? 'text-green-600 dark:text-green-400'
-                        : balance.enterprise.paymentStatus === 'overdue'
-                        ? 'text-red-600 dark:text-red-400'
-                        : 'text-amber-600 dark:text-amber-400'
-                    }`} />
-                    <span className="font-medium text-neutral-700 dark:text-neutral-300">
-                      {lang === 'TR' ? 'Ödeme Durumu' : 'Payment Status'}
-                    </span>
-                  </div>
-                  <Badge variant={
-                    balance.enterprise.paymentStatus === 'paid' ? 'success' :
-                    balance.enterprise.paymentStatus === 'overdue' ? 'destructive' : 'warning'
-                  }>
-                    {balance.enterprise.paymentStatus === 'paid' ? txt.enterprisePaymentPaid :
-                     balance.enterprise.paymentStatus === 'overdue' ? txt.enterprisePaymentOverdue :
-                     txt.enterprisePaymentPending}
-                  </Badge>
-                </div>
-                {balance.enterprise.paymentStatus !== 'paid' && (
-                  <p className="mt-2 text-sm text-amber-700 dark:text-amber-400">
-                    {lang === 'TR'
-                      ? 'Arama yapabilmek için ödeme yapılması gerekmektedir.'
-                      : 'Payment is required to make calls.'}
-                  </p>
-                )}
-                {balance.enterprise.endDate && (
-                  <div className="mt-2 text-xs text-neutral-500 flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    <span>{txt.enterpriseEndDate}: {new Date(balance.enterprise.endDate).toLocaleDateString(dateLocale)}</span>
-                  </div>
-                )}
-                {balance.enterprise.concurrent && (
-                  <div className="mt-1 text-xs text-neutral-500">
-                    {txt.enterpriseConcurrent}: {balance.enterprise.concurrent}
-                  </div>
-                )}
-              </div>
-            )}
 
             {/* Overage Info - POSTPAID (Ay sonu fatura) - Enterprise hariç */}
             {!isEnterprise && hasAnyOverage && (

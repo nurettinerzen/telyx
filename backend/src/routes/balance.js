@@ -21,6 +21,7 @@ import stripeService from '../services/stripe.js';
 import { getWrittenUsageSummary } from '../services/writtenUsageService.js';
 import { getBillingPlanDefinition } from '../config/billingCatalog.js';
 import { buildUsageAlerts } from '../services/usageAlertService.js';
+import { getEffectivePlanConfig } from '../services/planConfig.js';
 import {
   markBillingCheckoutSessionCompleted,
   recordBillingCheckoutSession
@@ -66,6 +67,8 @@ const BALANCE_LEGACY_SUBSCRIPTION_SELECT = {
   autoReloadEnabled: true,
   autoReloadThreshold: true,
   autoReloadAmount: true,
+  concurrentLimit: true,
+  activeCalls: true,
   enterpriseMinutes: true,
   enterpriseSupportInteractions: true,
   enterprisePrice: true,
@@ -447,6 +450,9 @@ router.get('/', async (req, res) => {
     const overageRate = getFixedOveragePrice(country); // Sabit aşım fiyatı
     const writtenUsage = await getWrittenUsageSummary(subscription, { includeReserved: false });
     const billingPlan = getBillingPlanDefinition(subscription);
+    const effectivePlanConfig = getEffectivePlanConfig(subscription);
+    const effectiveConcurrentLimit = Number(effectivePlanConfig.concurrentLimit || 0);
+    const activeConcurrentCalls = Number(subscription.activeCalls || 0);
 
     // ENTERPRISE için dakika limiti database'den, diğerleri için plan config'den al
     const isEnterprise = plan === 'ENTERPRISE';
@@ -478,7 +484,7 @@ router.get('/', async (req, res) => {
       startDate: subscription.enterpriseStartDate,
       endDate: subscription.enterpriseEndDate,
       price: subscription.enterprisePrice,
-      concurrent: subscription.enterpriseConcurrent
+      concurrent: effectiveConcurrentLimit
     } : null;
     const usageAlerts = buildUsageAlerts({
       subscription,
@@ -495,6 +501,11 @@ router.get('/', async (req, res) => {
       plan,
       paymentModel, // 'PREPAID' veya 'POSTPAID'
       currency: country === 'TR' ? '₺' : country === 'BR' ? 'R$' : '$',
+      concurrent: {
+        limit: effectiveConcurrentLimit,
+        active: activeConcurrentCalls,
+        available: Math.max(0, effectiveConcurrentLimit - activeConcurrentCalls)
+      },
 
       // PAYG için bakiye bilgisi (prepaid)
       balance: isPAYG ? (subscription.balance || 0) : null,

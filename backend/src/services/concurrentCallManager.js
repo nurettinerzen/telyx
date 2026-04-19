@@ -9,8 +9,22 @@
 // ============================================================================
 
 import prisma from '../prismaClient.js';
-import { PLANS, getConcurrentLimit } from '../config/plans.js';
 import globalCapacityManager from './globalCapacityManager.js';
+import { getEffectivePlanConfig } from './planConfig.js';
+
+const CONCURRENT_LIMIT_SELECT = {
+  id: true,
+  plan: true,
+  concurrentLimit: true,
+  enterpriseConcurrent: true,
+  activeCalls: true,
+  status: true,
+  business: {
+    select: {
+      country: true
+    }
+  }
+};
 
 /**
  * Concurrent Call Manager
@@ -32,13 +46,7 @@ class ConcurrentCallManager {
     try {
       const subscription = await prisma.subscription.findUnique({
         where: { businessId },
-        select: {
-          id: true,
-          plan: true,
-          concurrentLimit: true,
-          activeCalls: true,
-          status: true
-        }
+        select: CONCURRENT_LIMIT_SELECT
       });
 
       if (!subscription) {
@@ -59,8 +67,9 @@ class ConcurrentCallManager {
         };
       }
 
-      // Get limit from subscription or plan default
-      const limit = subscription.concurrentLimit || getConcurrentLimit(subscription.plan);
+      // Use the unified effective config so enterprise custom limits and plan defaults
+      // resolve exactly the same way in UI and runtime gating.
+      const limit = getEffectivePlanConfig(subscription).concurrentLimit;
 
       if (limit === 0) {
         return {
@@ -250,11 +259,7 @@ class ConcurrentCallManager {
     try {
       const subscription = await prisma.subscription.findUnique({
         where: { businessId },
-        select: {
-          plan: true,
-          concurrentLimit: true,
-          activeCalls: true
-        }
+        select: CONCURRENT_LIMIT_SELECT
       });
 
       if (!subscription) {
@@ -266,7 +271,7 @@ class ConcurrentCallManager {
         };
       }
 
-      const limit = subscription.concurrentLimit || getConcurrentLimit(subscription.plan);
+      const limit = getEffectivePlanConfig(subscription).concurrentLimit;
       const activeCalls = subscription.activeCalls || 0;
 
       return {

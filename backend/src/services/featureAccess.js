@@ -8,6 +8,7 @@
 
 import prisma from '../prismaClient.js';
 import { PLANS, hasFeature, hasChannel, getChannels, getPlanConfig } from '../config/plans.js';
+import { getEffectivePlanConfig } from './planConfig.js';
 
 /**
  * Feature Access Controller
@@ -197,6 +198,7 @@ class FeatureAccessController {
       }
 
       const planConfig = getPlanConfig(subscription.plan);
+      const effectivePlanConfig = getEffectivePlanConfig(subscription);
       const channels = getChannels(subscription.plan);
 
       return {
@@ -221,7 +223,7 @@ class FeatureAccessController {
           apiAccess: planConfig.features?.apiAccess || false
         },
         limits: {
-          concurrent: subscription.concurrentLimit || planConfig.concurrentLimit,
+          concurrent: effectivePlanConfig.concurrentLimit,
           assistants: planConfig.assistantsLimit,
           phoneNumbers: planConfig.phoneNumbersLimit,
           overage: subscription.overageLimit || planConfig.overageLimit

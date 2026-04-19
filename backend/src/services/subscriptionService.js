@@ -220,6 +220,8 @@ export async function canMakeCall_OLD(businessId) {
 
     const country = subscription.business?.country || 'TR';
     const plan = subscription.plan;
+    const effectivePlanConfig = getEffectivePlanConfig(subscription);
+    const effectiveConcurrentLimit = effectivePlanConfig.concurrentLimit;
 
     // Check subscription status
     if (subscription.status !== 'ACTIVE' && subscription.status !== 'TRIAL') {
@@ -231,12 +233,12 @@ export async function canMakeCall_OLD(businessId) {
     }
 
     // Check concurrent call limit
-    if (subscription.activeCalls >= subscription.concurrentLimit) {
+    if (subscription.activeCalls >= effectiveConcurrentLimit) {
       return {
         canMakeCall: false,
         reason: 'CONCURRENT_LIMIT_REACHED',
         activeCalls: subscription.activeCalls,
-        limit: subscription.concurrentLimit
+        limit: effectiveConcurrentLimit
       };
     }
 
@@ -314,8 +316,7 @@ export async function canMakeCall_OLD(businessId) {
       }
 
       // P0-A: Use unified plan config for enterprise minutes
-      const planConfig = getEffectivePlanConfig(subscription);
-      const enterpriseMinutes = planConfig.includedMinutes;
+      const enterpriseMinutes = effectivePlanConfig.includedMinutes;
       const remainingMinutes = enterpriseMinutes - (subscription.includedMinutesUsed || 0);
 
       if (remainingMinutes <= 0) {
@@ -411,6 +412,7 @@ export async function getSubscriptionDetails(businessId) {
     const plan = subscription.plan;
     const includedMinutes = getIncludedMinutes(plan, country);
     const pricePerMinute = getPricePerMinute(plan, country);
+    const effectivePlanConfig = getEffectivePlanConfig(subscription);
 
     // Calculate balance in minutes
     const balanceMinutes = pricePerMinute > 0
@@ -456,7 +458,7 @@ export async function getSubscriptionDetails(businessId) {
       trialChatExpiry: subscription.trialChatExpiry,
       trialChatDaysRemaining,
       // Limits
-      concurrentLimit: subscription.concurrentLimit,
+      concurrentLimit: effectivePlanConfig.concurrentLimit,
       activeCalls: subscription.activeCalls,
       assistantsLimit: subscription.assistantsLimit,
       assistantsCreated: subscription.assistantsCreated,
@@ -497,12 +499,14 @@ export async function incrementActiveCalls(businessId) {
       throw new Error('Subscription not found');
     }
 
-    if (subscription.activeCalls >= subscription.concurrentLimit) {
+    const effectiveConcurrentLimit = getEffectivePlanConfig(subscription).concurrentLimit;
+
+    if (subscription.activeCalls >= effectiveConcurrentLimit) {
       return {
         success: false,
         reason: 'CONCURRENT_LIMIT_REACHED',
         activeCalls: subscription.activeCalls,
-        limit: subscription.concurrentLimit
+        limit: effectiveConcurrentLimit
       };
     }
 
@@ -516,7 +520,7 @@ export async function incrementActiveCalls(businessId) {
     return {
       success: true,
       activeCalls: updated.activeCalls,
-      limit: updated.concurrentLimit
+      limit: effectiveConcurrentLimit
     };
   } catch (error) {
     console.error('❌ Increment active calls error:', error);
