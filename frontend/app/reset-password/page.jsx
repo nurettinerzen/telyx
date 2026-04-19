@@ -4,19 +4,18 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import Link from 'next/link';
-import { Phone, Loader2, ArrowLeft, CheckCircle, XCircle, Eye, EyeOff } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast, Toaster } from 'sonner';
 import { useLanguage } from '@/contexts/LanguageContext';
-import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { apiClient } from '@/lib/api';
-import { TelyxLogoFull } from '@/components/TelyxLogo';
+import AuthFlowShell from '@/components/AuthFlowShell';
 
 function ResetPasswordContent() {
   const router = useRouter();
-  const { locale, t } = useLanguage();
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState(null);
@@ -37,7 +36,7 @@ function ResetPasswordContent() {
     if (!hashToken) {
       setError(t('auth.invalidOrMissingToken'));
     }
-  }, [locale, t]);
+  }, [t]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -149,6 +148,7 @@ function ResetPasswordContent() {
               onChange={handleChange}
               placeholder="******"
               minLength={12}
+              className="h-11 rounded-xl border-neutral-200 bg-white/80 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-white"
             />
             <button
               type="button"
@@ -175,6 +175,7 @@ function ResetPasswordContent() {
               onChange={handleChange}
               placeholder="******"
               minLength={12}
+              className="h-11 rounded-xl border-neutral-200 bg-white/80 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-white"
             />
             <button
               type="button"
@@ -186,7 +187,7 @@ function ResetPasswordContent() {
           </div>
         </div>
 
-        <Button type="submit" className="w-full" disabled={loading}>
+        <Button type="submit" className="h-11 w-full rounded-full" disabled={loading}>
           {loading ? (
             <>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -202,7 +203,7 @@ function ResetPasswordContent() {
 }
 
 export default function ResetPasswordPage() {
-  const { locale, t } = useLanguage();
+  const { t } = useLanguage();
   const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -211,35 +212,22 @@ export default function ResetPasswordPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-primary-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950 flex items-center justify-center p-4">
+    <div>
       <Toaster position="top-right" richColors />
 
-      <div className="w-full max-w-md">
-        <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-xl border border-neutral-200 dark:border-neutral-700 p-8">
-          {/* Logo and Language Switcher */}
-          <div className="flex items-center justify-between mb-8">
-            <TelyxLogoFull width={148} height={42} darkMode={mounted && resolvedTheme === 'dark'} />
-            <LanguageSwitcher />
+      <AuthFlowShell
+        backHref="/login"
+        backLabel={t('auth.backToLogin')}
+        mountedDarkMode={mounted && resolvedTheme === 'dark'}
+      >
+        <Suspense fallback={
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
           </div>
-
-          {/* Back Link */}
-          <Link
-            href="/login"
-            className="inline-flex items-center text-sm text-neutral-600 dark:text-neutral-400 hover:text-primary-600 dark:hover:text-primary-400 mb-6"
-          >
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            {t('auth.backToLogin')}
-          </Link>
-
-          <Suspense fallback={
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
-            </div>
-          }>
-            <ResetPasswordContent />
-          </Suspense>
-        </div>
-      </div>
+        }>
+          <ResetPasswordContent />
+        </Suspense>
+      </AuthFlowShell>
     </div>
   );
 }

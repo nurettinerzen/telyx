@@ -42,13 +42,19 @@ import {
 import EmptyState from '@/components/EmptyState';
 import VoiceCard from '@/components/VoiceCard';
 import { apiClient } from '@/lib/api';
-import { Bot, Plus, Edit, Trash2, Search, PhoneIncoming, PhoneOutgoing, MessageSquare, Loader2, RefreshCw, ChevronDown, ChevronRight } from 'lucide-react';
+import { Bot, Plus, Edit, Trash2, Search, PhoneIncoming, PhoneOutgoing, MessageSquare, Loader2, RefreshCw, ChevronDown, ChevronRight, Languages } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import PageIntro from '@/components/PageIntro';
 import { getPageHelp } from '@/content/pageHelp';
+import {
+  FlowBadge,
+  FlowPageShell,
+  FlowPanel,
+  FlowStatCard,
+} from '@/components/dashboard/FlowPageShell';
 
 // Language code to accent name mapping
 const LANGUAGE_TO_ACCENT = {
@@ -565,105 +571,144 @@ export default function AssistantsPage() {
     return voice.accent === selectedAccent;
   });
 
+  const textAssistantCount = assistants.filter((assistant) => assistant.assistantType === 'text').length;
+  const phoneAssistantCount = assistants.filter((assistant) => assistant.assistantType !== 'text').length;
+  const activeLanguageCount = new Set(assistants.map((assistant) => assistant.language).filter(Boolean)).size;
+
   const filteredAssistants = assistants.filter((a) =>
     a.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <PageIntro
-        title={pageHelp?.title || t('dashboard.assistantsPage.title')}
-        subtitle={pageHelp?.subtitle}
-        locale={locale}
-        help={pageHelp ? { tooltipTitle: pageHelp.tooltipTitle, tooltipBody: pageHelp.tooltipBody, quickSteps: pageHelp.quickSteps } : undefined}
-        actions={can('assistants:create') && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                {t('dashboard.assistantsPage.create')}
-                <ChevronDown className="h-4 w-4 ml-2" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handleNewTextAssistant} className="gap-2 py-2">
-                <MessageSquare className="h-4 w-4 text-teal-600" />
-                <div>
-                  <div className="font-medium">{t('dashboard.assistantsPage.textAssistant')}</div>
-                  <div className="text-xs text-neutral-500">{t('dashboard.assistantsPage.textAssistantDesc')}</div>
-                </div>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleNewPhoneAssistant} className="gap-2 py-2">
-                <PhoneOutgoing className="h-4 w-4 text-orange-600" />
-                <div>
-                  <div className="font-medium">{t('dashboard.assistantsPage.phoneAssistant')}</div>
-                  <div className="text-xs text-neutral-500">{t('dashboard.assistantsPage.phoneAssistantDesc')}</div>
-                </div>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-      />
+    <div className="space-y-6 pb-12">
+      <FlowPageShell className="mx-auto max-w-7xl">
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start">
+          <div className="space-y-6">
+            <div className="space-y-4">
+              <FlowBadge accent="lightBlue">{locale === 'tr' ? 'AI Studio' : 'AI Studio'}</FlowBadge>
+              <PageIntro
+                title={pageHelp?.title || t('dashboard.assistantsPage.title')}
+                subtitle={pageHelp?.subtitle}
+                locale={locale}
+                titleClassName="text-3xl md:text-4xl font-semibold text-neutral-900 dark:text-white"
+                subtitleClassName="text-base leading-7 text-neutral-600 dark:text-slate-300"
+                help={pageHelp ? { tooltipTitle: pageHelp.tooltipTitle, tooltipBody: pageHelp.tooltipBody, quickSteps: pageHelp.quickSteps } : undefined}
+                actions={can('assistants:create') && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button className="rounded-full shadow-sm dark:bg-white dark:text-[#051752] dark:hover:bg-slate-100">
+                        <Plus className="h-4 w-4 mr-2" />
+                        {t('dashboard.assistantsPage.create')}
+                        <ChevronDown className="h-4 w-4 ml-2" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={handleNewTextAssistant} className="gap-2 py-2">
+                        <MessageSquare className="h-4 w-4 text-[#00C4E6]" />
+                        <div>
+                          <div className="font-medium">{t('dashboard.assistantsPage.textAssistant')}</div>
+                          <div className="text-xs text-neutral-500">{t('dashboard.assistantsPage.textAssistantDesc')}</div>
+                        </div>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleNewPhoneAssistant} className="gap-2 py-2">
+                        <PhoneOutgoing className="h-4 w-4 text-[#006FEB]" />
+                        <div>
+                          <div className="font-medium">{t('dashboard.assistantsPage.phoneAssistant')}</div>
+                          <div className="text-xs text-neutral-500">{t('dashboard.assistantsPage.phoneAssistantDesc')}</div>
+                        </div>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              />
+            </div>
 
-      {/* Search */}
-      {assistants.length > 0 && (
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
-          <Input
-            placeholder={t('dashboard.assistantsPage.searchAssistants')}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
+            {assistants.length > 0 ? (
+              <FlowPanel className="max-w-xl p-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400 dark:text-slate-500" />
+                  <Input
+                    placeholder={t('dashboard.assistantsPage.searchAssistants')}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="h-11 rounded-xl border-neutral-200 bg-white/80 pl-10 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-white"
+                  />
+                </div>
+              </FlowPanel>
+            ) : null}
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
+            <FlowStatCard
+              icon={Bot}
+              value={assistants.length}
+              label={locale === 'tr' ? 'Toplam asistan' : 'Total assistants'}
+              hint={locale === 'tr' ? 'Tum sesli ve metin asistanlari' : 'All voice and text assistants'}
+              accent="teal"
+            />
+            <FlowStatCard
+              icon={PhoneOutgoing}
+              value={phoneAssistantCount}
+              label={locale === 'tr' ? 'Telefon asistani' : 'Phone assistants'}
+              hint={locale === 'tr' ? 'Arama ve telefon akislarinda aktif' : 'Active for call flows and voice ops'}
+              accent="lightBlue"
+            />
+            <FlowStatCard
+              icon={Languages}
+              value={activeLanguageCount || '-'}
+              label={locale === 'tr' ? 'Aktif dil seti' : 'Active language sets'}
+              hint={locale === 'tr' ? `${textAssistantCount} metin asistani, ${phoneAssistantCount} telefon asistani` : `${textAssistantCount} text assistants, ${phoneAssistantCount} phone assistants`}
+              accent="deepBlue"
+            />
+          </div>
         </div>
-      )}
+      </FlowPageShell>
 
       {/* Assistants Table */}
       {loading ? (
-        <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-12 flex items-center justify-center">
+        <FlowPanel className="mx-auto flex max-w-7xl items-center justify-center p-12">
           <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
-        </div>
+        </FlowPanel>
       ) : filteredAssistants.length > 0 ? (
-        <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 overflow-hidden">
+        <FlowPanel className="mx-auto max-w-7xl overflow-hidden p-0">
           <table className="w-full">
-            <thead className="bg-neutral-50 dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700">
+            <thead className="border-b border-neutral-200 dark:border-white/[0.08] bg-neutral-50/90 dark:bg-white/[0.04]">
               <tr>
-                <th className="text-left p-4 text-sm font-medium text-neutral-600 dark:text-neutral-300 w-auto">
+                <th className="text-left p-4 text-sm font-medium text-neutral-600 dark:text-slate-300 w-auto">
                   {t('dashboard.assistantsPage.assistantNameCol')}
                 </th>
-                <th className="text-left p-4 text-sm font-medium text-neutral-600 dark:text-neutral-300 w-40">
+                <th className="text-left p-4 text-sm font-medium text-neutral-600 dark:text-slate-300 w-40">
                   {t('dashboard.assistantsPage.typeCol')}
                 </th>
-                <th className="text-left p-4 text-sm font-medium text-neutral-600 dark:text-neutral-300 w-48">
+                <th className="text-left p-4 text-sm font-medium text-neutral-600 dark:text-slate-300 w-48">
                   {t('dashboard.assistantsPage.purposeCol')}
                 </th>
-                <th className="text-left p-4 text-sm font-medium text-neutral-600 dark:text-neutral-300 w-48">
+                <th className="text-left p-4 text-sm font-medium text-neutral-600 dark:text-slate-300 w-48">
                   {t('dashboard.assistantsPage.voiceCol')}
                 </th>
-                <th className="text-left p-4 text-sm font-medium text-neutral-600 dark:text-neutral-300 w-48">
+                <th className="text-left p-4 text-sm font-medium text-neutral-600 dark:text-slate-300 w-48">
                   {t('dashboard.assistantsPage.createdCol')}
                 </th>
-                <th className="text-center p-4 text-sm font-medium text-neutral-600 dark:text-neutral-300 w-48">
+                <th className="text-center p-4 text-sm font-medium text-neutral-600 dark:text-slate-300 w-48">
                   {t('dashboard.assistantsPage.actionsCol')}
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-neutral-200 dark:divide-neutral-700">
+            <tbody className="divide-y divide-neutral-200 dark:divide-white/[0.08]">
               {filteredAssistants.map((assistant) => {
                 const voice = voices.find((v) => v.id === assistant.voiceId);
                 const isText = assistant.assistantType === 'text';
 
                 return (
-                  <tr key={assistant.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800">
+                  <tr key={assistant.id} className="hover:bg-neutral-50/80 dark:hover:bg-white/[0.03]">
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="flex items-center gap-2">
                         {isText ? (
-                          <MessageSquare className="h-4 w-4 text-teal-500" />
+                          <MessageSquare className="h-4 w-4 text-[#00C4E6]" />
                         ) : assistant.callDirection === 'inbound' ? (
-                          <PhoneIncoming className="h-4 w-4 text-blue-500" />
+                          <PhoneIncoming className="h-4 w-4 text-[#006FEB]" />
                         ) : (
-                          <PhoneOutgoing className="h-4 w-4 text-orange-500" />
+                          <PhoneOutgoing className="h-4 w-4 text-[#000ACF]" />
                         )}
                         <span className="text-sm font-medium text-neutral-900 dark:text-white">
                           {assistant.name}
@@ -705,7 +750,7 @@ export default function AssistantsPage() {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleEdit(assistant)}
-                            className="h-8 w-8 px-0"
+                            className="h-8 w-8 px-0 dark:hover:bg-white/[0.06]"
                           >
                             <Edit className="h-3.5 w-3.5" />
                           </Button>
@@ -718,7 +763,7 @@ export default function AssistantsPage() {
                               onClick={() => handleSync(assistant)}
                               disabled={syncing === assistant.id}
                               title={t('dashboard.assistantsPage.syncWith11Labs')}
-                              className="h-8 w-8 px-0"
+                              className="h-8 w-8 px-0 dark:hover:bg-white/[0.06]"
                             >
                               <RefreshCw className={`h-3.5 w-3.5 ${syncing === assistant.id ? 'animate-spin' : ''}`} />
                             </Button>
@@ -748,15 +793,17 @@ export default function AssistantsPage() {
               })}
             </tbody>
           </table>
-        </div>
+        </FlowPanel>
       ) : (
-        <EmptyState
-          icon={Bot}
-          title={t('dashboard.assistantsPage.noAssistants')}
-          description={t('dashboard.assistantsPage.createFirstDesc')}
-          actionLabel={t('dashboard.assistantsPage.create')}
-          onAction={handleNewPhoneAssistant}
-        />
+        <FlowPanel className="mx-auto max-w-7xl p-12">
+          <EmptyState
+            icon={Bot}
+            title={t('dashboard.assistantsPage.noAssistants')}
+            description={t('dashboard.assistantsPage.createFirstDesc')}
+            actionLabel={t('dashboard.assistantsPage.create')}
+            onAction={handleNewPhoneAssistant}
+          />
+        </FlowPanel>
       )}
 
       {/* Create/Edit modal */}
@@ -767,7 +814,9 @@ export default function AssistantsPage() {
           if (!open) resetForm();
         }}
       >
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent
+          className="max-w-2xl max-h-[90vh] overflow-y-auto dark:border-white/[0.08] dark:bg-[#071224]/95 dark:text-white"
+        >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {isTextMode ? (

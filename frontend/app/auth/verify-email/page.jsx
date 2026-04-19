@@ -2,29 +2,21 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
-import { useTheme } from 'next-themes';
 import Link from 'next/link';
-import { Phone, CheckCircle, XCircle, Loader2, RefreshCw } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast, Toaster } from 'sonner';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { apiClient } from '@/lib/api';
-import { TelyxLogoFull } from '@/components/TelyxLogo';
+import AuthFlowShell from '@/components/AuthFlowShell';
 
 function VerifyEmailContent() {
   const router = useRouter();
   const { t } = useLanguage();
-  const { resolvedTheme } = useTheme();
   const [token, setToken] = useState('');
-
-  const [mounted, setMounted] = useState(false);
   const [status, setStatus] = useState('verifying'); // verifying, success, error, expired
   const [email, setEmail] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -86,16 +78,10 @@ function VerifyEmailContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-primary-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950 flex items-center justify-center p-4">
+    <div>
       <Toaster position="top-right" richColors />
 
-      <div className="w-full max-w-md">
-        <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-xl border border-neutral-200 dark:border-neutral-700 p-8">
-          {/* Logo */}
-          <div className="flex items-center justify-center mb-8">
-            <TelyxLogoFull width={148} height={42} darkMode={mounted && resolvedTheme === 'dark'} />
-          </div>
-
+      <AuthFlowShell>
           {/* Verifying State */}
           {status === 'verifying' && (
             <div className="text-center">
@@ -183,8 +169,7 @@ function VerifyEmailContent() {
               {t('auth.getSupport')}
             </Link>
           </p>
-        </div>
-      </div>
+      </AuthFlowShell>
     </div>
   );
 }
@@ -192,12 +177,11 @@ function VerifyEmailContent() {
 export default function VerifyEmailPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-primary-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950 flex items-center justify-center p-4">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary-600 mx-auto mb-4" />
-          <p className="text-neutral-600 dark:text-neutral-400">...</p>
+      <AuthFlowShell>
+        <div className="flex justify-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
         </div>
-      </div>
+      </AuthFlowShell>
     }>
       <VerifyEmailContent />
     </Suspense>

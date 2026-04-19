@@ -9,7 +9,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { useLanguage } from '@/contexts/LanguageContext';
 import PageIntro from '@/components/PageIntro';
@@ -29,6 +28,12 @@ import { useAssistants } from '@/hooks/useAssistants';
 import { useSubscription } from '@/hooks/useSubscription';
 import { getChatWidgetFeedbackCopy } from '@/lib/chatWidgetFeedbackCopy';
 import runtimeConfig from '@/lib/runtime-config';
+import {
+  FlowBadge,
+  FlowPageShell,
+  FlowPanel,
+  FlowStatCard,
+} from '@/components/dashboard/FlowPageShell';
 
 const DEFAULT_CHAT_WIDGET_COLOR = '#051752';
 const LEGACY_CHAT_WIDGET_COLOR = '#00A2B3';
@@ -602,20 +607,52 @@ export default function ChatWidgetPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <PageIntro
-        title={pageHelp?.title || t('dashboard.chatWidgetPage.title')}
-        subtitle={pageHelp?.subtitle}
-        locale={locale}
-        help={pageHelp ? { tooltipTitle: pageHelp.tooltipTitle, tooltipBody: pageHelp.tooltipBody, quickSteps: pageHelp.quickSteps } : undefined}
-      />
+    <div className="space-y-6 pb-12">
+      <FlowPageShell className="mx-auto max-w-7xl">
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start">
+          <div className="space-y-4">
+            <FlowBadge accent="lightBlue">{locale === 'tr' ? 'Chat Surface' : 'Chat Surface'}</FlowBadge>
+            <PageIntro
+              title={pageHelp?.title || t('dashboard.chatWidgetPage.title')}
+              subtitle={pageHelp?.subtitle}
+              locale={locale}
+              titleClassName="text-3xl md:text-4xl font-semibold text-neutral-900 dark:text-white"
+              subtitleClassName="text-base leading-7 text-neutral-600 dark:text-slate-300"
+              help={pageHelp ? { tooltipTitle: pageHelp.tooltipTitle, tooltipBody: pageHelp.tooltipBody, quickSteps: pageHelp.quickSteps } : undefined}
+            />
+          </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
+            <FlowStatCard
+              icon={Code}
+              value={embedKey ? (locale === 'tr' ? 'Hazir' : 'Ready') : (locale === 'tr' ? 'Bos' : 'Empty')}
+              label={locale === 'tr' ? 'Embed durumu' : 'Embed status'}
+              hint={locale === 'tr' ? 'Script kodu tek tikla kopyalanabilir' : 'Script snippet is ready to copy'}
+              accent="teal"
+            />
+            <FlowStatCard
+              icon={Eye}
+              value={chatCapableAssistants.length}
+              label={locale === 'tr' ? 'Chat uyumlu asistan' : 'Chat-ready assistants'}
+              hint={locale === 'tr' ? 'Widget, e-posta ve chat akislarinda ortak kullanilir' : 'Shared across widget, email, and chat flows'}
+              accent="lightBlue"
+            />
+            <FlowStatCard
+              icon={Copy}
+              value={chatStats.totalChats || 0}
+              label={locale === 'tr' ? 'Toplam gorusme' : 'Total conversations'}
+              hint={locale === 'tr' ? `${chatStats.todayChats || 0} tanesi bugun` : `${chatStats.todayChats || 0} of them today`}
+              accent="deepBlue"
+            />
+          </div>
+        </div>
+      </FlowPageShell>
+
+      <div className="mx-auto grid max-w-7xl grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Configuration */}
         <div className="flex flex-col gap-6">
           {/* Enable/Disable */}
-          <Card className="p-6">
+          <FlowPanel className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-semibold">{t('dashboard.chatWidgetPage.enableWidget')}</h3>
@@ -628,10 +665,10 @@ export default function ChatWidgetPage() {
                 onCheckedChange={handleEnableChange}
               />
             </div>
-          </Card>
+          </FlowPanel>
 
           {/* Assistant Selection */}
-          <Card className="p-6">
+          <FlowPanel className="p-6">
             <Label htmlFor="chatAssistant">Chat Assistant</Label>
             <Select
               value={chatAssistantId}
@@ -654,10 +691,10 @@ export default function ChatWidgetPage() {
                 ? 'Henüz asistan oluşturmadınız. Asistanlar sayfasından bir asistan oluşturun.'
                 : 'Seçilen asistan chat widget, WhatsApp ve e-posta kanallarında kullanılır.'}
             </p>
-          </Card>
+          </FlowPanel>
 
           {/* Appearance */}
-          <Card className="p-6 space-y-4">
+          <FlowPanel className="space-y-4 p-6">
             <h3 className="text-lg font-semibold">{t('dashboard.chatWidgetPage.appearance')}</h3>
 
             {/* Position */}
@@ -728,17 +765,17 @@ export default function ChatWidgetPage() {
                 disabled={!isPro}
               />
             </div>
-          </Card>
+          </FlowPanel>
 
           {/* Actions */}
           <div className="flex gap-3">
-            <Button onClick={saveSettings} className="flex-1">
+            <Button onClick={saveSettings} className="flex-1 rounded-full">
               {t('dashboard.chatWidgetPage.saveSettings')}
             </Button>
             <Button
               onClick={() => setShowPreview(!showPreview)}
               variant="outline"
-              className="flex-1"
+              className="flex-1 rounded-full"
             >
               <Eye className="h-4 w-4 mr-2" />
               {showPreview ? t('dashboard.chatWidgetPage.hide') : t('dashboard.chatWidgetPage.preview')}
@@ -749,13 +786,13 @@ export default function ChatWidgetPage() {
         {/* Right Column: Embed Code + Instructions + Stats */}
         <div className="flex flex-col gap-6">
           {/* Embed Code — preview with expand */}
-          <Card className="p-6">
+          <FlowPanel className="p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Code className="h-5 w-5 text-primary-600" />
                 <h3 className="text-lg font-semibold">{t('dashboard.chatWidgetPage.embedCode')}</h3>
               </div>
-              <Button onClick={copyEmbedCode} variant="outline" size="sm">
+              <Button onClick={copyEmbedCode} variant="outline" size="sm" className="rounded-full">
                 <Copy className="h-4 w-4 mr-2" />
                 {t('dashboard.chatWidgetPage.copy')}
               </Button>
@@ -780,10 +817,10 @@ export default function ChatWidgetPage() {
             <p className="text-xs text-gray-500 mt-2">
               {t('dashboard.chatWidgetPage.embedCodeInstructions')}
             </p>
-          </Card>
+          </FlowPanel>
 
           {/* Instructions */}
-          <Card className="p-6 flex-1">
+          <FlowPanel className="flex-1 p-6">
             <h3 className="text-lg font-semibold mb-3">{t('dashboard.chatWidgetPage.howToInstall')}</h3>
             <ol className="space-y-3 text-sm text-gray-700 dark:text-gray-300">
               <li className="flex items-start gap-2">
@@ -805,10 +842,10 @@ export default function ChatWidgetPage() {
                 <span>{t('dashboard.chatWidgetPage.step3')}</span>
               </li>
             </ol>
-          </Card>
+          </FlowPanel>
 
           {/* Stats */}
-          <Card className="p-6">
+          <FlowPanel className="p-6">
             <h3 className="text-lg font-semibold mb-3">{t('dashboard.chatWidgetPage.widgetAnalytics')}</h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -828,7 +865,7 @@ export default function ChatWidgetPage() {
                 <p className="text-xs text-gray-600 dark:text-gray-400">{t('dashboard.chatWidgetPage.todayChats')}</p>
               </div>
             </div>
-          </Card>
+          </FlowPanel>
         </div>
       </div>
 
