@@ -18,6 +18,7 @@ import {
   ArrowRight,
   BarChart3,
   Loader2,
+  Shield,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api';
 import { toast } from 'sonner';
