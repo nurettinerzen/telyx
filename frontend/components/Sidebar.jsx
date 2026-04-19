@@ -64,6 +64,7 @@ import { TelyxLogoCompact } from './TelyxLogo';
 import { NAVIGATION_ITEMS } from '@/lib/navigationConfig';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useHepsiburadaStatus, useSikayetvarStatus, useTrendyolStatus } from '@/hooks/useIntegrations';
+import { getDashboardFlowSurfaceStyle } from '@/components/dashboard/DashboardFlowBackdrop';
 
 export default function Sidebar({ user, credits, business, whatsappPendingCount = 0, chatPendingCount = 0 }) {
   const whatsappLiveHandoffEnabled = process.env.NEXT_PUBLIC_WHATSAPP_LIVE_HANDOFF_V2 === 'true';
@@ -72,6 +73,7 @@ export default function Sidebar({ user, credits, business, whatsappPendingCount 
   const { t, locale } = useLanguage();
   const { can } = usePermissions();
   const { theme, setTheme, resolvedTheme } = useTheme();
+  const dark = resolvedTheme === 'dark';
   const [mounted, setMounted] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState([]);
@@ -174,11 +176,34 @@ export default function Sidebar({ user, credits, business, whatsappPendingCount 
   // 2. Plan is loaded from API (not null/undefined)
   // This prevents the "flash" where sidebar shows wrong state
   const isReady = mounted && userPlan !== null && userPlan !== undefined;
+  const sidebarShellStyle = getDashboardFlowSurfaceStyle(dark, 'sidebar');
+  const userCardStyle = dark
+    ? {
+        background: 'linear-gradient(135deg, rgba(10,18,42,0.88), rgba(0,111,235,0.12))',
+        borderColor: 'rgba(255,255,255,0.08)',
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 18px 40px rgba(2,6,23,0.18)',
+      }
+    : {
+        background: 'linear-gradient(135deg, rgba(255,255,255,0.96), rgba(240,247,255,0.94))',
+        borderColor: 'rgba(5,23,82,0.08)',
+        boxShadow: '0 16px 36px rgba(5,23,82,0.08)',
+      };
+  const activeItemStyle = dark
+    ? {
+        background: 'linear-gradient(135deg, rgba(0,196,230,0.18), rgba(0,111,235,0.12))',
+        border: '1px solid rgba(0,196,230,0.22)',
+        boxShadow: '0 16px 30px rgba(2,6,23,0.18)',
+      }
+    : {
+        background: 'linear-gradient(135deg, rgba(255,255,255,0.98), rgba(233,244,255,0.94))',
+        border: '1px solid rgba(0,111,235,0.12)',
+        boxShadow: '0 14px 28px rgba(5,23,82,0.08)',
+      };
 
   // Sidebar Skeleton while loading
   const SidebarSkeleton = () => (
-    <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
-      <div className="h-14 flex items-center px-4 border-b border-gray-200 dark:border-gray-800">
+    <div className="flex h-full flex-col border-r border-slate-200/70 dark:border-white/10" style={sidebarShellStyle}>
+      <div className="h-14 flex items-center px-4 border-b border-slate-200/70 dark:border-white/10">
         <div className="h-8 w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
       </div>
       <nav className="flex-1 overflow-y-auto py-4 px-3">
@@ -292,9 +317,9 @@ export default function Sidebar({ user, credits, business, whatsappPendingCount 
   }
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
+    <div className="flex h-full flex-col border-r border-slate-200/70 dark:border-white/10" style={sidebarShellStyle}>
       {/* Logo */}
-      <div className="h-14 flex items-center px-4 border-b border-gray-200 dark:border-gray-800">
+      <div className="h-14 flex items-center px-4 border-b border-slate-200/70 dark:border-white/10">
         <Link href="/dashboard/assistant" className="flex items-center">
           <TelyxLogoCompact darkMode={mounted && resolvedTheme === 'dark'} />
         </Link>
@@ -375,11 +400,12 @@ export default function Sidebar({ user, credits, business, whatsappPendingCount 
                           setIsMobileOpen(false);
                         }}
                         className={cn(
-                          'flex items-center gap-2.5 px-3 py-1 rounded-md text-[13px] font-medium transition-all',
+                          'flex items-center gap-2.5 rounded-xl px-3 py-1.5 text-[13px] font-medium transition-all',
                           isActive
-                            ? 'bg-white dark:bg-gray-800 text-primary-600 dark:text-primary-400 shadow-sm'
-                            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                            ? 'text-[#051752] dark:text-white'
+                            : 'text-gray-700 dark:text-gray-300 hover:bg-white/70 dark:hover:bg-white/5'
                         )}
+                        style={isActive ? activeItemStyle : undefined}
                       >
                         <Icon className="h-4 w-4 flex-shrink-0" />
                         <span className="flex-1 truncate">{item.label}</span>
@@ -399,15 +425,18 @@ export default function Sidebar({ user, credits, business, whatsappPendingCount 
       </nav>
 
       {/* Language Switcher */}
-      <div className="px-4 py-1.5 border-t border-gray-200 dark:border-gray-800">
+      <div className="px-4 py-1.5 border-t border-slate-200/70 dark:border-white/10">
         <LanguageSwitcher />
       </div>
 
       {/* User profile */}
-      <div className="px-3 py-1.5 border-t border-gray-200 dark:border-gray-800">
+      <div className="px-3 py-1.5 border-t border-slate-200/70 dark:border-white/10">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-3 w-full rounded-xl border border-gray-200/80 bg-white/80 px-3 py-2.5 text-left shadow-sm transition-colors hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:hover:bg-gray-800">
+            <button
+              className="flex w-full items-center gap-3 rounded-2xl border px-3 py-2.5 text-left transition-colors hover:brightness-[1.02]"
+              style={userCardStyle}
+            >
               <Avatar className="h-9 w-9 flex-shrink-0">
                 <AvatarFallback className="bg-primary-600 text-white text-sm font-semibold">
                   {user?.name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U'}
@@ -474,7 +503,8 @@ export default function Sidebar({ user, credits, business, whatsappPendingCount 
       {/* Mobile menu button */}
       <button
         onClick={() => setIsMobileOpen(!isMobileOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white dark:bg-gray-900 rounded-md shadow-md border border-gray-200 dark:border-gray-800"
+        className="fixed left-4 top-4 z-50 rounded-xl border border-slate-200/80 p-2 shadow-md lg:hidden dark:border-white/10"
+        style={getDashboardFlowSurfaceStyle(dark, 'overlay')}
       >
         {isMobileOpen ? (
           <X className="h-5 w-5 text-gray-700 dark:text-gray-300" />
@@ -499,7 +529,7 @@ export default function Sidebar({ user, credits, business, whatsappPendingCount 
       )}
 
       {/* Desktop sidebar - 240px width as per spec */}
-      <div className="hidden lg:block w-60 border-r border-gray-200 dark:border-gray-800 fixed left-0 top-0 bottom-0 overflow-hidden">
+      <div className="fixed left-0 top-0 bottom-0 hidden w-60 overflow-hidden lg:block">
         {isReady ? <SidebarContent /> : <SidebarSkeleton />}
       </div>
 

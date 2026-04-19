@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import { useTheme } from 'next-themes';
 import Sidebar from '@/components/Sidebar';
 import { apiClient } from '@/lib/api';
 import { Toaster } from 'sonner';
@@ -12,6 +13,11 @@ import { getPlanDisplayName } from '@/lib/planConfig';
 import { subscribeLiveHandoffSync } from '@/lib/liveHandoffSync';
 import { DashboardProvider } from '@/contexts/DashboardContext';
 import UsageAlertsBanner from '@/components/UsageAlertsBanner';
+import {
+  DashboardFlowBackdrop,
+  getDashboardFlowPageStyle,
+  getDashboardFlowSurfaceStyle,
+} from '@/components/dashboard/DashboardFlowBackdrop';
 
 // Avoid storing user/session data in browser storage.
 const USER_CACHE_KEY = 'dashboard_user_cache_disabled';
@@ -37,6 +43,8 @@ export default function DashboardLayout({ children }) {
   const router = useRouter();
   const pathname = usePathname();
   const { t, locale } = useLanguage();
+  const { resolvedTheme } = useTheme();
+  const dark = resolvedTheme === 'dark';
   const whatsappLiveHandoffEnabled = process.env.NEXT_PUBLIC_WHATSAPP_LIVE_HANDOFF_V2 === 'true';
   const chatLiveHandoffEnabled = process.env.NEXT_PUBLIC_CHAT_LIVE_HANDOFF_V1 === 'true';
   const [user, setUser] = useState(null);
@@ -306,8 +314,12 @@ export default function DashboardLayout({ children }) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-950">
-        <div className="text-center">
+      <div
+        className="relative flex h-screen items-center justify-center overflow-hidden"
+        style={getDashboardFlowPageStyle(dark)}
+      >
+        <DashboardFlowBackdrop dark={dark} />
+        <div className="relative z-10 text-center">
           <div className="animate-spin rounded-full h-10 w-10 border-2 border-gray-200 dark:border-gray-800 border-t-primary-600 mx-auto mb-4"></div>
           <p className="text-sm text-gray-500 dark:text-gray-400">{t('common.loading')}</p>
         </div>
@@ -331,56 +343,65 @@ export default function DashboardLayout({ children }) {
     : [];
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-950">
-      {/* Sidebar */}
-      <Sidebar
-        user={user}
-        credits={credits}
-        business={user?.business}
-        whatsappPendingCount={whatsappPendingCount}
-        chatPendingCount={chatPendingCount}
-      />
+    <div
+      className="relative flex h-screen overflow-hidden"
+      style={getDashboardFlowPageStyle(dark)}
+    >
+      <DashboardFlowBackdrop dark={dark} />
+      <div className="relative z-10 flex h-screen w-full">
+        {/* Sidebar */}
+        <Sidebar
+          user={user}
+          credits={credits}
+          business={user?.business}
+          whatsappPendingCount={whatsappPendingCount}
+          chatPendingCount={chatPendingCount}
+        />
 
-      {/* Main content - adjusted for 240px sidebar (w-60) */}
-      <div className="flex-1 lg:ml-60 overflow-auto h-screen">
-        {/* Payment pending banner for pending enterprise upgrade */}
-        {hasPendingEnterprise && (
-          <div className="bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800 px-6 py-3">
-            <div className="flex items-center gap-3">
-              <svg className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <p className="text-sm text-blue-800 dark:text-blue-200">
-                {t('dashboard.enterprisePendingBanner')}
-              </p>
+        {/* Main content - adjusted for 240px sidebar (w-60) */}
+        <div
+          className="flex-1 h-screen overflow-auto lg:ml-60"
+          style={getDashboardFlowSurfaceStyle(dark, 'main')}
+        >
+          {/* Payment pending banner for pending enterprise upgrade */}
+          {hasPendingEnterprise && (
+            <div className="border-b border-sky-200/70 bg-sky-50/70 px-6 py-3 dark:border-sky-500/20 dark:bg-sky-500/10">
+              <div className="flex items-center gap-3">
+                <svg className="h-5 w-5 flex-shrink-0 text-sky-600 dark:text-sky-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-sm text-sky-900 dark:text-sky-100">
+                  {t('dashboard.enterprisePendingBanner')}
+                </p>
+              </div>
             </div>
-          </div>
-        )}
-        {hasScheduledPlanChange && (
-          <div className="bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800 px-6 py-3">
-            <div className="flex items-center gap-3">
-              <svg className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <p className="text-sm text-blue-800 dark:text-blue-200">
-                <strong>{t('dashboard.subscriptionPage.pendingPlanChange')}</strong>
-                {' '}
-                {pendingPlanDate
-                  ? t('dashboard.subscriptionPage.pendingPlanChangeDesc')
-                    .replace('{date}', pendingPlanDate)
-                    .replace('{planName}', pendingPlanName)
-                  : t('dashboard.subscriptionPage.pendingPlanChangeNoDate')
-                    .replace('{planName}', pendingPlanName)}
-              </p>
+          )}
+          {hasScheduledPlanChange && (
+            <div className="border-b border-sky-200/70 bg-sky-50/70 px-6 py-3 dark:border-sky-500/20 dark:bg-sky-500/10">
+              <div className="flex items-center gap-3">
+                <svg className="h-5 w-5 flex-shrink-0 text-sky-600 dark:text-sky-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-sm text-sky-900 dark:text-sky-100">
+                  <strong>{t('dashboard.subscriptionPage.pendingPlanChange')}</strong>
+                  {' '}
+                  {pendingPlanDate
+                    ? t('dashboard.subscriptionPage.pendingPlanChangeDesc')
+                      .replace('{date}', pendingPlanDate)
+                      .replace('{planName}', pendingPlanName)
+                    : t('dashboard.subscriptionPage.pendingPlanChangeNoDate')
+                      .replace('{planName}', pendingPlanName)}
+                </p>
+              </div>
             </div>
-          </div>
-        )}
-        <UsageAlertsBanner alerts={usageAlerts} locale={locale} />
-        <main className="p-6 lg:p-8">
-          <DashboardProvider user={user}>
-            {children}
-          </DashboardProvider>
-        </main>
+          )}
+          <UsageAlertsBanner alerts={usageAlerts} locale={locale} />
+          <main className="p-6 lg:p-8">
+            <DashboardProvider user={user}>
+              {children}
+            </DashboardProvider>
+          </main>
+        </div>
       </div>
 
       {/* Toast notifications */}
@@ -388,9 +409,12 @@ export default function DashboardLayout({ children }) {
 
       {liveSupportAlert && (
         <div className="pointer-events-none fixed inset-0 z-[70] flex items-start justify-center px-4 pt-20">
-          <div className="pointer-events-auto w-full max-w-md rounded-2xl border border-amber-200 bg-white/95 p-4 shadow-2xl backdrop-blur dark:border-amber-900 dark:bg-neutral-950/95">
+          <div
+            className="pointer-events-auto w-full max-w-md rounded-2xl border p-4 shadow-2xl"
+            style={getDashboardFlowSurfaceStyle(dark, 'overlay')}
+          >
             <div className="flex items-start gap-3">
-              <div className="mt-0.5 rounded-full bg-amber-100 p-2 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+              <div className="mt-0.5 rounded-full bg-cyan-100 p-2 text-cyan-700 dark:bg-cyan-500/15 dark:text-cyan-300">
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8.228 9c.549-1.165 1.918-2 3.772-2 2.485 0 4.5 1.567 4.5 3.5 0 1.423-1.093 2.648-2.662 3.203-.69.244-1.088.61-1.088 1.047V15m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
@@ -408,7 +432,7 @@ export default function DashboardLayout({ children }) {
                   <button
                     type="button"
                     onClick={() => setLiveSupportAlert(null)}
-                    className="rounded-lg border border-neutral-200 px-3 py-1.5 text-sm text-neutral-600 transition hover:bg-neutral-50 dark:border-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-900"
+                    className="rounded-lg border border-slate-200/80 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-white/70 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/5"
                   >
                     {t('common.close')}
                   </button>
@@ -418,7 +442,7 @@ export default function DashboardLayout({ children }) {
                       router.push(`/dashboard/chats?chatId=${liveSupportAlert.id}`);
                       setLiveSupportAlert(null);
                     }}
-                    className="rounded-lg bg-amber-500 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-amber-600"
+                    className="rounded-lg bg-cyan-500 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-cyan-600"
                   >
                     {t('dashboard.conversationsPage.openInbox')}
                   </button>

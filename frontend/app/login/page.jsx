@@ -15,6 +15,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { apiClient } from '@/lib/api';
 import { TelyxLogoFull } from '@/components/TelyxLogo';
+import { AuthFlowShell, AuthFlowCard } from '@/components/AuthFlowShell';
 
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
@@ -168,7 +169,7 @@ export default function LoginPage() {
     : { show: 'Show password', hide: 'Hide password' };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-primary-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950 flex items-center justify-center p-4">
+    <AuthFlowShell>
       {/* Google Sign-In Script */}
       <Script
         src="https://accounts.google.com/gsi/client"
@@ -194,8 +195,7 @@ export default function LoginPage() {
       />
       <Toaster position="top-right" richColors />
 
-      <div className="w-full max-w-md">
-        <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-xl border border-neutral-200 dark:border-neutral-700 p-8">
+      <AuthFlowCard>
           {/* Logo and Language Switcher */}
           <div className="flex items-center justify-between mb-8">
             <TelyxLogoFull width={136} height={38} darkMode={mounted && resolvedTheme === 'dark'} />
@@ -274,7 +274,7 @@ export default function LoginPage() {
               <div className="w-full border-t border-neutral-200 dark:border-neutral-700"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-neutral-800 px-2 text-xs text-neutral-500 dark:text-neutral-400">
+              <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/90 px-3 text-xs text-neutral-500 shadow-sm dark:bg-[#081327]/90 dark:text-neutral-400">
               {t('auth.continueWith')}
             </span>
             </div>
@@ -326,8 +326,7 @@ export default function LoginPage() {
               {t('navigation.applyEarlyAccess')}
             </Link>
           </p>
-        </div>
-      </div>
-    </div>
+      </AuthFlowCard>
+    </AuthFlowShell>
   );
 }

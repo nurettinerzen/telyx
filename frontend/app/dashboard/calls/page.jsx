@@ -40,6 +40,7 @@ import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { useTheme } from 'next-themes';
 import {
   DashboardFlowBackdrop,
+  DASHBOARD_FLOW_PALETTE,
   getDashboardFlowPageStyle,
 } from '@/components/dashboard/DashboardFlowBackdrop';
 
@@ -347,36 +348,44 @@ export default function CallsPage() {
 
   const statCards = [
     {
-      label: t('dashboard.callsPage.totalCalls') || 'Total Calls',
+      label: t('dashboard.callsPage.totalCalls'),
       value: totalCalls,
       icon: PhoneCall,
-      accent: '#00C4E6',
+      accent: DASHBOARD_FLOW_PALETTE.teal,
       pill: 'rgba(0,196,230,0.15)',
       glow: 'rgba(0,196,230,0.12)',
+      surface: 'linear-gradient(145deg, rgba(10,18,42,0.88), rgba(0,196,230,0.14))',
+      border: 'rgba(0,196,230,0.18)',
     },
     {
-      label: t('dashboard.callsPage.answered') || 'Answered',
+      label: t('dashboard.callsPage.answered'),
       value: answeredCalls,
       icon: Phone,
-      accent: '#006FEB',
+      accent: DASHBOARD_FLOW_PALETTE.lightBlue,
       pill: 'rgba(0,111,235,0.15)',
       glow: 'rgba(0,111,235,0.12)',
+      surface: 'linear-gradient(145deg, rgba(10,18,42,0.88), rgba(0,111,235,0.14))',
+      border: 'rgba(0,111,235,0.18)',
     },
     {
-      label: t('dashboard.callsPage.totalMinutes') || 'Total Minutes',
+      label: t('dashboard.callsPage.totalMinutes'),
       value: totalMinutes,
       icon: Clock,
-      accent: '#000ACF',
+      accent: DASHBOARD_FLOW_PALETTE.deepBlue,
       pill: 'rgba(0,10,207,0.16)',
       glow: 'rgba(0,10,207,0.14)',
+      surface: 'linear-gradient(145deg, rgba(10,18,42,0.88), rgba(0,10,207,0.16))',
+      border: 'rgba(0,10,207,0.2)',
     },
     {
-      label: t('dashboard.callsPage.avgDuration') || 'Avg Duration',
+      label: t('dashboard.callsPage.avgDuration'),
       value: formatDuration(avgDuration),
       icon: TrendingUp,
-      accent: '#7DD3FC',
-      pill: 'rgba(125,211,252,0.16)',
-      glow: 'rgba(125,211,252,0.14)',
+      accent: DASHBOARD_FLOW_PALETTE.navy,
+      pill: 'rgba(5,23,82,0.2)',
+      glow: 'rgba(5,23,82,0.18)',
+      surface: 'linear-gradient(145deg, rgba(10,18,42,0.88), rgba(5,23,82,0.2))',
+      border: 'rgba(125,211,252,0.18)',
     },
   ];
 
@@ -706,8 +715,9 @@ export default function CallsPage() {
                 key={idx}
                 className="rounded-2xl border p-4 relative overflow-hidden"
                 style={{
-                  background: 'rgba(15,22,41,0.7)',
-                  borderColor: 'rgba(255,255,255,0.06)',
+                  background: card.surface,
+                  borderColor: card.border,
+                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 20px 40px rgba(2,6,23,0.2)',
                 }}
               >
                 {/* Glow blob */}
