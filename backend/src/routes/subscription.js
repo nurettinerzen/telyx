@@ -36,6 +36,7 @@ import {
   resolveBillingTrialEligibility
 } from '../services/billingAudit.js';
 import runtimeConfig from '../config/runtime.js';
+import { buildUsageAlerts } from '../services/usageAlertService.js';
 
 const router = express.Router();
 
@@ -602,7 +603,8 @@ function buildBillingSnapshot({
   subscription,
   supportUsage,
   billingPlan,
-  effectiveMinutesLimit
+  effectiveMinutesLimit,
+  usageAlerts = []
 }) {
   const voiceUsed = Number(subscription.includedMinutesUsed || 0);
   const voiceOverage = Number(subscription.overageMinutes || 0);
@@ -664,7 +666,8 @@ function buildBillingSnapshot({
       writtenUnitPrice: billingPlan.writtenInteractionUnitPrice,
       phoneMinuteUnitPrice: billingPlan.voiceMinuteUnitPrice
     },
-    renewalDate: subscription.currentPeriodEnd || null
+    renewalDate: subscription.currentPeriodEnd || null,
+    alerts: usageAlerts
   };
 }
 
@@ -1832,11 +1835,19 @@ router.get('/current', verifyBusinessAccess, async (req, res) => {
     const effectiveAssistantsLimit = effectivePlanConfig.assistantsLimit ?? subscription.assistantsLimit;
     const effectivePhoneNumbersLimit = effectivePlanConfig.phoneNumbersLimit ?? subscription.phoneNumbersLimit;
     const effectiveConcurrentLimit = effectivePlanConfig.concurrentLimit ?? subscription.concurrentLimit;
+    const usageAlerts = buildUsageAlerts({
+      subscription,
+      billingPlan,
+      supportUsage,
+      effectiveMinutesLimit,
+      country: subscription.business?.country || 'TR'
+    });
     const billingSnapshot = buildBillingSnapshot({
       subscription,
       supportUsage,
       billingPlan,
-      effectiveMinutesLimit
+      effectiveMinutesLimit,
+      usageAlerts
     });
 
     // Calculate usage percentages
@@ -1846,6 +1857,7 @@ router.get('/current', verifyBusinessAccess, async (req, res) => {
       billingSnapshot,
       addOnCatalog,
       supportUsage,
+      usageAlerts,
       writtenChannelsEnabled: Boolean(
         billingPlan.channels?.webchat
         || billingPlan.channels?.whatsapp

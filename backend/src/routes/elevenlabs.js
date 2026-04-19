@@ -11,7 +11,6 @@ import express from 'express';
 import crypto from 'crypto';
 import OpenAI from 'openai';
 import prisma from '../prismaClient.js';
-import usageTracking from '../services/usageTracking.js';
 import usageService from '../services/usageService.js';
 import subscriptionService from '../services/subscriptionService.js';
 import callAnalysis from '../services/callAnalysis.js';
@@ -817,11 +816,21 @@ router.post('/post-call', async (req, res) => {
 
     // Track usage
     if (call_duration_secs > 0) {
-      await usageTracking.trackCallUsage(business.id, call_duration_secs, {
-        callId: conversation_id,
-        transcript: transcriptText,
-        status: status
-      });
+      try {
+        await usageService.recordPhoneUsageForBusiness({
+          businessId: business.id,
+          durationSeconds: call_duration_secs,
+          callId: conversation_id,
+          assistantId: assistant?.id || null,
+          metadata: {
+            transcript: transcriptText,
+            status,
+            source: 'post_call_webhook'
+          }
+        });
+      } catch (usageError) {
+        console.error('❌ Billing v2 phone usage tracking failed:', usageError);
+      }
     }
 
     res.json({ success: true });
@@ -1620,43 +1629,22 @@ async function handleConversationEnded(event) {
 
     // Track usage with new usage service
     if (duration > 0) {
-      // Get subscription for this business
-      const subscription = await prisma.subscription.findUnique({
-        where: { businessId: business.id }
-      });
-
-      if (subscription) {
-        try {
-          // Use new usage service for proper billing
-          await usageService.recordUsage({
-            subscriptionId: subscription.id,
-            channel: 'PHONE',
-            durationSeconds: duration,
-            callId: conversationId,
-            assistantId: assistant?.id,
-            metadata: {
-              transcript: transcriptText,
-              status: 'answered',
-              agentId: agentId
-            }
-          });
-          console.log(`💰 Usage recorded via new service: ${Math.ceil(duration / 60)} dk`);
-        } catch (usageError) {
-          console.error('⚠️ New usage service failed, falling back to legacy:', usageError.message);
-          // Fallback to legacy tracking
-          await usageTracking.trackCallUsage(business.id, duration, {
-            callId: conversationId,
-            transcript: transcriptText,
-            status: 'answered'
-          });
-        }
-      } else {
-        // No subscription, use legacy tracking
-        await usageTracking.trackCallUsage(business.id, duration, {
+      try {
+        await usageService.recordPhoneUsageForBusiness({
+          businessId: business.id,
+          durationSeconds: duration,
           callId: conversationId,
-          transcript: transcriptText,
-          status: 'answered'
+          assistantId: assistant?.id || null,
+          metadata: {
+            transcript: transcriptText,
+            status: 'answered',
+            agentId,
+            source: 'conversation_ended'
+          }
         });
+        console.log(`💰 Usage recorded via new service: ${Math.ceil(duration / 60)} dk`);
+      } catch (usageError) {
+        console.error('❌ New usage service failed during conversation ended:', usageError);
       }
 
       // P0.1: Release concurrent call slot (business + global capacity)
@@ -1941,43 +1929,21 @@ router.post('/sync-conversations', authenticateToken, async (req, res) => {
 
         // Track usage only for new calls (not updates)
         if (duration > 0 && !existing) {
-          // Get subscription for proper billing
-          const subscription = await prisma.subscription.findUnique({
-            where: { businessId: business.id }
-          });
-
-          if (subscription) {
-            try {
-              // Use new usage service for proper billing (updates includedMinutesUsed)
-              await usageService.recordUsage({
-                subscriptionId: subscription.id,
-                channel: 'PHONE',
-                durationSeconds: duration,
-                callId: conv.conversation_id,
-                assistantId: assistant?.id,
-                metadata: {
-                  transcript: transcriptText,
-                  status: 'answered',
-                  source: 'sync' // Mark as synced vs webhook
-                }
-              });
-              console.log(`💰 Usage recorded via sync: ${Math.ceil(duration / 60)} dk`);
-            } catch (usageError) {
-              console.error('⚠️ Usage service failed during sync:', usageError.message);
-              // Fallback to legacy tracking
-              await usageTracking.trackCallUsage(business.id, duration, {
-                callId: conv.conversation_id,
-                transcript: transcriptText,
-                status: 'answered'
-              });
-            }
-          } else {
-            // No subscription, use legacy tracking
-            await usageTracking.trackCallUsage(business.id, duration, {
+          try {
+            await usageService.recordPhoneUsageForBusiness({
+              businessId: business.id,
+              durationSeconds: duration,
               callId: conv.conversation_id,
-              transcript: transcriptText,
-              status: 'answered'
+              assistantId: assistant?.id || null,
+              metadata: {
+                transcript: transcriptText,
+                status: 'answered',
+                source: 'sync'
+              }
             });
+            console.log(`💰 Usage recorded via sync: ${Math.ceil(duration / 60)} dk`);
+          } catch (usageError) {
+            console.error('❌ Usage service failed during sync:', usageError);
           }
         }
 

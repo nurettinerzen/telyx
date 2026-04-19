@@ -193,6 +193,37 @@ export async function recordUsage(params) {
   }
 }
 
+export async function recordPhoneUsageForBusiness({
+  businessId,
+  durationSeconds,
+  callId = null,
+  assistantId = null,
+  metadata = {}
+}) {
+  if (!businessId || !durationSeconds || durationSeconds <= 0) {
+    return null;
+  }
+
+  const subscription = await prisma.subscription.findUnique({
+    where: { businessId },
+    select: { id: true }
+  });
+
+  if (!subscription?.id) {
+    console.warn(`⚠️ Skipping phone usage record: no subscription for business ${businessId}`);
+    return null;
+  }
+
+  return recordUsage({
+    subscriptionId: subscription.id,
+    channel: 'PHONE',
+    durationSeconds,
+    callId,
+    assistantId,
+    metadata
+  });
+}
+
 /**
  * Ücret hesapla
  * @param {object} subscription - Subscription object
@@ -847,6 +878,7 @@ export async function canMakeCall(subscriptionId) {
 
 export default {
   recordUsage,
+  recordPhoneUsageForBusiness,
   calculateCharge,
   applyCharge,
   resetIncludedMinutes,

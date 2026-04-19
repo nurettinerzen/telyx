@@ -9,7 +9,7 @@ import crypto from 'crypto';
 import prisma from '../prismaClient.js';
 import OpenAI from 'openai';
 import concurrentCallManager from '../services/concurrentCallManager.js';
-import { trackCallUsage } from '../services/usageTracking.js';
+import usageService from '../services/usageService.js';
 import { getInboundDisabledMessage } from '../phone-outbound-v1/index.js';
 import metricsService from '../services/metricsService.js';
 import { isPhoneInboundEnabledForBusinessId } from '../services/phoneInboundGate.js';
@@ -405,17 +405,25 @@ router.post('/elevenlabs/call-ended', async (req, res) => {
     // 2. Track minute usage
     let usageResult = null;
     if (durationSeconds > 0) {
-      usageResult = await trackCallUsage(businessId, durationSeconds, {
-        callId: callId,
-        channel: customMetadata?.channel || 'phone'
-      });
+      try {
+        usageResult = await usageService.recordPhoneUsageForBusiness({
+          businessId,
+          durationSeconds,
+          callId,
+          metadata: {
+            channel: customMetadata?.channel || 'phone',
+            source: 'legacy_webhook'
+          }
+        });
 
-      console.log('📊 Usage tracked:', {
-        durationMinutes: Math.ceil(durationSeconds / 60),
-        fromPackage: usageResult?.fromPackage,
-        fromCredit: usageResult?.fromCredit,
-        fromOverage: usageResult?.fromOverage
-      });
+        console.log('📊 Usage tracked via billing v2:', {
+          durationMinutes: Math.ceil(durationSeconds / 60),
+          chargeType: usageResult?.chargeResult?.chargeType || null,
+          breakdown: usageResult?.chargeResult?.breakdown || null
+        });
+      } catch (usageError) {
+        console.error('❌ Billing v2 usage tracking failed on legacy webhook:', usageError);
+      }
     } else {
       console.log('⚠️ Duration is 0, skipping usage tracking');
     }

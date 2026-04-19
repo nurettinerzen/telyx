@@ -141,7 +141,10 @@ router.get('/can-make-call', async (req, res) => {
       TRIAL_ACTIVE: 'Deneme aktif',
       BALANCE_AVAILABLE: 'Bakiye mevcut',
       INCLUDED_MINUTES_AVAILABLE: 'Dahil dakika mevcut',
-      OVERAGE_AVAILABLE: 'Aşım bakiyesi mevcut'
+      OVERAGE_AVAILABLE: 'Aşım bakiyesi mevcut',
+      VOICE_ADDON_AVAILABLE: 'Ek ses paketi mevcut',
+      OVERAGE_POSTPAID: 'Aşım kullanımı aktif',
+      OVERAGE_LIMIT_REACHED: 'Ses aşım limitine ulaşıldı'
     };
 
     res.json({

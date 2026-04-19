@@ -154,4 +154,70 @@ describe('Balance route schema-safe reads', () => {
     expect(select.voiceAddOnMinutesBalance).toBeUndefined();
     expect(select.writtenInteractionAddOnBalance).toBeUndefined();
   });
+
+  it('includes usage alerts when written usage is approaching the limit', async () => {
+    prismaMock.subscription.findUnique.mockResolvedValueOnce({
+      id: 33,
+      businessId: 11,
+      plan: 'ENTERPRISE',
+      balance: 0,
+      minutesLimit: 0,
+      minutesUsed: 0,
+      trialMinutesUsed: 0,
+      trialChatExpiry: null,
+      includedMinutesUsed: 0,
+      overageMinutes: 0,
+      overageRate: 23,
+      overageLimit: 200,
+      overageLimitReached: false,
+      creditMinutes: 0,
+      creditMinutesUsed: 0,
+      packageWarningAt80: false,
+      creditWarningAt80: false,
+      autoReloadEnabled: false,
+      autoReloadThreshold: 2,
+      autoReloadAmount: 5,
+      enterpriseMinutes: 750,
+      enterpriseSupportInteractions: 500,
+      enterprisePrice: 19999,
+      enterpriseConcurrent: 3,
+      enterpriseStartDate: new Date('2026-03-01T00:00:00.000Z'),
+      enterpriseEndDate: new Date('2026-04-01T00:00:00.000Z'),
+      enterprisePaymentStatus: 'paid',
+      currentPeriodStart: new Date('2026-03-01T00:00:00.000Z'),
+      currentPeriodEnd: new Date('2026-04-01T00:00:00.000Z'),
+      business: {
+        country: 'TR',
+        name: 'Acme',
+        users: [{ email: 'owner@example.com' }]
+      }
+    });
+    getWrittenUsageSummaryMock.mockResolvedValueOnce({
+      used: 450,
+      total: 500,
+      remaining: 50,
+      addOnRemaining: 0,
+      overage: 0,
+      unitPrice: 2.5,
+      configured: true
+    });
+    getBillingPlanDefinitionMock.mockReturnValueOnce({
+      writtenInteractionUnitPrice: 2.5,
+      voiceMinuteUnitPrice: 23,
+      overageAllowed: { written: false }
+    });
+
+    const response = await request(app).get('/api/balance');
+
+    expect(response.status).toBe(200);
+    expect(response.body.usageAlerts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'WRITTEN_INCLUDED_80',
+          scope: 'written',
+          severity: 'warning'
+        })
+      ])
+    );
+  });
 });

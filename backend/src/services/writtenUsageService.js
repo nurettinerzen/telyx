@@ -6,6 +6,7 @@ import {
   getBillingPlanDefinition,
   isWrittenChannelEnabled
 } from '../config/billingCatalog.js';
+import { shouldSendUsageNotification } from './settingsPreferences.js';
 const WRITTEN_ACTIVE_STATUSES = ['RESERVED', 'COMMITTED'];
 const WRITTEN_COMMITTED_STATUSES = ['COMMITTED'];
 export const WRITTEN_USAGE_BLOCK_ERROR_CODES = new Set([
@@ -428,13 +429,16 @@ export async function commitWrittenInteraction(idempotencyKey, metadataPatch = {
   };
 
   try {
-    return await prisma.writtenUsageEvent.update({
+    const updated = await prisma.writtenUsageEvent.update({
       where: { idempotencyKey },
       data: {
         status: 'COMMITTED',
         metadata: mergedMetadata
       }
     });
+
+    await maybeSendWrittenUsageNotifications(existing.subscriptionId);
+    return updated;
   } catch (error) {
     if (isMissingWrittenBillingSchemaError(error)) {
       return null;
@@ -541,6 +545,102 @@ export function buildEmailWrittenIdempotencyKey({ subscriptionId, lockKey, threa
 
 export function isWrittenUsageBlockError(error) {
   return WRITTEN_USAGE_BLOCK_ERROR_CODES.has(error?.code);
+}
+
+async function maybeSendWrittenUsageNotifications(subscriptionId) {
+  if (!subscriptionId) return;
+
+  try {
+    const subscription = await prisma.subscription.findUnique({
+      where: { id: subscriptionId },
+      include: {
+        business: {
+          select: {
+            name: true,
+            country: true,
+            users: {
+              where: { role: 'OWNER' },
+              take: 1,
+              select: { email: true }
+            }
+          }
+        }
+      }
+    });
+
+    if (!subscription) return;
+
+    const billingPlan = getBillingPlanDefinition(subscription, subscription.business?.country || 'TR');
+    const usageSummary = await getWrittenUsageSummary(subscription, { includeReserved: false });
+    const total = Math.max(Number(usageSummary?.total || 0), 0);
+    const used = Math.max(Number(usageSummary?.used || 0), 0);
+
+    if (total <= 0 || used <= 0) {
+      return;
+    }
+
+    const percentage = Math.round((used / total) * 100);
+    const ownerEmail = subscription.business?.users?.[0]?.email || null;
+    const canSendEmail = Boolean(ownerEmail) && await shouldSendUsageNotification(subscription.businessId);
+
+    if (percentage >= 80 && !subscription.creditWarningAt80) {
+      let flagRaised = false;
+
+      if (typeof prisma.subscription.updateMany === 'function') {
+        const result = await prisma.subscription.updateMany({
+          where: {
+            id: subscriptionId,
+            creditWarningAt80: false
+          },
+          data: {
+            creditWarningAt80: true
+          }
+        });
+        flagRaised = Number(result?.count || 0) > 0;
+      } else {
+        await prisma.subscription.update({
+          where: { id: subscriptionId },
+          data: { creditWarningAt80: true }
+        });
+        flagRaised = true;
+      }
+
+      if (flagRaised && canSendEmail) {
+        const emailService = (await import('./emailService.js')).default;
+        await emailService.sendLimitWarningEmail(
+          ownerEmail,
+          subscription.business?.name || '',
+          'written_interactions',
+          {
+            used,
+            limit: total,
+            percentage
+          }
+        );
+      }
+    }
+
+    const hardLimitReached = !billingPlan.overageAllowed?.written && used >= total;
+    const overageStarted = Boolean(billingPlan.overageAllowed?.written) && Number(usageSummary?.overage || 0) === 1;
+
+    if ((hardLimitReached || overageStarted) && canSendEmail) {
+      const emailService = (await import('./emailService.js')).default;
+      await emailService.sendLimitReachedEmail(
+        ownerEmail,
+        subscription.business?.name || '',
+        'written_interactions',
+        {
+          used,
+          limit: total,
+          percentage,
+          overage: Number(usageSummary?.overage || 0)
+        },
+        subscription.plan
+      );
+    }
+  } catch (error) {
+    console.error('Failed to process written usage notifications:', error);
+  }
 }
 
 export default {

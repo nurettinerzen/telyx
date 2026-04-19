@@ -466,11 +466,62 @@ export const sendPhoneActivatedEmail = async (email, businessName, phoneNumber) 
   return sendEmail(email, subject, html);
 };
 
+function resolveUsageLimitEmailCopy(limitType, currentPlan = null) {
+  const normalized = String(limitType || '').trim().toLowerCase();
+  const nextPlan = currentPlan === 'STARTER' ? 'PRO' : 'ENTERPRISE';
+
+  const copyByType = {
+    minutes: {
+      subjectWarning: 'Dakika limitiniz azalıyor',
+      subjectReached: 'Dakika limitine ulasildi',
+      label: 'dakika',
+      bodyWarning: 'Aylik ses dakikasi limitinizin',
+      bodyReached: `${currentPlan || 'Mevcut'} planinizdaki aylik dakika limitine ulasildi.`,
+      actionText: 'Paketleri Goruntule'
+    },
+    package_minutes: {
+      subjectWarning: 'Dahil dakikalariniz azaliyor',
+      subjectReached: 'Dahil dakika limiti doldu',
+      label: 'dakika',
+      bodyWarning: 'Dahil ses dakikasi limitinizin',
+      bodyReached: 'Dahil ses dakikalariniz tukenmek uzere veya tukendi.',
+      actionText: 'Paketleri Goruntule'
+    },
+    credit_minutes: {
+      subjectWarning: 'Ek ses paketiniz azaliyor',
+      subjectReached: 'Ek ses paketi tukeniyor',
+      label: 'dakika',
+      bodyWarning: 'Ek ses dakikasi bakiyenizin',
+      bodyReached: 'Ek ses dakikasi bakiyeniz kritik seviyeye geldi.',
+      actionText: 'Add-on Satin Al'
+    },
+    written_interactions: {
+      subjectWarning: 'Yazili etkilesim limitiniz azaliyor',
+      subjectReached: 'Yazili etkilesim limiti doldu',
+      label: 'yazili etkilesim',
+      bodyWarning: 'Dahil yazili etkilesim limitinizin',
+      bodyReached: 'Yazili etkilesim limitiniz doldu veya asim kullanimi basladi.',
+      actionText: 'Paketi Incele'
+    },
+    calls: {
+      subjectWarning: 'Arama limitiniz azaliyor',
+      subjectReached: 'Arama limitine ulasildi',
+      label: 'arama',
+      bodyWarning: 'Aylik arama limitinizin',
+      bodyReached: `${currentPlan || 'Mevcut'} planinizdaki aylik arama limitine ulasildi.`,
+      actionText: `${nextPlan}'ya Yuksel`
+    }
+  };
+
+  return copyByType[normalized] || copyByType.calls;
+}
+
 /**
  * 9. Limit Warning Email (at 80% usage)
  */
 export const sendLimitWarningEmail = async (email, businessName, limitType, usage) => {
-  const subject = `Telyx.AI - ${limitType === 'minutes' ? 'Dakika' : 'Arama'} Limitiniz Azalıyor`;
+  const copy = resolveUsageLimitEmailCopy(limitType);
+  const subject = `Telyx.AI - ${copy.subjectWarning}`;
   const html = `
     <!DOCTYPE html>
     <html>
@@ -486,20 +537,20 @@ export const sendLimitWarningEmail = async (email, businessName, limitType, usag
         </div>
         <div style="background-color: #ffffff; padding: 40px 30px; border-radius: 0 0 12px 12px;">
           <p>Merhaba${businessName ? ` ${businessName}` : ''},</p>
-          <p>Aylık ${limitType === 'minutes' ? 'dakika' : 'arama'} limitinizin <strong>${usage.percentage}%</strong>'ini kullandınız.</p>
+          <p>${copy.bodyWarning} <strong>${usage.percentage}%</strong>'ini kullandiniz.</p>
 
           <div style="background-color: #fef3c7; padding: 24px; border-radius: 8px; margin: 24px 0;">
             <h3 style="margin-top: 0;">Mevcut Kullanım:</h3>
             <div style="background-color: #e5e7eb; height: 24px; border-radius: 12px; overflow: hidden; margin: 16px 0;">
               <div style="background-color: #667eea; height: 100%; transition: width 0.3s ease; width: ${usage.percentage}%;"></div>
             </div>
-            <p style="text-align: center; margin: 0;"><strong>${usage.used} / ${usage.limit}</strong> ${limitType === 'minutes' ? 'dakika' : 'arama'}</p>
+            <p style="text-align: center; margin: 0;"><strong>${usage.used} / ${usage.limit}</strong> ${copy.label}</p>
           </div>
 
           <p>Hizmet kesintisini önlemek için planınızı yükseltmeyi veya bakiye yüklemeyi düşünebilirsiniz.</p>
 
           <p style="text-align: center;">
-            <a href="${FRONTEND_URL}/dashboard/settings?tab=billing" style="display: inline-block; padding: 16px 48px; background-color: #667eea; color: #ffffff !important; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">Şimdi Yükselt</a>
+            <a href="${FRONTEND_URL}/dashboard/subscription" style="display: inline-block; padding: 16px 48px; background-color: #667eea; color: #ffffff !important; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">${copy.actionText}</a>
           </p>
         </div>
         <div style="text-align: center; padding: 20px; color: #6b7280; font-size: 14px;">
@@ -519,7 +570,8 @@ export const sendLimitWarningEmail = async (email, businessName, limitType, usag
  */
 export const sendLimitReachedEmail = async (email, businessName, limitType, usage, currentPlan) => {
   const nextPlan = currentPlan === 'STARTER' ? 'PRO' : 'ENTERPRISE';
-  const subject = `Telyx.AI - ${limitType === 'minutes' ? 'Dakika' : 'Arama'} Limitine Ulaşıldı`;
+  const copy = resolveUsageLimitEmailCopy(limitType, currentPlan);
+  const subject = `Telyx.AI - ${copy.subjectReached}`;
   const html = `
     <!DOCTYPE html>
     <html>
@@ -535,11 +587,17 @@ export const sendLimitReachedEmail = async (email, businessName, limitType, usag
         </div>
         <div style="background-color: #ffffff; padding: 40px 30px; border-radius: 0 0 12px 12px;">
           <p>Merhaba${businessName ? ` ${businessName}` : ''},</p>
-          <p>${currentPlan} planınızdaki aylık <strong>${usage.limit} ${limitType === 'minutes' ? 'dakika' : 'arama'}</strong> limitine ulaştınız.</p>
+          <p>${copy.bodyReached}</p>
+
+          <div style="background-color: #f9fafb; padding: 18px 20px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 0;"><strong>Mevcut kullanim:</strong> ${usage.used} / ${usage.limit} ${copy.label}</p>
+          </div>
 
           <div style="background-color: #fef2f2; padding: 20px; border-radius: 8px; border-left: 4px solid #ef4444; margin: 24px 0;">
             <p style="margin: 0;"><strong>⚠️ Bu ne anlama geliyor:</strong><br>
-            ${limitType === 'minutes' ? 'Gelecek aya kadar veya yükseltme yapana kadar yeni aramalar yanıtlanmayacak.' : 'Bu ay daha fazla arama alamazsınız.'}</p>
+            ${String(limitType || '').toLowerCase() === 'written_interactions'
+              ? 'Yazili kullanim havuzunuz tukenirse yeni yanitlar plan politikaniza gore bloklanir veya asim olarak ilerler.'
+              : 'Mevcut limit politikasi nedeniyle yeni kullanim kisitlanabilir veya ek ucretlendirme devreye girebilir.'}</p>
           </div>
 
           <p><strong>${nextPlan} planına yükselterek devam edin:</strong></p>
@@ -550,7 +608,7 @@ export const sendLimitReachedEmail = async (email, businessName, limitType, usag
           </ul>
 
           <p style="text-align: center;">
-            <a href="${FRONTEND_URL}/dashboard/settings?tab=billing" style="display: inline-block; padding: 16px 48px; background-color: #667eea; color: #ffffff !important; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">${nextPlan}'ya Yükselt</a>
+            <a href="${FRONTEND_URL}/dashboard/subscription" style="display: inline-block; padding: 16px 48px; background-color: #667eea; color: #ffffff !important; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">${copy.actionText}</a>
           </p>
 
           <p style="font-size: 14px; color: #6b7280;">

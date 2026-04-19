@@ -20,6 +20,7 @@ import balanceService from '../services/balanceService.js';
 import stripeService from '../services/stripe.js';
 import { getWrittenUsageSummary } from '../services/writtenUsageService.js';
 import { getBillingPlanDefinition } from '../config/billingCatalog.js';
+import { buildUsageAlerts } from '../services/usageAlertService.js';
 import {
   markBillingCheckoutSessionCompleted,
   recordBillingCheckoutSession
@@ -479,6 +480,13 @@ router.get('/', async (req, res) => {
       price: subscription.enterprisePrice,
       concurrent: subscription.enterpriseConcurrent
     } : null;
+    const usageAlerts = buildUsageAlerts({
+      subscription,
+      billingPlan,
+      supportUsage: writtenUsage,
+      effectiveMinutesLimit: planIncludedMinutes,
+      country
+    });
 
     res.json({
       isNewSystem: true,
@@ -545,6 +553,7 @@ router.get('/', async (req, res) => {
 
       voiceAddOnRemaining,
       writtenAddOnRemaining,
+      usageAlerts,
 
       // Period info
       periodEnd: subscription.currentPeriodEnd,

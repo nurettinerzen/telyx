@@ -11,6 +11,7 @@ import { formatDate, formatSessionHandle } from '@/lib/utils';
 import { getPlanDisplayName } from '@/lib/planConfig';
 import { subscribeLiveHandoffSync } from '@/lib/liveHandoffSync';
 import { DashboardProvider } from '@/contexts/DashboardContext';
+import UsageAlertsBanner from '@/components/UsageAlertsBanner';
 
 // Avoid storing user/session data in browser storage.
 const USER_CACHE_KEY = 'dashboard_user_cache_disabled';
@@ -325,6 +326,9 @@ export default function DashboardLayout({ children }) {
   const pendingPlanDate = user?.subscription?.currentPeriodEnd
     ? formatDate(user.subscription.currentPeriodEnd, 'short', locale)
     : null;
+  const usageAlerts = Array.isArray(user?.subscription?.usageAlerts)
+    ? user.subscription.usageAlerts
+    : [];
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-950">
@@ -371,6 +375,7 @@ export default function DashboardLayout({ children }) {
             </div>
           </div>
         )}
+        <UsageAlertsBanner alerts={usageAlerts} locale={locale} />
         <main className="p-6 lg:p-8">
           <DashboardProvider user={user}>
             {children}

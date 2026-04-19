@@ -41,7 +41,8 @@ jest.unstable_mockModule('../../src/middleware/auth.js', () => ({
 }));
 
 jest.unstable_mockModule('../../src/middleware/planGating.js', () => ({
-  requireStarterOrAbove: (req, res, next) => next()
+  hasEmailInboxAccess: jest.fn(() => true),
+  requireEmailInboxAccess: (req, res, next) => next()
 }));
 
 jest.unstable_mockModule('../../src/services/gmail.js', () => ({
