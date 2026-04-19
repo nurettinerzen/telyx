@@ -7,7 +7,6 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Check, CreditCard, Loader2, AlertCircle, MessageSquare, PhoneCall, X } from 'lucide-react';
@@ -113,10 +112,6 @@ function getCancellationFlowCopy(locale) {
       surveySuccess: 'Geri bildiriminiz kaydedildi',
       surveySkip: 'Kapat',
       surveySelectPrompt: 'Lütfen bir neden seçin.',
-      managedTitle: 'Abonelik Yönetimi',
-      managedDescription: 'Bu abonelik şu anda panelden iptal edilemiyor. Sonlandırma veya plan değişikliği için ekibimizle iletişime geçin.',
-      managedFootnote: 'Kurumsal veya manuel yönetilen abonelikler destek üzerinden güncellenir.',
-      managedAction: 'İletişime Geç',
     };
   }
 
@@ -136,10 +131,6 @@ function getCancellationFlowCopy(locale) {
     surveySuccess: 'Your feedback has been saved',
     surveySkip: 'Close',
     surveySelectPrompt: 'Please select a reason.',
-    managedTitle: 'Subscription Management',
-    managedDescription: 'This subscription cannot be canceled directly from the dashboard right now. Please contact us for cancellation or plan changes.',
-    managedFootnote: 'Enterprise or manually managed subscriptions are updated through support.',
-    managedAction: 'Contact Us',
   };
 }
 
@@ -478,7 +469,15 @@ export default function SubscriptionPage() {
       }
     } catch (error) {
       console.error('Cancel subscription error:', error);
-      toast.error(error.response?.data?.error || t('dashboard.subscriptionPage.cancelFailed'));
+      if (error.response?.data?.code === 'SUBSCRIPTION_NOT_LINKED') {
+        toast.error(
+          locale === 'tr'
+            ? 'Abonelik kaydı Stripe ile henüz eşleşmedi. Birkaç saniye sonra tekrar deneyin; devam ederse bize haber verin.'
+            : 'This subscription is not linked to Stripe yet. Please try again in a few seconds, and contact us if it continues.'
+        );
+      } else {
+        toast.error(error.response?.data?.error || t('dashboard.subscriptionPage.cancelFailed'));
+      }
     } finally {
       setUpgrading(false);
     }
@@ -569,7 +568,6 @@ export default function SubscriptionPage() {
   const voiceAddOnCatalog = subscription?.addOnCatalog?.voice || [];
   const currentPlanPricing = subscription ? getPlanPricing(subscription.plan) : null;
   const showSubscriptionManagement = !['FREE', 'TRIAL', 'PAYG'].includes(subscription?.plan);
-  const showCancelableSubscription = Boolean(subscription?.stripeSubscriptionId) && showSubscriptionManagement;
   const canSubmitCancellation = Boolean(selectedCancellationReason)
     && (selectedCancellationReason !== 'OTHER' || Boolean(cancellationReasonDetail.trim()));
   const pendingPlanName = subscription?.pendingPlanId
@@ -652,7 +650,8 @@ export default function SubscriptionPage() {
         <div className="space-y-6">
           {/* Compact Plan Info Bar */}
           <div className="rounded-2xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-6 py-4 shadow-sm">
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                 <Badge className="bg-primary-100 dark:bg-primary-900/30 text-primary-800 dark:text-primary-400 text-sm px-3 py-1">
                   {getPlanDisplayName(subscription.plan, locale)}
                 </Badge>
@@ -703,6 +702,29 @@ export default function SubscriptionPage() {
                     </div>
                   </>
                 )}
+              </div>
+
+              {showSubscriptionManagement && !subscription.cancelAtPeriodEnd && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCancelSubscription}
+                  disabled={upgrading}
+                  className="shrink-0 border-red-300 bg-white text-red-700 hover:bg-red-100 hover:text-red-800 dark:border-red-800 dark:bg-transparent dark:text-red-300"
+                >
+                  {upgrading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {t('dashboard.subscriptionPage.processing')}
+                    </>
+                  ) : (
+                    <>
+                      <X className="mr-2 h-4 w-4" />
+                      {t('dashboard.subscriptionPage.cancelSubscription')}
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
 
             {/* Canceled status message */}
@@ -739,75 +761,6 @@ export default function SubscriptionPage() {
               </div>
             )}
           </div>
-
-          {showSubscriptionManagement && !subscription.cancelAtPeriodEnd && (
-            showCancelableSubscription ? (
-              <div className="rounded-2xl border border-red-200 dark:border-red-900/60 bg-red-50/70 dark:bg-red-950/20 px-5 py-5 shadow-sm">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-red-700 dark:text-red-300">
-                      <AlertCircle className="h-4 w-4" />
-                      <h3 className="text-sm font-semibold">{cancellationCopy.sectionTitle}</h3>
-                    </div>
-                    <p className="text-sm text-red-700/90 dark:text-red-200/90">
-                      {cancellationCopy.sectionDescription}
-                    </p>
-                    <p className="text-xs text-red-700/70 dark:text-red-200/70">
-                      {cancellationCopy.sectionFootnote}
-                    </p>
-                  </div>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleCancelSubscription}
-                    disabled={upgrading}
-                    className="shrink-0 border-red-300 bg-white text-red-700 hover:bg-red-100 hover:text-red-800 dark:border-red-800 dark:bg-transparent dark:text-red-300"
-                  >
-                    {upgrading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        {t('dashboard.subscriptionPage.processing')}
-                      </>
-                    ) : (
-                      <>
-                        <X className="mr-2 h-4 w-4" />
-                        {t('dashboard.subscriptionPage.cancelSubscription')}
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/70 dark:bg-amber-950/20 px-5 py-5 shadow-sm">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-amber-700 dark:text-amber-300">
-                      <AlertCircle className="h-4 w-4" />
-                      <h3 className="text-sm font-semibold">{cancellationCopy.managedTitle}</h3>
-                    </div>
-                    <p className="text-sm text-amber-700/90 dark:text-amber-200/90">
-                      {cancellationCopy.managedDescription}
-                    </p>
-                    <p className="text-xs text-amber-700/70 dark:text-amber-200/70">
-                      {cancellationCopy.managedFootnote}
-                    </p>
-                  </div>
-
-                  <Button
-                    asChild
-                    variant="outline"
-                    size="sm"
-                    className="shrink-0 border-amber-300 bg-white text-amber-700 hover:bg-amber-100 hover:text-amber-800 dark:border-amber-800 dark:bg-transparent dark:text-amber-300"
-                  >
-                    <Link href="/contact">
-                      {cancellationCopy.managedAction}
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-            )
-          )}
 
           {subscription.pendingPlanId && (
             <div className="rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 px-4 py-3 text-sm text-blue-800 dark:text-blue-200">

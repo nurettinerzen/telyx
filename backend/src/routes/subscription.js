@@ -198,6 +198,148 @@ function isMissingStripeSubscriptionError(error) {
   return code === 'resource_missing' || message.includes('No such subscription');
 }
 
+function getStripeCustomerIdFromSubscriptionObject(stripeSubscription) {
+  if (!stripeSubscription?.customer) {
+    return null;
+  }
+
+  return typeof stripeSubscription.customer === 'string'
+    ? stripeSubscription.customer
+    : stripeSubscription.customer.id;
+}
+
+function getPrimaryStripePrice(stripeSubscription) {
+  return stripeSubscription?.items?.data?.[0]?.price || null;
+}
+
+function buildStripeManagedSubscriptionPatch(subscription, stripeSubscription) {
+  const primaryPrice = getPrimaryStripePrice(stripeSubscription);
+
+  return {
+    paymentProvider: 'stripe',
+    stripeCustomerId: getStripeCustomerIdFromSubscriptionObject(stripeSubscription) || subscription.stripeCustomerId || null,
+    stripeSubscriptionId: stripeSubscription.id,
+    stripePriceId: primaryPrice?.id || subscription.stripePriceId || null,
+    cancelAtPeriodEnd: Boolean(stripeSubscription.cancel_at_period_end),
+    currentPeriodStart: stripeSubscription.current_period_start
+      ? new Date(stripeSubscription.current_period_start * 1000)
+      : subscription.currentPeriodStart,
+    currentPeriodEnd: stripeSubscription.current_period_end
+      ? new Date(stripeSubscription.current_period_end * 1000)
+      : subscription.currentPeriodEnd
+  };
+}
+
+function scoreStripeManagedSubscriptionCandidate(subscription, stripeSubscription) {
+  const primaryPrice = getPrimaryStripePrice(stripeSubscription);
+  const metadata = primaryPrice?.metadata || {};
+  let score = 0;
+
+  if (String(metadata.subscriptionId || '') === String(subscription.id)) score += 100;
+  if (String(metadata.businessId || '') === String(subscription.businessId)) score += 50;
+  if (subscription.stripePriceId && primaryPrice?.id === subscription.stripePriceId) score += 25;
+  if (String(subscription.plan || '').toUpperCase() === 'ENTERPRISE' && metadata.type === 'enterprise') score += 15;
+  if (stripeSubscription.status === 'active') score += 10;
+  if (stripeSubscription.status === 'trialing') score += 8;
+  if (stripeSubscription.status === 'past_due') score += 4;
+  if (stripeSubscription.status === 'unpaid') score += 2;
+
+  const periodEnd = Number(stripeSubscription.current_period_end || 0);
+  return { score, periodEnd };
+}
+
+function matchesStripeManagedSubscription(subscription, stripeSubscription) {
+  const primaryPrice = getPrimaryStripePrice(stripeSubscription);
+  const metadata = primaryPrice?.metadata || {};
+  const plan = String(subscription.plan || '').toUpperCase();
+
+  if (!primaryPrice) {
+    return false;
+  }
+
+  if (String(metadata.subscriptionId || '') === String(subscription.id)) {
+    return true;
+  }
+
+  if (String(metadata.businessId || '') === String(subscription.businessId)) {
+    return true;
+  }
+
+  if (subscription.stripePriceId && primaryPrice.id === subscription.stripePriceId) {
+    return true;
+  }
+
+  if (plan === 'ENTERPRISE') {
+    return metadata.type === 'enterprise';
+  }
+
+  return resolvePlanFromStripePriceId(primaryPrice.id) === plan;
+}
+
+async function reconcileStripeManagedSubscription(subscription) {
+  if (!subscription?.id || !subscription?.stripeCustomerId || !getStripe()) {
+    return subscription;
+  }
+
+  if (subscription.stripeSubscriptionId) {
+    const existingStripeSubscription = await getStripeSubscriptionIfExists(subscription.stripeSubscriptionId);
+    if (existingStripeSubscription) {
+      const patch = buildStripeManagedSubscriptionPatch(subscription, existingStripeSubscription);
+      const updated = await prisma.subscription.update({
+        where: { id: subscription.id },
+        data: patch
+      });
+
+      return { ...subscription, ...updated };
+    }
+  }
+
+  try {
+    const stripeSubscriptions = await getStripe().subscriptions.list({
+      customer: subscription.stripeCustomerId,
+      status: 'all',
+      limit: 20
+    });
+
+    const candidates = (stripeSubscriptions.data || [])
+      .filter((stripeSubscription) => ['trialing', 'active', 'past_due', 'unpaid'].includes(String(stripeSubscription.status || '').toLowerCase()))
+      .filter((stripeSubscription) => matchesStripeManagedSubscription(subscription, stripeSubscription))
+      .sort((left, right) => {
+        const leftScore = scoreStripeManagedSubscriptionCandidate(subscription, left);
+        const rightScore = scoreStripeManagedSubscriptionCandidate(subscription, right);
+
+        if (rightScore.score !== leftScore.score) {
+          return rightScore.score - leftScore.score;
+        }
+
+        return rightScore.periodEnd - leftScore.periodEnd;
+      });
+
+    const recoveredStripeSubscription = candidates[0];
+    if (!recoveredStripeSubscription) {
+      return subscription;
+    }
+
+    const patch = buildStripeManagedSubscriptionPatch(subscription, recoveredStripeSubscription);
+    const updated = await prisma.subscription.update({
+      where: { id: subscription.id },
+      data: patch
+    });
+
+    console.log(
+      `🔄 Re-linked Stripe subscription ${recoveredStripeSubscription.id} ` +
+      `for business ${subscription.businessId} (local subscription ${subscription.id})`
+    );
+
+    return { ...subscription, ...updated };
+  } catch (error) {
+    console.warn(
+      `⚠️ Failed to reconcile Stripe-managed subscription for business ${subscription.businessId}: ${error.message}`
+    );
+    return subscription;
+  }
+}
+
 async function getStripeSubscriptionIfExists(subscriptionId) {
   if (!subscriptionId || !getStripe()) {
     return null;
@@ -1825,6 +1967,7 @@ router.get('/current', verifyBusinessAccess, async (req, res) => {
     await reconcileOpenSubscriptionCheckouts(businessId);
 
     let subscription = await findSubscriptionWithBillingFallback(businessId);
+    subscription = await reconcileStripeManagedSubscription(subscription);
     subscription = await reconcileLocallyManagedBillingCycle(subscription);
 
     if (!subscription) {
@@ -2251,16 +2394,21 @@ router.post('/cancel', verifyBusinessAccess, async (req, res) => {
     const cancellationReasonCode = normalizeCancellationReasonCode(req.body?.reasonCode);
     const cancellationReasonDetail = sanitizeCancellationReasonDetail(req.body?.reasonDetail);
 
-    const subscription = await prisma.subscription.findUnique({
+    let subscription = await prisma.subscription.findUnique({
       where: { businessId }
     });
+
+    subscription = await reconcileStripeManagedSubscription(subscription);
 
     if (!subscription) {
       return res.status(400).json({ error: 'No subscription found' });
     }
 
     if (!subscription.stripeSubscriptionId) {
-      return res.status(400).json({ error: 'No active subscription' });
+      return res.status(409).json({
+        error: 'This subscription is not linked to an active Stripe billing record yet',
+        code: 'SUBSCRIPTION_NOT_LINKED'
+      });
     }
 
     const canceledSubscription = await getStripe().subscriptions.update(subscription.stripeSubscriptionId, {
@@ -2357,16 +2505,21 @@ router.post('/reactivate', verifyBusinessAccess, async (req, res) => {
   try {
     const { businessId } = req.user;
 
-    const subscription = await prisma.subscription.findUnique({
+    let subscription = await prisma.subscription.findUnique({
       where: { businessId }
     });
+
+    subscription = await reconcileStripeManagedSubscription(subscription);
 
     if (!subscription) {
       return res.status(400).json({ error: 'No subscription found' });
     }
 
     if (!subscription.stripeSubscriptionId) {
-      return res.status(400).json({ error: 'No subscription found' });
+      return res.status(409).json({
+        error: 'This subscription is not linked to an active Stripe billing record yet',
+        code: 'SUBSCRIPTION_NOT_LINKED'
+      });
     }
 
     // Remove cancel_at_period_end
@@ -2890,9 +3043,11 @@ router.post('/create-portal-session', verifyBusinessAccess, async (req, res) => 
   try {
     const { businessId } = req.user;
 
-    const subscription = await prisma.subscription.findUnique({
+    let subscription = await prisma.subscription.findUnique({
       where: { businessId }
     });
+
+    subscription = await reconcileStripeManagedSubscription(subscription);
 
     if (!subscription?.stripeCustomerId) {
       return res.status(400).json({ error: 'No Stripe customer found' });
