@@ -74,7 +74,7 @@ const TRANSLATIONS = {
     enterprisePaymentOverdue: 'Gecikmiş',
     enterpriseEndDate: 'Bitiş tarihi',
     enterpriseConcurrent: 'Eşzamanlı çağrı',
-    writtenSupport: 'Yazılı kullanım',
+    writtenSupport: 'Dahil Yazılı Etkileşimler',
     writtenSupportDesc: 'Webchat, WhatsApp ve e-posta',
     writtenObserved: 'Gözlenen yazılı kullanım',
     writtenLimitNotConfigured: 'Ayrı bir yazılı etkileşim limiti tanımlı değil. Bu kartta mevcut dönem içindeki gözlenen kullanım gösterilir.',
@@ -135,7 +135,7 @@ const TRANSLATIONS = {
     enterprisePaymentOverdue: 'Overdue',
     enterpriseEndDate: 'End date',
     enterpriseConcurrent: 'Concurrent calls',
-    writtenSupport: 'Written usage',
+    writtenSupport: 'Included Written Interactions',
     writtenSupportDesc: 'Webchat, WhatsApp, and email',
     writtenObserved: 'Observed written usage',
     writtenLimitNotConfigured: 'No separate written interaction limit is configured. This card shows observed usage for the current cycle.',
@@ -248,8 +248,16 @@ export default function CreditBalance({ onBuyCredit, refreshTrigger }) {
       ? Math.min((balance.trialMinutes.used / balance.trialMinutes.limit) * 100, 100)
       : 0;
 
-    const writtenPercent = balance.writtenInteractions?.limit > 0
-      ? Math.min((balance.writtenInteractions.used / balance.writtenInteractions.limit) * 100, 100)
+    const writtenLimit = Number(balance.writtenInteractions?.limit || 0);
+    const writtenUsed = Number(balance.writtenInteractions?.used || 0);
+    const writtenRemaining = Number.isFinite(Number(balance.writtenInteractions?.remaining))
+      ? Number(balance.writtenInteractions?.remaining)
+      : null;
+    const writtenDisplayTotal = writtenLimit > 0
+      ? writtenLimit
+      : (writtenRemaining !== null ? writtenUsed + writtenRemaining : null);
+    const writtenPercent = writtenDisplayTotal > 0
+      ? Math.min((writtenUsed / writtenDisplayTotal) * 100, 100)
       : 0;
     const voiceAddOnRemaining = Number(
       balance.voiceAddOnRemaining
@@ -263,102 +271,49 @@ export default function CreditBalance({ onBuyCredit, refreshTrigger }) {
     const writtenOverageAmount = writtenOverageCount * Number(balance.writtenInteractions?.unitPrice || 0);
     const hasAnyOverage = voiceOverageMinutes > 0 || writtenOverageCount > 0;
     const shouldShowWrittenUsage = Boolean(balance.writtenInteractions) && plan !== 'FREE';
-    const hasConfiguredWrittenLimit = Number(balance.writtenInteractions?.limit || 0) > 0;
-    const writtenChannels = balance.writtenInteractions?.channels || {
-      webchat: 0,
-      whatsapp: 0,
-      email: 0
-    };
 
     const renderWrittenUsage = () => {
       if (!shouldShowWrittenUsage) {
         return null;
       }
 
-      if (hasConfiguredWrittenLimit) {
-        return (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2">
-                <MessageSquare className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                <div>
-                  <span className="font-medium text-neutral-700 dark:text-neutral-300">{txt.writtenSupport}</span>
-                  <p className="text-xs text-neutral-500 dark:text-neutral-400">{txt.writtenSupportDesc}</p>
-                </div>
-              </div>
-              <span className="text-neutral-600 dark:text-neutral-400">
-                {balance.writtenInteractions.used}/{balance.writtenInteractions.limit} {txt.interactions}
-              </span>
+      return (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              <span className="font-medium text-neutral-700 dark:text-neutral-300">{txt.writtenSupport}</span>
             </div>
+            <div className="text-right text-neutral-600 dark:text-neutral-400">
+              {writtenDisplayTotal !== null
+                ? `${writtenUsed}/${writtenDisplayTotal} ${txt.interactions}`
+                : `${writtenUsed} ${txt.interactions}`}
+            </div>
+          </div>
+          {writtenDisplayTotal !== null && (
             <Progress
               value={writtenPercent}
               className={`h-2 ${writtenPercent >= 100 ? '[&>div]:bg-red-500' : writtenPercent >= 80 ? '[&>div]:bg-orange-500' : '[&>div]:bg-blue-600'}`}
             />
-            {balance.writtenInteractions.addOnRemaining > 0 && (
-              <div className="text-xs text-neutral-500 dark:text-neutral-400 flex items-center justify-between">
-                <span>{txt.addOnRemainingLabel}</span>
-                <span>{balance.writtenInteractions.addOnRemaining} {txt.interactions}</span>
-              </div>
-            )}
-            {writtenPercent >= 80 && writtenPercent < 100 && (
-              <p className="text-xs text-orange-600 flex items-center gap-1">
-                <AlertTriangle className="h-3 w-3" />
-                {txt.used80Written}
-              </p>
-            )}
-            {writtenPercent >= 100 && (
-              <p className="text-xs text-red-600 flex items-center gap-1">
-                <AlertTriangle className="h-3 w-3" />
-                {txt.usedAllWritten}
-              </p>
-            )}
-          </div>
-        );
-      }
-
-      return (
-        <div className="space-y-3 rounded-lg border border-blue-100 dark:border-blue-900/40 bg-blue-50/70 dark:bg-blue-900/10 p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-2">
-              <MessageSquare className="h-4 w-4 mt-0.5 text-blue-600 dark:text-blue-400" />
-              <div>
-                <div className="font-medium text-neutral-700 dark:text-neutral-300">{txt.writtenObserved}</div>
-                <p className="text-xs text-neutral-500 dark:text-neutral-400">{txt.writtenSupportDesc}</p>
-              </div>
+          )}
+          {balance.writtenInteractions.addOnRemaining > 0 && (
+            <div className="text-xs text-neutral-500 dark:text-neutral-400 flex items-center justify-between">
+              <span>{txt.addOnRemainingLabel}</span>
+              <span>{balance.writtenInteractions.addOnRemaining} {txt.interactions}</span>
             </div>
-            <div className="text-right">
-              <div className="text-lg font-semibold text-neutral-900 dark:text-white">
-                {balance.writtenInteractions.used || 0}
-              </div>
-              <div className="text-xs text-neutral-500 dark:text-neutral-400">{txt.interactions}</div>
-            </div>
-          </div>
-
-          <p className="text-xs text-blue-700 dark:text-blue-300">
-            {txt.writtenLimitNotConfigured}
-          </p>
-
-          <div className="grid grid-cols-3 gap-2 text-xs">
-            <div className="rounded-md bg-white/70 dark:bg-neutral-900/40 px-3 py-2">
-              <div className="text-neutral-500 dark:text-neutral-400">{txt.webchat}</div>
-              <div className="font-medium text-neutral-900 dark:text-white">{writtenChannels.webchat || 0}</div>
-            </div>
-            <div className="rounded-md bg-white/70 dark:bg-neutral-900/40 px-3 py-2">
-              <div className="text-neutral-500 dark:text-neutral-400">{txt.whatsappChannel}</div>
-              <div className="font-medium text-neutral-900 dark:text-white">{writtenChannels.whatsapp || 0}</div>
-            </div>
-            <div className="rounded-md bg-white/70 dark:bg-neutral-900/40 px-3 py-2">
-              <div className="text-neutral-500 dark:text-neutral-400">{txt.emailChannel}</div>
-              <div className="font-medium text-neutral-900 dark:text-white">{writtenChannels.email || 0}</div>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-neutral-500 dark:text-neutral-400">
-            <span>{txt.writtenUnitPrice}: {currency}{(balance.writtenInteractions.unitPrice || 0).toLocaleString(dateLocale)}</span>
-            {balance.writtenInteractions.addOnRemaining > 0 && (
-              <span>{txt.addOnRemainingLabel}: {balance.writtenInteractions.addOnRemaining}</span>
-            )}
-          </div>
+          )}
+          {writtenDisplayTotal !== null && writtenPercent >= 80 && writtenPercent < 100 && (
+            <p className="text-xs text-orange-600 flex items-center gap-1">
+              <AlertTriangle className="h-3 w-3" />
+              {txt.used80Written}
+            </p>
+          )}
+          {writtenDisplayTotal !== null && writtenPercent >= 100 && (
+            <p className="text-xs text-red-600 flex items-center gap-1">
+              <AlertTriangle className="h-3 w-3" />
+              {txt.usedAllWritten}
+            </p>
+          )}
         </div>
       );
     };
