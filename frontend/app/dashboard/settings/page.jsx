@@ -13,6 +13,13 @@ import { Input } from '@/components/ui/input';
 import { SecurePasswordInput } from '@/components/ui/secure-password-input';
 import { Label } from '@/components/ui/label';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -75,6 +82,7 @@ export default function SettingsPage() {
   const [passwordInputNonce, setPasswordInputNonce] = useState(0);
   const [emailInputNonce, setEmailInputNonce] = useState(0);
   const [deleteInputNonce, setDeleteInputNonce] = useState(0);
+  const [showEmailChangeModal, setShowEmailChangeModal] = useState(false);
   const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
   const [hasDeletePassword, setHasDeletePassword] = useState(false);
   const [emailChange, setEmailChange] = useState({ newEmail: '' });
@@ -90,6 +98,7 @@ export default function SettingsPage() {
 
   const deleteConfirmationPhrase = locale === 'tr' ? 'hesabımı sil' : 'delete my account';
   const isOwner = profileData?.user?.role === 'OWNER';
+  const editableFieldClass = 'dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:placeholder:text-gray-500';
 
   // Update local state when data is loaded
   useEffect(() => {
@@ -225,10 +234,20 @@ export default function SettingsPage() {
       emailPasswordRef.current = '';
       setEmailChange({ newEmail: '' });
       setEmailInputNonce((current) => current + 1);
+      setShowEmailChangeModal(false);
       setProfile((current) => ({ ...current, email: result?.data?.email || nextEmail }));
       dispatchUserRefresh();
       router.push('/auth/email-pending');
     } catch {}
+  };
+
+  const handleEmailModalOpenChange = (open) => {
+    setShowEmailChangeModal(open);
+    if (!open) {
+      emailPasswordRef.current = '';
+      setEmailChange({ newEmail: '' });
+      setEmailInputNonce((current) => current + 1);
+    }
   };
 
   const handleChangePassword = async () => {
@@ -346,6 +365,7 @@ export default function SettingsPage() {
               id="name"
               value={profile.name}
               onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+              className={editableFieldClass}
             />
           </div>
           <div>
@@ -361,46 +381,8 @@ export default function SettingsPage() {
             <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
               {t('dashboard.settingsPage.emailChangeHint')}
             </p>
-          </div>
-          <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800/50 xl:col-span-2">
-            <div className="space-y-3">
-              <div>
-                <p className="text-sm font-medium text-neutral-900 dark:text-white">
-                  {t('auth.changeEmailAddress')}
-                </p>
-                <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-                  {t('dashboard.settingsPage.emailChangeVerificationHint')}
-                </p>
-              </div>
-
-              <div>
-                <Label htmlFor="newEmailAddress">{t('auth.newEmailAddress')}</Label>
-                <Input
-                  id="newEmailAddress"
-                  type="email"
-                  autoComplete="email"
-                  value={emailChange.newEmail}
-                  onChange={(e) => setEmailChange({ newEmail: e.target.value })}
-                  placeholder="name@company.com"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="emailChangePassword">{t('dashboard.settingsPage.emailChangePasswordLabel')}</Label>
-                <SecurePasswordInput
-                  key={`email-change-password-${emailInputNonce}`}
-                  id="emailChangePassword"
-                  autoComplete="current-password"
-                  onValueChange={(value) => {
-                    emailPasswordRef.current = value;
-                  }}
-                />
-              </div>
-            </div>
-
-            <div className="mt-4 flex justify-end">
-              <Button onClick={handleChangeEmail} disabled={changeEmail.isPending}>
-                {changeEmail.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <div className="mt-3 flex justify-end">
+              <Button variant="outline" onClick={() => setShowEmailChangeModal(true)}>
                 {t('auth.changeEmail')}
               </Button>
             </div>
@@ -411,6 +393,7 @@ export default function SettingsPage() {
               id="company"
               value={profile.company || ''}
               onChange={(e) => setProfile({ ...profile, company: e.target.value })}
+              className={editableFieldClass}
             />
           </div>
         </div>
@@ -697,6 +680,7 @@ export default function SettingsPage() {
               value={deleteConfirmationText}
               onChange={(e) => setDeleteConfirmationText(e.target.value)}
               placeholder={deleteConfirmationPhrase}
+              className={editableFieldClass}
             />
             <p className="mt-1 text-xs text-red-700 dark:text-red-400">
               {t('dashboard.settingsPage.deleteAccountConfirmationHelp', { phrase: deleteConfirmationPhrase })}
@@ -725,6 +709,54 @@ export default function SettingsPage() {
           </Button>
         </div>
       </div>
+
+      <Dialog open={showEmailChangeModal} onOpenChange={handleEmailModalOpenChange}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('auth.changeEmailAddress')}</DialogTitle>
+            <DialogDescription>
+              {t('dashboard.settingsPage.emailChangeVerificationHint')}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="newEmailAddress">{t('auth.newEmailAddress')}</Label>
+              <Input
+                id="newEmailAddress"
+                type="email"
+                autoComplete="email"
+                value={emailChange.newEmail}
+                onChange={(e) => setEmailChange({ newEmail: e.target.value })}
+                placeholder="name@company.com"
+                className={editableFieldClass}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="emailChangePassword">{t('dashboard.settingsPage.emailChangePasswordLabel')}</Label>
+              <SecurePasswordInput
+                key={`email-change-password-${emailInputNonce}`}
+                id="emailChangePassword"
+                autoComplete="current-password"
+                onValueChange={(value) => {
+                  emailPasswordRef.current = value;
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => handleEmailModalOpenChange(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={handleChangeEmail} disabled={changeEmail.isPending}>
+              {changeEmail.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t('auth.changeEmail')}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
