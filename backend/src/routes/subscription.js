@@ -2310,6 +2310,48 @@ router.post('/cancel', verifyBusinessAccess, async (req, res) => {
   }
 });
 
+router.post('/cancellation-feedback', verifyBusinessAccess, async (req, res) => {
+  try {
+    const { businessId } = req.user;
+    const rawReasonCode = String(req.body?.reasonCode || '').trim();
+    const cancellationReasonCode = normalizeCancellationReasonCode(rawReasonCode);
+    const cancellationReasonDetail = sanitizeCancellationReasonDetail(req.body?.reasonDetail);
+
+    if (!rawReasonCode) {
+      return res.status(400).json({ error: 'Cancellation reason is required' });
+    }
+
+    if (cancellationReasonCode === 'OTHER' && !cancellationReasonDetail) {
+      return res.status(400).json({ error: 'Cancellation reason detail is required for OTHER' });
+    }
+
+    const subscription = await prisma.subscription.findUnique({
+      where: { businessId }
+    });
+
+    await logAuditEvent({
+      action: 'subscription_cancellation_feedback_submitted',
+      actorUserId: req.userId || req.user?.id || null,
+      businessId,
+      metadata: {
+        subscriptionId: subscription?.id || null,
+        plan: subscription?.plan || null,
+        reasonCode: cancellationReasonCode,
+        reasonLabel: SUBSCRIPTION_CANCELLATION_REASON_LABELS[cancellationReasonCode] || cancellationReasonCode,
+        reasonDetail: cancellationReasonDetail,
+        source: 'dashboard_subscription_post_cancel'
+      },
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'] || null
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Cancellation feedback error:', error);
+    res.status(500).json({ error: 'Failed to save cancellation feedback' });
+  }
+});
+
 // Reactivate canceled subscription
 router.post('/reactivate', verifyBusinessAccess, async (req, res) => {
   try {

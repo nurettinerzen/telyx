@@ -98,36 +98,38 @@ function getCancellationFlowCopy(locale) {
   if (isTr) {
     return {
       sectionTitle: 'Aboneliği Sonlandır',
-      sectionDescription: 'Aboneliğinizi dönem sonunda sonlandırabilirsiniz. İptalden önce kısa bir geri bildirim alacağız.',
+      sectionDescription: 'Aboneliğinizi dönem sonunda sonlandırabilirsiniz. İptalden sonra isterseniz kısa bir geri bildirim paylaşabilirsiniz.',
       sectionFootnote: 'İptal etseniz bile mevcut dönem bitene kadar kullanımınız devam eder.',
       confirmTitle: 'Gideceğinizi duymak üzücü',
       confirmDescription: 'Devam etmek isterseniz aboneliğiniz dönem sonunda iptal edilecektir.',
       confirmWarning: 'Bu işlem anında erişiminizi kapatmaz. Mevcut plan haklarınız dönem sonuna kadar aktif kalır.',
-      confirmAction: 'İptale Devam Et',
-      surveyTitle: 'Ayrılma nedeninizi paylaşır mısınız?',
-      surveyDescription: 'Bu geri bildirim yalnızca ürün ve fiyatlandırmayı iyileştirmek için kullanılacaktır.',
+      confirmAction: 'İptali Onayla',
+      surveyTitle: 'İptal işleminiz planlandı',
+      surveyDescription: 'İsterseniz ayrılma nedeninizi paylaşabilirsiniz. Bu geri bildirim yalnızca ürün ve fiyatlandırmayı iyileştirmek için kullanılacaktır.',
       surveyOtherLabel: 'Diğer neden',
       surveyOtherPlaceholder: 'İsterseniz kısaca paylaşın',
-      surveySubmit: 'İptali Onayla',
-      surveyBack: 'Geri',
+      surveySubmit: 'Geri Bildirimi Gönder',
+      surveySuccess: 'Geri bildiriminiz kaydedildi',
+      surveySkip: 'Kapat',
       surveySelectPrompt: 'Lütfen bir neden seçin.',
     };
   }
 
   return {
     sectionTitle: 'End Subscription',
-    sectionDescription: 'You can end your subscription at the end of the current billing period. We will ask for a short reason first.',
+    sectionDescription: 'You can end your subscription at the end of the current billing period. You can optionally share a short reason afterwards.',
     sectionFootnote: 'Your current access stays active until the period ends.',
     confirmTitle: 'Sorry to see you go',
     confirmDescription: 'If you continue, your subscription will be canceled at the end of the current period.',
     confirmWarning: 'This does not remove access immediately. Your current plan stays active until the billing period ends.',
-    confirmAction: 'Continue to Cancellation',
-    surveyTitle: 'Could you share why you are leaving?',
-    surveyDescription: 'This feedback is only used to improve the product and pricing.',
+    confirmAction: 'Confirm Cancellation',
+    surveyTitle: 'Your cancellation is scheduled',
+    surveyDescription: 'If you want, you can share why you are leaving. This feedback is only used to improve the product and pricing.',
     surveyOtherLabel: 'Other reason',
     surveyOtherPlaceholder: 'Share a short note if you want',
-    surveySubmit: 'Confirm Cancellation',
-    surveyBack: 'Back',
+    surveySubmit: 'Send Feedback',
+    surveySuccess: 'Your feedback has been saved',
+    surveySkip: 'Close',
     surveySelectPrompt: 'Please select a reason.',
   };
 }
@@ -434,6 +436,8 @@ export default function SubscriptionPage() {
   const handleCancelSubscription = async () => {
     setCancelDialogOpen(true);
     setCancelDialogStep('confirm');
+    setSelectedCancellationReason('');
+    setCancellationReasonDetail('');
   };
 
   const handleCancelDialogOpenChange = (open) => {
@@ -446,11 +450,32 @@ export default function SubscriptionPage() {
     setCancelDialogOpen(true);
   };
 
-  const handleContinueToCancellationSurvey = () => {
-    setCancelDialogStep('survey');
+  const handleConfirmCancellation = async () => {
+    try {
+      setUpgrading(true);
+      const response = await apiClient.subscription.cancel();
+
+      if (response.data?.success) {
+        const cancelDate = response.data.cancelAt
+          ? formatDate(response.data.cancelAt, 'long', locale)
+          : null;
+        setCancelDialogStep('survey');
+        toast.success(
+          cancelDate
+            ? t('dashboard.subscriptionPage.cancelSuccess').replace('{date}', cancelDate)
+            : t('dashboard.subscriptionPage.cancelSuccessNoDate')
+        );
+        await refreshBillingState();
+      }
+    } catch (error) {
+      console.error('Cancel subscription error:', error);
+      toast.error(error.response?.data?.error || t('dashboard.subscriptionPage.cancelFailed'));
+    } finally {
+      setUpgrading(false);
+    }
   };
 
-  const handleConfirmCancellation = async () => {
+  const handleSubmitCancellationFeedback = async () => {
     if (!selectedCancellationReason) {
       toast.error(cancellationCopy.surveySelectPrompt);
       return;
@@ -463,26 +488,18 @@ export default function SubscriptionPage() {
 
     try {
       setUpgrading(true);
-      const response = await apiClient.subscription.cancel({
+      const response = await apiClient.subscription.submitCancellationFeedback({
         reasonCode: selectedCancellationReason,
         reasonDetail: cancellationReasonDetail.trim() || undefined,
       });
 
       if (response.data?.success) {
-        const cancelDate = response.data.cancelAt
-          ? formatDate(response.data.cancelAt, 'long', locale)
-          : null;
         resetCancellationFlow();
-        toast.success(
-          cancelDate
-            ? t('dashboard.subscriptionPage.cancelSuccess').replace('{date}', cancelDate)
-            : t('dashboard.subscriptionPage.cancelSuccessNoDate')
-        );
-        await refreshBillingState();
+        toast.success(cancellationCopy.surveySuccess);
       }
     } catch (error) {
-      console.error('Cancel subscription error:', error);
-      toast.error(error.response?.data?.error || t('dashboard.subscriptionPage.cancelFailed'));
+      console.error('Cancellation feedback error:', error);
+      toast.error(error.response?.data?.error || t('dashboard.subscriptionPage.operationFailed'));
     } finally {
       setUpgrading(false);
     }
@@ -816,11 +833,18 @@ export default function SubscriptionPage() {
                   {t('common.cancel')}
                 </Button>
                 <Button
-                  onClick={handleContinueToCancellationSurvey}
+                  onClick={handleConfirmCancellation}
                   disabled={upgrading}
                   className="bg-red-600 hover:bg-red-700 text-white"
                 >
-                  {cancellationCopy.confirmAction}
+                  {upgrading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {t('dashboard.subscriptionPage.processing')}
+                    </>
+                  ) : (
+                    cancellationCopy.confirmAction
+                  )}
                 </Button>
               </DialogFooter>
             </>
@@ -877,13 +901,13 @@ export default function SubscriptionPage() {
               <DialogFooter>
                 <Button
                   variant="outline"
-                  onClick={() => setCancelDialogStep('confirm')}
+                  onClick={resetCancellationFlow}
                   disabled={upgrading}
                 >
-                  {cancellationCopy.surveyBack}
+                  {cancellationCopy.surveySkip}
                 </Button>
                 <Button
-                  onClick={handleConfirmCancellation}
+                  onClick={handleSubmitCancellationFeedback}
                   disabled={upgrading || !canSubmitCancellation}
                   className="bg-red-600 hover:bg-red-700 text-white"
                 >

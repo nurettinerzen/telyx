@@ -350,10 +350,7 @@ describe('Subscription lifecycle routes', () => {
       current_period_end: 1770000000
     });
 
-    const response = await request(app).post('/api/subscription/cancel').send({
-      reasonCode: 'LOW_QUALITY',
-      reasonDetail: 'Canli chat cevaplari bekledigim kadar iyi degil.'
-    });
+    const response = await request(app).post('/api/subscription/cancel').send({});
 
     expect(response.status).toBe(200);
     expect(stripeClientMock.subscriptions.update).toHaveBeenCalledWith('sub_test_123', {
@@ -371,14 +368,14 @@ describe('Subscription lifecycle routes', () => {
         subscriptionId: 33,
         plan: 'PRO',
         stripeSubscriptionId: 'sub_test_123',
-        reasonCode: 'LOW_QUALITY',
-        reasonDetail: 'Canli chat cevaplari bekledigim kadar iyi degil.',
+        reasonCode: 'UNSPECIFIED',
+        reasonDetail: null,
         source: 'dashboard_subscription'
       })
     }));
   });
 
-  it('keeps cancellation backward compatible when no survey payload is sent', async () => {
+  it('saves post-cancel feedback separately', async () => {
     prismaMock.subscription.findUnique.mockResolvedValue({
       id: 33,
       businessId: 11,
@@ -387,17 +384,20 @@ describe('Subscription lifecycle routes', () => {
       paymentProvider: 'stripe',
       stripeSubscriptionId: 'sub_test_123'
     });
-    stripeClientMock.subscriptions.update.mockResolvedValue({
-      current_period_end: 1770000000
-    });
-
-    const response = await request(app).post('/api/subscription/cancel').send({});
+    const response = await request(app)
+      .post('/api/subscription/cancellation-feedback')
+      .send({
+        reasonCode: 'LOW_QUALITY',
+        reasonDetail: 'Canli chat cevaplari bekledigim kadar iyi degil.'
+      });
 
     expect(response.status).toBe(200);
     expect(logAuditEventMock).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'subscription_cancellation_feedback_submitted',
       metadata: expect.objectContaining({
-        reasonCode: 'UNSPECIFIED',
-        reasonDetail: null
+        reasonCode: 'LOW_QUALITY',
+        reasonDetail: 'Canli chat cevaplari bekledigim kadar iyi degil.',
+        source: 'dashboard_subscription_post_cancel'
       })
     }));
   });
