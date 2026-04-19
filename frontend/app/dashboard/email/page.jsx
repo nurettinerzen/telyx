@@ -8,6 +8,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
@@ -50,14 +51,18 @@ import { tr } from 'date-fns/locale';
 import { useEmailStatus, useEmailThreads, useEmailThread, useEmailStats, useCustomerByEmail } from '@/hooks/useEmail';
 import Link from 'next/link';
 import { useQueryClient } from '@tanstack/react-query';
+import {
+  DashboardFlowBackdrop,
+  getDashboardFlowPageStyle,
+} from '@/components/dashboard/DashboardFlowBackdrop';
 
 // ─── Helpers ───────────────────────────────────────────────
 
 /** Generate consistent avatar color from string */
 function avatarColor(str) {
   const colors = [
-    'bg-emerald-500', 'bg-indigo-500', 'bg-amber-500', 'bg-rose-500',
-    'bg-blue-500', 'bg-purple-500', 'bg-teal-500', 'bg-pink-500',
+    'bg-[#00C4E6]', 'bg-[#006FEB]', 'bg-[#000ACF]', 'bg-[#051752]',
+    'bg-sky-500', 'bg-cyan-500', 'bg-blue-600', 'bg-slate-700',
   ];
   let hash = 0;
   for (let i = 0; i < (str || '').length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
@@ -152,6 +157,8 @@ const TAG_CONFIG = {
 
 export default function EmailDashboardPage() {
   const { t, locale } = useLanguage();
+  const { resolvedTheme } = useTheme();
+  const dark = resolvedTheme === 'dark';
   const queryClient = useQueryClient();
   const emailT = (key) => t(`dashboard.emailPage.${key}`);
 
@@ -563,18 +570,24 @@ export default function EmailDashboardPage() {
   // ════════════════════════════════════════════════════════════
 
   return (
-    <div className="fixed inset-0 lg:left-60 flex bg-white dark:bg-neutral-950 z-10">
+    <div
+      className="fixed inset-0 z-10 flex overflow-hidden lg:left-60"
+      style={dark ? getDashboardFlowPageStyle(dark) : { background: '#ffffff' }}
+    >
+      <DashboardFlowBackdrop dark={dark} />
+      <div className="relative z-10 flex w-full">
 
       {/* ════════ LEFT: MAIL LIST ════════ */}
-      <div className="w-[380px] min-w-[380px] border-r border-neutral-200 dark:border-neutral-800 flex flex-col bg-neutral-50 dark:bg-neutral-900">
+      <div className="w-[380px] min-w-[380px] flex flex-col"
+           style={dark ? {borderRight:'1px solid rgba(255,255,255,0.08)',background:'rgba(3,10,32,0.92)'} : {borderRight:'1px solid #e5e7eb',background:'#f9fafb'}}>
 
         {/* Header */}
-        <div className="p-4 border-b border-neutral-200 dark:border-neutral-800">
+        <div className="p-4" style={dark ? {borderBottom:'1px solid rgba(255,255,255,0.08)'} : {borderBottom:'1px solid #e5e7eb'}}>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <Mail className="h-5 w-5 text-neutral-700 dark:text-neutral-300" />
-              <h1 className="text-lg font-bold text-neutral-900 dark:text-white">{emailT('shortTitle')}</h1>
-              <span className="text-xs text-neutral-500 bg-neutral-200 dark:bg-neutral-800 px-2 py-0.5 rounded-full">
+              <Mail className={`h-5 w-5 ${dark ? 'text-[#00C4E6]' : 'text-neutral-700'}`} />
+              <h1 className={`text-lg font-bold ${dark ? 'text-white' : 'text-neutral-900'}`}>{emailT('shortTitle')}</h1>
+              <span className={`text-xs px-2 py-0.5 rounded-full ${dark ? 'text-slate-400 bg-white/10' : 'text-neutral-500 bg-neutral-200'}`}>
                 {stats?.totalThreads || threads.length}
               </span>
             </div>
@@ -586,30 +599,32 @@ export default function EmailDashboardPage() {
           </div>
 
           {/* Folder Tabs */}
-          <div className="flex gap-1 bg-neutral-200/60 dark:bg-neutral-800 rounded-lg p-1 mb-3">
+          <div className="flex gap-1 rounded-lg p-1 mb-3"
+               style={dark ? {background:'rgba(255,255,255,0.08)'} : {background:'rgba(0,0,0,0.07)'}}>
             <button
               onClick={() => setActiveFolder('inbox')}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                activeFolder === 'inbox'
-                  ? 'bg-white dark:bg-neutral-700 text-neutral-900 dark:text-white shadow-sm'
-                  : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300'
-              }`}
+              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-semibold transition-all"
+              style={activeFolder === 'inbox'
+                ? (dark ? {background:'rgba(0,196,230,0.15)',color:'#00C4E6',boxShadow:'0 0 12px rgba(0,196,230,0.2)'} : {background:'#fff',color:'#111827',boxShadow:'0 1px 3px rgba(0,0,0,0.1)'})
+                : (dark ? {color:'#64748b'} : {color:'#6b7280'})
+              }
             >
               <Inbox className="h-3.5 w-3.5" />
               {locale === 'tr' ? 'Gelen Kutusu' : 'Inbox'}
               {stats?.totalThreads > 0 && (
-                <span className="bg-blue-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+                <span className="text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold"
+                      style={{background:'#00C4E6'}}>
                   {stats.totalThreads}
                 </span>
               )}
             </button>
             <button
               onClick={() => setActiveFolder('sent')}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                activeFolder === 'sent'
-                  ? 'bg-white dark:bg-neutral-700 text-neutral-900 dark:text-white shadow-sm'
-                  : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300'
-              }`}
+              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-semibold transition-all"
+              style={activeFolder === 'sent'
+                ? (dark ? {background:'rgba(0,196,230,0.15)',color:'#00C4E6'} : {background:'#fff',color:'#111827',boxShadow:'0 1px 3px rgba(0,0,0,0.1)'})
+                : (dark ? {color:'#64748b'} : {color:'#6b7280'})
+              }
             >
               <SendHorizonal className="h-3.5 w-3.5" />
               {locale === 'tr' ? 'Gönderilenler' : 'Sent'}
@@ -628,11 +643,14 @@ export default function EmailDashboardPage() {
               <button
                 key={f.key || 'all'}
                 onClick={() => setStatusFilter(f.key)}
-                className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition-all ${
-                  statusFilter === f.key
-                    ? f.cls === 'spam' ? 'bg-red-500 border-red-500 text-white' : 'bg-blue-500 border-blue-500 text-white'
-                    : f.cls === 'spam' ? 'border-red-300 dark:border-red-800 text-red-500 dark:text-red-400 hover:border-red-400 dark:hover:border-red-700' : 'border-neutral-300 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:border-neutral-400 dark:hover:border-neutral-600'
-                }`}
+                className="px-2.5 py-1 rounded-full text-[11px] font-medium border transition-all"
+                style={statusFilter === f.key
+                  ? (f.cls === 'spam' ? {background:'#ef4444',borderColor:'#ef4444',color:'#fff'} : {background:'#00C4E6',borderColor:'#00C4E6',color:'#fff'})
+                  : (dark
+                    ? (f.cls === 'spam' ? {borderColor:'rgba(239,68,68,0.4)',color:'#f87171'} : {borderColor:'rgba(255,255,255,0.12)',color:'#64748b'})
+                    : (f.cls === 'spam' ? {borderColor:'#fca5a5',color:'#ef4444'} : {borderColor:'#d1d5db',color:'#6b7280'})
+                  )
+                }
               >
                 {f.label}
               </button>
@@ -728,12 +746,14 @@ export default function EmailDashboardPage() {
         </div>
       </div>
 
-      {/* ════════ RIGHT: THREAD VIEW ════════ */}
-      <div className="flex-1 flex flex-col overflow-hidden bg-white dark:bg-neutral-950">
+      {/* ════════ MIDDLE: THREAD VIEW ════════ */}
+      <div className="flex-1 flex flex-col overflow-hidden"
+           style={dark ? {background:'rgba(5,14,40,0.7)'} : {background:'#ffffff'}}>
         {selectedThread ? (
           <>
             {/* Thread Header */}
-            <div className="px-5 py-3 border-b border-neutral-200 dark:border-neutral-800 flex items-start justify-between gap-4">
+            <div className="px-5 py-3 flex items-start justify-between gap-4"
+                 style={dark ? {borderBottom:'1px solid rgba(255,255,255,0.08)'} : {borderBottom:'1px solid #e5e7eb'}}>
               <div className="min-w-0">
                 <h2 className="text-base font-bold text-neutral-900 dark:text-white truncate">
                   {selectedThread.subject}
@@ -939,6 +959,7 @@ export default function EmailDashboardPage() {
           customerName={selectedThread.customerName}
         />
       )}
+      </div>
     </div>
   );
 }
@@ -948,9 +969,14 @@ export default function EmailDashboardPage() {
 // ════════════════════════════════════════════════════════════
 
 function CustomerSidebar({ customer, orderStats, recentOrders, tickets, loading, locale, customerEmail, customerName }) {
+  const { resolvedTheme } = useTheme();
+  const dark = resolvedTheme === 'dark';
+  const panelStyle = dark
+    ? { borderLeft: '1px solid rgba(255,255,255,0.08)', background: 'rgba(3,10,32,0.92)' }
+    : { borderLeft: '1px solid #e5e7eb', background: '#f9fafb' };
   if (loading) {
     return (
-      <div className="w-[300px] min-w-[300px] border-l border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900 hidden lg:flex flex-col items-center justify-center">
+      <div className="w-[300px] min-w-[300px] hidden lg:flex flex-col items-center justify-center" style={panelStyle}>
         <div className="animate-pulse space-y-3 w-full px-4">
           <div className="h-4 bg-neutral-200 dark:bg-neutral-700 rounded w-3/4 mx-auto" />
           <div className="h-3 bg-neutral-200 dark:bg-neutral-700 rounded w-1/2 mx-auto" />
@@ -988,8 +1014,8 @@ function CustomerSidebar({ customer, orderStats, recentOrders, tickets, loading,
   // Completely empty — no customer data, no orders, no tickets
   if (!hasAnyData) {
     return (
-      <div className="w-[300px] min-w-[300px] border-l border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900 hidden lg:flex flex-col">
-        <div className="p-4 border-b border-neutral-200 dark:border-neutral-800">
+      <div className="w-[300px] min-w-[300px] hidden lg:flex flex-col" style={panelStyle}>
+        <div className="p-4" style={dark?{borderBottom:'1px solid rgba(255,255,255,0.08)'}:{borderBottom:'1px solid #e5e7eb'}}>
           <h3 className="text-sm font-semibold text-neutral-900 dark:text-white flex items-center gap-2">
             <UserCircle className="h-4 w-4" />
             {locale === 'tr' ? 'Müşteri Bilgisi' : 'Customer Info'}
@@ -1009,7 +1035,7 @@ function CustomerSidebar({ customer, orderStats, recentOrders, tickets, loading,
   }
 
   return (
-    <div className="w-[300px] min-w-[300px] border-l border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900 hidden lg:flex flex-col overflow-y-auto">
+    <div className="w-[300px] min-w-[300px] hidden lg:flex flex-col overflow-y-auto" style={panelStyle}>
       {/* Header */}
       <div className="p-4 border-b border-neutral-200 dark:border-neutral-800">
         <h3 className="text-sm font-semibold text-neutral-900 dark:text-white flex items-center gap-2">

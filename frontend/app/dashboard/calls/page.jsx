@@ -1,7 +1,7 @@
 /**
  * Calls Page
- * Call history with Retell-style table design
- * Clean, minimal layout with status indicators
+ * Call history with dark brand-themed design
+ * Navy/Teal SaaS gradient aesthetic
  */
 
 'use client';
@@ -29,7 +29,7 @@ import {
 import TranscriptModal from '@/components/TranscriptModal';
 import EmptyState from '@/components/EmptyState';
 import { GradientLoaderInline } from '@/components/GradientLoader';
-import { Phone, Search, Download, Filter, FileText, Volume2, PhoneIncoming, PhoneOutgoing } from 'lucide-react';
+import { Phone, Search, Download, Filter, FileText, Volume2, PhoneIncoming, PhoneOutgoing, Activity, Clock, PhoneCall, TrendingUp } from 'lucide-react';
 import { apiClient } from '@/lib/api';
 import { toast } from 'sonner';
 import { formatDate, formatDuration, formatPhone } from '@/lib/utils';
@@ -37,6 +37,11 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import PageIntro from '@/components/PageIntro';
 import { getPageHelp } from '@/content/pageHelp';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { useTheme } from 'next-themes';
+import {
+  DashboardFlowBackdrop,
+  getDashboardFlowPageStyle,
+} from '@/components/dashboard/DashboardFlowBackdrop';
 
 // Generate page numbers with ellipsis for pagination
 function generatePageNumbers(currentPage, totalPages) {
@@ -80,6 +85,8 @@ const callsCache = {
 
 export default function CallsPage() {
   const { t, locale } = useLanguage();
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
   const pageHelp = getPageHelp('callHistory', locale);
   const searchParams = useSearchParams();
   const [calls, setCalls] = useState([]);
@@ -263,14 +270,14 @@ export default function CallsPage() {
     const isOutbound = call.direction?.startsWith('outbound');
     if (isOutbound) {
       return (
-        <Badge variant="ghost" className="text-orange-700 dark:text-orange-400 text-xs">
+        <Badge variant="ghost" className={isDark ? 'text-orange-400 text-xs' : 'text-orange-700 dark:text-orange-400 text-xs'}>
           <PhoneOutgoing className="h-3 w-3 mr-1" />
           {t('dashboard.callsPage.outbound')}
         </Badge>
       );
     }
     return (
-      <Badge variant="ghost" className="text-emerald-700 dark:text-emerald-400 text-xs">
+      <Badge variant="ghost" className={isDark ? 'text-emerald-400 text-xs' : 'text-emerald-700 dark:text-emerald-400 text-xs'}>
         <PhoneIncoming className="h-3 w-3 mr-1" />
         {t('dashboard.callsPage.inbound')}
       </Badge>
@@ -279,17 +286,17 @@ export default function CallsPage() {
 
   // End reason badge
   const getEndReasonBadge = (endReason) => {
-    if (!endReason) return <span className="text-sm text-gray-400">-</span>;
+    if (!endReason) return <span className={isDark ? 'text-sm text-slate-500' : 'text-sm text-gray-400'}>-</span>;
 
     const reasonConfig = {
-      client_ended: { label: t('dashboard.callsPage.clientEnded'), color: 'text-blue-700 dark:text-blue-400' },
-      agent_ended: { label: t('dashboard.callsPage.agentEnded'), color: 'text-teal-700 dark:text-teal-400' },
-      system_timeout: { label: t('dashboard.callsPage.systemTimeout'), color: 'text-yellow-700 dark:text-yellow-400' },
-      error: { label: t('dashboard.callsPage.error'), color: 'text-red-700 dark:text-red-400' },
-      completed: { label: t('dashboard.callsPage.completed'), color: 'text-green-700 dark:text-green-400' },
+      client_ended: { label: t('dashboard.callsPage.clientEnded'), color: isDark ? 'text-blue-400' : 'text-blue-700 dark:text-blue-400' },
+      agent_ended: { label: t('dashboard.callsPage.agentEnded'), color: isDark ? 'text-teal-400' : 'text-teal-700 dark:text-teal-400' },
+      system_timeout: { label: t('dashboard.callsPage.systemTimeout'), color: isDark ? 'text-yellow-400' : 'text-yellow-700 dark:text-yellow-400' },
+      error: { label: t('dashboard.callsPage.error'), color: isDark ? 'text-red-400' : 'text-red-700 dark:text-red-400' },
+      completed: { label: t('dashboard.callsPage.completed'), color: isDark ? 'text-green-400' : 'text-green-700 dark:text-green-400' },
     };
 
-    const config = reasonConfig[endReason] || { label: endReason, color: 'text-gray-700 dark:text-gray-400' };
+    const config = reasonConfig[endReason] || { label: endReason, color: isDark ? 'text-slate-400' : 'text-gray-700 dark:text-gray-400' };
 
     return (
       <Badge variant="ghost" className={`${config.color} text-xs`}>
@@ -314,7 +321,7 @@ export default function CallsPage() {
     return (
       <div className="flex items-center gap-2">
         <div className={`w-2 h-2 rounded-full ${config.color}`} />
-        <span className="text-sm text-gray-700 dark:text-gray-300">{config.label}</span>
+        <span className={isDark ? 'text-sm text-slate-300' : 'text-sm text-gray-700 dark:text-gray-300'}>{config.label}</span>
       </div>
     );
   };
@@ -331,8 +338,72 @@ export default function CallsPage() {
     });
   };
 
+  // Computed stats from calls state
+  const totalCalls = calls.length;
+  const answeredCalls = calls.filter(c => ['answered', 'completed'].includes(c.status)).length;
+  const totalSeconds = calls.reduce((s, c) => s + (c.duration || 0), 0);
+  const totalMinutes = Math.round(totalSeconds / 60);
+  const avgDuration = totalCalls > 0 ? Math.round(totalSeconds / totalCalls) : 0;
+
+  const statCards = [
+    {
+      label: t('dashboard.callsPage.totalCalls') || 'Total Calls',
+      value: totalCalls,
+      icon: PhoneCall,
+      accent: '#00C4E6',
+      pill: 'rgba(0,196,230,0.15)',
+      glow: 'rgba(0,196,230,0.12)',
+    },
+    {
+      label: t('dashboard.callsPage.answered') || 'Answered',
+      value: answeredCalls,
+      icon: Phone,
+      accent: '#006FEB',
+      pill: 'rgba(0,111,235,0.15)',
+      glow: 'rgba(0,111,235,0.12)',
+    },
+    {
+      label: t('dashboard.callsPage.totalMinutes') || 'Total Minutes',
+      value: totalMinutes,
+      icon: Clock,
+      accent: '#000ACF',
+      pill: 'rgba(0,10,207,0.16)',
+      glow: 'rgba(0,10,207,0.14)',
+    },
+    {
+      label: t('dashboard.callsPage.avgDuration') || 'Avg Duration',
+      value: formatDuration(avgDuration),
+      icon: TrendingUp,
+      accent: '#7DD3FC',
+      pill: 'rgba(125,211,252,0.16)',
+      glow: 'rgba(125,211,252,0.14)',
+    },
+  ];
+
   // Show gradient loader on initial load only
   if (loading && isInitialLoad) {
+    if (isDark) {
+      return (
+        <div
+          className="relative -m-6 min-h-screen overflow-hidden p-6"
+          style={getDashboardFlowPageStyle(isDark)}
+        >
+          <DashboardFlowBackdrop dark={isDark} />
+          <div className="relative z-10 space-y-6">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 rounded-xl" style={{ background: 'rgba(0,196,230,0.15)' }}>
+                <Activity className="h-6 w-6" style={{ color: '#00C4E6' }} />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-white">{pageHelp.title}</h1>
+                <p className="text-slate-400 text-sm">{pageHelp.subtitle}</p>
+              </div>
+            </div>
+            <GradientLoaderInline text={t('dashboard.callsPage.loadingCalls')} />
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="space-y-6">
         <PageIntro
@@ -350,236 +421,582 @@ export default function CallsPage() {
     );
   }
 
+  if (!isDark) {
+    // --- LIGHT MODE: original design ---
+    return (
+      <div className="space-y-6">
+        {/* Header */}
+        <PageIntro
+          title={pageHelp.title}
+          subtitle={pageHelp.subtitle}
+          locale={locale}
+          help={{
+            tooltipTitle: pageHelp.tooltipTitle,
+            tooltipBody: pageHelp.tooltipBody,
+            quickSteps: pageHelp.quickSteps,
+          }}
+          actions={
+            <Button onClick={handleExport} variant="outline" size="sm">
+              <Download className="h-4 w-4 mr-2" />
+              {t('dashboard.callsPage.exportCSV')}
+            </Button>
+          }
+        />
+
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder={t('dashboard.callsPage.searchByPhone')}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Select value={statusFilter} onValueChange={(val) => { setStatusFilter(val); setPagination(prev => ({ ...prev, page: 1 })); }}>
+            <SelectTrigger className="w-full sm:w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('dashboard.callsPage.allStatus')}</SelectItem>
+              <SelectItem value="answered">{t('dashboard.callsPage.answered')}</SelectItem>
+              <SelectItem value="failed">{t('dashboard.callsPage.failed')}</SelectItem>
+              <SelectItem value="in_progress">{t('dashboard.callsPage.inProgress')}</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={directionFilter} onValueChange={(val) => { setDirectionFilter(val); setPagination(prev => ({ ...prev, page: 1 })); }}>
+            <SelectTrigger className="w-full sm:w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('dashboard.callsPage.allDirections')}</SelectItem>
+              <SelectItem value="inbound">{t('dashboard.callsPage.inbound')}</SelectItem>
+              <SelectItem value="outbound">{t('dashboard.callsPage.outbound')}</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={endReasonFilter} onValueChange={(val) => { setEndReasonFilter(val); setPagination(prev => ({ ...prev, page: 1 })); }}>
+            <SelectTrigger className="w-full sm:w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('dashboard.callsPage.allEndReasons')}</SelectItem>
+              <SelectItem value="client_ended">{t('dashboard.callsPage.clientEnded')}</SelectItem>
+              <SelectItem value="agent_ended">{t('dashboard.callsPage.agentEnded')}</SelectItem>
+              <SelectItem value="system_timeout">{t('dashboard.callsPage.systemTimeout')}</SelectItem>
+              <SelectItem value="error">{t('dashboard.callsPage.error')}</SelectItem>
+              <SelectItem value="completed">{t('dashboard.callsPage.completed')}</SelectItem>
+            </SelectContent>
+          </Select>
+          <DateRangePicker
+            dateRange={dateRange}
+            onDateRangeChange={(range) => {
+              setDateRange(range || { from: undefined, to: undefined });
+              setPagination(prev => ({ ...prev, page: 1 }));
+            }}
+            locale={locale}
+            className="w-full sm:w-auto"
+          />
+        </div>
+
+        {/* Table */}
+        {loading ? (
+          <div className="bg-white dark:bg-gray-900 rounded-md border border-gray-200 dark:border-gray-800 p-6">
+            <div className="space-y-3">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="h-14 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" />
+              ))}
+            </div>
+          </div>
+        ) : calls.length > 0 ? (
+          <div className="bg-white dark:bg-gray-900 rounded-md border border-gray-200 dark:border-gray-800 overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t('dashboard.callsPage.dateTime')}</TableHead>
+                  <TableHead>{t('dashboard.callsPage.duration')}</TableHead>
+                  <TableHead>{t('dashboard.callsPage.direction')}</TableHead>
+                  <TableHead>{t('dashboard.callsPage.status')}</TableHead>
+                  <TableHead>{t('dashboard.callsPage.endReason')}</TableHead>
+                  <TableHead>{t('dashboard.callsPage.phoneNumber')}</TableHead>
+                  <TableHead className="text-right">{t('dashboard.callsPage.actions')}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {calls.map((call) => (
+                  <TableRow key={call.id}>
+                    <TableCell>
+                      <span className="text-sm text-gray-900 dark:text-white">
+                        {formatCallDate(call.createdAt)}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">
+                        {formatDuration(call.duration)}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      {getDirectionBadge(call)}
+                    </TableCell>
+                    <TableCell>
+                      {getStatusIndicator(call.status)}
+                    </TableCell>
+                    <TableCell>
+                      {getEndReasonBadge(call.endReason)}
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        {formatPhone(call.phoneNumber || call.callerId) || '-'}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        {call.hasRecording && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleViewTranscript(call.id)}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Volume2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {call.hasTranscript && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleViewTranscript(call.id)}
+                            className="h-8 w-8 p-0"
+                          >
+                            <FileText className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {!call.hasRecording && !call.hasTranscript && (
+                          <span className="text-xs text-gray-400">-</span>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+
+            {/* Pagination */}
+            {pagination.totalPages > 1 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-gray-800">
+                <span className="text-sm text-gray-500">
+                  {t('dashboard.callsPage.showingResults', {
+                    from: (pagination.page - 1) * pagination.limit + 1,
+                    to: Math.min(pagination.page * pagination.limit, pagination.total),
+                    total: pagination.total
+                  })}
+                </span>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={pagination.page <= 1}
+                    onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+                  >
+                    {t('dashboard.callsPage.previous')}
+                  </Button>
+                  {generatePageNumbers(pagination.page, pagination.totalPages).map((pageNum, idx) => (
+                    pageNum === '...' ? (
+                      <span key={`dots-${idx}`} className="px-2 text-sm text-gray-400">...</span>
+                    ) : (
+                      <Button
+                        key={pageNum}
+                        variant={pageNum === pagination.page ? 'default' : 'outline'}
+                        size="sm"
+                        className="w-8 h-8 p-0"
+                        onClick={() => setPagination(prev => ({ ...prev, page: pageNum }))}
+                      >
+                        {pageNum}
+                      </Button>
+                    )
+                  ))}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={pagination.page >= pagination.totalPages}
+                    onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+                  >
+                    {t('dashboard.callsPage.next')}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="bg-white dark:bg-gray-900 rounded-md border border-gray-200 dark:border-gray-800 p-8">
+            <EmptyState
+              icon={Phone}
+              title={searchQuery || statusFilter !== 'all' || directionFilter !== 'all' || endReasonFilter !== 'all' || dateRange.from
+                ? t('dashboard.callsPage.noCallsFound')
+                : t('dashboard.callsPage.noCalls')}
+              description={searchQuery || statusFilter !== 'all' || directionFilter !== 'all' || endReasonFilter !== 'all' || dateRange.from
+                ? t('dashboard.callsPage.tryAdjustingFilters')
+                : t('dashboard.callsPage.callsWillAppear')}
+            />
+          </div>
+        )}
+
+        {/* Transcript Modal */}
+        <TranscriptModal
+          callId={selectedCallId}
+          isOpen={showTranscriptModal}
+          onClose={() => {
+            setShowTranscriptModal(false);
+            setSelectedCallId(null);
+            loadCalls();
+          }}
+        />
+      </div>
+    );
+  }
+
+  // --- DARK MODE: brand-themed design ---
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <PageIntro
-        title={pageHelp.title}
-        subtitle={pageHelp.subtitle}
-        locale={locale}
-        help={{
-          tooltipTitle: pageHelp.tooltipTitle,
-          tooltipBody: pageHelp.tooltipBody,
-          quickSteps: pageHelp.quickSteps,
-        }}
-        actions={
-          <Button onClick={handleExport} variant="outline" size="sm">
+    <div
+      className="relative -m-6 min-h-screen overflow-hidden p-6"
+      style={getDashboardFlowPageStyle(isDark)}
+    >
+      <DashboardFlowBackdrop dark={isDark} />
+      <div className="relative z-10 space-y-6">
+
+        {/* Header Row */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div
+              className="p-2.5 rounded-xl relative"
+              style={{ background: 'rgba(0,196,230,0.15)' }}
+            >
+              <div
+                className="absolute inset-0 rounded-xl blur-md"
+                style={{ background: 'rgba(0,196,230,0.2)' }}
+              />
+              <Activity className="h-6 w-6 relative z-10" style={{ color: '#00C4E6' }} />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-white">{pageHelp.title}</h1>
+              <p className="text-slate-400 text-sm">{pageHelp.subtitle}</p>
+            </div>
+          </div>
+          <Button
+            onClick={handleExport}
+            size="sm"
+            style={{
+              background: 'rgba(15,22,41,0.7)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              color: '#94a3b8',
+            }}
+            className="hover:border-[#00C4E6]/40 hover:text-white transition-all"
+          >
             <Download className="h-4 w-4 mr-2" />
             {t('dashboard.callsPage.exportCSV')}
           </Button>
-        }
-      />
-
-
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <Input
-            placeholder={t('dashboard.callsPage.searchByPhone')}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
         </div>
-        <Select value={statusFilter} onValueChange={(val) => { setStatusFilter(val); setPagination(prev => ({ ...prev, page: 1 })); }}>
-          <SelectTrigger className="w-full sm:w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t('dashboard.callsPage.allStatus')}</SelectItem>
-            <SelectItem value="answered">{t('dashboard.callsPage.answered')}</SelectItem>
-            <SelectItem value="failed">{t('dashboard.callsPage.failed')}</SelectItem>
-            <SelectItem value="in_progress">{t('dashboard.callsPage.inProgress')}</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={directionFilter} onValueChange={(val) => { setDirectionFilter(val); setPagination(prev => ({ ...prev, page: 1 })); }}>
-          <SelectTrigger className="w-full sm:w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t('dashboard.callsPage.allDirections')}</SelectItem>
-            <SelectItem value="inbound">{t('dashboard.callsPage.inbound')}</SelectItem>
-            <SelectItem value="outbound">{t('dashboard.callsPage.outbound')}</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={endReasonFilter} onValueChange={(val) => { setEndReasonFilter(val); setPagination(prev => ({ ...prev, page: 1 })); }}>
-          <SelectTrigger className="w-full sm:w-44">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t('dashboard.callsPage.allEndReasons')}</SelectItem>
-            <SelectItem value="client_ended">{t('dashboard.callsPage.clientEnded')}</SelectItem>
-            <SelectItem value="agent_ended">{t('dashboard.callsPage.agentEnded')}</SelectItem>
-            <SelectItem value="system_timeout">{t('dashboard.callsPage.systemTimeout')}</SelectItem>
-            <SelectItem value="error">{t('dashboard.callsPage.error')}</SelectItem>
-            <SelectItem value="completed">{t('dashboard.callsPage.completed')}</SelectItem>
-          </SelectContent>
-        </Select>
-        <DateRangePicker
-          dateRange={dateRange}
-          onDateRangeChange={(range) => {
-            setDateRange(range || { from: undefined, to: undefined });
-            setPagination(prev => ({ ...prev, page: 1 }));
-          }}
-          locale={locale}
-          className="w-full sm:w-auto"
-        />
-      </div>
 
-      {/* Table */}
-      {loading ? (
-        <div className="bg-white dark:bg-gray-900 rounded-md border border-gray-200 dark:border-gray-800 p-6">
-          <div className="space-y-3">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="h-14 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" />
-            ))}
+        {/* Quick Stat Cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {statCards.map((card, idx) => {
+            const Icon = card.icon;
+            return (
+              <div
+                key={idx}
+                className="rounded-2xl border p-4 relative overflow-hidden"
+                style={{
+                  background: 'rgba(15,22,41,0.7)',
+                  borderColor: 'rgba(255,255,255,0.06)',
+                }}
+              >
+                {/* Glow blob */}
+                <div
+                  className="absolute top-0 right-0 w-20 h-20 rounded-full blur-2xl pointer-events-none"
+                  style={{ background: card.glow }}
+                />
+                <div className="relative z-10">
+                  <div
+                    className="inline-flex items-center justify-center w-9 h-9 rounded-xl mb-3"
+                    style={{ background: card.pill }}
+                  >
+                    <Icon className="h-4 w-4" style={{ color: card.accent }} />
+                  </div>
+                  <div className="text-2xl font-bold text-white">{card.value}</div>
+                  <div className="text-xs text-slate-400 mt-0.5">{card.label}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Filter Bar */}
+        <div
+          className="rounded-2xl border p-4"
+          style={{
+            background: 'rgba(15,22,41,0.7)',
+            borderColor: 'rgba(255,255,255,0.06)',
+          }}
+        >
+          <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input
+                placeholder={t('dashboard.callsPage.searchByPhone')}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 bg-white/5 border-white/10 text-slate-200 placeholder:text-slate-500 focus:border-[#00C4E6]/40 focus:ring-[#00C4E6]/20"
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={(val) => { setStatusFilter(val); setPagination(prev => ({ ...prev, page: 1 })); }}>
+              <SelectTrigger className="w-full sm:w-40 bg-white/5 border-white/10 text-slate-200">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('dashboard.callsPage.allStatus')}</SelectItem>
+                <SelectItem value="answered">{t('dashboard.callsPage.answered')}</SelectItem>
+                <SelectItem value="failed">{t('dashboard.callsPage.failed')}</SelectItem>
+                <SelectItem value="in_progress">{t('dashboard.callsPage.inProgress')}</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={directionFilter} onValueChange={(val) => { setDirectionFilter(val); setPagination(prev => ({ ...prev, page: 1 })); }}>
+              <SelectTrigger className="w-full sm:w-40 bg-white/5 border-white/10 text-slate-200">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('dashboard.callsPage.allDirections')}</SelectItem>
+                <SelectItem value="inbound">{t('dashboard.callsPage.inbound')}</SelectItem>
+                <SelectItem value="outbound">{t('dashboard.callsPage.outbound')}</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={endReasonFilter} onValueChange={(val) => { setEndReasonFilter(val); setPagination(prev => ({ ...prev, page: 1 })); }}>
+              <SelectTrigger className="w-full sm:w-44 bg-white/5 border-white/10 text-slate-200">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('dashboard.callsPage.allEndReasons')}</SelectItem>
+                <SelectItem value="client_ended">{t('dashboard.callsPage.clientEnded')}</SelectItem>
+                <SelectItem value="agent_ended">{t('dashboard.callsPage.agentEnded')}</SelectItem>
+                <SelectItem value="system_timeout">{t('dashboard.callsPage.systemTimeout')}</SelectItem>
+                <SelectItem value="error">{t('dashboard.callsPage.error')}</SelectItem>
+                <SelectItem value="completed">{t('dashboard.callsPage.completed')}</SelectItem>
+              </SelectContent>
+            </Select>
+            <DateRangePicker
+              dateRange={dateRange}
+              onDateRangeChange={(range) => {
+                setDateRange(range || { from: undefined, to: undefined });
+                setPagination(prev => ({ ...prev, page: 1 }));
+              }}
+              locale={locale}
+              className="w-full sm:w-auto"
+            />
           </div>
         </div>
-      ) : calls.length > 0 ? (
-        <div className="bg-white dark:bg-gray-900 rounded-md border border-gray-200 dark:border-gray-800 overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t('dashboard.callsPage.dateTime')}</TableHead>
-                <TableHead>{t('dashboard.callsPage.duration')}</TableHead>
-                <TableHead>{t('dashboard.callsPage.direction')}</TableHead>
-                <TableHead>{t('dashboard.callsPage.status')}</TableHead>
-                <TableHead>{t('dashboard.callsPage.endReason')}</TableHead>
-                <TableHead>{t('dashboard.callsPage.phoneNumber')}</TableHead>
-                <TableHead className="text-right">{t('dashboard.callsPage.actions')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {calls.map((call) => (
-                <TableRow key={call.id}>
-                  <TableCell>
-                    <span className="text-sm text-gray-900 dark:text-white">
-                      {formatCallDate(call.createdAt)}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">
-                      {formatDuration(call.duration)}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    {getDirectionBadge(call)}
-                  </TableCell>
-                  <TableCell>
-                    {getStatusIndicator(call.status)}
-                  </TableCell>
-                  <TableCell>
-                    {getEndReasonBadge(call.endReason)}
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-sm text-gray-600 dark:text-gray-400">
-                      {formatPhone(call.phoneNumber || call.callerId) || '-'}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      {call.hasRecording && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleViewTranscript(call.id)}
-                          className="h-8 w-8 p-0"
-                        >
-                          <Volume2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {call.hasTranscript && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleViewTranscript(call.id)}
-                          className="h-8 w-8 p-0"
-                        >
-                          <FileText className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {!call.hasRecording && !call.hasTranscript && (
-                        <span className="text-xs text-gray-400">-</span>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
+
+        {/* Table */}
+        {loading ? (
+          <div
+            className="rounded-2xl border p-6"
+            style={{
+              background: 'rgba(15,22,41,0.7)',
+              borderColor: 'rgba(255,255,255,0.06)',
+            }}
+          >
+            <div className="space-y-3">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="h-14 bg-white/5 rounded-xl animate-pulse" />
               ))}
-            </TableBody>
-          </Table>
-
-          {/* Pagination */}
-          {pagination.totalPages > 1 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-gray-800">
-              <span className="text-sm text-gray-500">
-                {t('dashboard.callsPage.showingResults', {
-                  from: (pagination.page - 1) * pagination.limit + 1,
-                  to: Math.min(pagination.page * pagination.limit, pagination.total),
-                  total: pagination.total
-                })}
-              </span>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={pagination.page <= 1}
-                  onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
-                >
-                  {t('dashboard.callsPage.previous')}
-                </Button>
-                {generatePageNumbers(pagination.page, pagination.totalPages).map((pageNum, idx) => (
-                  pageNum === '...' ? (
-                    <span key={`dots-${idx}`} className="px-2 text-sm text-gray-400">...</span>
-                  ) : (
-                    <Button
-                      key={pageNum}
-                      variant={pageNum === pagination.page ? 'default' : 'outline'}
-                      size="sm"
-                      className="w-8 h-8 p-0"
-                      onClick={() => setPagination(prev => ({ ...prev, page: pageNum }))}
-                    >
-                      {pageNum}
-                    </Button>
-                  )
-                ))}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={pagination.page >= pagination.totalPages}
-                  onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
-                >
-                  {t('dashboard.callsPage.next')}
-                </Button>
-              </div>
             </div>
-          )}
-        </div>
-      ) : (
-        <div className="bg-white dark:bg-gray-900 rounded-md border border-gray-200 dark:border-gray-800 p-8">
-          <EmptyState
-            icon={Phone}
-            title={searchQuery || statusFilter !== 'all' || directionFilter !== 'all' || endReasonFilter !== 'all' || dateRange.from
-              ? t('dashboard.callsPage.noCallsFound')
-              : t('dashboard.callsPage.noCalls')}
-            description={searchQuery || statusFilter !== 'all' || directionFilter !== 'all' || endReasonFilter !== 'all' || dateRange.from
-              ? t('dashboard.callsPage.tryAdjustingFilters')
-              : t('dashboard.callsPage.callsWillAppear')}
-          />
-        </div>
-      )}
+          </div>
+        ) : calls.length > 0 ? (
+          <div
+            className="rounded-2xl border overflow-hidden"
+            style={{
+              background: 'rgba(15,22,41,0.7)',
+              borderColor: 'rgba(255,255,255,0.06)',
+            }}
+          >
+            <Table>
+              <TableHeader>
+                <TableRow
+                  className="border-b"
+                  style={{ background: '#030d20', borderColor: 'rgba(255,255,255,0.06)' }}
+                >
+                  <TableHead className="text-slate-400 font-medium">{t('dashboard.callsPage.dateTime')}</TableHead>
+                  <TableHead className="text-slate-400 font-medium">{t('dashboard.callsPage.duration')}</TableHead>
+                  <TableHead className="text-slate-400 font-medium">{t('dashboard.callsPage.direction')}</TableHead>
+                  <TableHead className="text-slate-400 font-medium">{t('dashboard.callsPage.status')}</TableHead>
+                  <TableHead className="text-slate-400 font-medium">{t('dashboard.callsPage.endReason')}</TableHead>
+                  <TableHead className="text-slate-400 font-medium">{t('dashboard.callsPage.phoneNumber')}</TableHead>
+                  <TableHead className="text-right text-slate-400 font-medium">{t('dashboard.callsPage.actions')}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {calls.map((call) => (
+                  <TableRow
+                    key={call.id}
+                    className="border-b transition-colors cursor-default"
+                    style={{ borderColor: 'rgba(255,255,255,0.04)' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,196,230,0.04)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <TableCell>
+                      <span className="text-sm text-slate-200">
+                        {formatCallDate(call.createdAt)}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm font-medium text-white">
+                        {formatDuration(call.duration)}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      {getDirectionBadge(call)}
+                    </TableCell>
+                    <TableCell>
+                      {getStatusIndicator(call.status)}
+                    </TableCell>
+                    <TableCell>
+                      {getEndReasonBadge(call.endReason)}
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm text-slate-400">
+                        {formatPhone(call.phoneNumber || call.callerId) || '-'}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        {call.hasRecording && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleViewTranscript(call.id)}
+                            className="h-8 w-8 p-0 text-slate-400 hover:text-[#00C4E6] hover:bg-[#00C4E6]/10"
+                          >
+                            <Volume2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {call.hasTranscript && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleViewTranscript(call.id)}
+                            className="h-8 w-8 p-0 text-slate-400 hover:text-[#00C4E6] hover:bg-[#00C4E6]/10"
+                          >
+                            <FileText className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {!call.hasRecording && !call.hasTranscript && (
+                          <span className="text-xs text-slate-600">-</span>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
 
-      {/* Transcript Modal */}
-      <TranscriptModal
-        callId={selectedCallId}
-        isOpen={showTranscriptModal}
-        onClose={() => {
-          setShowTranscriptModal(false);
-          setSelectedCallId(null);
-          // Refresh table while respecting active filters
-          loadCalls();
-        }}
-      />
+            {/* Pagination */}
+            {pagination.totalPages > 1 && (
+              <div
+                className="flex items-center justify-between px-4 py-3 border-t"
+                style={{ borderColor: 'rgba(255,255,255,0.06)' }}
+              >
+                <span className="text-sm text-slate-500">
+                  {t('dashboard.callsPage.showingResults', {
+                    from: (pagination.page - 1) * pagination.limit + 1,
+                    to: Math.min(pagination.page * pagination.limit, pagination.total),
+                    total: pagination.total
+                  })}
+                </span>
+                <div className="flex items-center gap-1">
+                  <Button
+                    size="sm"
+                    disabled={pagination.page <= 1}
+                    onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+                    style={{
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      color: pagination.page <= 1 ? '#374151' : '#94a3b8',
+                    }}
+                    className="hover:border-[#00C4E6]/40 hover:text-white disabled:opacity-40 transition-all"
+                  >
+                    {t('dashboard.callsPage.previous')}
+                  </Button>
+                  {generatePageNumbers(pagination.page, pagination.totalPages).map((pageNum, idx) => (
+                    pageNum === '...' ? (
+                      <span key={`dots-${idx}`} className="px-2 text-sm text-slate-500">...</span>
+                    ) : (
+                      <Button
+                        key={pageNum}
+                        size="sm"
+                        className="w-8 h-8 p-0 transition-all"
+                        style={pageNum === pagination.page ? {
+                          background: '#00C4E6',
+                          border: '1px solid #00C4E6',
+                          color: '#051752',
+                          fontWeight: 700,
+                        } : {
+                          background: 'rgba(255,255,255,0.05)',
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          color: '#94a3b8',
+                        }}
+                        onClick={() => setPagination(prev => ({ ...prev, page: pageNum }))}
+                      >
+                        {pageNum}
+                      </Button>
+                    )
+                  ))}
+                  <Button
+                    size="sm"
+                    disabled={pagination.page >= pagination.totalPages}
+                    onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+                    style={{
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      color: pagination.page >= pagination.totalPages ? '#374151' : '#94a3b8',
+                    }}
+                    className="hover:border-[#00C4E6]/40 hover:text-white disabled:opacity-40 transition-all"
+                  >
+                    {t('dashboard.callsPage.next')}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div
+            className="rounded-2xl border p-8"
+            style={{
+              background: 'rgba(15,22,41,0.7)',
+              borderColor: 'rgba(255,255,255,0.06)',
+            }}
+          >
+            <EmptyState
+              icon={Phone}
+              title={searchQuery || statusFilter !== 'all' || directionFilter !== 'all' || endReasonFilter !== 'all' || dateRange.from
+                ? t('dashboard.callsPage.noCallsFound')
+                : t('dashboard.callsPage.noCalls')}
+              description={searchQuery || statusFilter !== 'all' || directionFilter !== 'all' || endReasonFilter !== 'all' || dateRange.from
+                ? t('dashboard.callsPage.tryAdjustingFilters')
+                : t('dashboard.callsPage.callsWillAppear')}
+            />
+          </div>
+        )}
+
+        {/* Transcript Modal */}
+        <TranscriptModal
+          callId={selectedCallId}
+          isOpen={showTranscriptModal}
+          onClose={() => {
+            setShowTranscriptModal(false);
+            setSelectedCallId(null);
+            // Refresh table while respecting active filters
+            loadCalls();
+          }}
+        />
+      </div>
     </div>
   );
 }

@@ -27,12 +27,16 @@ import {
   HelpCircle,
   Tag,
   TrendingUp,
-  TrendingDown,
   Activity,
   Zap,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDuration } from '@/lib/utils';
+import {
+  DashboardFlowBackdrop,
+  getDashboardFlowPageStyle,
+  getDashboardFlowSurfaceStyle,
+} from '@/components/dashboard/DashboardFlowBackdrop';
 import {
   AreaChart,
   Area,
@@ -51,11 +55,56 @@ import {
 
 /* ─── Colour tokens ──────────────────────────────────────────────── */
 const C = {
-  phone:    { hex: '#00D4E8', light: '#0891b2', bg: 'from-cyan-500/20 to-cyan-600/5',      lightBg: 'from-cyan-50 to-cyan-50/50',     border: 'border-cyan-500/30', lightBorder: 'border-cyan-200', text: 'text-cyan-400', lightText: 'text-cyan-600' },
-  chat:     { hex: '#6C63FF', light: '#4f46e5', bg: 'from-violet-500/20 to-violet-600/5',  lightBg: 'from-violet-50 to-violet-50/50', border: 'border-violet-500/30', lightBorder: 'border-violet-200', text: 'text-violet-400', lightText: 'text-violet-600' },
-  whatsapp: { hex: '#22D3A5', light: '#059669', bg: 'from-emerald-500/20 to-emerald-600/5', lightBg: 'from-emerald-50 to-emerald-50/50', border: 'border-emerald-500/30', lightBorder: 'border-emerald-200', text: 'text-emerald-400', lightText: 'text-emerald-600' },
-  email:    { hex: '#F59E0B', light: '#d97706', bg: 'from-amber-500/20 to-amber-600/5',    lightBg: 'from-amber-50 to-amber-50/50',   border: 'border-amber-500/30', lightBorder: 'border-amber-200', text: 'text-amber-400', lightText: 'text-amber-600' },
-  duration: { hex: '#A78BFA', light: '#7c3aed', bg: 'from-purple-500/20 to-purple-600/5', lightBg: 'from-purple-50 to-purple-50/50', border: 'border-purple-500/30', lightBorder: 'border-purple-200', text: 'text-purple-400', lightText: 'text-purple-600' },
+  phone: {
+    hex: '#00C4E6',
+    light: '#00A8C7',
+    bg: 'from-[#00C4E6]/20 to-[#006FEB]/6',
+    lightBg: 'from-cyan-50 to-sky-50/80',
+    border: 'border-[#00C4E6]/30',
+    lightBorder: 'border-cyan-200',
+    text: 'text-cyan-300',
+    lightText: 'text-cyan-600',
+  },
+  chat: {
+    hex: '#000ACF',
+    light: '#1D4ED8',
+    bg: 'from-[#000ACF]/22 to-[#051752]/10',
+    lightBg: 'from-blue-50 to-indigo-50/80',
+    border: 'border-[#000ACF]/28',
+    lightBorder: 'border-blue-200',
+    text: 'text-blue-300',
+    lightText: 'text-blue-700',
+  },
+  whatsapp: {
+    hex: '#006FEB',
+    light: '#006FEB',
+    bg: 'from-[#006FEB]/22 to-[#00C4E6]/8',
+    lightBg: 'from-sky-50 to-cyan-50/80',
+    border: 'border-[#006FEB]/30',
+    lightBorder: 'border-sky-200',
+    text: 'text-sky-300',
+    lightText: 'text-sky-600',
+  },
+  email: {
+    hex: '#38BDF8',
+    light: '#0284C7',
+    bg: 'from-[#00C4E6]/18 to-[#38BDF8]/8',
+    lightBg: 'from-cyan-50 to-blue-50/80',
+    border: 'border-[#38BDF8]/28',
+    lightBorder: 'border-cyan-200',
+    text: 'text-cyan-200',
+    lightText: 'text-sky-600',
+  },
+  duration: {
+    hex: '#7DD3FC',
+    light: '#0369A1',
+    bg: 'from-[#006FEB]/18 to-[#7DD3FC]/10',
+    lightBg: 'from-sky-50 to-cyan-50/80',
+    border: 'border-[#7DD3FC]/24',
+    lightBorder: 'border-sky-200',
+    text: 'text-sky-200',
+    lightText: 'text-sky-700',
+  },
 };
 
 /* ─── WhatsApp SVG ───────────────────────────────────────────────── */
@@ -137,7 +186,7 @@ function StatCard({ icon: Icon, value, label, colorKey, dark }) {
         ? `${col.border} bg-gradient-to-br ${col.bg}`
         : `${col.lightBorder} bg-gradient-to-br ${col.lightBg} bg-white`
       }`}
-      style={dark ? { background: 'rgba(15,22,41,0.7)' } : {}}
+      style={dark ? getDashboardFlowSurfaceStyle(dark, 'panel') : {}}
     >
       {/* glow blob — dark only */}
       {dark && (
@@ -146,8 +195,8 @@ function StatCard({ icon: Icon, value, label, colorKey, dark }) {
       )}
       <div className="relative">
         <div className="mb-3">
-          <div className="p-2 inline-flex rounded-xl" style={{ background: `${dark ? col.hex : (colorKey === 'phone' ? '#0891b2' : colorKey === 'chat' ? '#4f46e5' : colorKey === 'whatsapp' ? '#059669' : colorKey === 'email' ? '#d97706' : '#7c3aed')}22` }}>
-            <Icon className={`h-4 w-4 ${dark ? col.text : col.lightText}`} />
+          <div className="p-2 inline-flex rounded-xl" style={{ background: `${dark ? col.hex : col.light}22` }}>
+            <Icon className="h-4 w-4" style={{ color: dark ? col.hex : col.light }} />
           </div>
         </div>
         <p className={`text-2xl font-bold tracking-tight ${dark ? 'text-white' : 'text-gray-900'}`}>{value}</p>
@@ -166,7 +215,7 @@ function Card({ children, className = '', dark }) {
           ? 'border-white/[0.07]'
           : 'border-gray-200 bg-white shadow-sm'
         }`}
-      style={dark ? { background: 'rgba(15,22,41,0.7)' } : {}}
+      style={dark ? getDashboardFlowSurfaceStyle(dark, 'panel') : {}}
     >
       {children}
     </div>
@@ -332,12 +381,11 @@ export default function AnalyticsPage() {
   return (
     /* Page wrapper — dark gets navy gradient, light keeps default bg */
     <div
-      className="space-y-6 -m-6 p-6 min-h-screen transition-colors"
-      style={dark
-        ? { background: 'linear-gradient(135deg, #070d1f 0%, #0c1427 40%, #091225 100%)' }
-        : {}
-      }
+      className="relative -m-6 min-h-screen overflow-hidden p-6 transition-colors"
+      style={getDashboardFlowPageStyle(dark)}
     >
+      <DashboardFlowBackdrop dark={dark} />
+      <div className="relative z-10 space-y-6">
 
       {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
@@ -496,7 +544,7 @@ export default function AnalyticsPage() {
       <Card dark={dark}>
         <CardTitle dark={dark}>
           <span className="flex items-center gap-2">
-            <Zap className={`h-4 w-4 ${dark ? 'text-amber-400' : 'text-amber-500'}`} />
+            <Zap className="h-4 w-4" style={{ color: dark ? C.phone.hex : C.chat.light }} />
             {t('dashboard.analyticsPage.peakActivityHours')}
           </span>
         </CardTitle>
@@ -591,6 +639,7 @@ export default function AnalyticsPage() {
           </div>
         )}
       </Card>
+      </div>
     </div>
   );
 }
