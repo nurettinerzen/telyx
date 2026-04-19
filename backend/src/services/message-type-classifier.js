@@ -11,9 +11,7 @@
  * - CHATTER: Emotional response (anger, thanks, etc.) without actionable intent
  */
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+import { getGeminiClient } from './gemini-utils.js';
 
 /**
  * Classify message type using Gemini Flash
@@ -55,6 +53,7 @@ export async function classifyMessageType(state, lastAssistantMessage, userMessa
   const prompt = buildClassifierPrompt(userMessage, context, language);
 
   try {
+    const genAI = getGeminiClient();
     const model = genAI.getGenerativeModel({
       model: 'gemini-2.5-flash',
       generationConfig: {

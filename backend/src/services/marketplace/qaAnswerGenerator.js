@@ -1,6 +1,6 @@
 import prisma from '../../prismaClient.js';
 import { buildBusinessIdentity } from '../businessIdentity.js';
-import { getGeminiModel } from '../gemini-utils.js';
+import { getGeminiModel, hasGeminiApiKey } from '../gemini-utils.js';
 import { retrieveKB } from '../kbRetrieval.js';
 import { truncateMarketplaceAnswer } from './qaShared.js';
 
@@ -103,7 +103,7 @@ export async function generateMarketplaceAnswer({
   const kbResult = await retrieveKB(businessId, kbQuery);
   const identity = await buildBusinessIdentity({ business });
 
-  if (!process.env.GEMINI_API_KEY) {
+  if (!hasGeminiApiKey()) {
     return {
       answer: truncateMarketplaceAnswer(getFallbackAnswer(language, productName), MAX_MARKETPLACE_ANSWER_LENGTH),
       kbSourcesUsed: kbResult.queriesUsed || [],

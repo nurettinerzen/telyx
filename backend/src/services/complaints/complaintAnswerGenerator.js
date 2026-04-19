@@ -1,6 +1,6 @@
 import prisma from '../../prismaClient.js';
 import { buildBusinessIdentity } from '../businessIdentity.js';
-import { getGeminiModel } from '../gemini-utils.js';
+import { getGeminiModel, hasGeminiApiKey } from '../gemini-utils.js';
 import { retrieveKB } from '../kbRetrieval.js';
 import { truncateComplaintReply } from './sikayetvarShared.js';
 
@@ -126,7 +126,7 @@ export async function generateComplaintAnswer({
     .slice(-8)
     .join('\n');
 
-  if (!process.env.GEMINI_API_KEY) {
+  if (!hasGeminiApiKey()) {
     return {
       answer: truncateComplaintReply(
         getFallbackReply(language, identity.businessName || business.name || 'isletmemiz', complaintSettings.signature),

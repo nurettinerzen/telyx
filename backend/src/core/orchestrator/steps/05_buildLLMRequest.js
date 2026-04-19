@@ -6,13 +6,13 @@
  * - Returns chat session and request configuration
  */
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { convertToolsToGeminiFunctions as convertToolsToGemini } from '../../../services/gemini-utils.js';
+import {
+  convertToolsToGeminiFunctions as convertToolsToGemini,
+  getGeminiClient
+} from '../../../services/gemini-utils.js';
 import { getEntityClarificationHint, getEntityHint, getEntityMatchType } from '../../../services/entityTopicResolver.js';
 import { getFlow } from '../../../config/flow-definitions.js';
 import { isFeatureEnabled } from '../../../config/feature-flags.js';
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 const FLOW_TOOL_OVERRIDES = Object.freeze({
   STOCK_CHECK: ['get_product_stock', 'check_stock_crm'],
@@ -590,6 +590,7 @@ Kullanıcı mesajında spesifik bir kayıt referansı var: "${entityRefMatch}".
     gatedTools
   });
 
+  const genAI = getGeminiClient();
   const model = genAI.getGenerativeModel({
     model: 'gemini-2.5-flash',
     systemInstruction: enhancedSystemPrompt,

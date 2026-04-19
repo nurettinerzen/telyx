@@ -121,8 +121,12 @@ function buildReasonCodedFallbackMessage(
         : ` Please retry in ${retrySeconds} seconds.`
     )
     : '';
+  const shouldExposeReasonCode = String(process.env.EXPOSE_PUBLIC_REASON_CODES || '').toLowerCase() === 'true';
+  const reasonSuffix = shouldExposeReasonCode && reasonCode
+    ? ` [${reasonCode}]`
+    : '';
 
-  return `${String(baseMessage || '').trim()}${retryHint} [${reasonCode}]`.trim();
+  return `${String(baseMessage || '').trim()}${retryHint}${reasonSuffix}`.trim();
 }
 
 function setResponseOrigin(metrics = {}, origin = RESPONSE_ORIGIN.FALLBACK, originId = 'unknown') {

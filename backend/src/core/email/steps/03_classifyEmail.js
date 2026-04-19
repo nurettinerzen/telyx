@@ -8,9 +8,7 @@
  * - Language confirmation
  */
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+import { getGeminiClient } from '../../../services/gemini-utils.js';
 
 // Classification prompt
 const CLASSIFICATION_PROMPT = `You are an email classifier for a business assistant.
@@ -55,6 +53,7 @@ export async function classifyEmail(ctx) {
   const { inboundMessage, subject, customerName } = ctx;
 
   try {
+    const genAI = getGeminiClient();
     const emailContent = `
 From: ${customerName || 'Customer'} <${ctx.customerEmail}>
 Subject: ${subject}
