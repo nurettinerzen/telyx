@@ -129,7 +129,7 @@ export default function AboutPage() {
     { value: 2023, suffix: '', labelKey: 'about.stats.founded' },
     { value: 15, suffix: '+', labelKey: 'about.stats.experience' },
     { value: 5, suffix: '+', labelKey: 'about.stats.channels' },
-    { value: 16, suffix: '', labelKey: 'about.stats.languages' },
+    { value: 24, suffix: '/7', labelKey: 'about.stats.availability' },
   ];
 
   const values = [
