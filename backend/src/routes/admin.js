@@ -1377,7 +1377,10 @@ router.get('/assistants', async (req, res) => {
     const where = {};
 
     if (search) {
-      where.name = { contains: search, mode: 'insensitive' };
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { business: { name: { contains: search, mode: 'insensitive' } } },
+      ];
     }
     if (businessId) {
       where.businessId = parseInt(businessId);
@@ -1392,8 +1395,9 @@ router.get('/assistants', async (req, res) => {
         select: {
           id: true,
           name: true,
+          assistantType: true,
           isActive: true,
-          voiceProvider: true,
+          voiceId: true,
           callDirection: true,
           tone: true,
           createdAt: true,
@@ -1405,12 +1409,12 @@ router.get('/assistants', async (req, res) => {
               users: {
                 where: { role: 'OWNER' },
                 take: 1,
-                select: { email: true }
+                select: { id: true, email: true }
               }
             }
           },
           _count: {
-            select: { callbackRequests: true, phoneNumbers: true }
+            select: { callbackRequests: true, phoneNumbers: true, chatLogs: true }
           }
         },
         orderBy: { createdAt: 'desc' },
@@ -1423,9 +1427,11 @@ router.get('/assistants', async (req, res) => {
     const transformedAssistants = assistants.map(a => ({
       ...a,
       businessName: a.business?.name,
+      ownerUserId: a.business?.users?.[0]?.id || null,
       ownerEmail: a.business?.users?.[0]?.email,
       callbacksCount: a._count?.callbackRequests || 0,
-      phoneNumbersCount: a._count?.phoneNumbers || 0
+      phoneNumbersCount: a._count?.phoneNumbers || 0,
+      conversationsCount: a._count?.chatLogs || 0
     }));
 
     res.json({
@@ -1649,13 +1655,28 @@ router.patch('/callbacks/:id', async (req, res) => {
  */
 router.get('/subscriptions', async (req, res) => {
   try {
-    const { plan, status, page = 1, limit = 20 } = req.query;
+    const { search, plan, status, lifecycle, page = 1, limit = 20 } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
+    const now = new Date();
 
     const where = {};
 
+    if (search) {
+      where.OR = [
+        { business: { name: { contains: search, mode: 'insensitive' } } },
+        { business: { users: { some: { email: { contains: search, mode: 'insensitive' } } } } },
+        { business: { users: { some: { name: { contains: search, mode: 'insensitive' } } } } },
+      ];
+    }
     if (plan) where.plan = plan;
     if (status) where.status = status;
+    if (lifecycle === 'TRIAL_EXPIRED') {
+      Object.assign(where, buildTrialExpiredSubscriptionWhere(now));
+    } else if (lifecycle === 'PAID_LAPSED') {
+      Object.assign(where, buildPaidLapsedSubscriptionWhere(now));
+    } else if (lifecycle === 'CANCEL_SCHEDULED') {
+      where.cancelAtPeriodEnd = true;
+    }
 
     const [subscriptions, total] = await Promise.all([
       prisma.subscription.findMany({
@@ -1668,7 +1689,7 @@ router.get('/subscriptions', async (req, res) => {
               users: {
                 where: { role: 'OWNER' },
                 take: 1,
-                select: { email: true, name: true }
+                select: { id: true, email: true, name: true }
               }
             }
           }
@@ -1686,8 +1707,10 @@ router.get('/subscriptions', async (req, res) => {
       return {
         ...safe,
         businessName: sub.business?.name,
+        ownerUserId: sub.business?.users?.[0]?.id || null,
         ownerEmail: sub.business?.users?.[0]?.email,
-        ownerName: sub.business?.users?.[0]?.name
+        ownerName: sub.business?.users?.[0]?.name,
+        subscriptionLifecycle: getSubscriptionLifecycle(sub, now),
       };
     });
 

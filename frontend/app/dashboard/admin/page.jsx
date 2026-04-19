@@ -19,12 +19,46 @@ import {
 } from 'lucide-react';
 import { apiClient } from '@/lib/api';
 import { toast } from 'sonner';
+import { useLanguage } from '@/contexts/LanguageContext';
 
-function formatNumber(value) {
-  return Number(value || 0).toLocaleString('tr-TR');
+function formatNumber(value, locale) {
+  return Number(value || 0).toLocaleString(locale === 'tr' ? 'tr-TR' : 'en-US');
+}
+
+function getAdminDashboardCopy(locale) {
+  const isTr = locale === 'tr';
+
+  return {
+    title: isTr ? 'Admin paneli' : 'Admin panel',
+    stats: {
+      totalUsers: isTr ? 'Toplam kullanıcı' : 'Total users',
+      activeBusinesses: isTr ? 'Aktif işletme' : 'Active businesses',
+      todayCalls: isTr ? 'Bugün arama' : 'Calls today',
+      assistants: isTr ? 'Asistan sayısı' : 'Assistant count',
+      expiredTrials: isTr ? 'Denemesi biten' : 'Expired trials',
+      paidLapsed: isTr ? 'Yenilenmeyen paket' : 'Unrenewed plans',
+    },
+    plansTitle: isTr ? 'Plan dağılımı' : 'Plan distribution',
+    plans: {
+      FREE: isTr ? 'Ücretsiz' : 'Free',
+      TRIAL: isTr ? 'Deneme' : 'Trial',
+      PAYG: isTr ? 'Kullandıkça öde' : 'Pay as you go',
+      STARTER: 'Starter',
+      PRO: 'Pro',
+      ENTERPRISE: isTr ? 'Kurumsal' : 'Enterprise',
+    },
+    links: {
+      users: isTr ? 'Kullanıcılar' : 'Users',
+      enterprise: isTr ? 'Kurumsal' : 'Enterprise',
+      cancellations: isTr ? 'İptaller' : 'Cancellations',
+      auditLog: isTr ? 'Admin işlem logu' : 'Admin audit log',
+    },
+  };
 }
 
 export default function AdminDashboardPage() {
+  const { locale } = useLanguage();
+  const copy = useMemo(() => getAdminDashboardCopy(locale), [locale]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
 
@@ -35,106 +69,95 @@ export default function AdminDashboardPage() {
         setStats(response.data);
       } catch (error) {
         console.error('Failed to load stats:', error);
-        toast.error('Admin panel istatistikleri yuklenemedi');
+        toast.error(locale === 'tr' ? 'Admin panel istatistikleri yüklenemedi' : 'Failed to load admin stats');
       } finally {
         setLoading(false);
       }
     };
 
     loadStats();
-  }, []);
+  }, [locale]);
 
   const statCards = useMemo(() => ([
     {
-      label: 'Toplam Kullanici',
-      description: 'Sistemdeki toplam hesap sayisi',
+      label: copy.stats.totalUsers,
       value: stats?.users?.total || 0,
       icon: Users,
       color: 'bg-blue-500',
       href: '/dashboard/admin/users',
     },
     {
-      label: 'Aktif Isletme',
-      description: 'Dondurulmamis isletmeler',
+      label: copy.stats.activeBusinesses,
       value: stats?.businesses?.active || 0,
       icon: Building2,
       color: 'bg-green-500',
       href: '/dashboard/admin/users?suspended=false',
     },
     {
-      label: 'Bugun Arama',
-      description: 'Gunluk cagri hacmi',
+      label: copy.stats.todayCalls,
       value: stats?.calls?.today || 0,
       icon: Phone,
       color: 'bg-teal-500',
       href: '/dashboard/admin/calls',
     },
     {
-      label: 'Asistan Sayisi',
-      description: 'Toplam asistan envanteri',
+      label: copy.stats.assistants,
       value: stats?.assistants || 0,
       icon: Bot,
       color: 'bg-orange-500',
       href: '/dashboard/admin/assistants',
     },
     {
-      label: 'Deneme Bitmis',
-      description: 'Trial bitmis, donusmemis hesaplar',
+      label: copy.stats.expiredTrials,
       value: stats?.lifecycle?.trialExpired || 0,
       icon: AlertTriangle,
       color: 'bg-amber-500',
-      href: '/dashboard/admin/users?lifecycle=TRIAL_EXPIRED',
+      href: '/dashboard/admin/subscriptions?lifecycle=TRIAL_EXPIRED',
     },
     {
-      label: 'Yenilenmeyen Paket',
-      description: 'Suresi bitmis ve devam etmeyen ucretli planlar',
+      label: copy.stats.paidLapsed,
       value: stats?.lifecycle?.paidLapsed || 0,
       icon: CreditCard,
       color: 'bg-rose-500',
-      href: '/dashboard/admin/users?lifecycle=PAID_LAPSED',
+      href: '/dashboard/admin/subscriptions?lifecycle=PAID_LAPSED',
     },
-  ]), [stats]);
+  ]), [copy, stats]);
 
   const orderedPlans = useMemo(() => {
     const byPlan = stats?.byPlan || {};
 
     return [
-      { key: 'FREE', label: 'Free', value: byPlan.free || 0, tone: 'text-slate-500' },
-      { key: 'TRIAL', label: 'Trial', value: byPlan.trial || 0, tone: 'text-amber-500' },
-      { key: 'PAYG', label: 'PAYG', value: byPlan.payg || 0, tone: 'text-orange-500' },
-      { key: 'STARTER', label: 'Starter', value: byPlan.starter || 0, tone: 'text-emerald-500' },
-      { key: 'PRO', label: 'Pro', value: byPlan.pro || 0, tone: 'text-blue-500' },
-      { key: 'ENTERPRISE', label: 'Enterprise', value: byPlan.enterprise || 0, tone: 'text-cyan-500' },
+      { key: 'FREE', label: copy.plans.FREE, value: byPlan.free || 0, tone: 'text-slate-500' },
+      { key: 'TRIAL', label: copy.plans.TRIAL, value: byPlan.trial || 0, tone: 'text-amber-500' },
+      { key: 'PAYG', label: copy.plans.PAYG, value: byPlan.payg || 0, tone: 'text-orange-500' },
+      { key: 'STARTER', label: copy.plans.STARTER, value: byPlan.starter || 0, tone: 'text-emerald-500' },
+      { key: 'PRO', label: copy.plans.PRO, value: byPlan.pro || 0, tone: 'text-blue-500' },
+      { key: 'ENTERPRISE', label: copy.plans.ENTERPRISE, value: byPlan.enterprise || 0, tone: 'text-cyan-500' },
     ];
-  }, [stats]);
+  }, [copy, stats]);
 
   const quickLinks = useMemo(() => ([
     {
-      label: 'Kullanicilar',
-      description: 'Tum sahip hesaplari ve filtreli liste',
+      label: copy.links.users,
       href: '/dashboard/admin/users',
       icon: Users,
     },
     {
-      label: 'Kurumsal',
-      description: 'Enterprise musteriler ve teklif akisleri',
+      label: copy.links.enterprise,
       href: '/dashboard/admin/enterprise',
       icon: Building2,
     },
     {
-      label: 'Iptaller',
-      description: 'Iptal nedenleri ve churn sinyalleri',
+      label: copy.links.cancellations,
       href: '/dashboard/admin/cancellations',
       icon: AlertTriangle,
-      meta: `${formatNumber(stats?.cancellations?.scheduled || 0)} aktif iptal talebi`,
     },
     {
-      label: 'Admin Islem Logu',
-      description: 'Yalnizca admin aksiyon gecmisi',
+      label: copy.links.auditLog,
       href: '/dashboard/admin/audit-log',
       icon: Shield,
     },
-  ]), [stats]);
+  ]), [copy]);
 
   if (loading) {
     return (
@@ -147,10 +170,7 @@ export default function AdminDashboardPage() {
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Admin Panel</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          Kullanici operasyonundan cok sistem sagligi, plan dagilimi ve churn sinyallerine odaklanan genel gorunum.
-        </p>
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">{copy.title}</h1>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -162,14 +182,11 @@ export default function AdminDashboardPage() {
           >
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <p className="text-xs font-medium uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
                   {stat.label}
                 </p>
                 <p className="mt-2 text-3xl font-semibold text-gray-900 dark:text-white">
-                  {formatNumber(stat.value)}
-                </p>
-                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                  {stat.description}
+                  {formatNumber(stat.value, locale)}
                 </p>
               </div>
               <div className={`shrink-0 rounded-2xl p-3 ${stat.color}`}>
@@ -181,14 +198,9 @@ export default function AdminDashboardPage() {
       </div>
 
       <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-        <div className="flex flex-col gap-1 mb-5">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Plan Dagilimi
-          </h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Kartlara basarak ilgili planin filtreli kullanici listesine gidebilirsin.
-          </p>
-        </div>
+        <h2 className="mb-5 text-lg font-semibold text-gray-900 dark:text-white">
+          {copy.plansTitle}
+        </h2>
 
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
           {orderedPlans.map((plan) => (
@@ -197,7 +209,7 @@ export default function AdminDashboardPage() {
               href={`/dashboard/admin/users?plan=${encodeURIComponent(plan.key)}`}
               className="rounded-2xl bg-gray-50 p-5 text-center transition-colors hover:bg-gray-100 dark:bg-gray-800/80 dark:hover:bg-gray-800"
             >
-              <p className={`text-3xl font-semibold ${plan.tone}`}>{formatNumber(plan.value)}</p>
+              <p className={`text-3xl font-semibold ${plan.tone}`}>{formatNumber(plan.value, locale)}</p>
               <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{plan.label}</p>
             </Link>
           ))}
@@ -219,14 +231,6 @@ export default function AdminDashboardPage() {
                     {link.label}
                   </span>
                 </div>
-                <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
-                  {link.description}
-                </p>
-                {link.meta && (
-                  <p className="mt-2 text-xs font-medium uppercase tracking-[0.12em] text-primary-600 dark:text-primary-400">
-                    {link.meta}
-                  </p>
-                )}
               </div>
               <ArrowRight className="h-4 w-4 shrink-0 text-gray-400" />
             </div>

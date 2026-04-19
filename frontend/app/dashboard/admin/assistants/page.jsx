@@ -4,7 +4,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
   Bot,
@@ -14,12 +14,10 @@ import {
   MoreHorizontal,
   Eye,
   Trash2,
-  Shield,
   Loader2,
   Building2,
-  Phone,
-  Globe,
-  Volume2,
+  PhoneCall,
+  Waves,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -48,6 +46,16 @@ import {
 import { apiClient } from '@/lib/api';
 import { toast } from 'sonner';
 
+const ASSISTANT_TYPE_LABELS = {
+  phone: 'Telefon',
+  text: 'Yazılı',
+};
+
+const CALL_DIRECTION_LABELS = {
+  inbound: 'Gelen',
+  outbound: 'Giden',
+  outbound_campaign: 'Giden kampanya',
+};
 
 export default function AdminAssistantsPage() {
   const [loading, setLoading] = useState(true);
@@ -56,25 +64,22 @@ export default function AdminAssistantsPage() {
 
   // Filters
   const [search, setSearch] = useState('');
-  const [languageFilter, setLanguageFilter] = useState('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
 
   // Delete modal
   const [deleteModal, setDeleteModal] = useState({ open: false, assistant: null });
   const [actionLoading, setActionLoading] = useState(false);
 
-  useEffect(() => {
-    loadAssistants();
-  }, [pagination.page, languageFilter]);
-
-  const loadAssistants = async () => {
+  const loadAssistants = useCallback(async () => {
     setLoading(true);
     try {
       const params = {
         page: pagination.page,
         limit: pagination.limit,
       };
-      if (search) params.search = search;
-      if (languageFilter && languageFilter !== 'ALL') params.language = languageFilter;
+      if (searchQuery) params.search = searchQuery;
+      if (statusFilter && statusFilter !== 'ALL') params.isActive = statusFilter;
 
       const response = await apiClient.admin.getAssistants(params);
       setAssistants(response.data.assistants);
@@ -88,12 +93,26 @@ export default function AdminAssistantsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [pagination.limit, pagination.page, searchQuery, statusFilter]);
+
+  useEffect(() => {
+    loadAssistants();
+  }, [loadAssistants]);
 
   const handleSearch = (e) => {
     e.preventDefault();
+    if (searchQuery !== search) {
+      setSearchQuery(search);
+      if (pagination.page !== 1) {
+        setPagination(prev => ({ ...prev, page: 1 }));
+      }
+      return;
+    }
+    if (pagination.page === 1) {
+      loadAssistants();
+      return;
+    }
     setPagination(prev => ({ ...prev, page: 1 }));
-    loadAssistants();
   };
 
   const handleDelete = async () => {
@@ -140,17 +159,14 @@ export default function AdminAssistantsPage() {
           <Button type="submit" variant="outline">Ara</Button>
         </form>
 
-        <Select value={languageFilter} onValueChange={setLanguageFilter}>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-40">
-            <SelectValue placeholder="Dil filtrele" />
+            <SelectValue placeholder="Durum filtrele" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="ALL">Tüm Diller</SelectItem>
-            <SelectItem value="tr">Türkçe</SelectItem>
-            <SelectItem value="en">English</SelectItem>
-            <SelectItem value="de">Deutsch</SelectItem>
-            <SelectItem value="fr">Français</SelectItem>
-            <SelectItem value="es">Español</SelectItem>
+            <SelectItem value="ALL">Tümü</SelectItem>
+            <SelectItem value="true">Aktif</SelectItem>
+            <SelectItem value="false">Pasif</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -172,10 +188,10 @@ export default function AdminAssistantsPage() {
               <tr className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Asistan</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">İşletme</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Dil</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Ses</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Telefon</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Aramalar</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Durum</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Kanal</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Hat</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Konuşma</th>
                 <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">İşlem</th>
               </tr>
             </thead>
@@ -197,35 +213,36 @@ export default function AdminAssistantsPage() {
                     <div className="flex items-center gap-2">
                       <Building2 className="w-4 h-4 text-gray-400" />
                       <div>
-                        <p className="text-gray-700 dark:text-gray-300">{assistant.business?.name || '-'}</p>
-                        <p className="text-xs text-gray-500">{assistant.user?.email}</p>
+                        <p className="text-gray-700 dark:text-gray-300">{assistant.businessName || '-'}</p>
+                        <p className="text-xs text-gray-500">{assistant.ownerEmail || '-'}</p>
                       </div>
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <Globe className="w-4 h-4 text-gray-400" />
-                      <span className="text-gray-700 dark:text-gray-300 uppercase">{assistant.language || 'tr'}</span>
-                    </div>
+                    <Badge variant={assistant.isActive ? 'outline' : 'secondary'} className={assistant.isActive ? 'text-green-600 border-green-600' : ''}>
+                      {assistant.isActive ? 'Aktif' : 'Pasif'}
+                    </Badge>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <Volume2 className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm text-gray-700 dark:text-gray-300">{assistant.voiceName || '-'}</span>
+                      <Waves className="w-4 h-4 text-gray-400" />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                        {ASSISTANT_TYPE_LABELS[assistant.assistantType] || assistant.assistantType || '-'}
+                        {' / '}
+                        {CALL_DIRECTION_LABELS[assistant.callDirection] || assistant.callDirection || '-'}
+                      </span>
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    {assistant.phoneNumber ? (
-                      <div className="flex items-center gap-2">
-                        <Phone className="w-4 h-4 text-green-500" />
-                        <span className="text-sm text-gray-700 dark:text-gray-300">{assistant.phoneNumber.number}</span>
-                      </div>
-                    ) : (
-                      <span className="text-gray-400">-</span>
-                    )}
+                    <Badge variant="outline">{assistant.phoneNumbersCount || 0} hat</Badge>
                   </td>
                   <td className="px-4 py-3">
-                    <Badge variant="outline">{assistant._count?.callLogs || 0} arama</Badge>
+                    <div className="flex items-center gap-2">
+                      <PhoneCall className="w-4 h-4 text-gray-400" />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                        {assistant.callbacksCount || 0} geri arama, {assistant.conversationsCount || 0} sohbet
+                      </span>
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-right">
                     <DropdownMenu>
@@ -234,11 +251,11 @@ export default function AdminAssistantsPage() {
                           <MoreHorizontal className="w-4 h-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem asChild>
-                          <Link href={`/dashboard/admin/users/${assistant.userId}`}>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem asChild>
+                          <Link href={assistant.ownerUserId ? `/dashboard/admin/users/${assistant.ownerUserId}` : `/dashboard/admin/users?search=${encodeURIComponent(assistant.ownerEmail || assistant.businessName || assistant.name)}`}>
                             <Eye className="w-4 h-4 mr-2" />
-                            Kullanıcıyı Gör
+                            Sahibi gör
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem
@@ -291,7 +308,7 @@ export default function AdminAssistantsPage() {
           <DialogHeader>
             <DialogTitle>Asistanı Sil</DialogTitle>
             <DialogDescription>
-              "{deleteModal.assistant?.name}" asistanını silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+              &quot;{deleteModal.assistant?.name}&quot; asistanını silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

@@ -7,6 +7,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import {
   CreditCard,
   Search,
@@ -59,16 +60,26 @@ const STATUS_COLORS = {
   pending_payment: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
 };
 
+const LIFECYCLE_LABELS = {
+  ACTIVE: 'Aktif abonelik',
+  TRIAL_EXPIRED: 'Denemesi biten',
+  PAID_LAPSED: 'Yenilenmeyen paket',
+  CANCEL_SCHEDULED: 'İptal planlı',
+  NONE: 'Abonelik yok',
+};
+
 export default function AdminSubscriptionsPage() {
   const { t, locale } = useLanguage();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [subscriptions, setSubscriptions] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, pages: 0 });
 
   // Filters
-  const [search, setSearch] = useState('');
-  const [planFilter, setPlanFilter] = useState('ALL');
-  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [search, setSearch] = useState(() => searchParams.get('search') || '');
+  const [planFilter, setPlanFilter] = useState(() => searchParams.get('plan') || 'ALL');
+  const [statusFilter, setStatusFilter] = useState(() => searchParams.get('status') || 'ALL');
+  const [lifecycleFilter, setLifecycleFilter] = useState(() => searchParams.get('lifecycle') || 'ALL');
 
   // Edit modal
   const [editModal, setEditModal] = useState({ open: false, subscription: null });
@@ -94,6 +105,7 @@ export default function AdminSubscriptionsPage() {
       if (search) params.search = search;
       if (planFilter && planFilter !== 'ALL') params.plan = planFilter;
       if (statusFilter && statusFilter !== 'ALL') params.status = statusFilter;
+      if (lifecycleFilter && lifecycleFilter !== 'ALL') params.lifecycle = lifecycleFilter;
 
       const response = await apiClient.admin.getSubscriptions(params);
       setSubscriptions(response.data.subscriptions);
@@ -107,7 +119,7 @@ export default function AdminSubscriptionsPage() {
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, pagination.limit, planFilter, statusFilter, search, t]);
+  }, [lifecycleFilter, pagination.page, pagination.limit, planFilter, search, statusFilter, t]);
 
   useEffect(() => {
     loadSubscriptions();
@@ -115,8 +127,11 @@ export default function AdminSubscriptionsPage() {
 
   const handleSearch = (e) => {
     e.preventDefault();
+    if (pagination.page === 1) {
+      loadSubscriptions();
+      return;
+    }
     setPagination(prev => ({ ...prev, page: 1 }));
-    loadSubscriptions();
   };
 
   const openEditModal = (subscription) => {
@@ -225,6 +240,18 @@ export default function AdminSubscriptionsPage() {
             <SelectItem value="pending_payment">{t('dashboard.adminSubscriptionsPage.statusPendingPayment')}</SelectItem>
           </SelectContent>
         </Select>
+
+        <Select value={lifecycleFilter} onValueChange={setLifecycleFilter}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Yaşam döngüsü" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">Tüm yaşam döngüleri</SelectItem>
+            <SelectItem value="TRIAL_EXPIRED">Denemesi biten</SelectItem>
+            <SelectItem value="PAID_LAPSED">Yenilenmeyen paket</SelectItem>
+            <SelectItem value="CANCEL_SCHEDULED">İptal planlı</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Subscriptions Table */}
@@ -258,8 +285,8 @@ export default function AdminSubscriptionsPage() {
                     <div className="flex items-center gap-3">
                       <Building2 className="w-5 h-5 text-gray-400" />
                       <div>
-                        <p className="font-medium text-gray-900 dark:text-white">{sub.user?.businessName || sub.business?.name || '-'}</p>
-                        <p className="text-sm text-gray-500">{sub.user?.email}</p>
+                        <p className="font-medium text-gray-900 dark:text-white">{sub.businessName || '-'}</p>
+                        <p className="text-sm text-gray-500">{sub.ownerEmail || '-'}</p>
                       </div>
                     </div>
                   </td>
@@ -267,6 +294,11 @@ export default function AdminSubscriptionsPage() {
                     <Badge className={PLAN_COLORS[sub.plan] || PLAN_COLORS.FREE}>
                       {sub.plan}
                     </Badge>
+                    {sub.subscriptionLifecycle && (
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        {LIFECYCLE_LABELS[sub.subscriptionLifecycle] || sub.subscriptionLifecycle}
+                      </p>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <Badge className={STATUS_COLORS[sub.status] || STATUS_COLORS.active}>
@@ -313,7 +345,7 @@ export default function AdminSubscriptionsPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem asChild>
-                          <Link href={`/dashboard/admin/users/${sub.userId}`}>
+                          <Link href={sub.ownerUserId ? `/dashboard/admin/users/${sub.ownerUserId}` : `/dashboard/admin/users?search=${encodeURIComponent(sub.ownerEmail || sub.businessName || '')}`}>
                             <Eye className="w-4 h-4 mr-2" />
                             {t('dashboard.adminSubscriptionsPage.viewUser')}
                           </Link>
@@ -365,7 +397,7 @@ export default function AdminSubscriptionsPage() {
           <DialogHeader>
             <DialogTitle>{t('dashboard.adminSubscriptionsPage.editTitle')}</DialogTitle>
             <DialogDescription>
-              {editModal.subscription?.user?.email}
+              {editModal.subscription?.ownerEmail || editModal.subscription?.businessName}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
