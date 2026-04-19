@@ -139,7 +139,7 @@ export default function AboutPage() {
   ];
 
   return (
-    <div className="features-page min-h-screen bg-white dark:bg-neutral-950 overflow-hidden">
+    <div className="about-page features-page min-h-screen bg-white dark:bg-neutral-950 overflow-hidden">
       <Navigation />
 
       {/* ═══ Hero ═══ */}
@@ -194,10 +194,10 @@ export default function AboutPage() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
                 {stats.map((stat, i) => (
                   <div key={i}>
-                    <div className="text-3xl md:text-4xl font-bold" style={{ color: 'var(--ft-accent)' }}>
+                    <div className="text-3xl md:text-4xl font-bold" style={{ color: 'var(--about-accent-contrast)' }}>
                       <AnimatedNumber value={stat.value} suffix={stat.suffix} />
                     </div>
-                    <p className="text-sm mt-1" style={{ color: 'var(--ft-text-muted)' }}>
+                    <p className="text-sm mt-1" style={{ color: 'var(--about-text-soft)' }}>
                       {t(stat.labelKey)}
                     </p>
                   </div>
@@ -337,7 +337,7 @@ export default function AboutPage() {
                           <h3 className="font-bold" style={{ color: 'var(--ft-text-primary)' }}>
                             {member.name}
                           </h3>
-                          <p className="text-sm font-medium" style={{ color: 'var(--ft-accent)' }}>
+                          <p className="text-sm font-medium" style={{ color: 'var(--about-accent-contrast)' }}>
                             {t(member.titleKey)}
                           </p>
                         </div>
@@ -380,7 +380,7 @@ export default function AboutPage() {
               <div className="grid sm:grid-cols-3 gap-4">
                 <div className="rounded-xl p-4" style={{ background: 'var(--ft-glass)', border: '1px solid var(--ft-border)' }}>
                   <div className="flex items-center gap-2 mb-2">
-                    <MapPin className="w-4 h-4" style={{ color: 'var(--ft-accent)' }} />
+                    <MapPin className="w-4 h-4" style={{ color: 'var(--about-accent-contrast)' }} />
                     <p className="font-semibold text-sm" style={{ color: 'var(--ft-text-primary)' }}>
                       {t('about.companyInfo.locationLabel')}
                     </p>
@@ -391,7 +391,7 @@ export default function AboutPage() {
                 </div>
                 <div className="rounded-xl p-4" style={{ background: 'var(--ft-glass)', border: '1px solid var(--ft-border)' }}>
                   <div className="flex items-center gap-2 mb-2">
-                    <Mail className="w-4 h-4" style={{ color: 'var(--ft-accent)' }} />
+                    <Mail className="w-4 h-4" style={{ color: 'var(--about-accent-contrast)' }} />
                     <p className="font-semibold text-sm" style={{ color: 'var(--ft-text-primary)' }}>
                       {t('about.companyInfo.contactLabel')}
                     </p>
@@ -402,7 +402,7 @@ export default function AboutPage() {
                 </div>
                 <div className="rounded-xl p-4" style={{ background: 'var(--ft-glass)', border: '1px solid var(--ft-border)' }}>
                   <div className="flex items-center gap-2 mb-2">
-                    <Globe className="w-4 h-4" style={{ color: 'var(--ft-accent)' }} />
+                    <Globe className="w-4 h-4" style={{ color: 'var(--about-accent-contrast)' }} />
                     <p className="font-semibold text-sm" style={{ color: 'var(--ft-text-primary)' }}>
                       {t('about.companyInfo.foundedLabel')}
                     </p>
