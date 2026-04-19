@@ -10,20 +10,80 @@
  */
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import {
+  getGeminiApiKeyDiagnostics,
+  hasGeminiApiKey,
+  resolveGeminiApiKey
+} from '../config/gemini.js';
 
 // Lazy initialization for Gemini
 let genAI = null;
+let activeGeminiKeyFingerprint = null;
+let hasLoggedGeminiConfig = false;
+
+function buildGeminiKeyError(code = 'GEMINI_API_KEY_MISSING') {
+  const error = new Error(code);
+  error.code = code;
+  return error;
+}
+
+function logGeminiConfigOnce() {
+  if (hasLoggedGeminiConfig || process.env.NODE_ENV === 'test') {
+    return;
+  }
+
+  const diagnostics = getGeminiApiKeyDiagnostics();
+  const candidateSummary = diagnostics.candidates.reduce((acc, candidate) => {
+    acc[candidate.envKey] = {
+      present: candidate.present,
+      looksValidShape: candidate.looksValidShape,
+      masked: candidate.masked
+    };
+    return acc;
+  }, {});
+
+  if (!diagnostics.configured) {
+    console.error('❌ [GeminiConfig] No Gemini API key configured', {
+      source: null,
+      candidates: candidateSummary
+    });
+  } else {
+    console.log('🤖 [GeminiConfig] Active Gemini API key resolved', {
+      source: diagnostics.source,
+      candidates: candidateSummary
+    });
+
+    if (diagnostics.source === 'GOOGLE_AI_API_KEY') {
+      console.warn('⚠️ [GeminiConfig] Using GOOGLE_AI_API_KEY fallback. Prefer GEMINI_API_KEY for consistency.');
+    }
+  }
+
+  hasLoggedGeminiConfig = true;
+}
 
 /**
  * Get or initialize Gemini client
  * @returns {GoogleGenerativeAI} Gemini client instance
  */
 export function getGeminiClient() {
-  if (!genAI) {
-    genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  const resolved = resolveGeminiApiKey();
+  logGeminiConfigOnce();
+
+  if (!resolved.apiKey) {
+    throw buildGeminiKeyError();
   }
+
+  const nextFingerprint = `${resolved.source || 'unknown'}:${resolved.apiKey}`;
+
+  if (!genAI || activeGeminiKeyFingerprint !== nextFingerprint) {
+    genAI = new GoogleGenerativeAI(resolved.apiKey);
+    activeGeminiKeyFingerprint = nextFingerprint;
+  }
+
   return genAI;
 }
+
+export { getGeminiApiKeyDiagnostics, hasGeminiApiKey };
 
 /**
  * Convert tool definitions (OpenAI format) to Gemini function declarations

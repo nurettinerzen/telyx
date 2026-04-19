@@ -1,3 +1,5 @@
+import { hasGeminiApiKey } from '../config/gemini.js';
+
 const REQUIRED_PRODUCTION_ENV = [
   {
     key: 'SECURITY_DATA_CLASSIFICATION_VERSION',
@@ -52,6 +54,11 @@ const REQUIRED_PRODUCTION_ENV = [
       );
     },
     message: 'WHATSAPP_APP_SECRET (or META_APP_SECRET) must be set for webhook signature verification.',
+  },
+  {
+    key: 'GEMINI_API_KEY',
+    validate: () => hasGeminiApiKey(),
+    message: 'GEMINI_API_KEY (or GOOGLE_AI_API_KEY) must be set for chat/email orchestration.',
   },
 ];
 

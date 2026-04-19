@@ -4,12 +4,10 @@
  * Handles session counters for security (off-topic, verification attempts)
  */
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { getGeminiClient } from './gemini-utils.js';
 import { verificationCache } from './verification-manager.js';
 import { detectNumberType } from '../utils/text.js';
 import { isLikelyValidOrderNumber } from '../utils/order-number.js';
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // Intent configuration with tool mapping and security rules
 export const INTENT_CONFIG = {
@@ -122,6 +120,7 @@ const SESSION_TIMEOUT = 30 * 60 * 1000;
  */
 export async function detectIntent(userMessage, language = 'TR') {
   try {
+    const genAI = getGeminiClient();
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     const intentList = Object.keys(INTENT_CONFIG).map(key =>

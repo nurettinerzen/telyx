@@ -4,7 +4,7 @@
  */
 
 import prisma from '../../prismaClient.js';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { getGeminiClient } from '../../services/gemini-utils.js';
 import { ok, systemError, ToolOutcome } from '../toolResult.js';
 import crypto from 'crypto';
 
@@ -131,7 +131,7 @@ async function generateTopicWithLLM(conversationHistory, language) {
     ? `Aşağıdaki müşteri-asistan konuşmasını 1 cümle ile özetle. Maksimum 100 karakter. Sadece konuyu belirt. Örnek: "Sipariş kargo gecikmesi sorunu"\n\n${transcript}`
     : `Summarize this customer-assistant conversation in 1 sentence. Max 100 chars. Topic only. Example: "Order shipping delay issue"\n\n${transcript}`;
 
-  const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY);
+  const genAI = getGeminiClient();
   const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
 
   const result = await model.generateContent(prompt);
