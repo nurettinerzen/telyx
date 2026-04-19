@@ -7,10 +7,9 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Check, CreditCard, Loader2, AlertCircle, MessageSquare, PhoneCall, X, ArrowRight, Clock, Mail, MessageCircle, Phone } from 'lucide-react';
+import { Check, CreditCard, Loader2, AlertCircle, MessageSquare, PhoneCall, X } from 'lucide-react';
 import { apiClient } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { formatDate } from '@/lib/utils';
@@ -90,8 +89,6 @@ export default function SubscriptionPage() {
   const [purchasingAddOn, setPurchasingAddOn] = useState('');
   // Credit modal state
   const [creditModalOpen, setCreditModalOpen] = useState(false);
-  const [recentActivity, setRecentActivity] = useState([]);
-  const [recentActivityLoading, setRecentActivityLoading] = useState(true);
   const [userCountry, setUserCountry] = useState(() => {
     // Initial detection from browser locale
     if (typeof navigator !== 'undefined') {
@@ -120,105 +117,6 @@ export default function SubscriptionPage() {
       setUserCountry(country);
     }
   }, [subscription]);
-
-  useEffect(() => {
-    if (permissionsLoading) {
-      return;
-    }
-
-    let cancelled = false;
-
-    const loadRecentActivity = async () => {
-      const requestMap = [];
-
-      if (can('calls:view')) {
-        requestMap.push(['calls', apiClient.dashboard.getRecentCalls()]);
-      }
-
-      if (can('chat:view')) {
-        requestMap.push([
-          'chats',
-          apiClient.get('/api/chat-logs', {
-            params: { page: 1, limit: 6 },
-            suppressExpected403: true,
-          }),
-        ]);
-      }
-
-      if (requestMap.length === 0) {
-        if (!cancelled) {
-          setRecentActivity([]);
-          setRecentActivityLoading(false);
-        }
-        return;
-      }
-
-      if (!cancelled) {
-        setRecentActivityLoading(true);
-      }
-
-      const results = await Promise.allSettled(requestMap.map(([, request]) => request));
-      const activityItems = [];
-
-      results.forEach((result, index) => {
-        if (result.status !== 'fulfilled') {
-          return;
-        }
-
-        const [key] = requestMap[index];
-        const payload = result.value?.data || {};
-
-        if (key === 'calls') {
-          (payload.calls || []).forEach((call) => {
-            activityItems.push({
-              id: `call-${call.id || call.callId || Math.random().toString(36).slice(2)}`,
-              type: 'call',
-              occurredAt: call.createdAt || call.updatedAt,
-              title: call.callerId || call.phoneNumber || (locale === 'tr' ? 'Telefon numarası yok' : 'No phone number'),
-              description: locale === 'tr'
-                ? `Telefon görüşmesi${call.duration ? ` • ${Math.max(1, Math.round(Number(call.duration || 0) / 60))} dk` : ''}`
-                : `Phone call${call.duration ? ` • ${Math.max(1, Math.round(Number(call.duration || 0) / 60))} min` : ''}`,
-              href: '/dashboard/calls',
-            });
-          });
-        }
-
-        if (key === 'chats') {
-          (payload.chatLogs || []).forEach((chat) => {
-            const isWhatsApp = chat.channel === 'WHATSAPP';
-            const channelLabel = isWhatsApp ? 'WhatsApp' : (locale === 'tr' ? 'Web chat' : 'Web chat');
-            activityItems.push({
-              id: `chat-${chat.id || chat.sessionId || Math.random().toString(36).slice(2)}`,
-              type: isWhatsApp ? 'whatsapp' : 'chat',
-              occurredAt: chat.updatedAt || chat.createdAt,
-              title: chat.customerPhone || chat.sessionId || channelLabel,
-              description: locale === 'tr'
-                ? `${channelLabel}${chat.messageCount ? ` • ${chat.messageCount} mesaj` : ''}`
-                : `${channelLabel}${chat.messageCount ? ` • ${chat.messageCount} messages` : ''}`,
-              href: chat.id ? `/dashboard/chats?chatId=${chat.id}` : '/dashboard/chats',
-            });
-          });
-        }
-      });
-
-      activityItems.sort((left, right) => {
-        const leftTime = new Date(left.occurredAt || 0).getTime();
-        const rightTime = new Date(right.occurredAt || 0).getTime();
-        return rightTime - leftTime;
-      });
-
-      if (!cancelled) {
-        setRecentActivity(activityItems.slice(0, 6));
-        setRecentActivityLoading(false);
-      }
-    };
-
-    loadRecentActivity();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [can, locale, permissionsLoading]);
 
   // Determine region from business country (NOT from UI language)
   const getRegion = () => {
@@ -563,26 +461,6 @@ export default function SubscriptionPage() {
       })(),
     },
   ] : [];
-  const activityDestinations = [
-    can('calls:view') ? {
-      href: '/dashboard/calls',
-      label: locale === 'tr' ? 'Aramalar' : 'Calls',
-      description: locale === 'tr' ? 'Telefon görüşmelerini aç' : 'Open phone calls',
-      icon: Phone,
-    } : null,
-    can('chat:view') ? {
-      href: '/dashboard/chats',
-      label: locale === 'tr' ? 'Sohbetler' : 'Chats',
-      description: locale === 'tr' ? 'Web chat ve WhatsApp kayıtları' : 'Web chat and WhatsApp logs',
-      icon: MessageCircle,
-    } : null,
-    can('email:view') ? {
-      href: '/dashboard/email',
-      label: locale === 'tr' ? 'E-posta' : 'Email',
-      description: locale === 'tr' ? 'Yazılı e-posta threadlerini gör' : 'View email threads',
-      icon: Mail,
-    } : null,
-  ].filter(Boolean);
 
   // Show loading while permissions are being loaded
   if (permissionsLoading || loading) {
@@ -1088,102 +966,6 @@ export default function SubscriptionPage() {
               </div>
             );
           })}
-        </div>
-      </div>
-
-      <div className="bg-white rounded-xl border border-neutral-200 shadow-sm">
-        <div className="p-6 border-b border-neutral-200">
-          <div className="flex items-center gap-3">
-            <Clock className="h-5 w-5 text-primary-600" />
-            <div>
-              <h2 className="text-lg font-semibold text-neutral-900">
-                {locale === 'tr' ? 'Son Aktiviteler' : 'Recent Activity'}
-              </h2>
-              <p className="mt-1 text-sm text-neutral-500">
-                {locale === 'tr'
-                  ? 'Aramalar ve yazılı görüşmeler bu sayfada detaylı listelenmiyordu. Son kayıtları burada özetleyip ilgili ekranlara yönlendiriyoruz.'
-                  : 'Calls and written conversations were not listed in detail on this page. We summarize the latest records here and link to the full views.'}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {activityDestinations.length > 0 && (
-          <div className="grid grid-cols-1 gap-3 p-6 md:grid-cols-3">
-            {activityDestinations.map((destination) => {
-              const Icon = destination.icon;
-              return (
-                <Link
-                  key={destination.href}
-                  href={destination.href}
-                  className="flex items-center justify-between rounded-xl border border-neutral-200 px-4 py-3 transition-colors hover:border-primary-300 hover:bg-primary-50/40"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-lg bg-primary-50 p-2 text-primary-600">
-                      <Icon className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <div className="font-medium text-neutral-900">{destination.label}</div>
-                      <div className="text-sm text-neutral-500">{destination.description}</div>
-                    </div>
-                  </div>
-                  <ArrowRight className="h-4 w-4 text-neutral-400" />
-                </Link>
-              );
-            })}
-          </div>
-        )}
-
-        <div className="divide-y divide-neutral-200">
-          {recentActivityLoading ? (
-            <div className="space-y-3 p-6">
-              {[0, 1, 2].map((item) => (
-                <div key={item} className="h-14 animate-pulse rounded-xl bg-neutral-100" />
-              ))}
-            </div>
-          ) : recentActivity.length === 0 ? (
-            <div className="p-8 text-center text-sm text-neutral-500">
-              {locale === 'tr'
-                ? 'Henüz arama veya sohbet kaydı bulunmuyor. Yeni aktivite olduğunda burada özetlenecek.'
-                : 'No call or chat records yet. New activity will be summarized here.'}
-            </div>
-          ) : (
-            recentActivity.map((item) => (
-              <Link
-                key={item.id}
-                href={item.href}
-                className="flex items-center justify-between gap-4 p-4 transition-colors hover:bg-neutral-50"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className={`rounded-lg p-2 ${
-                    item.type === 'call'
-                      ? 'bg-emerald-50 text-emerald-600'
-                      : item.type === 'whatsapp'
-                        ? 'bg-green-50 text-green-600'
-                        : 'bg-blue-50 text-blue-600'
-                  }`}>
-                    {item.type === 'call' ? (
-                      <PhoneCall className="h-4 w-4" />
-                    ) : item.type === 'whatsapp' ? (
-                      <MessageCircle className="h-4 w-4" />
-                    ) : (
-                      <MessageSquare className="h-4 w-4" />
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate font-medium text-neutral-900">{item.title}</p>
-                    <p className="truncate text-sm text-neutral-500">{item.description}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 shrink-0">
-                  <span className="text-sm text-neutral-500">
-                    {formatDate(item.occurredAt, 'relative', locale, t)}
-                  </span>
-                  <ArrowRight className="h-4 w-4 text-neutral-400" />
-                </div>
-              </Link>
-            ))
-          )}
         </div>
       </div>
 
