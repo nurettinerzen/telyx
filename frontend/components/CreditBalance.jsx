@@ -218,6 +218,14 @@ export default function CreditBalance({ onBuyCredit, refreshTrigger }) {
     || Object.prototype.hasOwnProperty.call(balance, 'includedMinutes')
     || Object.prototype.hasOwnProperty.call(balance, 'writtenInteractions')
     || ['FREE', 'TRIAL', 'PAYG', 'STARTER', 'PRO', 'BASIC', 'ENTERPRISE'].includes(String(balance.plan || '').toUpperCase());
+  const formatDisplayedMinutes = (value) => {
+    const numericValue = Number(value || 0);
+    if (!Number.isFinite(numericValue) || numericValue <= 0) {
+      return 0;
+    }
+
+    return Math.ceil(numericValue);
+  };
 
   // Currency based on region
   const currency = balance.currency || '₺';
@@ -472,7 +480,7 @@ export default function CreditBalance({ onBuyCredit, refreshTrigger }) {
                   <span className="font-medium text-neutral-700 dark:text-neutral-300">{txt.includedMinutes}</span>
                 </div>
                 <span className="text-neutral-600 dark:text-neutral-400">
-                  {balance.includedMinutes?.used || 0}/{balance.includedMinutes?.limit || 0} {txt.min}
+                  {formatDisplayedMinutes(balance.includedMinutes?.used)}/{formatDisplayedMinutes(balance.includedMinutes?.limit)} {txt.min}
                 </span>
               </div>
               <Progress
