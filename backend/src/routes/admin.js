@@ -26,6 +26,88 @@ import { buildSecurityConfigDigest, compareBaselineDigest } from '../security/co
 import runtimeConfig from '../config/runtime.js';
 
 const router = express.Router();
+const PAID_RENEWAL_PLANS = ['STARTER', 'PRO', 'ENTERPRISE', 'BASIC'];
+const CANCELLATION_REASON_LABELS = Object.freeze({
+  UNSPECIFIED: 'Belirtilmedi',
+  LOW_USAGE: 'Cok kullanmiyor',
+  NO_NEED: 'Artik ihtiyac yok',
+  TOO_EXPENSIVE: 'Pahali',
+  LOW_QUALITY: 'Kalite dusuk',
+  MISSING_FEATURES: 'Ozellikler yetersiz',
+  TOO_COMPLEX: 'Karmasik',
+  OTHER: 'Diger',
+});
+
+function buildTrialExpiredSubscriptionWhere(now = new Date()) {
+  return {
+    plan: 'TRIAL',
+    OR: [
+      { trialMinutesUsed: { gte: 15 } },
+      { trialChatExpiry: { lte: now } },
+    ],
+  };
+}
+
+function buildPaidLapsedSubscriptionWhere(now = new Date()) {
+  return {
+    plan: { in: PAID_RENEWAL_PLANS },
+    currentPeriodEnd: { lt: now },
+  };
+}
+
+function getSubscriptionLifecycle(subscription, now = new Date()) {
+  if (!subscription) return 'NONE';
+
+  if (subscription.plan === 'TRIAL') {
+    const trialExpired = Number(subscription.trialMinutesUsed || 0) >= 15
+      || (subscription.trialChatExpiry && new Date(subscription.trialChatExpiry) <= now);
+
+    if (trialExpired) {
+      return 'TRIAL_EXPIRED';
+    }
+  }
+
+  if (PAID_RENEWAL_PLANS.includes(String(subscription.plan || ''))
+    && subscription.currentPeriodEnd
+    && new Date(subscription.currentPeriodEnd) < now) {
+    return 'PAID_LAPSED';
+  }
+
+  if (subscription.cancelAtPeriodEnd) {
+    return 'CANCEL_SCHEDULED';
+  }
+
+  return 'ACTIVE';
+}
+
+function getCancellationLifecycle(subscription, now = new Date()) {
+  if (!subscription) return 'UNKNOWN';
+
+  if (subscription.status === 'CANCELED') {
+    return 'ENDED';
+  }
+
+  if (subscription.cancelAtPeriodEnd) {
+    if (subscription.currentPeriodEnd && new Date(subscription.currentPeriodEnd) < now) {
+      return 'ENDED';
+    }
+    return 'SCHEDULED';
+  }
+
+  if (subscription.currentPeriodEnd && new Date(subscription.currentPeriodEnd) < now) {
+    return 'ENDED';
+  }
+
+  return 'REACTIVATED';
+}
+
+function readAuditMetadata(metadata, key, fallback = null) {
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+    return fallback;
+  }
+
+  return metadata[key] ?? fallback;
+}
 
 // Initialize Stripe if key exists
 const stripe = process.env.STRIPE_SECRET_KEY
@@ -161,8 +243,9 @@ router.get('/enterprise-customers', async (req, res) => {
  */
 router.get('/users', async (req, res) => {
   try {
-    const { search, plan, suspended, page = 1, limit = 20 } = req.query;
+    const { search, plan, suspended, lifecycle, page = 1, limit = 20 } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
+    const now = new Date();
 
     const where = {
       deletedAt: null // Exclude soft-deleted
@@ -185,21 +268,35 @@ router.get('/users', async (req, res) => {
     }
 
     // Plan filter (filter by business subscription)
-    let subscriptionFilter = {};
+    const subscriptionFilters = [];
     if (plan && plan !== 'ALL') {
       if (plan === '!ENTERPRISE') {
-        subscriptionFilter = { plan: { not: 'ENTERPRISE' } };
+        subscriptionFilters.push({ plan: { not: 'ENTERPRISE' } });
       } else {
-        subscriptionFilter = { plan };
+        subscriptionFilters.push({ plan });
       }
     }
+
+    if (lifecycle === 'TRIAL_EXPIRED') {
+      subscriptionFilters.push(buildTrialExpiredSubscriptionWhere(now));
+    } else if (lifecycle === 'PAID_LAPSED') {
+      subscriptionFilters.push(buildPaidLapsedSubscriptionWhere(now));
+    } else if (lifecycle === 'CANCEL_SCHEDULED') {
+      subscriptionFilters.push({ cancelAtPeriodEnd: true });
+    }
+
+    const subscriptionFilter = subscriptionFilters.length === 0
+      ? undefined
+      : subscriptionFilters.length === 1
+        ? subscriptionFilters[0]
+        : { AND: subscriptionFilters };
 
     const [users, total] = await Promise.all([
       prisma.user.findMany({
         where: {
           ...where,
           role: 'OWNER', // Only list business owners
-          business: plan ? { subscription: subscriptionFilter } : undefined
+          business: subscriptionFilter ? { subscription: subscriptionFilter } : undefined
         },
         select: {
           id: true,
@@ -223,6 +320,10 @@ router.get('/users', async (req, res) => {
                   status: true,
                   minutesUsed: true,
                   balance: true,
+                  currentPeriodEnd: true,
+                  cancelAtPeriodEnd: true,
+                  trialMinutesUsed: true,
+                  trialChatExpiry: true,
                   enterpriseMinutes: true,
                   enterpriseSupportInteractions: true,
                   enterprisePrice: true,
@@ -243,7 +344,7 @@ router.get('/users', async (req, res) => {
         where: {
           ...where,
           role: 'OWNER',
-          business: plan ? { subscription: subscriptionFilter } : undefined
+          business: subscriptionFilter ? { subscription: subscriptionFilter } : undefined
         }
       })
     ]);
@@ -262,6 +363,9 @@ router.get('/users', async (req, res) => {
       country: u.business?.country,
       plan: u.business?.subscription?.plan || 'FREE',
       subscriptionStatus: u.business?.subscription?.status,
+      currentPeriodEnd: u.business?.subscription?.currentPeriodEnd,
+      cancelAtPeriodEnd: u.business?.subscription?.cancelAtPeriodEnd || false,
+      subscriptionLifecycle: getSubscriptionLifecycle(u.business?.subscription, now),
       minutesUsed: u.business?.subscription?.minutesUsed || 0,
       balance: u.business?.subscription?.balance || 0,
       enterpriseMinutes: u.business?.subscription?.enterpriseMinutes,
@@ -1153,11 +1257,11 @@ router.post('/enterprise-customers/:id/payment-link', async (req, res) => {
  */
 router.get('/stats', async (req, res) => {
   try {
-    const today = new Date();
+    const now = new Date();
+    const today = new Date(now);
     today.setHours(0, 0, 0, 0);
 
     const thisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const lastWeek = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
     const [
       totalBusinesses,
@@ -1173,32 +1277,61 @@ router.get('/stats', async (req, res) => {
       todayCalls,
       monthCalls,
       totalAssistants,
-      pendingCallbacks,
-      totalUsers
+      totalUsers,
+      expiredTrials,
+      paidLapsed,
+      scheduledCancellations,
+      totalCancellationRequests,
+      cancellationFeedbackCount
     ] = await Promise.all([
       prisma.business.count({ where: { deletedAt: null } }),
       prisma.business.count({ where: { deletedAt: null, suspended: false } }),
-      prisma.business.count({ where: { suspended: true } }),
-      prisma.subscription.count({ where: { plan: 'ENTERPRISE' } }),
-      prisma.subscription.count({ where: { plan: 'PRO' } }),
-      prisma.subscription.count({ where: { plan: 'STARTER' } }),
-      prisma.subscription.count({ where: { plan: 'PAYG' } }),
-      prisma.subscription.count({ where: { plan: 'TRIAL' } }),
-      prisma.subscription.count({ where: { plan: 'FREE' } }),
+      prisma.business.count({ where: { deletedAt: null, suspended: true } }),
+      prisma.subscription.count({ where: { business: { deletedAt: null }, plan: 'ENTERPRISE' } }),
+      prisma.subscription.count({ where: { business: { deletedAt: null }, plan: 'PRO' } }),
+      prisma.subscription.count({ where: { business: { deletedAt: null }, plan: 'STARTER' } }),
+      prisma.subscription.count({ where: { business: { deletedAt: null }, plan: 'PAYG' } }),
+      prisma.subscription.count({ where: { business: { deletedAt: null }, plan: 'TRIAL' } }),
+      prisma.subscription.count({ where: { business: { deletedAt: null }, plan: 'FREE' } }),
       prisma.callLog.count(),
       prisma.callLog.count({ where: { createdAt: { gte: today } } }),
       prisma.callLog.count({ where: { createdAt: { gte: thisMonth } } }),
       prisma.assistant.count(),
-      prisma.callbackRequest.count({ where: { status: 'PENDING' } }),
-      prisma.user.count({ where: { deletedAt: null } })
+      prisma.user.count({ where: { deletedAt: null } }),
+      prisma.subscription.count({
+        where: {
+          business: { deletedAt: null },
+          ...buildTrialExpiredSubscriptionWhere(now),
+        }
+      }),
+      prisma.subscription.count({
+        where: {
+          business: { deletedAt: null },
+          ...buildPaidLapsedSubscriptionWhere(now),
+        }
+      }),
+      prisma.subscription.count({
+        where: {
+          business: { deletedAt: null },
+          cancelAtPeriodEnd: true,
+        }
+      }),
+      prisma.businessAuditLog.count({
+        where: { action: 'subscription_cancel_requested' }
+      }),
+      prisma.businessAuditLog.count({
+        where: { action: 'subscription_cancellation_feedback_submitted' }
+      })
     ]);
 
     res.json({
       users: {
         total: totalUsers,
-        businesses: totalBusinesses,
+      },
+      businesses: {
+        total: totalBusinesses,
         active: activeBusinesses,
-        suspended: suspendedBusinesses
+        suspended: suspendedBusinesses,
       },
       byPlan: {
         enterprise: enterpriseCount,
@@ -1214,7 +1347,15 @@ router.get('/stats', async (req, res) => {
         month: monthCalls
       },
       assistants: totalAssistants,
-      pendingCallbacks
+      lifecycle: {
+        trialExpired: expiredTrials,
+        paidLapsed,
+      },
+      cancellations: {
+        scheduled: scheduledCancellations,
+        requested: totalCancellationRequests,
+        feedbackProvided: cancellationFeedbackCount,
+      }
     });
   } catch (error) {
     console.error('Admin: Failed to get stats:', error);
@@ -1615,6 +1756,147 @@ router.patch('/subscriptions/:id', async (req, res) => {
   } catch (error) {
     console.error('Admin: Failed to update subscription:', error);
     res.status(500).json({ error: 'Abonelik güncellenemedi' });
+  }
+});
+
+/**
+ * GET /api/admin/cancellations
+ * List cancellation requests and optional feedback
+ */
+router.get('/cancellations', async (req, res) => {
+  try {
+    const { search, reasonCode, lifecycle, page = 1, limit = 20 } = req.query;
+    const pageNumber = parseInt(page);
+    const pageSize = parseInt(limit);
+    const now = new Date();
+
+    const where = {
+      action: 'subscription_cancel_requested'
+    };
+
+    if (search) {
+      where.OR = [
+        { business: { name: { contains: search, mode: 'insensitive' } } },
+        { business: { users: { some: { role: 'OWNER', email: { contains: search, mode: 'insensitive' } } } } },
+        { business: { users: { some: { role: 'OWNER', name: { contains: search, mode: 'insensitive' } } } } },
+      ];
+    }
+
+    const cancellationRequests = await prisma.businessAuditLog.findMany({
+      where,
+      include: {
+        business: {
+          select: {
+            id: true,
+            name: true,
+            subscription: {
+              select: {
+                plan: true,
+                status: true,
+                currentPeriodEnd: true,
+                cancelAtPeriodEnd: true,
+              }
+            },
+            users: {
+              where: { role: 'OWNER' },
+              take: 1,
+              select: {
+                email: true,
+                name: true,
+              }
+            }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const feedbackBusinessIds = [...new Set(cancellationRequests.map((entry) => entry.businessId).filter(Boolean))];
+    const cancellationFeedback = feedbackBusinessIds.length > 0
+      ? await prisma.businessAuditLog.findMany({
+        where: {
+          action: 'subscription_cancellation_feedback_submitted',
+          businessId: { in: feedbackBusinessIds }
+        },
+        orderBy: { createdAt: 'desc' }
+      })
+      : [];
+
+    const mergedRows = cancellationRequests.map((requestLog) => {
+      const matchingFeedback = cancellationFeedback.find((feedbackLog) =>
+        feedbackLog.businessId === requestLog.businessId
+        && feedbackLog.createdAt >= requestLog.createdAt
+      );
+
+      const reasonCodeValue = String(
+        readAuditMetadata(matchingFeedback?.metadata, 'reasonCode')
+        || readAuditMetadata(requestLog.metadata, 'reasonCode')
+        || 'UNSPECIFIED'
+      ).toUpperCase();
+
+      const reasonLabel = readAuditMetadata(matchingFeedback?.metadata, 'reasonLabel')
+        || readAuditMetadata(requestLog.metadata, 'reasonLabel')
+        || CANCELLATION_REASON_LABELS[reasonCodeValue]
+        || reasonCodeValue;
+
+      const reasonDetail = readAuditMetadata(matchingFeedback?.metadata, 'reasonDetail')
+        || readAuditMetadata(requestLog.metadata, 'reasonDetail')
+        || null;
+
+      const cancellationState = getCancellationLifecycle(requestLog.business?.subscription, now);
+      const owner = requestLog.business?.users?.[0] || null;
+
+      return {
+        id: requestLog.id,
+        businessId: requestLog.businessId,
+        businessName: requestLog.business?.name || '-',
+        ownerEmail: owner?.email || '-',
+        ownerName: owner?.name || '-',
+        plan: requestLog.business?.subscription?.plan || 'FREE',
+        subscriptionStatus: requestLog.business?.subscription?.status || 'UNKNOWN',
+        lifecycle: cancellationState,
+        cancelAt: requestLog.business?.subscription?.currentPeriodEnd || readAuditMetadata(requestLog.metadata, 'cancelAt') || null,
+        requestedAt: requestLog.createdAt,
+        reasonCode: reasonCodeValue,
+        reasonLabel,
+        reasonDetail,
+        feedbackSubmittedAt: matchingFeedback?.createdAt || null,
+      };
+    });
+
+    const filteredRows = mergedRows.filter((row) => {
+      if (reasonCode && reasonCode !== 'ALL' && row.reasonCode !== reasonCode) {
+        return false;
+      }
+
+      if (lifecycle && lifecycle !== 'ALL' && row.lifecycle !== lifecycle) {
+        return false;
+      }
+
+      return true;
+    });
+
+    const paginatedRows = filteredRows.slice((pageNumber - 1) * pageSize, pageNumber * pageSize);
+
+    res.json({
+      cancellations: paginatedRows,
+      summary: {
+        total: filteredRows.length,
+        scheduled: filteredRows.filter((row) => row.lifecycle === 'SCHEDULED').length,
+        ended: filteredRows.filter((row) => row.lifecycle === 'ENDED').length,
+        reactivated: filteredRows.filter((row) => row.lifecycle === 'REACTIVATED').length,
+        feedbackProvided: filteredRows.filter((row) => Boolean(row.feedbackSubmittedAt)).length,
+      },
+      pagination: {
+        page: pageNumber,
+        limit: pageSize,
+        total: filteredRows.length,
+        pages: Math.ceil(filteredRows.length / pageSize),
+      }
+    });
+  } catch (error) {
+    console.error('Admin: Failed to list cancellations:', error);
+    res.status(500).json({ error: 'Iptal kayitlari alinamadi' });
   }
 });
 

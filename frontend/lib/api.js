@@ -344,6 +344,7 @@ export const apiClient = {
 
     // Audit Log
     getAuditLogs: (params) => api.get('/api/admin/audit-log', { params }),
+    getCancellations: (params) => api.get('/api/admin/cancellations', { params }),
 
     // Enterprise (existing)
     getEnterpriseCustomers: () => api.get('/api/admin/enterprise-customers'),

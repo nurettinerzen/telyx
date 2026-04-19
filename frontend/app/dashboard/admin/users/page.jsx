@@ -6,10 +6,10 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import {
   Users,
   Search,
-  Filter,
   ChevronLeft,
   ChevronRight,
   MoreHorizontal,
@@ -48,27 +48,32 @@ import { apiClient } from '@/lib/api';
 import { toast } from 'sonner';
 import { PLAN_COLORS } from '@/lib/planConfig';
 
+const SUBSCRIPTION_LIFECYCLE_LABELS = {
+  ACTIVE: 'Aktif abonelik',
+  TRIAL_EXPIRED: 'Trial bitmis',
+  PAID_LAPSED: 'Suresi bitmis paket',
+  CANCEL_SCHEDULED: 'Donem sonu iptal planli',
+  NONE: 'Abonelik yok',
+};
 
 export default function AdminUsersPage() {
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, pages: 0 });
 
   // Filters
-  const [search, setSearch] = useState('');
-  const [planFilter, setPlanFilter] = useState('ALL');
-  const [suspendedFilter, setSuspendedFilter] = useState('');
+  const [search, setSearch] = useState(() => searchParams.get('search') || '');
+  const [planFilter, setPlanFilter] = useState(() => searchParams.get('plan') || 'ALL');
+  const [suspendedFilter, setSuspendedFilter] = useState(() => searchParams.get('suspended') || '');
+  const [lifecycleFilter, setLifecycleFilter] = useState(() => searchParams.get('lifecycle') || 'ALL');
 
   // Modals
   const [suspendModal, setSuspendModal] = useState({ open: false, user: null, action: 'suspend' });
   const [suspendReason, setSuspendReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
-  useEffect(() => {
-    loadUsers();
-  }, [pagination.page, planFilter, suspendedFilter]);
-
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     setLoading(true);
     try {
       const params = {
@@ -78,6 +83,7 @@ export default function AdminUsersPage() {
       if (search) params.search = search;
       if (planFilter && planFilter !== 'ALL') params.plan = planFilter;
       if (suspendedFilter) params.suspended = suspendedFilter;
+      if (lifecycleFilter && lifecycleFilter !== 'ALL') params.lifecycle = lifecycleFilter;
 
       const response = await apiClient.admin.getUsers(params);
       setUsers(response.data.users);
@@ -91,12 +97,28 @@ export default function AdminUsersPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [lifecycleFilter, pagination.limit, pagination.page, planFilter, search, suspendedFilter]);
+
+  useEffect(() => {
+    loadUsers();
+  }, [loadUsers]);
 
   const handleSearch = (e) => {
     e.preventDefault();
+    if (pagination.page === 1) {
+      loadUsers();
+      return;
+    }
     setPagination(prev => ({ ...prev, page: 1 }));
-    loadUsers();
+  };
+
+  const formatDate = (date) => {
+    if (!date) return '-';
+    return new Date(date).toLocaleDateString('tr-TR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
   };
 
   const handleSuspendAction = async () => {
@@ -186,6 +208,18 @@ export default function AdminUsersPage() {
             <SelectItem value="true">Dondurulmuş</SelectItem>
           </SelectContent>
         </Select>
+
+        <Select value={lifecycleFilter} onValueChange={setLifecycleFilter}>
+          <SelectTrigger className="w-52">
+            <SelectValue placeholder="Abonelik yasam dongusu" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">Tum yasam donguleri</SelectItem>
+            <SelectItem value="TRIAL_EXPIRED">Trial bitmis</SelectItem>
+            <SelectItem value="PAID_LAPSED">Yenilenmeyen paket</SelectItem>
+            <SelectItem value="CANCEL_SCHEDULED">Iptal planli</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Users Table */}
@@ -227,9 +261,19 @@ export default function AdminUsersPage() {
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <Badge className={PLAN_COLORS[user.plan] || PLAN_COLORS.FREE}>
-                      {user.plan}
-                    </Badge>
+                    <div className="space-y-1">
+                      <Badge className={PLAN_COLORS[user.plan] || PLAN_COLORS.FREE}>
+                        {user.plan}
+                      </Badge>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {SUBSCRIPTION_LIFECYCLE_LABELS[user.subscriptionLifecycle] || user.subscriptionStatus || 'Bilinmiyor'}
+                      </p>
+                      {user.currentPeriodEnd && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          Donem sonu: {formatDate(user.currentPeriodEnd)}
+                        </p>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <div className="text-sm">
