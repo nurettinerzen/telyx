@@ -1641,7 +1641,7 @@
       "companyNameOptional": "Şirket Adı (Opsiyonel)",
       "emailChangeHint": "Giriş emailinizi güvenli akışla değiştirebilirsiniz.",
       "emailChangeVerificationHint": "Yeni adresi kaydettiğinizde doğrulama durumu sıfırlanır ve yeni email adresine doğrulama linki gönderilir.",
-      "confirmNewEmailLabel": "Yeni email tekrar",
+      "confirmNewEmailLabel": "Yeni Email Tekrar",
       "emailChangePasswordLabel": "Mevcut şifreniz",
       "emailFieldsRequired": "Yeni email, tekrar email ve mevcut şifre alanlarını doldurun",
       "emailConfirmationMismatch": "Yeni email alanları eşleşmiyor",
