@@ -11,28 +11,51 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '@/lib/api';
 import { useDashboardContext } from '@/contexts/DashboardContext';
-import {
-  getPermissionsForRole,
-  userHasAllPermissions,
-  userHasAnyPermission,
-  userHasPermission,
-} from '@/lib/rolePermissions.mjs';
 
-/**
- * Hook for checking user permissions
- * @returns {Object} Permission utilities
- */
+const ROLE_PERMISSIONS = {
+  OWNER: ['*'],
+  MANAGER: [
+    'dashboard:view',
+    'assistants:view', 'assistants:create', 'assistants:edit',
+    'calls:view', 'calls:download',
+    'campaigns:view', 'campaigns:create', 'campaigns:control',
+    'knowledge:view', 'knowledge:edit', 'knowledge:delete',
+    'integrations:view',
+    'email:view', 'email:send',
+    'whatsapp:view',
+    'widget:view', 'widget:edit',
+    'settings:view', 'settings:edit',
+    'team:view', 'team:invite',
+    'analytics:view',
+    'phone:view',
+    'voices:view',
+    'collections:view', 'collections:create'
+  ],
+  STAFF: [
+    'dashboard:view',
+    'assistants:view',
+    'calls:view', 'calls:download',
+    'campaigns:view',
+    'knowledge:view',
+    'email:view', 'email:send',
+    'whatsapp:view',
+    'widget:view',
+    'settings:view',
+    'analytics:view',
+    'phone:view',
+    'voices:view',
+    'collections:view'
+  ]
+};
+
 export function usePermissions() {
-  // Try to get user from DashboardContext first (provided by dashboard layout)
   const dashboardCtx = useDashboardContext();
   const contextUser = dashboardCtx?.user || null;
 
-  // Fallback: independent API call only when outside dashboard layout
   const [fetchedUser, setFetchedUser] = useState(null);
   const [fetchLoading, setFetchLoading] = useState(!contextUser);
 
   useEffect(() => {
-    // Skip API call if we have user from context
     if (contextUser) {
       setFetchLoading(false);
       return;
@@ -57,100 +80,64 @@ export function usePermissions() {
     };
   }, [contextUser]);
 
-  // Use context user if available, otherwise use fetched user
   const user = contextUser || fetchedUser;
   const loading = contextUser ? false : fetchLoading;
 
-  /**
-   * Check if current user has a specific permission
-   * @param {string} permission - Permission to check
-   * @returns {boolean}
-   */
   const can = useCallback((permission) => {
     if (!user || !user.role) return false;
-    return userHasPermission(user.role, permission);
+
+    const permissions = ROLE_PERMISSIONS[user.role];
+    if (!permissions) return false;
+    if (permissions.includes('*')) return true;
+
+    return permissions.includes(permission);
   }, [user]);
 
-  /**
-   * Check if user has any of the given permissions
-   * @param {string[]} permissions - Array of permissions (OR logic)
-   * @returns {boolean}
-   */
   const canAny = useCallback((permissions) => {
-    return userHasAnyPermission(user?.role, permissions);
-  }, [user?.role]);
+    return permissions.some((permission) => can(permission));
+  }, [can]);
 
-  /**
-   * Check if user has all of the given permissions
-   * @param {string[]} permissions - Array of permissions (AND logic)
-   * @returns {boolean}
-   */
   const canAll = useCallback((permissions) => {
-    return userHasAllPermissions(user?.role, permissions);
-  }, [user?.role]);
+    return permissions.every((permission) => can(permission));
+  }, [can]);
 
   const isOwner = user?.role === 'OWNER';
   const isManager = user?.role === 'MANAGER';
   const isStaff = user?.role === 'STAFF';
   const role = user?.role;
 
-  // Subscription status check
   const subscriptionStatus = user?.subscription?.status || user?.business?.subscription?.status;
   const isSubscriptionActive = ['ACTIVE', 'TRIAL', 'TRIALING'].includes(subscriptionStatus);
   const isSubscriptionIncomplete = subscriptionStatus === 'INCOMPLETE';
 
-  /**
-   * Check if subscription allows feature access
-   * INCOMPLETE status means payment pending - limited access
-   */
   const hasActiveSubscription = useCallback(() => {
-    // Allow if no subscription data (backwards compatibility)
     if (!user?.subscription && !user?.business?.subscription) return true;
-    // ACTIVE and TRIALING are allowed
     return ['ACTIVE', 'TRIAL', 'TRIALING'].includes(subscriptionStatus);
   }, [user, subscriptionStatus]);
 
-  /**
-   * Update user in state (call this after login/profile update)
-   * @param {Object} newUser - Updated user object
-   */
   const updateUser = useCallback((newUser) => {
     setFetchedUser(newUser);
   }, []);
 
   return {
-    // Permission checks
     can,
     canAny,
     canAll,
-
-    // Role checks
     isOwner,
     isManager,
     isStaff,
     role,
-
-    // Subscription status checks
     isSubscriptionActive,
     isSubscriptionIncomplete,
     hasActiveSubscription,
     subscriptionStatus,
-
-    // User state
     user,
     loading,
     updateUser,
-
-    // Permission list (for debugging)
-    permissions: user?.role ? getPermissionsForRole(user.role) : []
+    permissions: user?.role ? ROLE_PERMISSIONS[user.role] : []
   };
 }
 
-/**
- * Get role display name in Turkish
- * @param {string} role - Role code
- * @returns {string} Display name
- */
 export function getRoleDisplayName(role, locale = 'tr') {
   const isTr = locale === 'tr';
   const names = {
@@ -161,11 +148,6 @@ export function getRoleDisplayName(role, locale = 'tr') {
   return names[role] || role;
 }
 
-/**
- * Get role badge color
- * @param {string} role - Role code
- * @returns {string} Tailwind color class
- */
 export function getRoleBadgeColor(role) {
   const colors = {
     OWNER: 'bg-purple-100 text-purple-800',
