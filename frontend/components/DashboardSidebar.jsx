@@ -1,9 +1,10 @@
 // ============================================================================
-// DASHBOARD SIDEBAR COMPONENT
+// DASHBOARD SIDEBAR PROTOTYPE
 // ============================================================================
 // FILE: frontend/components/DashboardSidebar.jsx
 //
-// Collapsible sidebar navigation for dashboard
+// Legacy prototype kept for isolated UI experiments.
+// Live dashboard sidebar source: Sidebar.jsx + navigationConfig.js.
 // ============================================================================
 
 'use client';

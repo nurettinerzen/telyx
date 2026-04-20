@@ -7,6 +7,7 @@ import { apiClient } from '@/lib/api';
 import { Toaster } from 'sonner';
 import { OnboardingModal } from '@/components/OnboardingModal';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { DashboardProvider } from '@/contexts/DashboardContext';
 
 // Avoid storing user/session data in browser storage.
 const USER_CACHE_KEY = 'dashboard_user_cache_disabled';
@@ -179,42 +180,39 @@ export default function DashboardLayout({ children }) {
     user?.subscription?.enterprisePaymentStatus === 'pending';
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-950">
-      {/* Sidebar */}
-      <Sidebar user={user} credits={credits} />
+    <DashboardProvider user={user}>
+      <div className="flex h-screen bg-gray-50 dark:bg-gray-950">
+        <Sidebar user={user} credits={credits} />
 
-      {/* Main content - adjusted for 240px sidebar (w-60) */}
-      <div className="flex-1 lg:ml-60 overflow-auto h-screen">
-        {/* Payment pending banner for pending enterprise upgrade */}
-        {hasPendingEnterprise && (
-          <div className="bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800 px-6 py-3">
-            <div className="flex items-center gap-3">
-              <svg className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <p className="text-sm text-blue-800 dark:text-blue-200">
-                {t('dashboard.enterprisePendingBanner')}
-              </p>
+        <div className="flex-1 lg:ml-60 overflow-auto h-screen">
+          {hasPendingEnterprise && (
+            <div className="bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800 px-6 py-3">
+              <div className="flex items-center gap-3">
+                <svg className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  {t('dashboard.enterprisePendingBanner')}
+                </p>
+              </div>
             </div>
-          </div>
+          )}
+          <main className="p-6 lg:p-8">
+            {children}
+          </main>
+        </div>
+
+        <Toaster position="bottom-right" richColors />
+
+        {showOnboarding && (
+          <OnboardingModal
+            open={showOnboarding}
+            onClose={handleOnboardingComplete}
+            business={user?.business}
+            phoneInboundEnabled={Boolean(user?.business?.phoneInboundEnabled)}
+          />
         )}
-        <main className="p-6 lg:p-8">
-          {children}
-        </main>
       </div>
-
-      {/* Toast notifications */}
-      <Toaster position="bottom-right" richColors />
-
-      {/* Onboarding Modal */}
-      {showOnboarding && (
-        <OnboardingModal
-          open={showOnboarding}
-          onClose={handleOnboardingComplete}
-          business={user?.business}
-          phoneInboundEnabled={Boolean(user?.business?.phoneInboundEnabled)}
-        />
-      )}
-    </div>
+    </DashboardProvider>
   );
 }

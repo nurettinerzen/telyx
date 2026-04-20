@@ -11,42 +11,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '@/lib/api';
 import { useDashboardContext } from '@/contexts/DashboardContext';
-
-const ROLE_PERMISSIONS = {
-  OWNER: ['*'],
-  MANAGER: [
-    'dashboard:view',
-    'assistants:view', 'assistants:create', 'assistants:edit',
-    'calls:view', 'calls:download',
-    'campaigns:view', 'campaigns:create', 'campaigns:control',
-    'knowledge:view', 'knowledge:edit', 'knowledge:delete',
-    'integrations:view',
-    'email:view', 'email:send',
-    'whatsapp:view',
-    'widget:view', 'widget:edit',
-    'settings:view', 'settings:edit',
-    'team:view', 'team:invite',
-    'analytics:view',
-    'phone:view',
-    'voices:view',
-    'collections:view', 'collections:create'
-  ],
-  STAFF: [
-    'dashboard:view',
-    'assistants:view',
-    'calls:view', 'calls:download',
-    'campaigns:view',
-    'knowledge:view',
-    'email:view', 'email:send',
-    'whatsapp:view',
-    'widget:view',
-    'settings:view',
-    'analytics:view',
-    'phone:view',
-    'voices:view',
-    'collections:view'
-  ]
-};
+import {
+  getPermissionsForRole,
+  userHasAllPermissions,
+  userHasAnyPermission,
+  userHasPermission,
+} from '@/lib/rolePermissions.mjs';
 
 export function usePermissions() {
   const dashboardCtx = useDashboardContext();
@@ -85,21 +55,16 @@ export function usePermissions() {
 
   const can = useCallback((permission) => {
     if (!user || !user.role) return false;
-
-    const permissions = ROLE_PERMISSIONS[user.role];
-    if (!permissions) return false;
-    if (permissions.includes('*')) return true;
-
-    return permissions.includes(permission);
+    return userHasPermission(user.role, permission);
   }, [user]);
 
   const canAny = useCallback((permissions) => {
-    return permissions.some((permission) => can(permission));
-  }, [can]);
+    return userHasAnyPermission(user?.role, permissions);
+  }, [user?.role]);
 
   const canAll = useCallback((permissions) => {
-    return permissions.every((permission) => can(permission));
-  }, [can]);
+    return userHasAllPermissions(user?.role, permissions);
+  }, [user?.role]);
 
   const isOwner = user?.role === 'OWNER';
   const isManager = user?.role === 'MANAGER';
@@ -134,7 +99,7 @@ export function usePermissions() {
     user,
     loading,
     updateUser,
-    permissions: user?.role ? ROLE_PERMISSIONS[user.role] : []
+    permissions: user?.role ? getPermissionsForRole(user.role) : []
   };
 }
 
