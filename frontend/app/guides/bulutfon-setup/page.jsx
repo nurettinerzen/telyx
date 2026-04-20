@@ -26,7 +26,7 @@ export default function BulutfonSetupGuide() {
             🇹🇷 Bulutfon Kurulum Rehberi
           </h1>
           <p className="text-lg text-neutral-600">
-            Bulutfon SIP trunk'unuzu Telyx.ai ile adım adım bağlayın
+            Bulutfon SIP trunk&apos;unuzu Telyx.ai ile adım adım bağlayın
           </p>
           <div className="flex gap-2 mt-4">
             <Badge className="bg-green-100 text-green-800">Kolay Kurulum</Badge>
@@ -85,7 +85,7 @@ export default function BulutfonSetupGuide() {
               <h3 className="text-xl font-bold">Bulutfon Hesabı Oluşturun</h3>
             </div>
             <p className="text-neutral-700 mb-4">
-              Önce Bulutfon'da bir hesap oluşturun.
+              Önce Bulutfon&apos;da bir hesap oluşturun.
             </p>
             <a
               href="https://www.bulutfon.com/kayit"
@@ -94,7 +94,7 @@ export default function BulutfonSetupGuide() {
               className="inline-block"
             >
               <Button>
-                Bulutfon'a Kayıt Ol <ExternalLink className="ml-2 h-4 w-4" />
+                Bulutfon&apos;a Kayıt Ol <ExternalLink className="ml-2 h-4 w-4" />
               </Button>
             </a>
           </div>
@@ -119,7 +119,7 @@ export default function BulutfonSetupGuide() {
               </p>
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
                 <p className="text-sm text-blue-800">
-                  💡 <strong>İpucu:</strong> Bulutfon'da 0850 numaralar çok uygun fiyatlıdır (~$2/yıl).
+                  💡 <strong>İpucu:</strong> Bulutfon&apos;da 0850 numaralar çok uygun fiyatlıdır (~$2/yıl).
                 </p>
               </div>
             </div>
@@ -135,7 +135,7 @@ export default function BulutfonSetupGuide() {
             </div>
             <div className="space-y-3">
               <p className="text-neutral-700">
-                1. Bulutfon panel → <strong>Ayarlar</strong> → <strong>SIP Ayarları</strong>'na gidin
+                1. Bulutfon panel → <strong>Ayarlar</strong> → <strong>SIP Ayarları</strong>&apos;na gidin
               </p>
               <p className="text-neutral-700">
                 2. SIP bilgilerinizi not alın:
@@ -167,7 +167,7 @@ export default function BulutfonSetupGuide() {
               <div className="flex items-center justify-center w-10 h-10 bg-primary-600 text-white rounded-full font-bold">
                 4
               </div>
-              <h3 className="text-xl font-bold">Telyx.ai'de Bağlanma</h3>
+              <h3 className="text-xl font-bold">Telyx.ai&apos;de Bağlanma</h3>
             </div>
             <div className="space-y-3">
               <p className="text-neutral-700">
@@ -204,7 +204,7 @@ export default function BulutfonSetupGuide() {
             <div>
               <h4 className="font-semibold mb-2">Bulutfon maliyeti nedir?</h4>
               <p className="text-neutral-700 text-sm">
-                0850 numaralar yıllık yaklaşık $2'dir. Gelen aramalar ücretsizdir.
+                0850 numaralar yıllık yaklaşık $2&apos;dir. Gelen aramalar ücretsizdir.
               </p>
             </div>
             <div>
@@ -214,7 +214,7 @@ export default function BulutfonSetupGuide() {
               </p>
             </div>
             <div>
-              <h4 className="font-semibold mb-2">Netgsm'den farkı nedir?</h4>
+              <h4 className="font-semibold mb-2">Netgsm&apos;den farkı nedir?</h4>
               <p className="text-neutral-700 text-sm">
                 Bulutfon daha basit bir arayüze sahiptir ve genellikle daha ucuzdur. Netgsm daha fazla özellik sunar.
               </p>

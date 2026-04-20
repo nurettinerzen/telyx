@@ -1845,11 +1845,56 @@ router.get('/cancellations', async (req, res) => {
       })
       : [];
 
+    const requestLogsByBusinessId = cancellationRequests.reduce((map, entry) => {
+      if (!entry.businessId) return map;
+
+      const key = String(entry.businessId);
+      if (!map.has(key)) {
+        map.set(key, []);
+      }
+
+      map.get(key).push(entry);
+      return map;
+    }, new Map());
+
+    for (const requests of requestLogsByBusinessId.values()) {
+      requests.sort((left, right) => new Date(left.createdAt) - new Date(right.createdAt));
+    }
+
+    const feedbackLogsByBusinessId = cancellationFeedback.reduce((map, entry) => {
+      if (!entry.businessId) return map;
+
+      const key = String(entry.businessId);
+      if (!map.has(key)) {
+        map.set(key, []);
+      }
+
+      map.get(key).push(entry);
+      return map;
+    }, new Map());
+
+    for (const feedbackLogs of feedbackLogsByBusinessId.values()) {
+      feedbackLogs.sort((left, right) => new Date(left.createdAt) - new Date(right.createdAt));
+    }
+
     const mergedRows = cancellationRequests.map((requestLog) => {
-      const matchingFeedback = cancellationFeedback.find((feedbackLog) =>
-        feedbackLog.businessId === requestLog.businessId
-        && feedbackLog.createdAt >= requestLog.createdAt
-      );
+      const requestLogsForBusiness = requestLogsByBusinessId.get(String(requestLog.businessId)) || [];
+      const requestIndex = requestLogsForBusiness.findIndex((entry) => entry.id === requestLog.id);
+      const nextRequestCreatedAt = requestIndex >= 0
+        ? requestLogsForBusiness[requestIndex + 1]?.createdAt || null
+        : null;
+      const feedbackLogsForBusiness = feedbackLogsByBusinessId.get(String(requestLog.businessId)) || [];
+      const matchingFeedback = feedbackLogsForBusiness.filter((feedbackLog) => {
+        if (feedbackLog.createdAt < requestLog.createdAt) {
+          return false;
+        }
+
+        if (nextRequestCreatedAt && feedbackLog.createdAt >= nextRequestCreatedAt) {
+          return false;
+        }
+
+        return true;
+      }).at(-1) || null;
 
       const reasonCodeValue = String(
         readAuditMetadata(matchingFeedback?.metadata, 'reasonCode')

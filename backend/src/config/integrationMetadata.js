@@ -99,6 +99,19 @@ export const INTEGRATION_METADATA = {
     region: 'TR'
   },
 
+  AMAZON: {
+    relevantFor: ['ECOMMERCE', 'OTHER'],
+    priority: {
+      ECOMMERCE: 'RECOMMENDED',
+      OTHER: 'OPTIONAL'
+    },
+    name: 'Amazon',
+    description: 'Amazon SP-API buyer messaging ve sipariş bazlı müşteri iletişimi',
+    category: 'marketplace',
+    authType: 'oauth',
+    region: 'TR'
+  },
+
   SIKAYETVAR: {
     relevantFor: ['ECOMMERCE', 'SERVICE', 'OTHER'],
     priority: {

@@ -169,7 +169,7 @@ export default function AdminCancellationsPage() {
         ].map((item) => (
           <div
             key={item.label}
-            className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900"
+            className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#081224]/95"
           >
             <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
               {item.label}
@@ -222,7 +222,7 @@ export default function AdminCancellationsPage() {
         </Select>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#081224]/95">
         {loading ? (
           <div className="flex h-64 items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-primary-500" />
@@ -238,7 +238,7 @@ export default function AdminCancellationsPage() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[980px]">
               <thead>
-                <tr className="border-b border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-800/50">
+                <tr className="border-b border-gray-200 bg-gray-50 dark:border-white/10 dark:bg-[#0B1730]/88">
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">{copy.table.business}</th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">{copy.table.plan}</th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">{copy.table.status}</th>
@@ -248,9 +248,9 @@ export default function AdminCancellationsPage() {
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">{copy.table.periodEnd}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
+              <tbody className="divide-y divide-gray-200 dark:divide-white/10">
                 {cancellations.map((item) => (
-                  <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                  <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-white/[0.03]">
                     <td className="px-4 py-3">
                       <div className="flex items-start gap-3">
                         <Building2 className="mt-0.5 h-4 w-4 text-gray-400" />
@@ -291,7 +291,7 @@ export default function AdminCancellationsPage() {
         )}
 
         {pagination.pages > 1 && (
-          <div className="flex items-center justify-between border-t border-gray-200 px-4 py-3 dark:border-gray-800">
+          <div className="flex items-center justify-between border-t border-gray-200 px-4 py-3 dark:border-white/10">
             <p className="text-sm text-gray-500 dark:text-gray-400">
               {((pagination.page - 1) * pagination.limit) + 1}
               {' - '}

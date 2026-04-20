@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -53,6 +54,14 @@ import { useAssistants } from '@/hooks/useAssistants';
 import { usePhoneNumbers } from '@/hooks/usePhoneNumbers';
 import { getLocalizedApiErrorMessage } from '@/lib/api-messages';
 import { formatBatchCallDisplayName } from '@/lib/batch-calls';
+import { cn } from '@/lib/utils';
+import {
+  getDashboardDividerClass,
+  getDashboardInsetClass,
+  getDashboardPanelClass,
+  getDashboardRowHoverClass,
+  getDashboardTableHeaderClass
+} from '@/components/dashboard/dashboardSurfaceTheme';
 
 const STATUS_CONFIG = {
   PENDING: {
@@ -128,8 +137,10 @@ function getBatchSuccessMetrics(batch) {
 
 export default function BatchCallsPage() {
   const { t, locale } = useLanguage();
+  const { resolvedTheme } = useTheme();
   const { can } = usePermissions();
   const pageHelp = getPageHelp('campaigns', locale);
+  const dark = resolvedTheme === 'dark';
 
   // React Query hooks
   const { data: batchCalls = [], isLoading: batchCallsLoading, refetch: refetchBatchCalls } = useBatchCalls();
@@ -500,7 +511,7 @@ export default function BatchCallsPage() {
       />
 
       {/* Filters */}
-      <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-4">
+      <div className="bg-white dark:bg-[#081224]/95 rounded-xl border border-neutral-200 dark:border-white/10 p-4 shadow-sm">
         <div className="flex flex-wrap gap-3">
           {/* Search */}
           <div className="relative flex-1 min-w-[200px]">
@@ -561,7 +572,7 @@ export default function BatchCallsPage() {
 
       {/* Call History Table */}
       {loading ? (
-        <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-12 flex items-center justify-center">
+        <div className="bg-white dark:bg-[#081224]/95 rounded-xl border border-neutral-200 dark:border-white/10 p-12 flex items-center justify-center shadow-sm">
           <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
         </div>
       ) : filteredBatchCalls.length === 0 ? (
@@ -579,9 +590,9 @@ export default function BatchCallsPage() {
           }
         />
       ) : (
-        <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 overflow-hidden">
+        <div className={getDashboardPanelClass(dark, 'overflow-hidden')}>
           <table className="w-full">
-            <thead className="bg-neutral-50 dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700">
+            <thead className={getDashboardTableHeaderClass(dark)}>
               <tr>
                 <th className="px-4 py-2.5 text-left text-sm font-medium text-neutral-600 dark:text-neutral-300">
                   {t('dashboard.batchCallsPage.callTableHeader')}
@@ -603,7 +614,7 @@ export default function BatchCallsPage() {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-neutral-200 dark:divide-neutral-700">
+            <tbody className={cn('divide-y', getDashboardDividerClass(dark))}>
               {filteredBatchCalls.map((batch) => {
                 const statusConfig = STATUS_CONFIG[batch.status] || STATUS_CONFIG.PENDING;
                 const StatusIcon = statusConfig.icon;
@@ -613,7 +624,7 @@ export default function BatchCallsPage() {
                 });
 
                 return (
-                  <tr key={batch.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800">
+                  <tr key={batch.id} className={getDashboardRowHoverClass(dark)}>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="flex items-center">
                         <div>
@@ -635,7 +646,7 @@ export default function BatchCallsPage() {
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="flex items-center gap-2">
-                        <div className="w-24 h-2 bg-neutral-200 dark:bg-neutral-700 rounded-full overflow-hidden">
+                        <div className="w-24 h-2 bg-neutral-200 dark:bg-[#0B1730]/88 rounded-full overflow-hidden">
                           <div
                             className="h-full bg-green-500 dark:bg-green-400 rounded-full transition-all"
                             style={{ width: `${successRate}%` }}
@@ -707,18 +718,22 @@ export default function BatchCallsPage() {
           <div className="flex items-center justify-center gap-2 py-4">
             {[1, 2, 3].map((step) => (
               <React.Fragment key={step}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
-                  createStep >= step
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-400'
-                }`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
+                    createStep >= step
+                      ? 'bg-primary-600 text-white'
+                      : dark
+                        ? 'bg-[#0B1730]/88 text-neutral-400'
+                        : 'bg-neutral-200 text-neutral-600'
+                  }`}>
                   {step}
                 </div>
                 {step < 3 && (
                   <div className={`w-16 h-1 rounded-full transition-colors ${
                     createStep > step
                       ? 'bg-primary-600'
-                      : 'bg-neutral-200 dark:bg-neutral-700'
+                      : dark
+                        ? 'bg-[#0B1730]/88'
+                        : 'bg-neutral-200'
                   }`} />
                 )}
               </React.Fragment>
@@ -826,7 +841,7 @@ export default function BatchCallsPage() {
               <div className="space-y-6">
                 {/* Template Download Section */}
                 {hasTemplate && (
-                  <div className="bg-neutral-50 dark:bg-neutral-800 rounded-lg p-4 flex items-center justify-between">
+                <div className={getDashboardInsetClass(dark, 'p-4 flex items-center justify-between')}>
                     <div>
                       <p className="font-medium text-neutral-900 dark:text-white">
                         {getTemplateTitle()}
@@ -846,7 +861,14 @@ export default function BatchCallsPage() {
                 <div
                   onClick={() => fileInputRef.current?.click()}
                   className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors
-                    ${selectedFile ? 'border-primary-300 bg-primary-50 dark:bg-primary-950' : 'border-neutral-300 hover:border-primary-400 dark:border-neutral-600'}
+                    ${selectedFile
+                      ? dark
+                        ? 'border-primary-400/60 bg-primary-950/30'
+                        : 'border-primary-300 bg-primary-50'
+                      : dark
+                        ? 'border-white/10 bg-[#081224]/50 hover:border-primary-400/60'
+                        : 'border-neutral-300 hover:border-primary-400'
+                    }
                   `}
                 >
                   <input
@@ -969,9 +991,9 @@ export default function BatchCallsPage() {
                     {fileData.preview.length > 0 && (
                       <div className="mt-4">
                         <Label className="mb-2 block">{t('dashboard.batchCallsPage.previewRows')}</Label>
-                        <div className="overflow-x-auto border dark:border-neutral-700 rounded-lg">
+                        <div className={getDashboardInsetClass(dark, 'overflow-x-auto')}>
                           <table className="w-full text-sm">
-                            <thead className="bg-neutral-50 dark:bg-neutral-800">
+                            <thead className={getDashboardTableHeaderClass(dark)}>
                               <tr>
                                 {fileData.columns.map((col) => (
                                   <th key={col} className="px-3 py-2 text-left font-medium text-neutral-600 dark:text-neutral-400">
@@ -982,7 +1004,7 @@ export default function BatchCallsPage() {
                             </thead>
                             <tbody>
                               {fileData.preview.map((row, idx) => (
-                                <tr key={idx} className="border-t dark:border-neutral-700">
+                                <tr key={idx} className={cn('border-t', dark ? 'border-white/10' : 'border-slate-200')}>
                                   {fileData.columns.map((col) => (
                                     <td key={col} className="px-3 py-2 text-neutral-900 dark:text-white">
                                       {String(row[col] || '')}
@@ -1011,7 +1033,13 @@ export default function BatchCallsPage() {
                       type="button"
                       onClick={() => setFormData({ ...formData, startImmediately: true })}
                       className={`flex-1 p-4 border-2 rounded-xl text-left transition-colors ${
-                        formData.startImmediately ? 'border-primary-500 bg-primary-50 dark:bg-primary-950' : 'border-neutral-200 dark:border-neutral-700'
+                        formData.startImmediately
+                          ? dark
+                            ? 'border-primary-500 bg-primary-950/30'
+                            : 'border-primary-500 bg-primary-50'
+                          : dark
+                            ? 'border-white/10 bg-transparent'
+                            : 'border-neutral-200'
                       }`}
                     >
                       <div className="flex items-center gap-2 mb-1">
@@ -1029,7 +1057,13 @@ export default function BatchCallsPage() {
                       type="button"
                       onClick={() => setFormData({ ...formData, startImmediately: false })}
                       className={`flex-1 p-4 border-2 rounded-xl text-left transition-colors ${
-                        !formData.startImmediately ? 'border-primary-500 bg-primary-50 dark:bg-primary-950' : 'border-neutral-200 dark:border-neutral-700'
+                        !formData.startImmediately
+                          ? dark
+                            ? 'border-primary-500 bg-primary-950/30'
+                            : 'border-primary-500 bg-primary-50'
+                          : dark
+                            ? 'border-white/10 bg-transparent'
+                            : 'border-neutral-200'
                       }`}
                     >
                       <div className="flex items-center gap-2 mb-1">
@@ -1059,7 +1093,7 @@ export default function BatchCallsPage() {
                 </div>
 
                 {/* Summary */}
-                <div className="bg-neutral-50 dark:bg-neutral-800 rounded-lg p-4 space-y-3">
+                <div className={getDashboardInsetClass(dark, 'p-4 space-y-3')}>
                   <h4 className="font-medium text-neutral-900 dark:text-white mb-3">
                     {t('dashboard.batchCallsPage.summary')}
                   </h4>
@@ -1103,7 +1137,7 @@ export default function BatchCallsPage() {
                 </div>
 
                 {/* Warning */}
-                <div className="bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg p-4">
+                <div className={getDashboardInsetClass(dark, 'p-4')}>
                   <div className="flex gap-2">
                     <AlertCircle className="h-5 w-5 text-neutral-600 dark:text-neutral-400 flex-shrink-0" />
                     <p className="text-sm text-neutral-700 dark:text-neutral-300">
@@ -1116,7 +1150,7 @@ export default function BatchCallsPage() {
           </div>
 
           {/* Footer Buttons */}
-          <div className="flex justify-between pt-4 border-t">
+          <div className={cn('flex justify-between pt-4 border-t', dark ? 'border-white/10' : 'border-slate-200')}>
             <Button
               variant="outline"
               onClick={() => {

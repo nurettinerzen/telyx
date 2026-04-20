@@ -257,7 +257,7 @@ const handleConnectBooking = async (e) => {
           {appointments.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '60px', background: '#f9f9f9', borderRadius: '10px', color: '#666' }}>
               <p style={{ fontSize: '18px', margin: '0 0 10px 0' }}>📭 No {pageTitle.toLowerCase()} yet</p>
-              <p style={{ margin: 0 }}>Click "New {businessType === 'RESTAURANT' ? 'Reservation' : 'Appointment'}" to get started</p>
+              <p style={{ margin: 0 }}>Click &quot;New {businessType === 'RESTAURANT' ? 'Reservation' : 'Appointment'}&quot; to get started</p>
             </div>
           ) : (
             <div style={{ background: 'white', borderRadius: '10px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', overflow: 'hidden' }}>

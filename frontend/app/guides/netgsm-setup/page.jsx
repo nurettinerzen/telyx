@@ -27,7 +27,7 @@ export default function NetgsmSetupGuide() {
             🇹🇷 Netgsm Kurulum Rehberi
           </h1>
           <p className="text-lg text-neutral-600">
-            Netgsm SIP trunk'unuzu Telyx.ai ile adım adım bağlayın
+            Netgsm SIP trunk&apos;unuzu Telyx.ai ile adım adım bağlayın
           </p>
           <div className="flex gap-2 mt-4">
             <Badge className="bg-green-100 text-green-800">Kolay Kurulum</Badge>
@@ -40,7 +40,7 @@ export default function NetgsmSetupGuide() {
         <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
           <h2 className="text-2xl font-bold mb-4">💡 Netgsm Nedir?</h2>
           <p className="text-neutral-700 mb-4">
-            Netgsm, Türkiye'nin en büyük bulut iletişim platformlarından biridir. 
+            Netgsm, Türkiye&apos;nin en büyük bulut iletişim platformlarından biridir.
             0850 ile başlayan ücretsiz numaralar ve SIP trunk desteği sunar.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -86,7 +86,7 @@ export default function NetgsmSetupGuide() {
               <h3 className="text-xl font-bold">Netgsm Hesabı Oluşturun</h3>
             </div>
             <p className="text-neutral-700 mb-4">
-              Önce Netgsm'de bir hesap oluşturmanız gerekiyor.
+              Önce Netgsm&apos;de bir hesap oluşturmanız gerekiyor.
             </p>
             <a
               href="https://www.netgsm.com.tr/kayit"
@@ -95,7 +95,7 @@ export default function NetgsmSetupGuide() {
               className="inline-block"
             >
               <Button>
-                Netgsm'e Kayıt Ol <ExternalLink className="ml-2 h-4 w-4" />
+                Netgsm&apos;e Kayıt Ol <ExternalLink className="ml-2 h-4 w-4" />
               </Button>
             </a>
           </div>
@@ -137,7 +137,7 @@ export default function NetgsmSetupGuide() {
             </div>
             <div className="space-y-3">
               <p className="text-neutral-700">
-                1. Netgsm web portaldan <strong>Ses Hizmeti</strong> → <strong>Ayarlar</strong> → <strong>SIP Bilgileri</strong>'ne gidin
+                1. Netgsm web portaldan <strong>Ses Hizmeti</strong> → <strong>Ayarlar</strong> → <strong>SIP Bilgileri</strong>&apos;ne gidin
               </p>
               <p className="text-neutral-700">
                 2. Aşağıdaki bilgileri not alın:
@@ -173,7 +173,7 @@ export default function NetgsmSetupGuide() {
             </div>
             <div className="space-y-3">
               <p className="text-neutral-700">
-                Uluslararası format için +90 prefix'i ekleyin:
+                Uluslararası format için +90 prefix&apos;i ekleyin:
               </p>
               <ol className="list-decimal list-inside space-y-2 text-neutral-700">
                 <li>Netgsm panel → <strong>Ses Hizmeti</strong> → <strong>Ayarlar</strong></li>
@@ -194,7 +194,7 @@ export default function NetgsmSetupGuide() {
               <div className="flex items-center justify-center w-10 h-10 bg-primary-600 text-white rounded-full font-bold">
                 5
               </div>
-              <h3 className="text-xl font-bold">Telyx.ai'de Bağlanma</h3>
+              <h3 className="text-xl font-bold">Telyx.ai&apos;de Bağlanma</h3>
             </div>
             <div className="space-y-3">
               <p className="text-neutral-700">
@@ -231,7 +231,7 @@ export default function NetgsmSetupGuide() {
             <div>
               <h4 className="font-semibold mb-2">SIP trunk maliyeti nedir?</h4>
               <p className="text-neutral-700 text-sm">
-                Netgsm SIP trunk hizmeti yıllık yaklaşık $5'tir. Gelen aramalar ücretsizdir.
+                Netgsm SIP trunk hizmeti yıllık yaklaşık $5&apos;tir. Gelen aramalar ücretsizdir.
               </p>
             </div>
             <div>
@@ -243,7 +243,7 @@ export default function NetgsmSetupGuide() {
             <div>
               <h4 className="font-semibold mb-2">Destek nasıl alırım?</h4>
               <p className="text-neutral-700 text-sm">
-                Netgsm'in Türkçe müşteri desteği vardır. Telyx.ai ile ilgili sorular için bizimle iletişime geçin.
+                Netgsm&apos;in Türkçe müşteri desteği vardır. Telyx.ai ile ilgili sorular için bizimle iletişime geçin.
               </p>
             </div>
           </div>

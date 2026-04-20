@@ -37,6 +37,7 @@ import {
   History,
   AlertTriangle,
   BookMarked,
+  Package,
 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
@@ -59,7 +60,51 @@ import { apiClient } from '@/lib/api';
 import { VISIBILITY, getFeatureVisibility } from '@/lib/features';
 import { getPlanDisplayName } from '@/lib/planConfig';
 import { TelyxLogoCompact } from './TelyxLogo';
-import { NAVIGATION_ITEMS } from '@/lib/navigationConfig';
+import {
+  ADMIN_NAVIGATION_ITEMS,
+  getNavigationItemByKey,
+  getNavigationLabel,
+} from '@/lib/navigationConfig';
+import { resolveSidebarSections } from '@/lib/sidebarAccess.mjs';
+import {
+  useHepsiburadaStatus,
+  useSikayetvarStatus,
+  useTrendyolStatus,
+} from '@/hooks/useIntegrations';
+import {
+  getDashboardDropdownItemClass,
+  getDashboardOverlaySurfaceClass,
+} from '@/components/dashboard/dashboardSurfaceTheme';
+
+const SIDEBAR_ICON_MAP = {
+  guides: BookMarked,
+  assistants: Bot,
+  knowledgeBase: BookOpen,
+  chatWidget: MessageSquare,
+  inbox: Database,
+  campaigns: Megaphone,
+  email: Mail,
+  conversations: MessageCircle,
+  marketplaceQa: Package,
+  complaints: AlertTriangle,
+  analytics: BarChart3,
+  callbacks: PhoneCall,
+  callHistory: Phone,
+  chatHistory: MessageCircle,
+  integrations: Puzzle,
+  team: Users,
+  phoneNumbers: Phone,
+  subscription: CreditCard,
+  account: Settings,
+  adminPanel: Shield,
+  redAlert: AlertTriangle,
+  adminUsers: Users,
+  adminAssistants: Bot,
+  adminCalls: Phone,
+  adminSubscriptions: CreditCard,
+  adminEnterprise: Database,
+  adminAuditLog: History,
+};
 
 export default function Sidebar({ user, credits, business }) {
   const pathname = usePathname();
@@ -69,18 +114,66 @@ export default function Sidebar({ user, credits, business }) {
   const [mounted, setMounted] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState([]);
+  const [adminAccess, setAdminAccess] = useState({ enabled: false, mfaVerified: false });
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadAdminAccess = async () => {
+      if (!user?.email) {
+        setAdminAccess({ enabled: false, mfaVerified: false });
+        return;
+      }
+
+      try {
+        const response = await apiClient.auth.adminMfaStatus({
+          validateStatus: () => true,
+          suppressExpected403: true,
+        });
+
+        if (cancelled) return;
+
+        if (response.status === 200) {
+          setAdminAccess({
+            enabled: true,
+            mfaVerified: response.data?.mfaVerified === true,
+          });
+          return;
+        }
+      } catch (error) {
+        console.warn('Failed to determine admin sidebar access:', error);
+      }
+
+      if (!cancelled) {
+        setAdminAccess({ enabled: false, mfaVerified: false });
+      }
+    };
+
+    loadAdminAccess();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.email]);
+
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [selectedFeatureId, setSelectedFeatureId] = useState(null);
   const isUserAdmin = user?.isAdmin === true || Boolean(user?.adminRole);
+  const darkMenu = mounted && resolvedTheme === 'dark';
 
   const userPlan = user?.subscription?.plan || user?.plan || null;
   const userCountry = business?.country || user?.business?.country || 'TR';
   const isReady = mounted && userPlan !== null && userPlan !== undefined;
+  const canViewOperations = can('campaigns:view');
+  const { data: trendyolStatus } = useTrendyolStatus({ enabled: canViewOperations });
+  const { data: hepsiburadaStatus } = useHepsiburadaStatus({ enabled: canViewOperations });
+  const { data: sikayetvarStatus } = useSikayetvarStatus({ enabled: canViewOperations });
+  const hasMarketplaceQaAccess = Boolean(trendyolStatus?.connected || hepsiburadaStatus?.connected);
+  const hasComplaintAccess = Boolean(sikayetvarStatus?.connected);
 
   const SidebarSkeleton = () => (
     <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
@@ -102,62 +195,6 @@ export default function Sidebar({ user, credits, business }) {
     </div>
   );
 
-  const NAVIGATION = [
-    {
-      label: t('dashboard.sidebar.product'),
-      items: [
-        { icon: BookMarked, label: t('dashboard.sidebar.guides'), href: NAVIGATION_ITEMS.guides.href, permission: 'assistants:view' },
-        { icon: Bot, label: t('dashboard.assistants'), href: NAVIGATION_ITEMS.assistants.href, permission: 'assistants:view' },
-        { icon: BookOpen, label: t('dashboard.knowledgeBase'), href: NAVIGATION_ITEMS.knowledgeBase.href, permission: 'knowledge:view' },
-        { icon: MessageSquare, label: t('dashboard.sidebar.chatWidget'), href: NAVIGATION_ITEMS.chatWidget.href, permission: 'assistants:view' },
-      ],
-    },
-    {
-      label: t('dashboard.sidebar.operations'),
-      items: [
-        { icon: Database, label: t('dashboard.sidebar.inbox'), href: NAVIGATION_ITEMS.inbox.href, permission: 'campaigns:view' },
-        { icon: Megaphone, label: t('dashboard.sidebar.campaigns'), href: NAVIGATION_ITEMS.campaigns.href, permission: 'campaigns:view', featureId: 'batch_calls' },
-        { icon: Mail, label: t('dashboard.sidebar.email'), href: NAVIGATION_ITEMS.email.href, permission: 'campaigns:view' },
-        { icon: MessageCircle, label: t('dashboard.sidebar.conversations'), href: NAVIGATION_ITEMS.conversations.href, permission: 'whatsapp:view' },
-      ],
-    },
-    {
-      label: t('dashboard.sidebar.monitoring'),
-      items: [
-        { icon: BarChart3, label: t('dashboard.analytics'), href: NAVIGATION_ITEMS.analytics.href, permission: 'analytics:view' },
-        { icon: PhoneCall, label: t('dashboard.sidebar.callbacks'), href: NAVIGATION_ITEMS.callbacks.href, permission: 'campaigns:view' },
-        { icon: Phone, label: t('dashboard.sidebar.callHistory'), href: NAVIGATION_ITEMS.callHistory.href, permission: 'analytics:view' },
-        { icon: MessageCircle, label: t('dashboard.sidebar.chatHistory'), href: NAVIGATION_ITEMS.chatHistory.href, permission: 'analytics:view' },
-      ],
-    },
-    {
-      label: t('dashboard.sidebar.management'),
-      items: [
-        { icon: Puzzle, label: t('dashboard.sidebar.integrations'), href: NAVIGATION_ITEMS.integrations.href, permission: 'integrations:view' },
-        { icon: Users, label: t('dashboard.sidebar.team'), href: NAVIGATION_ITEMS.team.href, permission: 'team:view' },
-        { icon: Phone, label: t('dashboard.sidebar.phoneNumbers'), href: NAVIGATION_ITEMS.phoneNumbers.href, permission: 'phone:view' },
-        { icon: CreditCard, label: t('dashboard.subscription'), href: NAVIGATION_ITEMS.subscription.href, permission: 'billing:view' },
-        { icon: Settings, label: t('dashboard.sidebar.account'), href: NAVIGATION_ITEMS.account.href, permission: 'settings:view' },
-      ],
-    },
-  ];
-
-  const ADMIN_NAVIGATION = isUserAdmin ? [
-    {
-      label: t('dashboard.sidebar.adminSection'),
-      items: [
-        { icon: Shield, label: t('dashboard.sidebar.adminPanel'), href: '/dashboard/admin' },
-        { icon: AlertTriangle, label: t('dashboard.sidebar.redAlert'), href: '/dashboard/admin/red-alert' },
-        { icon: Users, label: t('dashboard.sidebar.adminUsers'), href: '/dashboard/admin/users' },
-        { icon: Bot, label: t('dashboard.sidebar.adminAssistants'), href: '/dashboard/admin/assistants' },
-        { icon: Phone, label: t('dashboard.sidebar.adminCalls'), href: '/dashboard/admin/calls' },
-        { icon: CreditCard, label: t('dashboard.sidebar.adminSubscriptions'), href: '/dashboard/admin/subscriptions' },
-        { icon: Database, label: t('dashboard.sidebar.adminEnterprise'), href: '/dashboard/admin/enterprise' },
-        { icon: History, label: t('dashboard.sidebar.adminAuditLog'), href: '/dashboard/admin/audit-log' },
-      ],
-    },
-  ] : [];
-
   const handleLockedFeatureClick = (featureId) => {
     setSelectedFeatureId(featureId);
     setUpgradeModalOpen(true);
@@ -167,6 +204,44 @@ export default function Sidebar({ user, credits, business }) {
     if (!item.featureId) return VISIBILITY.VISIBLE;
     return getFeatureVisibility(item.featureId, userPlan, userCountry);
   };
+
+  const buildAdminHref = (href) => {
+    if (!adminAccess.enabled || adminAccess.mfaVerified) {
+      return href;
+    }
+
+    return `/dashboard/admin-auth?returnTo=${encodeURIComponent(href)}`;
+  };
+
+  const navigationSections = resolveSidebarSections({
+    canAccess: can,
+    isAdmin: isUserAdmin,
+    adminAccessEnabled: adminAccess.enabled,
+    featureVisibilityResolver: getItemVisibility,
+    extraSectionItems: {
+      operations: [
+        ...(hasMarketplaceQaAccess ? ['marketplaceQa'] : []),
+        ...(hasComplaintAccess ? ['complaints'] : []),
+      ],
+    },
+  }).map((section) => ({
+    ...section,
+    label: t(section.labelKey),
+    items: section.itemKeys.map((itemKey) => {
+      const item = getNavigationItemByKey(itemKey);
+      if (!item) return null;
+
+      const isAdminItem = Boolean(ADMIN_NAVIGATION_ITEMS[itemKey]);
+
+      return {
+        key: itemKey,
+        icon: SIDEBAR_ICON_MAP[item.iconKey],
+        label: getNavigationLabel(itemKey, locale),
+        href: isAdminItem ? buildAdminHref(item.href) : item.href,
+        featureId: item.featureId,
+      };
+    }).filter(Boolean),
+  }));
 
   const toggleSection = (label) => {
     setCollapsedSections((prev) =>
@@ -203,17 +278,9 @@ export default function Sidebar({ user, credits, business }) {
         }}
         className="flex-1 min-h-0 overflow-y-auto py-2 px-3"
       >
-        {[...NAVIGATION, ...ADMIN_NAVIGATION].map((section) => {
+        {navigationSections.map((section) => {
           const sectionLabel = section.label;
           const isCollapsed = collapsedSections.includes(sectionLabel);
-
-          const visibleItems = section.items.filter((item) => {
-            if (item.permission && !can(item.permission)) return false;
-            const visibility = getItemVisibility(item);
-            return visibility !== VISIBILITY.HIDDEN;
-          });
-
-          if (visibleItems.length === 0) return null;
 
           return (
             <div key={section.label} className="mb-1.5">
@@ -231,7 +298,7 @@ export default function Sidebar({ user, credits, business }) {
 
               {!isCollapsed && (
                 <div className="mt-1 space-y-0.5">
-                  {visibleItems.map((item) => {
+                  {section.items.map((item) => {
                     const Icon = item.icon;
                     const isActive = pathname === item.href;
                     const visibility = getItemVisibility(item);
@@ -306,9 +373,14 @@ export default function Sidebar({ user, credits, business }) {
               <ChevronDown className="h-4 w-4 text-gray-400 flex-shrink-0" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuContent
+            align="end"
+            className={getDashboardOverlaySurfaceClass(darkMenu, 'w-56 p-1')}
+          >
             <DropdownMenuSub>
-              <DropdownMenuSubTrigger className="cursor-pointer">
+              <DropdownMenuSubTrigger
+                className={cn('cursor-pointer', getDashboardDropdownItemClass(darkMenu))}
+              >
                 {mounted && theme === 'dark' ? (
                   <Moon className="h-4 w-4 mr-2" />
                 ) : mounted && theme === 'light' ? (
@@ -319,18 +391,27 @@ export default function Sidebar({ user, credits, business }) {
                 {t('dashboard.theme')}
               </DropdownMenuSubTrigger>
               <DropdownMenuPortal>
-                <DropdownMenuSubContent>
-                  <DropdownMenuItem onClick={() => setTheme('light')} className="cursor-pointer">
+                <DropdownMenuSubContent className={getDashboardOverlaySurfaceClass(darkMenu, 'p-1')}>
+                  <DropdownMenuItem
+                    onClick={() => setTheme('light')}
+                    className={cn('cursor-pointer', getDashboardDropdownItemClass(darkMenu))}
+                  >
                     <Sun className="h-4 w-4 mr-2" />
                     {t('dashboard.themeLight')}
                     {mounted && theme === 'light' && <Check className="h-4 w-4 ml-auto" />}
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setTheme('dark')} className="cursor-pointer">
+                  <DropdownMenuItem
+                    onClick={() => setTheme('dark')}
+                    className={cn('cursor-pointer', getDashboardDropdownItemClass(darkMenu))}
+                  >
                     <Moon className="h-4 w-4 mr-2" />
                     {t('dashboard.themeDark')}
                     {mounted && theme === 'dark' && <Check className="h-4 w-4 ml-auto" />}
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setTheme('system')} className="cursor-pointer">
+                  <DropdownMenuItem
+                    onClick={() => setTheme('system')}
+                    className={cn('cursor-pointer', getDashboardDropdownItemClass(darkMenu))}
+                  >
                     <Monitor className="h-4 w-4 mr-2" />
                     {t('dashboard.themeSystem')}
                     {mounted && theme === 'system' && <Check className="h-4 w-4 ml-auto" />}
@@ -339,7 +420,13 @@ export default function Sidebar({ user, credits, business }) {
               </DropdownMenuPortal>
             </DropdownMenuSub>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-error-600 dark:text-error-400">
+            <DropdownMenuItem
+              onClick={handleLogout}
+              className={cn(
+                'cursor-pointer text-error-600 dark:text-error-400',
+                getDashboardDropdownItemClass(darkMenu)
+              )}
+            >
               <LogOut className="h-4 w-4 mr-2" />
               {t('dashboard.logOut')}
             </DropdownMenuItem>

@@ -235,6 +235,24 @@ export function useHepsiburadaStatus(options = {}) {
 }
 
 /**
+ * Hook to fetch Amazon status
+ * @returns {object} Query result with Amazon status
+ */
+export function useAmazonStatus(options = {}) {
+  return useQuery({
+    queryKey: ['integrations', 'amazon', 'status'],
+    queryFn: async () => {
+      const response = await apiClient.get('/api/integrations/amazon/status');
+      return response.data;
+    },
+    staleTime: 60000,
+    retry: false,
+    refetchOnWindowFocus: false,
+    ...options,
+  });
+}
+
+/**
  * Hook to fetch Sikayetvar status
  * @returns {object} Query result with Sikayetvar status
  */
@@ -454,6 +472,24 @@ export function useDisconnectHepsiburada() {
 }
 
 /**
+ * Hook to disconnect Amazon
+ * @returns {object} Mutation object
+ */
+export function useDisconnectAmazon() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      return await apiClient.post('/api/integrations/amazon/disconnect');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['integrations'] });
+      queryClient.invalidateQueries({ queryKey: ['integrations', 'amazon', 'status'] });
+    },
+  });
+}
+
+/**
  * Hook to connect Sikayetvar
  * @returns {object} Mutation object
  */
@@ -605,6 +641,18 @@ export function useTestHepsiburada() {
   return useMutation({
     mutationFn: async () => {
       return await apiClient.post('/api/integrations/hepsiburada/test');
+    },
+  });
+}
+
+/**
+ * Hook to test Amazon
+ * @returns {object} Mutation object
+ */
+export function useTestAmazon() {
+  return useMutation({
+    mutationFn: async () => {
+      return await apiClient.post('/api/integrations/amazon/test');
     },
   });
 }

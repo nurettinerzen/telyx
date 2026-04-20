@@ -649,7 +649,7 @@ export default function SubscriptionPage() {
       {!loading && subscription && (
         <div className="space-y-6">
           {/* Compact Plan Info Bar */}
-          <div className="rounded-2xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-6 py-4 shadow-sm">
+          <div className="rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#081224]/95 px-6 py-4 shadow-sm">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                 <Badge className="bg-primary-100 dark:bg-primary-900/30 text-primary-800 dark:text-primary-400 text-sm px-3 py-1">
@@ -729,7 +729,7 @@ export default function SubscriptionPage() {
 
             {/* Canceled status message */}
             {subscription.cancelAtPeriodEnd && !subscription.pendingPlanId && (
-              <div className="mt-3 pt-3 border-t border-neutral-200 dark:border-neutral-700">
+              <div className="mt-3 pt-3 border-t border-neutral-200 dark:border-white/10">
                 <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg px-4 py-3 text-sm text-orange-800 dark:text-orange-400 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <strong>{t('dashboard.subscriptionPage.subscriptionCanceled')}</strong>
@@ -866,7 +866,7 @@ export default function SubscriptionPage() {
                       className={`w-full rounded-xl border px-4 py-3 text-left transition-colors ${
                         selected
                           ? 'border-red-500 bg-red-50 dark:border-red-500 dark:bg-red-950/30'
-                          : 'border-neutral-200 bg-white hover:border-red-200 hover:bg-red-50/50 dark:border-neutral-800 dark:bg-neutral-950 dark:hover:border-red-900 dark:hover:bg-red-950/20'
+                          : 'border-neutral-200 bg-white hover:border-red-200 hover:bg-red-50/50 dark:border-white/10 dark:bg-[#081224]/95 dark:hover:border-red-900 dark:hover:bg-red-950/20'
                       }`}
                     >
                       <span className={`text-sm font-medium ${selected ? 'text-red-700 dark:text-red-300' : 'text-neutral-900 dark:text-white'}`}>
@@ -921,7 +921,7 @@ export default function SubscriptionPage() {
 
       {/* Add-on Store — only purchase options, usage shown in CreditBalance above */}
       {!loading && subscription && (writtenAddOnCatalog.length > 0 || voiceAddOnCatalog.length > 0) && (
-        <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-6 shadow-sm">
+        <div className="bg-white dark:bg-[#081224]/95 rounded-xl border border-neutral-200 dark:border-white/10 p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-neutral-900 dark:text-white mb-1">
             {locale === 'tr' ? 'Ek Paket Satın Al' : 'Buy Add-ons'}
           </h2>
@@ -942,7 +942,7 @@ export default function SubscriptionPage() {
                 {writtenAddOnCatalog.map((pkg) => {
                   const buttonKey = `WRITTEN:${pkg.id}`;
                   return (
-                    <div key={pkg.id} className="flex items-center justify-between rounded-xl border border-neutral-200 dark:border-neutral-700 px-4 py-3">
+                    <div key={pkg.id} className="flex items-center justify-between rounded-xl border border-neutral-200 dark:border-white/10 px-4 py-3 dark:bg-[#0B1730]/60">
                       <div>
                         <div className="font-medium text-neutral-900 dark:text-white">
                           {pkg.quantity} {locale === 'tr' ? 'etkileşim' : 'interactions'}
@@ -979,7 +979,7 @@ export default function SubscriptionPage() {
                 {voiceAddOnCatalog.map((pkg) => {
                   const buttonKey = `VOICE:${pkg.id}`;
                   return (
-                    <div key={pkg.id} className="flex items-center justify-between rounded-xl border border-neutral-200 dark:border-neutral-700 px-4 py-3">
+                    <div key={pkg.id} className="flex items-center justify-between rounded-xl border border-neutral-200 dark:border-white/10 px-4 py-3 dark:bg-[#0B1730]/60">
                       <div>
                         <div className="font-medium text-neutral-900 dark:text-white">
                           {pkg.quantity} {locale === 'tr' ? 'dakika' : 'minutes'}
@@ -1106,13 +1106,13 @@ export default function SubscriptionPage() {
             return (
               <div
                 key={plan.id}
-                className={`bg-white dark:bg-neutral-900 rounded-xl border-2 p-6 shadow-sm relative flex flex-col h-full ${
-                  isCurrentPlan ? 'border-green-500 ring-2 ring-green-200 dark:ring-green-900' : 'border-neutral-200 dark:border-neutral-700'
+                className={`bg-white dark:bg-[#081224]/95 rounded-xl border-2 p-6 shadow-sm relative flex flex-col h-full ${
+                  isCurrentPlan ? 'border-green-500 ring-2 ring-green-200 dark:ring-green-900' : 'border-neutral-200 dark:border-white/10'
                 }`}
               >
                 {/* Show "Current Plan" badge if this is the current plan */}
                 {isCurrentPlan && (
-                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-10 bg-white dark:bg-neutral-900 px-1">
+                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-10 bg-white dark:bg-[#081224]/95 px-1">
                     <Badge className="bg-green-600 text-white px-3 py-1">
                       {t('dashboard.subscriptionPage.currentPlan')}
                     </Badge>
@@ -1120,7 +1120,7 @@ export default function SubscriptionPage() {
                 )}
                 {/* Show "Popular" badge only if user has no plan */}
                 {showPopularBadge && (
-                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-10 bg-white dark:bg-neutral-900 px-1">
+                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-10 bg-white dark:bg-[#081224]/95 px-1">
                     <Badge className="bg-primary-600 text-white px-3 py-1">
                       {t('dashboard.subscriptionPage.popular')}
                     </Badge>
@@ -1237,14 +1237,14 @@ export default function SubscriptionPage() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-neutral-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-        <div className="p-6 border-b border-neutral-200 dark:border-neutral-700">
+      <div className="rounded-xl border border-neutral-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#081224]/95">
+        <div className="p-6 border-b border-neutral-200 dark:border-white/10">
           <div className="flex items-center gap-3">
             <CreditCard className="h-5 w-5 text-primary-600" />
             <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">{t('dashboard.subscriptionPage.billingHistory')}</h2>
           </div>
         </div>
-        <div className="divide-y divide-neutral-200 dark:divide-neutral-700">
+        <div className="divide-y divide-neutral-200 dark:divide-white/10">
           {billingHistory.length === 0 ? (
             <div className="p-8 text-center text-sm text-neutral-500 dark:text-neutral-400">
               {t('dashboard.subscriptionPage.noBillingHistory')}

@@ -6,6 +6,7 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
+import { useTheme } from 'next-themes';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -38,10 +39,25 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import PageIntro from '@/components/PageIntro';
 import { getPageHelp } from '@/content/pageHelp';
+import { cn } from '@/lib/utils';
+import {
+  getDashboardDividerClass,
+  getDashboardInsetClass,
+  getDashboardInputClass,
+  getDashboardPanelClass,
+  getDashboardRowHoverClass,
+  getDashboardSkeletonClass,
+  getDashboardTabsListClass,
+  getDashboardTabsTriggerClass,
+  getDashboardTableHeaderClass,
+} from '@/components/dashboard/dashboardSurfaceTheme';
 
 function KnowledgeBaseContent() {
   const { t, locale } = useLanguage();
+  const { resolvedTheme } = useTheme();
   const { can } = usePermissions();
+  const dark = resolvedTheme === 'dark';
+  const canDeleteKnowledge = can('knowledge:delete');
   const pageHelp = getPageHelp('knowledgeBase', locale);
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -203,30 +219,30 @@ function KnowledgeBaseContent() {
     <div className="space-y-6">
       {/* Header skeleton */}
       <div>
-        <div className="h-9 w-48 bg-neutral-200 dark:bg-neutral-700 rounded animate-pulse" />
-        <div className="h-5 w-96 bg-neutral-200 dark:bg-neutral-700 rounded animate-pulse mt-2" />
+        <div className={cn('h-9 w-48 rounded animate-pulse', getDashboardSkeletonClass(dark))} />
+        <div className={cn('mt-2 h-5 w-96 rounded animate-pulse', getDashboardSkeletonClass(dark))} />
       </div>
 
       {/* Tabs skeleton */}
-      <div className="border-b border-neutral-200 dark:border-neutral-700">
+      <div className={cn('border-b', dark ? 'border-white/10' : 'border-neutral-200')}>
         <div className="flex gap-4 pb-2">
           {[1, 2].map((i) => (
-            <div key={i} className="h-9 w-24 bg-neutral-200 dark:bg-neutral-700 rounded animate-pulse" />
+            <div key={i} className={cn('h-9 w-24 rounded animate-pulse', getDashboardSkeletonClass(dark))} />
           ))}
         </div>
       </div>
 
       {/* Content skeleton */}
-      <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700">
+      <div className={getDashboardPanelClass(dark)}>
         <div className="p-4 space-y-3">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="flex items-center gap-4 p-4 border-b border-neutral-100 dark:border-neutral-800 last:border-0">
-              <div className="h-10 w-10 bg-neutral-200 dark:bg-neutral-700 rounded animate-pulse" />
+            <div key={i} className={cn('flex items-center gap-4 border-b p-4 last:border-0', dark ? 'border-white/8' : 'border-neutral-100')}>
+              <div className={cn('h-10 w-10 rounded animate-pulse', getDashboardSkeletonClass(dark))} />
               <div className="flex-1 space-y-2">
-                <div className="h-4 w-48 bg-neutral-200 dark:bg-neutral-700 rounded animate-pulse" />
-                <div className="h-3 w-24 bg-neutral-200 dark:bg-neutral-700 rounded animate-pulse" />
+                <div className={cn('h-4 w-48 rounded animate-pulse', getDashboardSkeletonClass(dark))} />
+                <div className={cn('h-3 w-24 rounded animate-pulse', getDashboardSkeletonClass(dark))} />
               </div>
-              <div className="h-6 w-16 bg-neutral-200 dark:bg-neutral-700 rounded animate-pulse" />
+              <div className={cn('h-6 w-16 rounded animate-pulse', getDashboardSkeletonClass(dark))} />
             </div>
           ))}
         </div>
@@ -259,20 +275,20 @@ function KnowledgeBaseContent() {
         className="space-y-6"
       >
         <div className="flex items-center justify-between">
-          <TabsList>
-            <TabsTrigger value="documents">{t('dashboard.knowledgeBasePage.documentsTab')} ({documents.length})</TabsTrigger>
-            <TabsTrigger value="faqs">{t('dashboard.knowledgeBasePage.faqsTab')} ({faqs.length})</TabsTrigger>
+          <TabsList className={getDashboardTabsListClass(dark)}>
+            <TabsTrigger className={getDashboardTabsTriggerClass(dark)} value="documents">{t('dashboard.knowledgeBasePage.documentsTab')} ({documents.length})</TabsTrigger>
+            <TabsTrigger className={getDashboardTabsTriggerClass(dark)} value="faqs">{t('dashboard.knowledgeBasePage.faqsTab')} ({faqs.length})</TabsTrigger>
           </TabsList>
 
           {activeTab === 'documents' && can('knowledge:edit') && (
-            <Button onClick={() => setShowDocModal(true)}>
+            <Button onClick={() => setShowDocModal(true)} className="rounded-2xl">
               <Plus className="h-4 w-4 mr-2" />
               {t('dashboard.knowledgeBasePage.addDocument')}
             </Button>
           )}
 
           {activeTab === 'faqs' && can('knowledge:edit') && (
-            <Button onClick={() => setShowFaqModal(true)}>
+            <Button onClick={() => setShowFaqModal(true)} className="rounded-2xl">
               <Plus className="h-4 w-4 mr-2" />
               {t('dashboard.knowledgeBasePage.addFaqButton')}
             </Button>
@@ -283,9 +299,9 @@ function KnowledgeBaseContent() {
         <TabsContent value="documents" className="space-y-4">
 
           {documents.length > 0 ? (
-            <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 overflow-hidden">
+            <div className={getDashboardPanelClass(dark, 'overflow-hidden')}>
               <table className="w-full">
-                <thead className="bg-neutral-50 dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700">
+                <thead className={getDashboardTableHeaderClass(dark)}>
                   <tr>
                     <th className="text-left p-4 text-sm font-medium text-neutral-600 dark:text-neutral-300">{t('dashboard.knowledgeBasePage.nameTableHeader')}</th>
                     <th className="text-left p-4 text-sm font-medium text-neutral-600 dark:text-neutral-300">{t('dashboard.knowledgeBasePage.typeTableHeader')}</th>
@@ -296,9 +312,9 @@ function KnowledgeBaseContent() {
                     <th className="text-left p-4 text-sm font-medium text-neutral-600 dark:text-neutral-300">{t('dashboard.knowledgeBasePage.actionsTableHeader')}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-neutral-200 dark:divide-neutral-700">
+                <tbody className={cn('divide-y', dark ? 'divide-white/10' : 'divide-neutral-200')}>
                   {documents.map((doc) => (
-                    <tr key={doc.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
+                    <tr key={doc.id} className={getDashboardRowHoverClass(dark)}>
                       <td className="px-4 py-3">
                         <button
                           onClick={() => handleViewDocument(doc)}
@@ -332,16 +348,19 @@ function KnowledgeBaseContent() {
                       <td className="px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400">
                         {formatDate(doc.uploadedAt, 'short')}
                       </td>
-                      <td className="px-4 py-3">
-                        {can('knowledge:delete') && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteDocument(doc.id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-red-600" />
-                        </Button>
-                        )}
+                      <td className="px-4 py-3 align-middle">
+                        <div className="flex min-h-8 items-center">
+                          {canDeleteKnowledge && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteDocument(doc.id)}
+                              className="h-8 w-8"
+                            >
+                              <Trash2 className="h-4 w-4 text-red-600" />
+                            </Button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -349,7 +368,7 @@ function KnowledgeBaseContent() {
               </table>
             </div>
           ) : (
-            <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-12">
+            <div className={getDashboardPanelClass(dark, 'p-12')}>
               <EmptyState
                 icon={FileText}
                 title={t('dashboard.knowledgeBasePage.noDocumentsTitle')}
@@ -364,17 +383,18 @@ function KnowledgeBaseContent() {
           {faqs.length > 0 ? (
             <div className="space-y-3">
               {faqs.map((faq) => (
-                <div key={faq.id} className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-6">
+                <div key={faq.id} className={getDashboardPanelClass(dark, 'p-6')}>
                   <div className="flex justify-between items-start mb-3">
                     <h3 className="font-semibold text-neutral-900 dark:text-white">{faq.question}</h3>
-                    {can('knowledge:delete') && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteFaq(faq.id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-red-600" />
-                    </Button>
+                    {canDeleteKnowledge && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDeleteFaq(faq.id)}
+                        className="h-8 w-8"
+                      >
+                        <Trash2 className="h-4 w-4 text-red-600" />
+                      </Button>
                     )}
                   </div>
                   <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-2">{faq.answer}</p>
@@ -385,7 +405,7 @@ function KnowledgeBaseContent() {
               ))}
             </div>
           ) : (
-            <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-12">
+            <div className={getDashboardPanelClass(dark, 'p-12')}>
               <EmptyState
                 icon={MessageSquare}
                 title={t('dashboard.knowledgeBasePage.noFaqsTitle')}
@@ -416,7 +436,7 @@ function KnowledgeBaseContent() {
 
             <div>
               <Label>{t('dashboard.knowledgeBasePage.documentsLabel')}</Label>
-              <div className="mt-2 border-2 border-dashed border-neutral-200 rounded-lg p-8 text-center hover:border-primary-300 transition-colors cursor-pointer">
+              <div className={cn('mt-2 cursor-pointer rounded-lg border-2 border-dashed p-8 text-center transition-colors', dark ? 'border-white/10 bg-white/[0.02] hover:border-cyan-400/40' : 'border-neutral-200 hover:border-primary-300')}>
                 <input
                   type="file"
                   accept=".pdf,.docx,.txt,.csv"
@@ -534,7 +554,7 @@ function KnowledgeBaseContent() {
                 <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
               </div>
             ) : (
-              <div className="bg-neutral-50 dark:bg-neutral-800 rounded-lg p-4">
+              <div className={getDashboardInsetClass(dark, 'p-4')}>
                 <pre className="whitespace-pre-wrap text-sm text-neutral-700 dark:text-neutral-300 font-mono">
                   {(() => {
                     const content = contentModalData?.content || t('dashboard.knowledgeBasePage.noContent');
@@ -566,9 +586,9 @@ export default function KnowledgeBasePage() {
   return (
     <Suspense fallback={
       <div className="space-y-6">
-        <div className="h-8 w-64 bg-neutral-200 dark:bg-neutral-700 rounded animate-pulse"></div>
-        <div className="h-12 w-full bg-neutral-200 dark:bg-neutral-700 rounded animate-pulse"></div>
-        <div className="h-64 w-full bg-neutral-200 dark:bg-neutral-700 rounded animate-pulse"></div>
+        <div className="h-8 w-64 rounded animate-pulse bg-[linear-gradient(135deg,#EEF4FF,#E6FBFF)] dark:bg-[linear-gradient(135deg,rgba(8,18,36,0.96),rgba(48,92,229,0.18),rgba(0,168,199,0.14))]"></div>
+        <div className="h-12 w-full rounded animate-pulse bg-[linear-gradient(135deg,#EEF4FF,#E6FBFF)] dark:bg-[linear-gradient(135deg,rgba(8,18,36,0.96),rgba(48,92,229,0.18),rgba(0,168,199,0.14))]"></div>
+        <div className="h-64 w-full rounded animate-pulse bg-[linear-gradient(135deg,#EEF4FF,#E6FBFF)] dark:bg-[linear-gradient(135deg,rgba(8,18,36,0.96),rgba(48,92,229,0.18),rgba(0,168,199,0.14))]"></div>
       </div>
     }>
       <KnowledgeBaseContent />

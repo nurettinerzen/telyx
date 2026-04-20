@@ -148,7 +148,7 @@ export default function AdminAuthPage() {
 
   if (forbidden) {
     return (
-      <div className="mx-auto mt-16 max-w-md rounded-lg border border-neutral-200 bg-white p-8 text-center dark:border-neutral-700 dark:bg-neutral-900">
+      <div className="mx-auto mt-16 max-w-md rounded-lg border border-neutral-200 bg-white p-8 text-center dark:border-white/10 dark:bg-[#081224]/95">
         <ShieldAlert className="mx-auto mb-3 h-10 w-10 text-red-500" />
         <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">{copy.accessDenied}</h2>
         <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
@@ -159,7 +159,7 @@ export default function AdminAuthPage() {
   }
 
   return (
-    <div className="mx-auto mt-16 max-w-md rounded-lg border border-neutral-200 bg-white p-6 dark:border-neutral-700 dark:bg-neutral-900">
+    <div className="mx-auto mt-16 max-w-md rounded-lg border border-neutral-200 bg-white p-6 dark:border-white/10 dark:bg-[#081224]/95">
       <div className="mb-4 flex items-center gap-2">
         <ShieldCheck className="h-5 w-5 text-primary-600" />
         <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">{copy.title}</h2>

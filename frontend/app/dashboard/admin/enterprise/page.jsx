@@ -283,7 +283,7 @@ export default function EnterpriseAdminPage() {
       {/* Stats */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+          <div className="bg-white dark:bg-[#081224]/95 rounded-xl p-4 border border-gray-200 dark:border-white/10">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
                 <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -295,7 +295,7 @@ export default function EnterpriseAdminPage() {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+          <div className="bg-white dark:bg-[#081224]/95 rounded-xl p-4 border border-gray-200 dark:border-white/10">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-teal-100 dark:bg-teal-900 rounded-lg">
                 <Users className="w-5 h-5 text-teal-600 dark:text-teal-400" />
@@ -307,7 +307,7 @@ export default function EnterpriseAdminPage() {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+          <div className="bg-white dark:bg-[#081224]/95 rounded-xl p-4 border border-gray-200 dark:border-white/10">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
                 <Phone className="w-5 h-5 text-green-600 dark:text-green-400" />
@@ -319,7 +319,7 @@ export default function EnterpriseAdminPage() {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+          <div className="bg-white dark:bg-[#081224]/95 rounded-xl p-4 border border-gray-200 dark:border-white/10">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-amber-100 dark:bg-amber-900 rounded-lg">
                 <BarChart3 className="w-5 h-5 text-amber-600 dark:text-amber-400" />
@@ -369,10 +369,10 @@ export default function EnterpriseAdminPage() {
       </div>
 
       {/* Customers Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="bg-white dark:bg-[#081224]/95 rounded-xl border border-gray-200 dark:border-white/10 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-900">
+            <thead className="bg-gray-50 dark:bg-[#0B1730]/88">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">İşletme</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Durum</th>
@@ -384,7 +384,7 @@ export default function EnterpriseAdminPage() {
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">İşlemler</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody className="divide-y divide-gray-200 dark:divide-white/10">
               {filteredCustomers.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
@@ -395,7 +395,7 @@ export default function EnterpriseAdminPage() {
                 </tr>
               ) : (
                 filteredCustomers.map((customer) => (
-                  <tr key={customer.id} className="hover:bg-gray-50 dark:hover:bg-gray-900">
+                  <tr key={customer.id} className="hover:bg-gray-50 dark:hover:bg-white/[0.03]">
                     <td className="px-4 py-3">
                       <div>
                         <p className="font-medium text-gray-900 dark:text-white">

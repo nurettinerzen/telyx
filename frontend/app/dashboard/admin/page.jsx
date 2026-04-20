@@ -178,7 +178,7 @@ export default function AdminDashboardPage() {
           <Link
             key={stat.label}
             href={stat.href}
-            className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-colors hover:border-primary-500 dark:border-gray-800 dark:bg-gray-900"
+            className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-colors hover:border-primary-500 dark:border-white/10 dark:bg-[#081224]/95"
           >
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
@@ -197,7 +197,7 @@ export default function AdminDashboardPage() {
         ))}
       </div>
 
-      <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+      <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-[#081224]/95">
         <h2 className="mb-5 text-lg font-semibold text-gray-900 dark:text-white">
           {copy.plansTitle}
         </h2>
@@ -207,7 +207,7 @@ export default function AdminDashboardPage() {
             <Link
               key={plan.key}
               href={`/dashboard/admin/subscriptions?plan=${encodeURIComponent(plan.key)}`}
-              className="rounded-2xl bg-gray-50 p-5 text-center transition-colors hover:bg-gray-100 dark:bg-gray-800/80 dark:hover:bg-gray-800"
+              className="rounded-2xl bg-gray-50 p-5 text-center transition-colors hover:bg-gray-100 dark:bg-[#0B1730]/88 dark:hover:bg-[#102043]"
             >
               <p className={`text-3xl font-semibold ${plan.tone}`}>{formatNumber(plan.value, locale)}</p>
               <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{plan.label}</p>
@@ -221,7 +221,7 @@ export default function AdminDashboardPage() {
           <Link
             key={link.label}
             href={link.href}
-            className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-colors hover:border-primary-500 dark:border-gray-800 dark:bg-gray-900"
+            className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-colors hover:border-primary-500 dark:border-white/10 dark:bg-[#081224]/95"
           >
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">

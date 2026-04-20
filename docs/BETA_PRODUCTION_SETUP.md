@@ -54,6 +54,13 @@ Minimum environment split:
 - `STRIPE_SECRET_KEY=<test key>`
 - `STRIPE_WEBHOOK_SECRET=<test webhook secret>`
 - `STRIPE_*_PRICE_ID*=<test prices>`
+- `AMAZON_SP_API_APP_ID=<amazon seller app id>`
+- `AMAZON_SP_API_CLIENT_ID=<amazon lwa client id>`
+- `AMAZON_SP_API_CLIENT_SECRET=<amazon lwa client secret>`
+- `AMAZON_SP_API_DEFAULT_MARKETPLACE_ID=A33AVAJ2PDY3EV`
+- `AMAZON_SP_API_SELLER_CENTRAL_URL=https://sellercentral.amazon.com.tr`
+- `AMAZON_SP_API_USE_DRAFT_AUTH=true`
+- `AMAZON_SP_API_USE_SANDBOX=false`
 
 If the beta database is a brand-new Supabase project, run a one-time schema bootstrap after the first deploy:
 
@@ -76,6 +83,13 @@ This repo's Prisma migration history does not contain a full initial baseline fo
 - `STRIPE_SECRET_KEY=<live key>`
 - `STRIPE_WEBHOOK_SECRET=<live webhook secret>`
 - `STRIPE_*_PRICE_ID*=<live prices>`
+- `AMAZON_SP_API_APP_ID=<amazon seller app id>`
+- `AMAZON_SP_API_CLIENT_ID=<amazon lwa client id>`
+- `AMAZON_SP_API_CLIENT_SECRET=<amazon lwa client secret>`
+- `AMAZON_SP_API_DEFAULT_MARKETPLACE_ID=A33AVAJ2PDY3EV`
+- `AMAZON_SP_API_SELLER_CENTRAL_URL=https://sellercentral.amazon.com.tr`
+- `AMAZON_SP_API_USE_DRAFT_AUTH=false`
+- `AMAZON_SP_API_USE_SANDBOX=false`
 
 ### Frontend beta
 
@@ -112,6 +126,7 @@ Create separate beta vs production credentials or callback URLs for any provider
 
 - Google OAuth
 - Microsoft OAuth
+- Amazon SP-API seller app
 - Meta / WhatsApp
 - ElevenLabs webhooks
 - Shopify / other e-commerce apps

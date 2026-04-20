@@ -67,31 +67,31 @@ const DATA_TYPE_OPTIONS_CONFIG = {
     labelKey: 'dashboard.customerDataPage.dataTypeAccounting',
     descKey: 'dashboard.customerDataPage.dataTypeAccountingDesc',
     icon: Calculator,
-    color: 'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400'
+    color: 'bg-neutral-100 text-neutral-600 dark:bg-white/8 dark:text-neutral-400'
   },
   support: {
     labelKey: 'dashboard.customerDataPage.dataTypeSupport',
     descKey: 'dashboard.customerDataPage.dataTypeSupportDesc',
     icon: Wrench,
-    color: 'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400'
+    color: 'bg-neutral-100 text-neutral-600 dark:bg-white/8 dark:text-neutral-400'
   },
   appointment: {
     labelKey: 'dashboard.customerDataPage.dataTypeAppointment',
     descKey: 'dashboard.customerDataPage.dataTypeAppointmentDesc',
     icon: Calendar,
-    color: 'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400'
+    color: 'bg-neutral-100 text-neutral-600 dark:bg-white/8 dark:text-neutral-400'
   },
   order: {
     labelKey: 'dashboard.customerDataPage.dataTypeOrder',
     descKey: 'dashboard.customerDataPage.dataTypeOrderDesc',
     icon: Package,
-    color: 'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400'
+    color: 'bg-neutral-100 text-neutral-600 dark:bg-white/8 dark:text-neutral-400'
   },
   custom: {
     labelKey: 'dashboard.customerDataPage.dataTypeOther',
     descKey: 'dashboard.customerDataPage.dataTypeOtherDesc',
     icon: HelpCircle,
-    color: 'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400'
+    color: 'bg-neutral-100 text-neutral-600 dark:bg-white/8 dark:text-neutral-400'
   }
 };
 
@@ -364,7 +364,7 @@ export default function CustomerDataPage() {
 
         {/* File List */}
         {loadingFiles ? (
-          <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-12 flex items-center justify-center">
+          <div className="bg-white dark:bg-[#081224]/95 rounded-xl border border-neutral-200 dark:border-white/10 p-12 flex items-center justify-center shadow-sm">
             <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
           </div>
         ) : files.length === 0 ? (
@@ -388,7 +388,7 @@ export default function CustomerDataPage() {
               return (
                 <div
                   key={file.id}
-                  className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-4 hover:border-primary-300 dark:hover:border-primary-700 transition-colors cursor-pointer group"
+                  className="bg-white dark:bg-[#081224]/95 rounded-xl border border-neutral-200 dark:border-white/10 p-4 hover:border-primary-300 dark:hover:border-cyan-500/40 transition-colors cursor-pointer group shadow-sm"
                   onClick={() => openFile(file)}
                 >
                   <div className="flex items-start justify-between">
@@ -476,7 +476,7 @@ export default function CustomerDataPage() {
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
                     uploadStep >= step
                       ? 'bg-primary-600 text-white'
-                      : 'bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-400'
+                      : 'bg-neutral-200 dark:bg-[#0B1730]/88 text-neutral-600 dark:text-neutral-400'
                   }`}>
                     {step}
                   </div>
@@ -484,7 +484,7 @@ export default function CustomerDataPage() {
                     <div className={`w-12 h-1 rounded-full transition-colors ${
                       uploadStep > step
                         ? 'bg-primary-600'
-                        : 'bg-neutral-200 dark:bg-neutral-700'
+                        : 'bg-neutral-200 dark:bg-[#0B1730]/88'
                     }`} />
                   )}
                 </React.Fragment>
@@ -507,7 +507,7 @@ export default function CustomerDataPage() {
                         className={`p-4 border-2 rounded-xl text-left transition-colors ${
                           selectedDataType === key
                             ? 'border-primary-500 bg-primary-50 dark:bg-primary-950'
-                            : 'border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600'
+                            : 'border-neutral-200 dark:border-white/10 hover:border-neutral-300 dark:hover:border-cyan-500/30'
                         }`}
                       >
                         <div className="flex items-center gap-3">
@@ -532,7 +532,7 @@ export default function CustomerDataPage() {
             {uploadStep === 2 && (
               <div className="space-y-6 py-4">
                 {/* Template Download */}
-                <div className="bg-neutral-50 dark:bg-neutral-800 rounded-lg p-4 flex items-center justify-between">
+                <div className="bg-neutral-50 dark:bg-[#0B1730]/88 rounded-lg p-4 flex items-center justify-between border dark:border-white/10">
                   <div>
                     <p className="font-medium text-neutral-900 dark:text-white">
                       {t('dashboard.customerDataPage.sampleTemplate')}
@@ -558,7 +558,7 @@ export default function CustomerDataPage() {
                 <div
                   onClick={() => fileInputRef.current?.click()}
                   className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors
-                    ${uploadFile ? 'border-primary-300 bg-primary-50 dark:bg-primary-950' : 'border-neutral-300 hover:border-primary-400 dark:border-neutral-600'}
+                    ${uploadFile ? 'border-primary-300 bg-primary-50 dark:bg-primary-950' : 'border-neutral-300 hover:border-primary-400 dark:border-white/10 dark:bg-[#081224]/50'}
                   `}
                 >
                   {uploading ? (
@@ -598,16 +598,16 @@ export default function CustomerDataPage() {
             {/* Step 3: Preview */}
             {uploadStep === 3 && uploadPreview && (
               <div className="space-y-4 py-4">
-                <div className="p-3 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg flex items-center gap-2">
+                <div className="p-3 bg-white dark:bg-[#081224]/95 border border-neutral-200 dark:border-white/10 rounded-lg flex items-center gap-2">
                   <CheckCircle2 className="w-5 h-5 text-neutral-600 dark:text-neutral-400" />
                   <span className="text-neutral-700 dark:text-neutral-300">
                     {t('dashboard.customerDataPage.rowsFound', { count: uploadPreview.totalRows })}
                   </span>
                 </div>
 
-                <div className="max-h-64 overflow-auto border dark:border-neutral-700 rounded-lg">
+                <div className="max-h-64 overflow-auto border dark:border-white/10 rounded-lg dark:bg-[#081224]/70">
                   <table className="w-full text-sm">
-                    <thead className="bg-neutral-50 dark:bg-neutral-800 sticky top-0">
+                    <thead className="bg-neutral-50 dark:bg-[#0B1730]/88 sticky top-0">
                       <tr>
                         {uploadPreview.columns.slice(0, 6).map((col, i) => (
                           <th key={i} className="px-3 py-2 text-left font-medium text-neutral-600 dark:text-neutral-300 truncate max-w-[120px]">
@@ -621,7 +621,7 @@ export default function CustomerDataPage() {
                         )}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-neutral-200 dark:divide-neutral-700">
+                    <tbody className="divide-y divide-neutral-200 dark:divide-white/10">
                       {uploadPreview.preview.map((row, i) => (
                         <tr key={i}>
                           {uploadPreview.columns.slice(0, 6).map((col, j) => (
@@ -639,7 +639,7 @@ export default function CustomerDataPage() {
                 </div>
 
                 {/* Phone Matching Info */}
-                <div className="bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg p-4">
+                <div className="bg-neutral-50 dark:bg-[#0B1730]/88 border border-neutral-200 dark:border-white/10 rounded-lg p-4">
                   <div className="flex gap-2">
                     <AlertCircle className="h-5 w-5 text-neutral-600 dark:text-neutral-400 flex-shrink-0" />
                     <p className="text-sm text-neutral-700 dark:text-neutral-300">
@@ -654,7 +654,7 @@ export default function CustomerDataPage() {
             {uploadStep === 4 && importResult && (
               <div className="space-y-4 py-4">
                 {importResult.success > 0 && (
-                  <div className="p-3 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg flex items-center gap-2">
+                  <div className="p-3 bg-white dark:bg-[#081224]/95 border border-neutral-200 dark:border-white/10 rounded-lg flex items-center gap-2">
                     <CheckCircle2 className="w-5 h-5 text-neutral-600 dark:text-neutral-400" />
                     <span className="text-neutral-700 dark:text-neutral-300">
                       {t('dashboard.customerDataPage.newRecordsCreated', { count: importResult.success })}
@@ -662,7 +662,7 @@ export default function CustomerDataPage() {
                   </div>
                 )}
                 {importResult.updated > 0 && (
-                  <div className="p-3 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg flex items-center gap-2">
+                  <div className="p-3 bg-white dark:bg-[#081224]/95 border border-neutral-200 dark:border-white/10 rounded-lg flex items-center gap-2">
                     <CheckCircle2 className="w-5 h-5 text-neutral-600 dark:text-neutral-400" />
                     <span className="text-neutral-700 dark:text-neutral-300">
                       {t('dashboard.customerDataPage.recordsUpdated', { count: importResult.updated })}
@@ -670,7 +670,7 @@ export default function CustomerDataPage() {
                   </div>
                 )}
                 {importResult.failed > 0 && (
-                  <div className="p-3 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg">
+                  <div className="p-3 bg-white dark:bg-[#081224]/95 border border-neutral-200 dark:border-white/10 rounded-lg">
                     <div className="flex items-center gap-2">
                       <XCircle className="w-5 h-5 text-neutral-600 dark:text-neutral-400" />
                       <span className="text-neutral-700 dark:text-neutral-300">
@@ -1003,7 +1003,7 @@ export default function CustomerDataPage() {
 
       {/* Records Table */}
       {loadingRecords ? (
-        <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-12 flex items-center justify-center">
+        <div className="bg-white dark:bg-[#081224]/95 rounded-xl border border-neutral-200 dark:border-white/10 p-12 flex items-center justify-center shadow-sm">
           <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
         </div>
       ) : records.length === 0 ? (
@@ -1019,10 +1019,10 @@ export default function CustomerDataPage() {
           }
         />
       ) : (
-        <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 overflow-hidden">
+        <div className="bg-white dark:bg-[#081224]/95 rounded-xl border border-neutral-200 dark:border-white/10 overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-neutral-50 dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700">
+              <thead className="bg-neutral-50 dark:bg-[#0B1730]/88 border-b border-neutral-200 dark:border-white/10">
                 <tr>
                   {/* Checkbox column */}
                   <th className="px-4 py-3 w-12">
@@ -1044,11 +1044,11 @@ export default function CustomerDataPage() {
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-neutral-200 dark:divide-neutral-700">
+              <tbody className="divide-y divide-neutral-200 dark:divide-white/10">
                 {records.map((record) => (
                   <tr
                     key={record.id}
-                    className={`hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors ${
+                    className={`hover:bg-neutral-50 dark:hover:bg-white/[0.03] transition-colors ${
                       selectedRecords.includes(record.id) ? 'bg-primary-50 dark:bg-primary-900/20' : ''
                     }`}
                   >
@@ -1089,7 +1089,7 @@ export default function CustomerDataPage() {
 
           {/* Pagination */}
           {recordsPagination.totalPages > 1 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t border-neutral-200 dark:border-neutral-700">
+            <div className="flex items-center justify-between px-4 py-3 border-t border-neutral-200 dark:border-white/10">
               <p className="text-sm text-neutral-500">
                 {selectedRecords.length > 0 ? (
                   <span className="font-medium text-primary-600">

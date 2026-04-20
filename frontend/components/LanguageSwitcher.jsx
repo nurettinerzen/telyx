@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -9,6 +10,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { getDashboardDropdownItemClass, getDashboardOverlaySurfaceClass } from '@/components/dashboard/dashboardSurfaceTheme';
+import { cn } from '@/lib/utils';
 import { Globe } from 'lucide-react';
 
 const LOCALE_DISPLAY_MAP = {
@@ -30,7 +33,9 @@ const ALL_LANGUAGES = [
 
 export default function LanguageSwitcher() {
   const { locale, changeLocale, supportedUILocales } = useLanguage();
+  const { resolvedTheme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
+  const dark = resolvedTheme === 'dark';
 
   // Filter to only show supported languages and map display labels
   const languages = ALL_LANGUAGES
@@ -75,16 +80,29 @@ export default function LanguageSwitcher() {
           <span className="hidden md:inline font-medium tracking-wide">{availableCodesLabel}</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
+      <DropdownMenuContent
+        align="end"
+        className={getDashboardOverlaySurfaceClass(dark, 'w-48 p-1')}
+      >
         {languages.map((lang) => (
           <DropdownMenuItem
             key={lang.code}
             onClick={() => handleChangeLocale(lang.code)}
-            className={`cursor-pointer ${locale === lang.code ? 'bg-accent' : ''}`}
+            className={cn(
+              'cursor-pointer',
+              getDashboardDropdownItemClass(dark),
+              locale === lang.code && (dark
+                ? '!bg-[linear-gradient(135deg,rgba(48,92,229,0.88),rgba(0,168,199,0.82))] !text-white'
+                : 'bg-accent')
+            )}
           >
-            <span className="w-10 text-xs font-semibold text-muted-foreground">{lang.codeLabel}</span>
+            <span className={cn('w-10 text-xs font-semibold', dark ? 'text-cyan-200/70' : 'text-muted-foreground')}>
+              {lang.codeLabel}
+            </span>
             <span className="flex-1">{lang.nativeName}</span>
-            {locale === lang.code && <span className="text-primary">✓</span>}
+            {locale === lang.code && (
+              <span className={cn(dark ? 'text-white' : 'text-primary')}>✓</span>
+            )}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>
