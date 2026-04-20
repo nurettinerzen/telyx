@@ -7,6 +7,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -54,6 +55,11 @@ import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { formatSessionHandle } from '@/lib/utils';
 import { subscribeLiveHandoffSync } from '@/lib/liveHandoffSync';
 import { resolveConversationSystemMessage } from '@/lib/conversationSystemMessages';
+import { cn } from '@/lib/utils';
+import {
+  getDashboardInsetClass,
+  getDashboardTableHeaderClass,
+} from '@/components/dashboard/dashboardSurfaceTheme';
 
 // Simple cache for chats data
 const chatsCache = {
@@ -110,7 +116,9 @@ function formatPhone(value, fallback = '—') {
 }
 
 export default function ChatsPage() {
+  const { resolvedTheme } = useTheme();
   const { t, locale } = useLanguage();
+  const dark = resolvedTheme === 'dark';
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -563,7 +571,7 @@ export default function ChatsPage() {
       ) : chats.length > 0 ? (
         <div className="bg-white dark:bg-[#081224]/95 rounded-md border border-gray-200 dark:border-white/10 overflow-hidden shadow-sm">
           <Table>
-            <TableHeader>
+            <TableHeader className={cn(dark ? '!bg-[#0B1730]/88 [&_tr]:!border-white/10' : 'bg-slate-50/80 border-b border-slate-200', getDashboardTableHeaderClass(dark))}>
               <TableRow>
                 <TableHead>{t('dashboard.chatsPage.date')}</TableHead>
                 <TableHead>{t('dashboard.chatsPage.channel')}</TableHead>
@@ -677,7 +685,7 @@ export default function ChatsPage() {
 
       {/* Chat Detail Modal */}
       <Dialog open={showChatModal} onOpenChange={handleChatModalChange}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className={cn('max-w-2xl max-h-[80vh] overflow-y-auto', dark && '!border-white/10 !bg-[#081224]/98 !text-gray-100')}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {selectedChat?.channel === 'WHATSAPP' ? (
@@ -692,7 +700,7 @@ export default function ChatsPage() {
           {selectedChat && (
             <div className="space-y-4">
               {/* Chat Info */}
-              <div className="grid grid-cols-2 gap-4 rounded-lg bg-gray-50 p-4 text-sm dark:bg-[#0B1730]/88 dark:border dark:border-white/10">
+              <div className={getDashboardInsetClass(dark, 'grid grid-cols-2 gap-4 p-4 text-sm')}>
                 <div>
                   <span className="text-gray-500">{t('dashboard.chatsPage.channel')}</span>
                   <p className="font-medium">{selectedChat.channel === 'CHAT' ? t('dashboard.chatsPage.chat') : 'WhatsApp'}</p>

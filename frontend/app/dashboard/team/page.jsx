@@ -81,6 +81,9 @@ import { cn } from '@/lib/utils';
 import {
   getDashboardStatCardClass,
   getDashboardStatCardStyle,
+  getDashboardInsetClass,
+  getDashboardTabsListClass,
+  getDashboardTableHeaderClass,
 } from '@/components/dashboard/dashboardSurfaceTheme';
 
 export default function TeamPage() {
@@ -290,7 +293,7 @@ export default function TeamPage() {
 
       {/* Tabs */}
       <Tabs defaultValue="members" className="space-y-4">
-        <TabsList className="dark:bg-[#081224]/90 dark:border-white/10">
+        <TabsList className={getDashboardTabsListClass(dark)}>
           <TabsTrigger value="members">{t('dashboard.teamPage.tabs.members')} ({members.length})</TabsTrigger>
           {can('team:invite') && (
             <TabsTrigger value="invitations">
@@ -302,7 +305,7 @@ export default function TeamPage() {
         {/* Members Tab */}
         <TabsContent value="members">
           <Card>
-            <CardHeader className="border-b border-neutral-200 bg-neutral-50/80 dark:border-white/10 dark:bg-[#0B1730]/88">
+            <CardHeader className={getDashboardInsetClass(dark, 'rounded-b-none border-x-0 border-t-0')}>
               <CardTitle>{t('dashboard.teamPage.members.title')}</CardTitle>
               <CardDescription>
                 {t('dashboard.teamPage.members.description')}
@@ -319,7 +322,7 @@ export default function TeamPage() {
                 </div>
               ) : (
                 <Table>
-                  <TableHeader>
+                  <TableHeader className={cn(dark ? '!bg-[#0B1730]/88 [&_tr]:!border-white/10' : 'bg-slate-50/80 border-b border-slate-200', getDashboardTableHeaderClass(dark))}>
                     <TableRow>
                       <TableHead>{t('dashboard.teamPage.members.tableHeaders.user')}</TableHead>
                       <TableHead>{t('dashboard.teamPage.members.tableHeaders.role')}</TableHead>
@@ -409,7 +412,7 @@ export default function TeamPage() {
         {can('team:invite') && (
           <TabsContent value="invitations">
             <Card>
-              <CardHeader className="border-b border-neutral-200 bg-neutral-50/80 dark:border-white/10 dark:bg-[#0B1730]/88">
+              <CardHeader className={getDashboardInsetClass(dark, 'rounded-b-none border-x-0 border-t-0')}>
                 <CardTitle>{t('dashboard.teamPage.invitations.title')}</CardTitle>
                 <CardDescription>
                   {t('dashboard.teamPage.invitations.description')}
@@ -426,7 +429,7 @@ export default function TeamPage() {
                   </div>
                 ) : (
                   <Table>
-                    <TableHeader>
+                  <TableHeader className={cn(dark ? '!bg-[#0B1730]/88 [&_tr]:!border-white/10' : 'bg-slate-50/80 border-b border-slate-200', getDashboardTableHeaderClass(dark))}>
                       <TableRow>
                         <TableHead>{t('dashboard.teamPage.invitations.tableHeaders.email')}</TableHead>
                         <TableHead>{t('dashboard.teamPage.invitations.tableHeaders.role')}</TableHead>
@@ -492,7 +495,7 @@ export default function TeamPage() {
 
       {/* Invite Modal */}
       <Dialog open={inviteModalOpen} onOpenChange={setInviteModalOpen}>
-        <DialogContent>
+        <DialogContent className={cn(dark && '!border-white/10 !bg-[#081224]/98 !text-gray-100')}>
           <DialogHeader>
             <DialogTitle>{t('dashboard.teamPage.inviteModal.title')}</DialogTitle>
             <DialogDescription>

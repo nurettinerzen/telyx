@@ -7,6 +7,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -81,6 +82,9 @@ import {
 } from '@/hooks/useIntegrations';
 import { useWhatsAppEmbeddedSignup } from '@/hooks/useWhatsAppEmbeddedSignup';
 import { cn } from '@/lib/utils';
+import {
+  getDashboardInsetClass,
+} from '@/components/dashboard/dashboardSurfaceTheme';
 
 // Integration logo paths
 const INTEGRATION_LOGOS = {
@@ -204,7 +208,9 @@ const INTEGRATION_DOCS = {
 };
 
 export default function IntegrationsPage() {
+  const { resolvedTheme } = useTheme();
   const { t, locale } = useLanguage();
+  const dark = resolvedTheme === 'dark';
   const isTr = locale === 'tr';
   const marketplaceCopy = {
     beta: 'Beta',
@@ -1096,7 +1102,19 @@ const handleShopifyConnect = async () => {
     const isLocked = featureInfo.isLocked && !isEffectivelyConnected;
 
     return (
-      <div key={integration.type} className={`flex h-full flex-col rounded-xl border p-6 transition-shadow ${disabled || isLocked ? 'bg-neutral-50 dark:bg-[#0B1730]/88' : 'bg-white dark:bg-[#081224]/95 hover:shadow-md'} border-neutral-200 dark:border-white/10`}>
+      <div
+        key={integration.type}
+        className={cn(
+          'flex h-full flex-col rounded-xl border p-6 transition-shadow',
+          dark
+            ? isLocked || disabled
+              ? 'border-white/10 bg-[#0B1730]/88'
+              : 'border-white/10 bg-[#081224]/95 hover:shadow-md'
+            : isLocked || disabled
+              ? 'border-neutral-200 bg-neutral-50'
+              : 'border-neutral-200 bg-white hover:shadow-md'
+        )}
+      >
         <div className="flex items-start justify-between mb-4">
           <div className="flex min-h-10 items-center gap-3">
             <div className={CARD_ICON_WRAPPER_CLASS}>
@@ -1239,7 +1257,7 @@ const handleShopifyConnect = async () => {
         )}
 
         {isWhatsApp && shouldShowWhatsappDetails && (
-          <div className="mb-4 rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-white/10 dark:bg-[#0B1730]/88">
+          <div className={getDashboardInsetClass(dark, 'mb-4 p-4')}>
             <div className="space-y-2">
               <div className="text-[11px] uppercase tracking-[0.16em] text-neutral-500 dark:text-cyan-200/55">
                 {t('dashboard.integrationsPage.whatsappConnectedNumber')}
@@ -1383,7 +1401,22 @@ const handleShopifyConnect = async () => {
             const isCrmConnected = !isCRMLocked && crmStatus?.hasWebhook && crmStatus?.isActive;
 
             return (
-            <div className={`flex h-full flex-col rounded-xl border p-6 transition-shadow ${isCRMLocked ? 'bg-neutral-50 dark:bg-[#0B1730]/88 border-neutral-200 dark:border-white/10' : isCrmConnected ? 'bg-white dark:bg-[#081224]/95 border-neutral-400 dark:border-cyan-500/35 hover:shadow-md' : 'bg-white dark:bg-[#081224]/95 border-neutral-200 dark:border-white/10 hover:shadow-md'}`}>
+            <div
+              className={cn(
+                'flex h-full flex-col rounded-xl border p-6 transition-shadow',
+                dark
+                  ? isCRMLocked
+                    ? 'border-white/10 bg-[#0B1730]/88'
+                    : isCrmConnected
+                      ? 'border-cyan-500/35 bg-[#081224]/95 hover:shadow-md'
+                      : 'border-white/10 bg-[#081224]/95 hover:shadow-md'
+                  : isCRMLocked
+                    ? 'border-neutral-200 bg-neutral-50'
+                    : isCrmConnected
+                      ? 'border-neutral-400 bg-white hover:shadow-md'
+                      : 'border-neutral-200 bg-white hover:shadow-md'
+              )}
+            >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex min-h-10 items-center gap-3">
                   <div className={CARD_ICON_WRAPPER_CLASS}>
@@ -1551,7 +1584,7 @@ const handleShopifyConnect = async () => {
 
       {isWhatsAppManualFallbackEnabled && (
         <Dialog open={whatsappModalOpen} onOpenChange={setWhatsappModalOpen}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className={cn('max-w-2xl', dark && '!border-white/10 !bg-[#081224]/98 !text-gray-100')}>
             <DialogHeader>
               <DialogTitle>{t('dashboard.integrationsPage.whatsappModalTitle')}</DialogTitle>
               <DialogDescription>{t('dashboard.integrationsPage.whatsappModalDesc')}</DialogDescription>
@@ -1575,7 +1608,7 @@ const handleShopifyConnect = async () => {
               <div className="space-y-2">
                 <Label>Webhook URL</Label>
                 <div className="flex gap-2">
-                  <Input type="text" readOnly value={`${runtimeConfig.apiUrl}/api/whatsapp/webhook`} className="bg-neutral-50" />
+                  <Input type="text" readOnly value={`${runtimeConfig.apiUrl}/api/whatsapp/webhook`} className={cn(dark ? '!border-white/10 !bg-[#0B1730]/88 !text-gray-100' : 'bg-neutral-50')} />
                   <Button type="button" variant="outline" size="icon" onClick={copyWebhookUrl}><Copy className="h-4 w-4" /></Button>
                 </div>
                 <p className="text-xs text-neutral-500">
@@ -1592,14 +1625,14 @@ const handleShopifyConnect = async () => {
       )}
 
       <Dialog open={whatsappTestModalOpen} onOpenChange={setWhatsappTestModalOpen}>
-        <DialogContent className="max-w-xl">
+        <DialogContent className={cn('max-w-xl', dark && '!border-white/10 !bg-[#081224]/98 !text-gray-100')}>
           <DialogHeader>
             <DialogTitle>{t('dashboard.integrationsPage.whatsappTestPanelTitle')}</DialogTitle>
             <DialogDescription>{t('dashboard.integrationsPage.whatsappTestAcceptedHint')}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             {whatsappStatus?.displayPhoneNumber && (
-              <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 dark:border-white/10 dark:bg-[#0B1730]/88">
+              <div className={getDashboardInsetClass(dark, 'px-4 py-3')}>
                 <div className="text-[11px] uppercase tracking-[0.16em] text-neutral-500 dark:text-cyan-200/55">
                   {t('dashboard.integrationsPage.whatsappConnectedNumber')}
                 </div>
@@ -1638,7 +1671,7 @@ const handleShopifyConnect = async () => {
             </div>
 
             {whatsappTestResult && (
-              <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-xs text-neutral-700 dark:border-white/10 dark:bg-[#0B1730]/88 dark:text-neutral-300">
+              <div className={getDashboardInsetClass(dark, 'px-4 py-3 text-xs text-neutral-700 dark:text-neutral-300')}>
                 <div className="font-medium text-neutral-900 dark:text-white">{t('dashboard.integrationsPage.whatsappTestLastResult')}</div>
                 <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
