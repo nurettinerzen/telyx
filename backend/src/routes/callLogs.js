@@ -8,6 +8,45 @@ import { auditSensitiveDataAccess } from '../middleware/sensitiveDataAudit.js';
 
 const router = express.Router();
 const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
+const TURKISH_CHAR_REGEX = /[ğüşıöçĞÜŞİÖÇ]/;
+const TURKISH_SUMMARY_REGEX = /\b(ve|ile|için|müşteri|musteri|asistan|görüşme|gorusme|arama|toplantı|toplanti|telefon|e-posta|eposta|başarıyla|basariyla|planlandı|planlandi|takip)\b/i;
+const ENGLISH_SUMMARY_REGEX = /\b(the|and|with|from|user|customer|agent|callback|meeting|email|phone|scheduled|successfully|contacted|discussed|explained|identified|provided|follow-up|conversation|concluded|challenging|requested|agreed)\b/i;
+
+function shouldTranslateSummaryToTurkish(summary, businessLanguage = 'TR') {
+  if (businessLanguage !== 'TR' || !summary) return false;
+
+  const normalizedSummary = String(summary).trim();
+  if (!normalizedSummary) return false;
+  if (TURKISH_CHAR_REGEX.test(normalizedSummary) || TURKISH_SUMMARY_REGEX.test(normalizedSummary)) {
+    return false;
+  }
+
+  return ENGLISH_SUMMARY_REGEX.test(normalizedSummary);
+}
+
+async function translateSummaryToTurkish(summary) {
+  if (!summary || !openai) return summary;
+
+  try {
+    const translated = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: 'Sen bir çevirmensin. Verilen çağrı özetini doğal ve kısa Türkçe ile çevir. Özel isimleri, marka isimlerini, telefon numaralarını ve tarihleri aynen koru.'
+        },
+        { role: 'user', content: summary }
+      ],
+      max_tokens: 300,
+      temperature: 0.2
+    });
+
+    return translated.choices[0]?.message?.content?.trim() || summary;
+  } catch (error) {
+    console.warn('Summary translation failed:', error.message);
+    return summary;
+  }
+}
 
 /**
  * Fetch conversation data from 11Labs and process it
@@ -42,26 +81,11 @@ async function fetchAndProcessConversation(conversationId, business) {
 
     // Get summary and translate if needed
     let summary = data.analysis?.transcript_summary || data.analysis?.summary || null;
-    if (summary && openai) {
-      // Check if needs translation: No Turkish chars AND has English indicators
-      const hasTurkishChars = /[ğüşıöçĞÜŞİÖÇ]/.test(summary);
-      const hasEnglishWords = /\b(called|inquired|stated|expressed|ended|offered|requested|discussed|mentioned|asked)\b/i.test(summary);
-      if (!hasTurkishChars || hasEnglishWords) {
-        try {
-          const translated = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
-            messages: [
-              { role: 'system', content: 'Sen bir çevirmensin. Verilen İngilizce metni doğal Türkçe\'ye çevir. Kısa ve öz tut.' },
-              { role: 'user', content: summary }
-            ],
-            max_tokens: 300,
-            temperature: 0.3
-          });
-          summary = translated.choices[0]?.message?.content?.trim() || summary;
-          console.log('🌐 Summary translated to Turkish');
-        } catch (e) {
-          console.warn('Translation failed:', e.message);
-        }
+    if (shouldTranslateSummaryToTurkish(summary, business?.language)) {
+      const translatedSummary = await translateSummaryToTurkish(summary);
+      if (translatedSummary !== summary) {
+        summary = translatedSummary;
+        console.log('🌐 Summary translated to Turkish');
       }
     }
 
@@ -457,8 +481,7 @@ router.get('/:id', auditSensitiveDataAccess('call_log_detail', (req) => req.para
     }
 
     // Lazy load: If missing endReason/callCost/summary, or summary needs translation
-    const hasEnglishWords = callLog.summary && /\b(called|inquired|stated|expressed|ended|offered|requested|discussed|mentioned|asked)\b/i.test(callLog.summary);
-    const summaryNeedsTranslation = callLog.summary && (!/[ğüşıöçĞÜŞİÖÇ]/.test(callLog.summary) || hasEnglishWords) && /^[A-Za-z]/.test(callLog.summary);
+    const summaryNeedsTranslation = shouldTranslateSummaryToTurkish(callLog.summary, callLog.business?.language);
     const needsUpdate = callLog.callId && (!callLog.endReason || !callLog.callCost || !callLog.summary || summaryNeedsTranslation);
 
     if (needsUpdate) {
@@ -476,6 +499,16 @@ router.get('/:id', auditSensitiveDataAccess('call_log_detail', (req) => req.para
         }
       } catch (fetchError) {
         console.warn(`⚠️ Could not fetch 11Labs data: ${fetchError.message}`);
+      }
+    }
+
+    if (summaryNeedsTranslation && callLog.summary) {
+      const translatedSummary = await translateSummaryToTurkish(callLog.summary);
+      if (translatedSummary !== callLog.summary) {
+        callLog = await prisma.callLog.update({
+          where: { id: callLog.id },
+          data: { summary: translatedSummary }
+        });
       }
     }
 

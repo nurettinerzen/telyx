@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
+import { useTheme } from 'next-themes';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +33,13 @@ import {
   formatBatchCallDisplayName,
   normalizeBatchTerminationReason
 } from '@/lib/batch-calls';
+import { cn } from '@/lib/utils';
+import {
+  getDashboardDividerClass,
+  getDashboardPanelClass,
+  getDashboardRowHoverClass,
+  getDashboardTableHeaderClass
+} from '@/components/dashboard/dashboardSurfaceTheme';
 
 const STATUS_CONFIG = {
   PENDING: {
@@ -109,9 +117,11 @@ const TERMINATION_BADGE_STYLES = {
 
 export default function BatchCallDetailPage() {
   const { t, locale } = useLanguage();
+  const { resolvedTheme } = useTheme();
   const router = useRouter();
   const params = useParams();
   const { id } = params;
+  const dark = resolvedTheme === 'dark';
 
   const [batchCall, setBatchCall] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -335,7 +345,7 @@ export default function BatchCallDetailPage() {
       </div>
 
       {/* Recipients Table */}
-      <div className="bg-white dark:bg-[#081224]/95 rounded-xl border border-neutral-200 dark:border-white/10 overflow-hidden shadow-sm">
+      <div className={getDashboardPanelClass(dark, 'overflow-hidden')}>
         <div className="px-6 py-4 border-b border-neutral-200 dark:border-white/10">
           <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">
             {t('dashboard.batchCallDetailPage.recipientsList')}
@@ -344,7 +354,7 @@ export default function BatchCallDetailPage() {
 
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-neutral-50 dark:bg-[#0B1730]/88 border-b border-neutral-200 dark:border-white/10">
+            <thead className={getDashboardTableHeaderClass(dark)}>
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
                   {t('dashboard.batchCallDetailPage.phoneHeader')}
@@ -366,7 +376,7 @@ export default function BatchCallDetailPage() {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-neutral-200 dark:divide-white/10">
+            <tbody className={cn('divide-y', getDashboardDividerClass(dark))}>
               {recipients.length > 0 ? (
                 recipients.map((recipient, index) => {
                   const callStatus = CALL_STATUS_CONFIG[recipient.status] || CALL_STATUS_CONFIG.pending;
@@ -378,7 +388,7 @@ export default function BatchCallDetailPage() {
                     : recipient.terminationReason;
 
                   return (
-                    <tr key={index} className="hover:bg-neutral-50 dark:hover:bg-white/[0.03]">
+                    <tr key={index} className={getDashboardRowHoverClass(dark)}>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <Phone className="h-4 w-4 text-neutral-400 dark:text-neutral-500 mr-2" />

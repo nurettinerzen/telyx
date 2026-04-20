@@ -115,7 +115,7 @@ export function getDashboardMessageBubbleClass(dark, tone = 'assistant', classNa
 
 export function getDashboardTableHeaderClass(dark, className) {
   return cn(
-    dark ? 'bg-white/[0.03] border-b border-white/10' : 'bg-slate-50/80 border-b border-slate-200',
+    dark ? '!bg-[#0B1730]/88 border-b border-white/10' : 'bg-slate-50/80 border-b border-slate-200',
     className
   );
 }
