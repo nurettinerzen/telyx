@@ -11,56 +11,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '@/lib/api';
 import { useDashboardContext } from '@/contexts/DashboardContext';
-
-// Permission definitions - must match backend
-const ROLE_PERMISSIONS = {
-  OWNER: ['*'], // Full access - includes all permissions
-  MANAGER: [
-    'dashboard:view',
-    'assistants:view', 'assistants:create', 'assistants:edit',
-    // 'assistants:delete' - NOT for MANAGER
-    'calls:view', 'calls:download',
-    'campaigns:view', 'campaigns:create', 'campaigns:control',
-    // 'campaigns:delete' - NOT for MANAGER
-    'knowledge:view', 'knowledge:edit', 'knowledge:delete',
-    'integrations:view',
-    // 'integrations:connect', 'integrations:disconnect' - NOT for MANAGER
-    'email:view', 'email:send',
-    'whatsapp:view',
-    'widget:view', 'widget:edit',
-    'settings:view', 'settings:edit',
-    'team:view', 'team:invite',
-    // 'team:role_change', 'team:remove' - NOT for MANAGER
-    // 'billing:view', 'billing:edit' - NOT for MANAGER
-    'analytics:view',
-    'phone:view',
-    'voices:view',
-    'collections:view', 'collections:create'
-  ],
-  STAFF: [
-    'dashboard:view',
-    'assistants:view',
-    // NO create, edit, delete for assistants
-    'calls:view', 'calls:download',
-    'campaigns:view',
-    // NO create, control, delete for campaigns
-    'knowledge:view',
-    // NO edit, delete for knowledge
-    // NO integrations:view - STAFF cannot see integrations
-    'email:view', 'email:send',
-    'whatsapp:view',
-    'widget:view',
-    // NO widget:edit
-    'settings:view',
-    // NO settings:edit
-    // NO team:view - STAFF cannot see team
-    // NO billing:view
-    'analytics:view',
-    'phone:view',
-    'voices:view',
-    'collections:view'
-  ]
-};
+import {
+  getPermissionsForRole,
+  userHasAllPermissions,
+  userHasAnyPermission,
+  userHasPermission,
+} from '@/lib/rolePermissions.mjs';
 
 /**
  * Hook for checking user permissions
@@ -112,14 +68,7 @@ export function usePermissions() {
    */
   const can = useCallback((permission) => {
     if (!user || !user.role) return false;
-
-    const permissions = ROLE_PERMISSIONS[user.role];
-    if (!permissions) return false;
-
-    // OWNER has wildcard access
-    if (permissions.includes('*')) return true;
-
-    return permissions.includes(permission);
+    return userHasPermission(user.role, permission);
   }, [user]);
 
   /**
@@ -128,8 +77,8 @@ export function usePermissions() {
    * @returns {boolean}
    */
   const canAny = useCallback((permissions) => {
-    return permissions.some(p => can(p));
-  }, [can]);
+    return userHasAnyPermission(user?.role, permissions);
+  }, [user?.role]);
 
   /**
    * Check if user has all of the given permissions
@@ -137,8 +86,8 @@ export function usePermissions() {
    * @returns {boolean}
    */
   const canAll = useCallback((permissions) => {
-    return permissions.every(p => can(p));
-  }, [can]);
+    return userHasAllPermissions(user?.role, permissions);
+  }, [user?.role]);
 
   const isOwner = user?.role === 'OWNER';
   const isManager = user?.role === 'MANAGER';
@@ -193,7 +142,7 @@ export function usePermissions() {
     updateUser,
 
     // Permission list (for debugging)
-    permissions: user?.role ? ROLE_PERMISSIONS[user.role] : []
+    permissions: user?.role ? getPermissionsForRole(user.role) : []
   };
 }
 

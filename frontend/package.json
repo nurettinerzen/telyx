@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start -p 3000",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:sidebar": "node --test tests/sidebar-smoke.test.mjs"
   },
   "dependencies": {
     "@elevenlabs/client": "^0.12.2",
