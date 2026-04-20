@@ -26,7 +26,7 @@ import EmptyState from '@/components/EmptyState';
 import {
   Puzzle, Check, ExternalLink, Star, Copy, CheckCircle2, CreditCard, Zap,
   MessageSquare, Target, Cloud, Calendar, CalendarDays, Smartphone,
-  ShoppingCart, ShoppingBag, Utensils, Scissors, Stethoscope, Package, Mail, Hash,
+  ShoppingCart, Utensils, Scissors, Stethoscope, Package, Mail, Hash,
   Wallet, Inbox, RefreshCw, Lock, Info, AlertTriangle
 } from 'lucide-react';
 import { apiClient } from '@/lib/api';
@@ -138,6 +138,12 @@ const INTEGRATION_LOGOS = {
     className: 'h-7 w-7 rounded-md object-cover',
     unoptimized: true,
   },
+  AMAZON: {
+    src: '/assets/integrations/amazon.svg',
+    width: 28,
+    height: 28,
+    className: 'h-7 w-7 object-contain',
+  },
   HEPSIBURADA: {
     src: '/assets/integrations/hepsiburada.png',
     width: 28,
@@ -192,7 +198,7 @@ const INTEGRATION_ICONS = {
   IKAS: ({ className }) => <IntegrationLogo type="IKAS" className={className} />,
   TRENDYOL: ({ className }) => <IntegrationLogo type="TRENDYOL" className={className} />,
   HEPSIBURADA: ({ className }) => <IntegrationLogo type="HEPSIBURADA" className={className} />,
-  AMAZON: ShoppingBag,
+  AMAZON: ({ className }) => <IntegrationLogo type="AMAZON" className={className} />,
   SIKAYETVAR: AlertTriangle,
   CUSTOM: Hash
 };
@@ -263,7 +269,7 @@ export default function IntegrationsPage() {
     merchantIdPlaceholder: isTr ? 'mağaza kimliği' : 'merchant identifier',
     hepsiburadaHelper: isTr ? 'Hepsiburada soruları çekilir, AI yanıtı oluşturulur ve panelden onaylandığında platforma gönderilir.' : 'Hepsiburada questions are pulled, AI replies are generated, and posted after approval from the panel.',
     hepsiburadaConnectButton: isTr ? 'Hepsiburada Bağla' : 'Connect Hepsiburada',
-    amazonConnectDescription: isTr ? 'Amazon SP-API OAuth bağlantısı. Buyer Messaging ve sipariş bazlı müşteri iletişimi için altyapı hazırlar; ürün soru-cevap feedi değildir.' : 'Amazon SP-API OAuth connection. Prepares infrastructure for Buyer Messaging and order-based customer communication; this is not a product Q&A feed.',
+    amazonConnectDescription: isTr ? 'Amazon mağazanızı bağlayın, buyer messaging akışlarını yönetin ve sipariş bazlı müşteri iletişimini AI destekli taslaklarla panelden hızlandırın.' : 'Connect your Amazon store, manage buyer messaging flows, and speed up order-based customer communication with AI-assisted drafts from the dashboard.',
     amazonConnectSuccess: isTr ? 'Amazon yönlendirmesi başlatıldı' : 'Amazon authorization started',
     amazonConnectError: isTr ? 'Amazon bağlantısı başlatılamadı' : 'Failed to start Amazon authorization',
     amazonDisconnected: isTr ? 'Amazon bağlantısı kesildi' : 'Amazon disconnected',
