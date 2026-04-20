@@ -1,9 +1,14 @@
 'use client';
 
 import React from 'react';
+import { useTheme } from 'next-themes';
 import PageIntro from '@/components/PageIntro';
 import { getPageHelp } from '@/content/pageHelp';
 import { useLanguage } from '@/contexts/LanguageContext';
+import {
+  DashboardFlowBackdrop,
+  getDashboardFlowPageStyle,
+} from '@/components/dashboard/DashboardFlowBackdrop';
 import {
   Globe,
   BookOpen,
@@ -21,12 +26,6 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import {
-  FlowBadge,
-  FlowPageShell,
-  FlowPanel,
-  FlowStatCard,
-} from '@/components/dashboard/FlowPageShell';
 
 /* ------------------------------------------------------------------ */
 /*  Bilingual guide content                                           */
@@ -241,43 +240,24 @@ const GUIDE_CONTENT = {
 /*  Section renderers                                                 */
 /* ------------------------------------------------------------------ */
 
-const SECTION_ACCENTS = ['teal', 'lightBlue', 'deepBlue', 'navy', 'teal', 'lightBlue', 'deepBlue'];
-
-function SectionCard({ section, locale, index }) {
+function SectionCard({ section, locale }) {
   const Icon = section.icon;
-  const accent = SECTION_ACCENTS[index % SECTION_ACCENTS.length];
-  const accentStyles = {
-    teal: { color: '#00C4E6', soft: 'rgba(0,196,230,0.12)' },
-    lightBlue: { color: '#006FEB', soft: 'rgba(0,111,235,0.12)' },
-    deepBlue: { color: '#000ACF', soft: 'rgba(0,10,207,0.14)' },
-    navy: { color: '#051752', soft: 'rgba(5,23,82,0.14)' },
-  }[accent];
 
   return (
-    <FlowPanel className="overflow-hidden p-0">
+    <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-3 border-b border-neutral-200/80 px-6 py-5 dark:border-white/[0.08]">
-        <div
-          className="flex h-11 w-11 items-center justify-center rounded-2xl border"
-          style={{
-            color: accentStyles.color,
-            backgroundColor: accentStyles.soft,
-            borderColor: `${accentStyles.color}40`,
-          }}
-        >
-          <Icon className="h-5 w-5" />
+      <div className="flex items-center gap-3 px-6 py-4 border-b border-neutral-200 dark:border-neutral-700">
+        <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-neutral-100 dark:bg-neutral-800">
+          <Icon className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
         </div>
-        <div className="space-y-1">
-          <FlowBadge accent={accent}>{locale === 'tr' ? 'Rehber Bolumu' : 'Guide Section'}</FlowBadge>
-          <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">{section.title}</h2>
-        </div>
+        <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">{section.title}</h2>
       </div>
 
       {/* Body */}
-      <div className="space-y-4 p-6">
+      <div className="p-6 space-y-4">
         {/* Text paragraphs */}
         {section.body?.map((paragraph, i) => (
-          <p key={i} className="text-sm leading-7 text-neutral-700 dark:text-neutral-300">
+          <p key={i} className="text-sm leading-relaxed text-neutral-700 dark:text-neutral-300">
             {paragraph}
           </p>
         ))}
@@ -290,21 +270,12 @@ function SectionCard({ section, locale, index }) {
               return (
                 <div
                   key={ch.label}
-                  className="flex items-start gap-3 rounded-2xl border border-neutral-100 bg-neutral-50/80 p-4 dark:border-white/[0.08] dark:bg-white/[0.03]"
+                  className="flex items-start gap-3 rounded-lg border border-neutral-100 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/50 p-3"
                 >
-                  <div
-                    className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border"
-                    style={{
-                      color: accentStyles.color,
-                      backgroundColor: accentStyles.soft,
-                      borderColor: `${accentStyles.color}35`,
-                    }}
-                  >
-                    <ChIcon className="h-4 w-4" />
-                  </div>
+                  <ChIcon className="h-5 w-5 text-primary-600 dark:text-primary-400 mt-0.5 shrink-0" />
                   <div>
                     <p className="text-sm font-medium text-neutral-900 dark:text-white">{ch.label}</p>
-                    <p className="text-xs leading-6 text-neutral-600 dark:text-neutral-400">{ch.desc}</p>
+                    <p className="text-xs text-neutral-600 dark:text-neutral-400">{ch.desc}</p>
                   </div>
                 </div>
               );
@@ -318,7 +289,7 @@ function SectionCard({ section, locale, index }) {
 
         {/* Privacy note (custom-data section) */}
         {section.privacyNote && (
-          <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-700/40 dark:bg-amber-950/40">
+          <div className="flex items-start gap-3 rounded-xl bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 p-4">
             <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
             <p className="text-sm text-amber-800 dark:text-amber-200">{section.privacyNote}</p>
           </div>
@@ -326,7 +297,7 @@ function SectionCard({ section, locale, index }) {
 
         {/* Constraints (campaigns section) */}
         {section.constraints && (
-          <div className="rounded-2xl border border-neutral-200 bg-neutral-50/80 p-4 dark:border-white/[0.08] dark:bg-white/[0.03]">
+          <div className="rounded-lg bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200 dark:border-neutral-700 p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400 mb-2">
               {locale === 'tr' ? 'Kısıtlar & Notlar' : 'Constraints & Notes'}
             </p>
@@ -345,27 +316,13 @@ function SectionCard({ section, locale, index }) {
         {section.checklist && (
           <ol className="space-y-3">
             {section.checklist.map((item, i) => (
-              <li
-                key={i}
-                className="flex items-center gap-3 rounded-2xl border border-neutral-100 bg-white/70 p-3 dark:border-white/[0.06] dark:bg-white/[0.03]"
-              >
-                <span
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
-                  style={{
-                    color: accentStyles.color,
-                    backgroundColor: accentStyles.soft,
-                  }}
-                >
+              <li key={i} className="flex items-center gap-3">
+                <span className="flex items-center justify-center w-7 h-7 rounded-full bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 text-sm font-semibold shrink-0">
                   {i + 1}
                 </span>
                 <span className="text-sm text-neutral-700 dark:text-neutral-300 flex-1">{item.step}</span>
                 <Link href={item.href}>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="shrink-0"
-                    style={{ color: accentStyles.color }}
-                  >
+                  <Button variant="ghost" size="sm" className="shrink-0 text-primary-600 dark:text-primary-400 hover:text-primary-700">
                     <ArrowRight className="h-4 w-4" />
                   </Button>
                 </Link>
@@ -378,7 +335,7 @@ function SectionCard({ section, locale, index }) {
         {section.link && (
           <div className="pt-2">
             <Link href={section.link.href}>
-              <Button variant="outline" size="sm" className="gap-2 rounded-full">
+              <Button variant="outline" size="sm" className="gap-2">
                 {section.link.label}
                 <ArrowRight className="h-3.5 w-3.5" />
               </Button>
@@ -386,7 +343,7 @@ function SectionCard({ section, locale, index }) {
           </div>
         )}
       </div>
-    </FlowPanel>
+    </div>
   );
 }
 
@@ -396,60 +353,41 @@ function SectionCard({ section, locale, index }) {
 
 export default function GuidePage() {
   const { locale } = useLanguage();
+  const { resolvedTheme } = useTheme();
   const pageHelp = getPageHelp('guides', locale);
   const content = GUIDE_CONTENT[locale === 'tr' ? 'tr' : 'en'];
-  const guideStats = locale === 'tr'
-    ? [
-        { value: '4', label: 'Ana kanal', hint: 'Telefon, WhatsApp, e-posta ve chat' },
-        { value: `${content.sections.length}`, label: 'Rehber modulu', hint: 'Kurulumdan entegrasyona kadar tum akislar' },
-        { value: '5 dk', label: 'Hizli kurulum', hint: 'Ilk asistani ve ilk veri setini hizla hazirla' },
-      ]
-    : [
-        { value: '4', label: 'Core channels', hint: 'Phone, WhatsApp, email, and chat' },
-        { value: `${content.sections.length}`, label: 'Guide modules', hint: 'From setup to integrations in one place' },
-        { value: '5 min', label: 'Quick setup', hint: 'Prepare your first assistant and first data set fast' },
-      ];
+  const isDark = resolvedTheme === 'dark';
+
+  const pageContent = (
+    <div className="max-w-4xl mx-auto space-y-8 pb-12">
+      <PageIntro
+        title={pageHelp.title}
+        subtitle={pageHelp.subtitle}
+        locale={locale}
+        help={{
+          tooltipTitle: pageHelp.tooltipTitle,
+          tooltipBody: pageHelp.tooltipBody,
+          quickSteps: pageHelp.quickSteps,
+        }}
+      />
+
+      {content.sections.map((section) => (
+        <SectionCard key={section.id} section={section} locale={locale} />
+      ))}
+    </div>
+  );
+
+  if (!isDark) {
+    return pageContent;
+  }
 
   return (
-    <div className="space-y-8 pb-12">
-      <FlowPageShell className="mx-auto max-w-6xl">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-3xl space-y-4">
-            <FlowBadge accent="teal">{locale === 'tr' ? 'Urun Rehberi' : 'Product Guide'}</FlowBadge>
-            <PageIntro
-              title={pageHelp.title}
-              subtitle={pageHelp.subtitle}
-              locale={locale}
-              titleClassName="text-3xl md:text-4xl font-semibold text-neutral-900 dark:text-white"
-              subtitleClassName="text-base leading-7 text-neutral-600 dark:text-slate-300"
-              help={{
-                tooltipTitle: pageHelp.tooltipTitle,
-                tooltipBody: pageHelp.tooltipBody,
-                quickSteps: pageHelp.quickSteps,
-              }}
-            />
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-3 lg:max-w-2xl">
-            {guideStats.map((stat, index) => (
-              <FlowStatCard
-                key={stat.label}
-                icon={[Globe, BookOpen, Zap][index]}
-                value={stat.value}
-                label={stat.label}
-                hint={stat.hint}
-                accent={SECTION_ACCENTS[index]}
-              />
-            ))}
-          </div>
-        </div>
-      </FlowPageShell>
-
-      <div className="mx-auto grid max-w-6xl gap-6">
-        {content.sections.map((section, index) => (
-          <SectionCard key={section.id} section={section} locale={locale} index={index} />
-        ))}
-      </div>
+    <div
+      className="relative -m-6 min-h-screen overflow-hidden p-6"
+      style={getDashboardFlowPageStyle(isDark)}
+    >
+      <DashboardFlowBackdrop dark={isDark} />
+      <div className="relative z-10">{pageContent}</div>
     </div>
   );
 }

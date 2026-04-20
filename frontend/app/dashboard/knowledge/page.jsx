@@ -7,6 +7,7 @@
 
 import React, { useState, useEffect, Suspense, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { useTheme } from 'next-themes';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,16 +40,16 @@ import { usePermissions } from '@/hooks/usePermissions';
 import PageIntro from '@/components/PageIntro';
 import { getPageHelp } from '@/content/pageHelp';
 import {
-  FlowBadge,
-  FlowPageShell,
-  FlowPanel,
-  FlowStatCard,
-} from '@/components/dashboard/FlowPageShell';
+  DashboardFlowBackdrop,
+  getDashboardFlowPageStyle,
+} from '@/components/dashboard/DashboardFlowBackdrop';
 
 function KnowledgeBaseContent() {
   const { t, locale } = useLanguage();
   const { can } = usePermissions();
+  const { resolvedTheme } = useTheme();
   const pageHelp = getPageHelp('knowledgeBase', locale);
+  const isDark = resolvedTheme === 'dark';
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -348,53 +349,32 @@ function KnowledgeBaseContent() {
 
   // Show skeleton while loading initial data
   if (loading) {
-    return <KnowledgeBaseSkeleton />;
+    if (!isDark) {
+      return <KnowledgeBaseSkeleton />;
+    }
+
+    return (
+      <div
+        className="relative -m-6 min-h-screen overflow-hidden p-6"
+        style={getDashboardFlowPageStyle(isDark)}
+      >
+        <DashboardFlowBackdrop dark={isDark} />
+        <div className="relative z-10">
+          <KnowledgeBaseSkeleton />
+        </div>
+      </div>
+    );
   }
 
-  const readyDocuments = documents.filter((doc) => doc.status === 'ACTIVE' || doc.status === 'ready').length;
-  const pendingDocuments = documents.filter((doc) => doc.status === 'PROCESSING' || doc.status === 'processing').length;
-
-  return (
-    <div className="space-y-6 pb-12">
-      <FlowPageShell className="mx-auto max-w-7xl">
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start">
-          <div className="space-y-4">
-            <FlowBadge accent="teal">{locale === 'tr' ? 'Bilgi Katmani' : 'Knowledge Layer'}</FlowBadge>
-            <PageIntro
-              title={pageHelp?.title || t('dashboard.knowledgeBasePage.title')}
-              subtitle={pageHelp?.subtitle}
-              locale={locale}
-              titleClassName="text-3xl md:text-4xl font-semibold text-neutral-900 dark:text-white"
-              subtitleClassName="text-base leading-7 text-neutral-600 dark:text-slate-300"
-              help={pageHelp ? { tooltipTitle: pageHelp.tooltipTitle, tooltipBody: pageHelp.tooltipBody, quickSteps: pageHelp.quickSteps } : undefined}
-            />
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
-            <FlowStatCard
-              icon={FileText}
-              value={documents.length}
-              label={locale === 'tr' ? 'Dokuman havuzu' : 'Document pool'}
-              hint={locale === 'tr' ? `${readyDocuments} hazir, ${pendingDocuments} isleniyor` : `${readyDocuments} ready, ${pendingDocuments} processing`}
-              accent="teal"
-            />
-            <FlowStatCard
-              icon={MessageSquare}
-              value={faqs.length}
-              label={locale === 'tr' ? 'SSS kaydi' : 'FAQ entries'}
-              hint={locale === 'tr' ? 'Hizli ve tekrar eden yanitlar icin' : 'For fast and repeatable responses'}
-              accent="lightBlue"
-            />
-            <FlowStatCard
-              icon={Upload}
-              value={locale === 'tr' ? 'Canli' : 'Live'}
-              label={locale === 'tr' ? 'Icerik akisi' : 'Content flow'}
-              hint={locale === 'tr' ? 'Yeni icerigi yukleyip asistanlara baglayin' : 'Upload new content and wire it to assistants'}
-              accent="deepBlue"
-            />
-          </div>
-        </div>
-      </FlowPageShell>
+  const pageContent = (
+    <div className="space-y-6">
+      {/* Header */}
+      <PageIntro
+        title={pageHelp?.title || t('dashboard.knowledgeBasePage.title')}
+        subtitle={pageHelp?.subtitle}
+        locale={locale}
+        help={pageHelp ? { tooltipTitle: pageHelp.tooltipTitle, tooltipBody: pageHelp.tooltipBody, quickSteps: pageHelp.quickSteps } : undefined}
+      />
 
       {/* Tabs */}
       <Tabs
@@ -403,51 +383,49 @@ function KnowledgeBaseContent() {
           setActiveTab(value);
           router.replace(`/dashboard/knowledge?tab=${value}`, { scroll: false });
         }}
-        className="mx-auto max-w-7xl space-y-6"
+        className="space-y-6"
       >
-        <FlowPanel className="p-4">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <TabsList className="w-full justify-start rounded-full bg-neutral-100 p-1 dark:bg-white/[0.05] lg:w-auto">
+        <div className="flex items-center justify-between">
+          <TabsList>
             <TabsTrigger value="documents">{t('dashboard.knowledgeBasePage.documentsTab')} ({documents.length})</TabsTrigger>
             <TabsTrigger value="faqs">{t('dashboard.knowledgeBasePage.faqsTab')} ({faqs.length})</TabsTrigger>
           </TabsList>
 
           {activeTab === 'documents' && can('knowledge:edit') && (
-            <Button onClick={() => setShowDocModal(true)} className="rounded-full">
+            <Button onClick={() => setShowDocModal(true)}>
               <Plus className="h-4 w-4 mr-2" />
               {t('dashboard.knowledgeBasePage.addDocument')}
             </Button>
           )}
 
           {activeTab === 'faqs' && can('knowledge:edit') && (
-            <Button onClick={() => setShowFaqModal(true)} className="rounded-full">
+            <Button onClick={() => setShowFaqModal(true)}>
               <Plus className="h-4 w-4 mr-2" />
               {t('dashboard.knowledgeBasePage.addFaqButton')}
             </Button>
           )}
-          </div>
-        </FlowPanel>
+        </div>
 
         {/* Documents Tab */}
         <TabsContent value="documents" className="space-y-4">
 
           {documents.length > 0 ? (
-            <FlowPanel className="overflow-hidden p-0">
+            <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 overflow-hidden">
               <table className="w-full">
-                <thead className="border-b border-neutral-200 dark:border-white/[0.08] bg-neutral-50/90 dark:bg-white/[0.04]">
+                <thead className="bg-neutral-50 dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700">
                   <tr>
-                    <th className="text-left p-4 text-sm font-medium text-neutral-600 dark:text-slate-300">{t('dashboard.knowledgeBasePage.nameTableHeader')}</th>
-                    <th className="text-left p-4 text-sm font-medium text-neutral-600 dark:text-slate-300">{t('dashboard.knowledgeBasePage.typeTableHeader')}</th>
-                    <th className="text-left p-4 text-sm font-medium text-neutral-600 dark:text-slate-300">{t('dashboard.knowledgeBasePage.sizeTableHeader')}</th>
-                    <th className="text-left p-4 text-sm font-medium text-neutral-600 dark:text-slate-300">{t('dashboard.knowledgeBasePage.statusTableHeader')}</th>
-                    <th className="text-left p-4 text-sm font-medium text-neutral-600 dark:text-slate-300">{t('dashboard.knowledgeBasePage.errorReasonHeader') || 'Hata Nedeni'}</th>
-                    <th className="text-left p-4 text-sm font-medium text-neutral-600 dark:text-slate-300">{t('dashboard.knowledgeBasePage.uploadedTableHeader')}</th>
-                    <th className="text-left p-4 text-sm font-medium text-neutral-600 dark:text-slate-300">{t('dashboard.knowledgeBasePage.actionsTableHeader')}</th>
+                    <th className="text-left p-4 text-sm font-medium text-neutral-600 dark:text-neutral-300">{t('dashboard.knowledgeBasePage.nameTableHeader')}</th>
+                    <th className="text-left p-4 text-sm font-medium text-neutral-600 dark:text-neutral-300">{t('dashboard.knowledgeBasePage.typeTableHeader')}</th>
+                    <th className="text-left p-4 text-sm font-medium text-neutral-600 dark:text-neutral-300">{t('dashboard.knowledgeBasePage.sizeTableHeader')}</th>
+                    <th className="text-left p-4 text-sm font-medium text-neutral-600 dark:text-neutral-300">{t('dashboard.knowledgeBasePage.statusTableHeader')}</th>
+                    <th className="text-left p-4 text-sm font-medium text-neutral-600 dark:text-neutral-300">{t('dashboard.knowledgeBasePage.errorReasonHeader') || 'Hata Nedeni'}</th>
+                    <th className="text-left p-4 text-sm font-medium text-neutral-600 dark:text-neutral-300">{t('dashboard.knowledgeBasePage.uploadedTableHeader')}</th>
+                    <th className="text-left p-4 text-sm font-medium text-neutral-600 dark:text-neutral-300">{t('dashboard.knowledgeBasePage.actionsTableHeader')}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-neutral-200 dark:divide-white/[0.08]">
+                <tbody className="divide-y divide-neutral-200 dark:divide-neutral-700">
                   {documents.map((doc) => (
-                    <tr key={doc.id} className="hover:bg-neutral-50/80 dark:hover:bg-white/[0.03]">
+                    <tr key={doc.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
                       <td className="px-4 py-3">
                         <button
                           onClick={() => handleViewDocument(doc)}
@@ -496,15 +474,15 @@ function KnowledgeBaseContent() {
                   ))}
                 </tbody>
               </table>
-            </FlowPanel>
+            </div>
           ) : (
-            <FlowPanel className="p-12">
+            <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-12">
               <EmptyState
                 icon={FileText}
                 title={t('dashboard.knowledgeBasePage.noDocumentsTitle')}
                 description={t('dashboard.knowledgeBasePage.uploadDocumentsDesc')}
               />
-            </FlowPanel>
+            </div>
           )}
         </TabsContent>
 
@@ -513,7 +491,7 @@ function KnowledgeBaseContent() {
           {faqs.length > 0 ? (
             <div className="space-y-3">
               {faqs.map((faq) => (
-                <FlowPanel key={faq.id} className="p-6">
+                <div key={faq.id} className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-6">
                   <div className="flex justify-between items-start mb-3">
                     <h3 className="font-semibold text-neutral-900 dark:text-white">{faq.question}</h3>
                     {can('knowledge:delete') && (
@@ -530,24 +508,24 @@ function KnowledgeBaseContent() {
                   {faq.category && (
                     <Badge variant="secondary" className="text-xs">{faq.category}</Badge>
                   )}
-                </FlowPanel>
+                </div>
               ))}
             </div>
           ) : (
-            <FlowPanel className="p-12">
+            <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-12">
               <EmptyState
                 icon={MessageSquare}
                 title={t('dashboard.knowledgeBasePage.noFaqsTitle')}
                 description={t('dashboard.knowledgeBasePage.addFaqsDesc')}
               />
-            </FlowPanel>
+            </div>
           )}
         </TabsContent>
       </Tabs>
 
       {/* Document Upload Modal */}
       <Dialog open={showDocModal} onOpenChange={handleDocModalOpenChange}>
-        <DialogContent className="dark:border-white/[0.08] dark:bg-[#071224]/95 dark:text-white">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>{t('dashboard.knowledgeBasePage.addKnowledgeBase')}</DialogTitle>
             <DialogDescription>{t('dashboard.knowledgeBasePage.uploadDocumentsLabel')}</DialogDescription>
@@ -623,7 +601,7 @@ function KnowledgeBaseContent() {
               </div>
             </div>
           </div>
-          <div className="flex justify-end gap-3 pt-4 border-t dark:border-white/[0.08]">
+          <div className="flex justify-end gap-3 pt-4 border-t">
             <Button
               variant="outline"
               onClick={() => handleDocModalOpenChange(false)}
@@ -642,7 +620,7 @@ function KnowledgeBaseContent() {
 
       {/* FAQ Modal */}
       <Dialog open={showFaqModal} onOpenChange={setShowFaqModal}>
-        <DialogContent className="dark:border-white/[0.08] dark:bg-[#071224]/95 dark:text-white">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>{t('dashboard.knowledgeBasePage.addFaqTitle')}</DialogTitle>
             <DialogDescription>{t('dashboard.knowledgeBasePage.createFaqDesc')}</DialogDescription>
@@ -677,7 +655,7 @@ function KnowledgeBaseContent() {
               />
             </div>
           </div>
-          <div className="flex justify-end gap-3 pt-4 border-t dark:border-white/[0.08]">
+          <div className="flex justify-end gap-3 pt-4 border-t">
             <Button variant="outline" onClick={() => setShowFaqModal(false)}>
               {t('common.cancel')}
             </Button>
@@ -688,7 +666,7 @@ function KnowledgeBaseContent() {
 
       {/* Content Viewer Modal */}
       <Dialog open={showContentModal} onOpenChange={setShowContentModal}>
-        <DialogContent className="max-w-3xl max-h-[80vh] dark:border-white/[0.08] dark:bg-[#071224]/95 dark:text-white">
+        <DialogContent className="max-w-3xl max-h-[80vh]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-primary-600" />
@@ -704,7 +682,7 @@ function KnowledgeBaseContent() {
                 <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
               </div>
             ) : (
-              <div className="bg-neutral-50 dark:bg-white/[0.04] rounded-lg p-4">
+              <div className="bg-neutral-50 dark:bg-neutral-800 rounded-lg p-4">
                 <pre className="whitespace-pre-wrap text-sm text-neutral-700 dark:text-neutral-300 font-mono">
                   {(() => {
                     const content = contentModalData?.content || t('dashboard.knowledgeBasePage.noContent');
@@ -719,7 +697,7 @@ function KnowledgeBaseContent() {
               </div>
             )}
           </ScrollArea>
-          <div className="flex justify-end pt-4 border-t dark:border-white/[0.08]">
+          <div className="flex justify-end pt-4 border-t">
             <Button variant="outline" onClick={() => setShowContentModal(false)}>
               {t('common.close')}
             </Button>
@@ -727,6 +705,20 @@ function KnowledgeBaseContent() {
         </DialogContent>
       </Dialog>
 
+    </div>
+  );
+
+  if (!isDark) {
+    return pageContent;
+  }
+
+  return (
+    <div
+      className="relative -m-6 min-h-screen overflow-hidden p-6"
+      style={getDashboardFlowPageStyle(isDark)}
+    >
+      <DashboardFlowBackdrop dark={isDark} />
+      <div className="relative z-10">{pageContent}</div>
     </div>
   );
 }

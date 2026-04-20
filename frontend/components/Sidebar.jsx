@@ -180,19 +180,19 @@ export default function Sidebar({ user, credits, business, whatsappPendingCount 
   // Sidebar Skeleton while loading
   const SidebarSkeleton = () => (
     <div
-      className="flex h-full flex-col bg-gray-50 dark:bg-[linear-gradient(180deg,rgba(3,10,32,0.98),rgba(4,10,28,0.94))]"
+      className="flex flex-col h-full bg-gray-50 dark:bg-[linear-gradient(180deg,rgba(3,10,32,0.98),rgba(4,10,28,0.94))]"
       style={isDarkTheme ? getDashboardFlowSurfaceStyle(true, 'sidebar') : undefined}
     >
-      <div className="h-16 flex items-center px-4 border-b border-gray-200 dark:border-white/[0.08]">
+      <div className="h-14 flex items-center px-4 border-b border-gray-200 dark:border-white/[0.08]">
         <div className="h-8 w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
       </div>
       <nav className="flex-1 overflow-y-auto py-4 px-3">
         {[1, 2, 3, 4].map((i) => (
           <div key={i} className="mb-6">
-            <div className="h-3 w-16 bg-gray-200 dark:bg-white/10 rounded mb-2 animate-pulse" />
+            <div className="h-3 w-16 bg-gray-200 dark:bg-gray-700 rounded mb-2 animate-pulse" />
             <div className="space-y-1">
               {[1, 2].map((j) => (
-                <div key={j} className="h-10 bg-gray-200 dark:bg-white/[0.05] rounded-xl animate-pulse" />
+                <div key={j} className="h-9 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
               ))}
             </div>
           </div>
@@ -298,27 +298,11 @@ export default function Sidebar({ user, credits, business, whatsappPendingCount 
 
   const SidebarContent = () => (
     <div
-      className="relative flex h-full flex-col overflow-hidden bg-gray-50 dark:bg-[linear-gradient(180deg,rgba(3,10,32,0.98),rgba(4,10,28,0.94))]"
+      className="flex flex-col h-full bg-gray-50 dark:bg-[linear-gradient(180deg,rgba(3,10,32,0.98),rgba(4,10,28,0.94))]"
       style={isDarkTheme ? getDashboardFlowSurfaceStyle(true, 'sidebar') : undefined}
     >
-      {isDarkTheme ? (
-        <>
-          <div
-            aria-hidden
-            className="pointer-events-none absolute -left-12 top-16 h-36 w-36 rounded-full blur-3xl"
-            style={{ background: 'rgba(0,196,230,0.16)' }}
-          />
-          <div
-            aria-hidden
-            className="pointer-events-none absolute bottom-20 right-0 h-40 w-40 rounded-full blur-3xl"
-            style={{ background: 'rgba(0,111,235,0.14)' }}
-          />
-          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),transparent_18%,transparent_82%,rgba(255,255,255,0.03))]" />
-        </>
-      ) : null}
-
       {/* Logo */}
-      <div className="relative z-10 h-16 flex items-center px-4 border-b border-gray-200 dark:border-white/[0.08]">
+      <div className="h-14 flex items-center px-4 border-b border-gray-200 dark:border-white/[0.08]">
         <Link href="/dashboard/assistant" className="flex items-center">
           <TelyxLogoCompact darkMode={mounted && resolvedTheme === 'dark'} />
         </Link>
@@ -332,7 +316,7 @@ export default function Sidebar({ user, credits, business, whatsappPendingCount 
           sidebarScrollRef.current = event.currentTarget.scrollTop;
           sessionStorage.setItem('sidebar-scroll', String(event.currentTarget.scrollTop));
         }}
-        className="relative z-10 flex-1 min-h-0 overflow-y-auto py-3 px-3"
+        className="flex-1 min-h-0 overflow-y-auto py-2 px-3"
       >
         {NAVIGATION.map((section) => {
           const sectionLabel = section.label;
@@ -352,7 +336,7 @@ export default function Sidebar({ user, credits, business, whatsappPendingCount 
               {/* Section header */}
               <button
                 onClick={() => toggleSection(sectionLabel)}
-                className="flex items-center justify-between w-full px-3 py-1 text-[10px] font-medium text-gray-400 dark:text-slate-500 uppercase tracking-[0.18em] hover:text-gray-600 dark:hover:text-slate-300 transition-colors"
+                className="flex items-center justify-between w-full px-3 py-0.5 text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
               >
                 <span>{sectionLabel}</span>
                 {isCollapsed ? (
@@ -379,7 +363,7 @@ export default function Sidebar({ user, credits, business, whatsappPendingCount 
                             setIsMobileOpen(false);
                             handleLockedFeatureClick(item.featureId);
                           }}
-                          className="flex items-center justify-between w-full px-3 py-2 rounded-xl text-[13px] text-gray-400 dark:text-slate-500 hover:bg-gray-100 dark:hover:bg-white/[0.05] transition-colors"
+                          className="flex items-center justify-between w-full px-3 py-1 rounded-md text-[13px] text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                         >
                           <div className="flex items-center gap-2.5">
                             <Icon className="h-4 w-4 flex-shrink-0" />
@@ -399,12 +383,11 @@ export default function Sidebar({ user, credits, business, whatsappPendingCount 
                           setIsMobileOpen(false);
                         }}
                         className={cn(
-                          'flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] font-medium transition-all border',
+                          'flex items-center gap-2.5 px-3 py-1 rounded-md text-[13px] font-medium transition-all',
                           isActive
-                            ? 'bg-white text-primary-600 border-primary-100 shadow-sm dark:text-white dark:border-white/[0.08] dark:shadow-[0_16px_36px_rgba(2,6,23,0.35)]'
-                            : 'text-gray-700 border-transparent dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-white/[0.05] dark:hover:border-white/[0.06]'
+                            ? 'bg-white dark:bg-gray-800 text-primary-600 dark:text-primary-400 shadow-sm'
+                            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
                         )}
-                        style={isActive && isDarkTheme ? getDashboardFlowSurfaceStyle(true, 'elevated') : undefined}
                       >
                         <Icon className="h-4 w-4 flex-shrink-0" />
                         <span className="flex-1 truncate">{item.label}</span>
@@ -424,18 +407,15 @@ export default function Sidebar({ user, credits, business, whatsappPendingCount 
       </nav>
 
       {/* Language Switcher */}
-      <div className="relative z-10 px-4 py-2 border-t border-gray-200 dark:border-white/[0.08]">
+      <div className="px-4 py-1.5 border-t border-gray-200 dark:border-white/[0.08]">
         <LanguageSwitcher />
       </div>
 
       {/* User profile */}
-      <div className="relative z-10 px-3 py-2 border-t border-gray-200 dark:border-white/[0.08]">
+      <div className="px-3 py-1.5 border-t border-gray-200 dark:border-white/[0.08]">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button
-              className="flex items-center gap-3 w-full rounded-2xl border border-gray-200/80 bg-white/90 px-3 py-3 text-left shadow-sm transition-colors hover:bg-gray-50 dark:border-white/[0.08] dark:bg-transparent dark:hover:bg-white/[0.04]"
-              style={isDarkTheme ? getDashboardFlowSurfaceStyle(true, 'elevated') : undefined}
-            >
+            <button className="flex items-center gap-3 w-full rounded-xl border border-gray-200/80 bg-white/80 px-3 py-2.5 text-left shadow-sm transition-colors hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:hover:bg-gray-800">
               <Avatar className="h-9 w-9 flex-shrink-0">
                 <AvatarFallback className="bg-primary-600 text-white text-sm font-semibold">
                   {user?.name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U'}
@@ -446,12 +426,12 @@ export default function Sidebar({ user, credits, business, whatsappPendingCount 
                   {user?.name || t('dashboard.userFallback')}
                 </p>
                 <div className="mt-1 flex items-center">
-                  <span className="inline-flex max-w-full truncate whitespace-nowrap rounded-full bg-primary-50 px-2.5 py-0.5 text-[11px] font-medium text-primary-700 dark:bg-[#00C4E6]/15 dark:text-[#7DD3FC] dark:border dark:border-[#00C4E6]/25">
+                  <span className="inline-flex max-w-full truncate whitespace-nowrap rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-medium text-primary-700 dark:bg-primary-900/30 dark:text-primary-300">
                     {getPlanDisplay()}
                   </span>
                 </div>
               </div>
-              <ChevronDown className="h-4 w-4 text-gray-400 dark:text-slate-500 flex-shrink-0" />
+              <ChevronDown className="h-4 w-4 text-gray-400 flex-shrink-0" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
@@ -502,12 +482,12 @@ export default function Sidebar({ user, credits, business, whatsappPendingCount 
       {/* Mobile menu button */}
       <button
         onClick={() => setIsMobileOpen(!isMobileOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white dark:bg-[#071224] rounded-xl shadow-md border border-gray-200 dark:border-white/[0.08]"
+        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white dark:bg-[#081126] rounded-md shadow-md border border-gray-200 dark:border-white/[0.08]"
       >
         {isMobileOpen ? (
-          <X className="h-5 w-5 text-gray-700 dark:text-slate-200" />
+          <X className="h-5 w-5 text-gray-700 dark:text-gray-300" />
         ) : (
-          <Menu className="h-5 w-5 text-gray-700 dark:text-slate-200" />
+          <Menu className="h-5 w-5 text-gray-700 dark:text-gray-300" />
         )}
       </button>
 

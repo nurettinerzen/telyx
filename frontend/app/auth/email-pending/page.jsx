@@ -4,14 +4,14 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import Link from 'next/link';
-import { Mail, RefreshCw, Loader2, CheckCircle, Edit3, LogOut } from 'lucide-react';
+import { Phone, Mail, RefreshCw, Loader2, CheckCircle, Edit3, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast, Toaster } from 'sonner';
 import { apiClient } from '@/lib/api';
+import { TelyxLogoFull } from '@/components/TelyxLogo';
 import { useLanguage } from '@/contexts/LanguageContext';
-import AuthFlowShell from '@/components/AuthFlowShell';
 
 export default function EmailPendingPage() {
   const router = useRouter();
@@ -139,10 +139,16 @@ export default function EmailPendingPage() {
   }
 
   return (
-    <div>
+    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-primary-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950 flex items-center justify-center p-4">
       <Toaster position="top-right" richColors />
 
-      <AuthFlowShell mountedDarkMode={mounted && resolvedTheme === 'dark'}>
+      <div className="w-full max-w-md">
+        <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-xl border border-neutral-200 dark:border-neutral-700 p-8">
+          {/* Logo */}
+          <div className="flex items-center justify-center mb-8">
+            <TelyxLogoFull width={148} height={42} darkMode={mounted && resolvedTheme === 'dark'} />
+          </div>
+
           {/* Main Content */}
           <div className="text-center">
             <div className="w-16 h-16 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -168,7 +174,7 @@ export default function EmailPendingPage() {
                 <Button
                   onClick={handleResendVerification}
                   disabled={resending || countdown > 0}
-                  className="h-11 w-full rounded-full"
+                  className="w-full"
                 >
                   {resending ? (
                     <>
@@ -192,7 +198,7 @@ export default function EmailPendingPage() {
                 <Button
                   variant="outline"
                   onClick={() => setShowChangeEmail(true)}
-                  className="h-11 w-full rounded-full dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-white"
+                  className="w-full"
                 >
                   <Edit3 className="h-4 w-4 mr-2" />
                   {t('auth.changeEmailAddress')}
@@ -202,7 +208,7 @@ export default function EmailPendingPage() {
                 <Button
                   variant="ghost"
                   onClick={handleLogout}
-                  className="h-11 w-full rounded-full text-neutral-500 hover:text-neutral-700 dark:text-slate-400 dark:hover:text-white"
+                  className="w-full text-neutral-500 hover:text-neutral-700"
                 >
                   <LogOut className="h-4 w-4 mr-2" />
                   {t('common.logout')}
@@ -220,7 +226,7 @@ export default function EmailPendingPage() {
                     value={newEmailData.newEmail}
                     onChange={(e) => setNewEmailData(prev => ({ ...prev, newEmail: e.target.value }))}
                     required
-                    className="mt-2 h-11 rounded-xl border-neutral-200 bg-white/80 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-white"
+                    className="mt-1"
                   />
                 </div>
 
@@ -233,7 +239,7 @@ export default function EmailPendingPage() {
                     value={newEmailData.password}
                     onChange={(e) => setNewEmailData(prev => ({ ...prev, password: e.target.value }))}
                     required
-                    className="mt-2 h-11 rounded-xl border-neutral-200 bg-white/80 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-white"
+                    className="mt-1"
                   />
                 </div>
 
@@ -245,14 +251,14 @@ export default function EmailPendingPage() {
                       setShowChangeEmail(false);
                       setNewEmailData({ newEmail: '', password: '' });
                     }}
-                    className="h-11 flex-1 rounded-full dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-white"
+                    className="flex-1"
                   >
                     {t('common.cancel')}
                   </Button>
                   <Button
                     type="submit"
                     disabled={changingEmail}
-                    className="h-11 flex-1 rounded-full"
+                    className="flex-1"
                   >
                     {changingEmail ? (
                       <>
@@ -286,7 +292,8 @@ export default function EmailPendingPage() {
               {t('auth.getSupport')}
             </Link>
           </p>
-      </AuthFlowShell>
+        </div>
+      </div>
     </div>
   );
 }
