@@ -126,7 +126,7 @@ export default function NetGSMConnectionGuidePage() {
           </div>
           <div className="p-6 space-y-4">
             <p className="text-neutral-700 dark:text-neutral-300">
-              Sol menüden <strong>Ayarlar</strong>'a tıklayın. Açılan sayfada <strong>SIP Bilgileri</strong> bölümünü bulun.
+              Sol menüden <strong>Ayarlar</strong>&apos;a tıklayın. Açılan sayfada <strong>SIP Bilgileri</strong> bölümünü bulun.
             </p>
             <div className="bg-neutral-50 dark:bg-neutral-800 rounded-lg p-4 space-y-3">
               <h4 className="font-medium text-neutral-900 dark:text-white">Aldığınız bilgiler:</h4>
@@ -145,7 +145,7 @@ export default function NetGSMConnectionGuidePage() {
                 </li>
               </ul>
               <p className="text-xs text-neutral-500 mt-2">
-                Şifreyi görmek için "Şifreyi Göster" butonuna tıklayın
+                Şifreyi görmek için &quot;Şifreyi Göster&quot; butonuna tıklayın
               </p>
             </div>
           </div>
@@ -166,11 +166,11 @@ export default function NetGSMConnectionGuidePage() {
           <div className="p-6 space-y-4">
             <p className="text-neutral-700 dark:text-neutral-300">
               Aynı sayfada aşağı kaydırın ve <strong>SIP Trunk</strong> bölümünü bulun.
-              SIP Trunk'ı <strong>açık</strong> konuma getirin ve aşağıdaki bilgileri girin:
+              SIP Trunk&apos;ı <strong>açık</strong> konuma getirin ve aşağıdaki bilgileri girin:
             </p>
             <div className="bg-gradient-to-r from-primary-50 to-cyan-50 dark:from-primary-950 dark:to-cyan-950 rounded-lg p-4 border border-primary-200 dark:border-primary-800">
               <h4 className="font-medium text-primary-900 dark:text-cyan-100 mb-3">
-                SIP Trunk Bilgileri (NetGSM'e girilecek):
+                SIP Trunk Bilgileri (NetGSM&apos;e girilecek):
               </h4>
               <div className="space-y-3">
                 <div className="flex items-center justify-between p-3 bg-white dark:bg-neutral-900 rounded-lg border">
@@ -239,18 +239,18 @@ export default function NetGSMConnectionGuidePage() {
                 4
               </span>
               <h2 className="text-xl font-semibold text-white">
-                Telyx'e Bağlayın
+                Telyx&apos;e Bağlayın
               </h2>
             </div>
           </div>
           <div className="p-6 space-y-4">
             <p className="text-neutral-700 dark:text-neutral-300">
               Telyx panelinde <strong>Telefon Numaraları</strong> sayfasına gidin ve
-              "Numara Ekle" butonuna tıklayın. Açılan formda NetGSM'den aldığınız SIP bilgilerini girin:
+              &quot;Numara Ekle&quot; butonuna tıklayın. Açılan formda NetGSM&apos;den aldığınız SIP bilgilerini girin:
             </p>
             <div className="bg-primary-50 dark:bg-primary-950 rounded-lg p-4 border border-primary-200 dark:border-primary-800">
               <h4 className="font-medium text-primary-900 dark:text-cyan-100 mb-3">
-                Telyx'e girilecek bilgiler:
+                Telyx&apos;e girilecek bilgiler:
               </h4>
               <ul className="space-y-2 text-sm text-primary-800 dark:text-cyan-100">
                 <li className="flex items-start gap-2">
@@ -259,11 +259,11 @@ export default function NetGSMConnectionGuidePage() {
                 </li>
                 <li className="flex items-start gap-2">
                   <ArrowRight className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                  <span><strong>SIP Kullanıcı Adı:</strong> NetGSM'deki kullanıcı adı (örn: 8503078914)</span>
+                  <span><strong>SIP Kullanıcı Adı:</strong> NetGSM&apos;deki kullanıcı adı (örn: 8503078914)</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <ArrowRight className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                  <span><strong>SIP Şifresi:</strong> NetGSM'deki SIP şifresi</span>
+                  <span><strong>SIP Şifresi:</strong> NetGSM&apos;deki SIP şifresi</span>
                 </li>
               </ul>
             </div>

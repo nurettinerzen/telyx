@@ -100,6 +100,11 @@ router.get('/overview', authenticateToken, async (req, res) => {
     );
 
     const channelSessionDuration = {
+      phone: {
+        sessions: totalCalls,
+        averageSeconds: avgDuration,
+        totalSeconds: totalDuration
+      },
       chat: {
         sessions: chatSessions,
         averageSeconds: chatSessions > 0 ? Math.round(chatTotalSessionDuration / chatSessions) : 0,

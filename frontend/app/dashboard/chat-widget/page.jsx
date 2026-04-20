@@ -6,6 +6,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,11 +28,21 @@ import ChatWidget from '@/components/ChatWidget';
 import { useChatWidgetSettings, useChatStats, useUpdateChatWidget } from '@/hooks/useChatWidget';
 import { useAssistants } from '@/hooks/useAssistants';
 import { useSubscription } from '@/hooks/useSubscription';
+import { cn } from '@/lib/utils';
+import {
+  getDashboardInputClass,
+  getDashboardInsetClass,
+  getDashboardPanelClass,
+  getDashboardSelectContentClass,
+  getDashboardSelectTriggerClass,
+} from '@/components/dashboard/dashboardSurfaceTheme';
 
 
 export default function ChatWidgetPage() {
   const { t, locale } = useLanguage();
+  const { resolvedTheme } = useTheme();
   const pageHelp = getPageHelp('chatWidget', locale);
+  const dark = resolvedTheme === 'dark';
 
   // React Query hooks
   const { data: widgetSettings, isLoading: widgetLoading } = useChatWidgetSettings();
@@ -446,11 +457,11 @@ export default function ChatWidgetPage() {
         {/* Configuration */}
         <div className="flex flex-col gap-6">
           {/* Enable/Disable */}
-          <Card className="p-6">
+          <Card className={getDashboardPanelClass(dark, 'p-6')}>
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-semibold">{t('dashboard.chatWidgetPage.enableWidget')}</h3>
-                <p className="text-sm text-gray-600 mt-1">
+                <h3 className={cn('text-lg font-semibold', dark ? 'text-white' : 'text-slate-900')}>{t('dashboard.chatWidgetPage.enableWidget')}</h3>
+                <p className={cn('mt-1 text-sm', dark ? 'text-slate-400' : 'text-gray-600')}>
                   {t('dashboard.chatWidgetPage.enableWidgetDesc')}
                 </p>
               </div>
@@ -462,17 +473,17 @@ export default function ChatWidgetPage() {
           </Card>
 
           {/* Assistant Selection */}
-          <Card className="p-6">
-            <Label htmlFor="chatAssistant">Chat Assistant</Label>
+          <Card className={getDashboardPanelClass(dark, 'p-6')}>
+            <Label htmlFor="chatAssistant" className={dark ? 'text-slate-200' : ''}>Chat Assistant</Label>
             <Select
               value={chatAssistantId}
               onValueChange={setChatAssistantId}
               disabled={chatCapableAssistants.length === 0}
             >
-              <SelectTrigger className="mt-2">
+              <SelectTrigger className={getDashboardSelectTriggerClass(dark, 'mt-2')}>
                 <SelectValue placeholder={t('dashboard.chatWidgetPage.chooseAssistant')} />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className={getDashboardSelectContentClass(dark)}>
                 {chatCapableAssistants.map((assistant) => (
                   <SelectItem key={assistant.id} value={assistant.id}>
                     {assistant.name}
@@ -480,7 +491,7 @@ export default function ChatWidgetPage() {
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-xs text-gray-500 mt-2">
+            <p className={cn('mt-2 text-xs', dark ? 'text-slate-500' : 'text-gray-500')}>
               {chatCapableAssistants.length === 0
                 ? 'Henüz asistan oluşturmadınız. Asistanlar sayfasından bir asistan oluşturun.'
                 : 'Seçilen asistan chat widget, WhatsApp ve e-posta kanallarında kullanılır.'}
@@ -488,17 +499,17 @@ export default function ChatWidgetPage() {
           </Card>
 
           {/* Appearance */}
-          <Card className="p-6 space-y-4">
-            <h3 className="text-lg font-semibold">{t('dashboard.chatWidgetPage.appearance')}</h3>
+          <Card className={getDashboardPanelClass(dark, 'p-6 space-y-4')}>
+            <h3 className={cn('text-lg font-semibold', dark ? 'text-white' : 'text-slate-900')}>{t('dashboard.chatWidgetPage.appearance')}</h3>
 
             {/* Position */}
             <div>
-              <Label htmlFor="position">{t('dashboard.chatWidgetPage.position')}</Label>
+              <Label htmlFor="position" className={dark ? 'text-slate-200' : ''}>{t('dashboard.chatWidgetPage.position')}</Label>
               <Select value={position} onValueChange={setPosition}>
-                <SelectTrigger className="mt-2">
+                <SelectTrigger className={getDashboardSelectTriggerClass(dark, 'mt-2')}>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className={getDashboardSelectContentClass(dark)}>
                   <SelectItem value="bottom-right">{t('dashboard.chatWidgetPage.bottomRight')}</SelectItem>
                   <SelectItem value="bottom-left">{t('dashboard.chatWidgetPage.bottomLeft')}</SelectItem>
                   <SelectItem value="top-right">{t('dashboard.chatWidgetPage.topRight')}</SelectItem>
@@ -509,34 +520,34 @@ export default function ChatWidgetPage() {
 
             {/* Primary Color */}
             <div>
-              <Label htmlFor="color">{t('dashboard.chatWidgetPage.primaryColor')}</Label>
+              <Label htmlFor="color" className={dark ? 'text-slate-200' : ''}>{t('dashboard.chatWidgetPage.primaryColor')}</Label>
               <div className="flex gap-2 mt-2">
                 <Input
                   id="color"
                   type="color"
                   value={primaryColor}
                   onChange={(e) => setPrimaryColor(e.target.value)}
-                  className="w-20 h-10"
+                  className={getDashboardInputClass(dark, 'h-10 w-20')}
                 />
                 <Input
                   type="text"
                   value={primaryColor}
                   onChange={(e) => setPrimaryColor(e.target.value)}
                   placeholder="#6366f1"
-                  className="flex-1"
+                  className={getDashboardInputClass(dark, 'flex-1')}
                 />
               </div>
             </div>
 
             {/* Button Text */}
             <div>
-              <Label htmlFor="buttonText">{t('dashboard.chatWidgetPage.buttonText')}</Label>
+              <Label htmlFor="buttonText" className={dark ? 'text-slate-200' : ''}>{t('dashboard.chatWidgetPage.buttonText')}</Label>
               <Input
                 id="buttonText"
                 value={buttonText}
                 onChange={(e) => setButtonText(e.target.value)}
                 placeholder={t('dashboard.chatWidgetPage.buttonTextPlaceholder')}
-                className="mt-2"
+                className={getDashboardInputClass(dark, 'mt-2')}
               />
             </div>
 
@@ -544,10 +555,10 @@ export default function ChatWidgetPage() {
             <div className="flex items-center justify-between">
               <div>
                 <div className="flex items-center gap-2">
-                  <Label>{t('dashboard.chatWidgetPage.showBranding')}</Label>
-                  {!isPro && <Lock className="h-3 w-3 text-gray-400" />}
+                  <Label className={dark ? 'text-slate-200' : ''}>{t('dashboard.chatWidgetPage.showBranding')}</Label>
+                  {!isPro && <Lock className={cn('h-3 w-3', dark ? 'text-slate-500' : 'text-gray-400')} />}
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className={cn('mt-1 text-xs', dark ? 'text-slate-500' : 'text-gray-500')}>
                   {isPro
                     ? t('dashboard.chatWidgetPage.showBrandingDesc')
                     : t('dashboard.chatWidgetPage.brandingProOnly')}
@@ -563,13 +574,16 @@ export default function ChatWidgetPage() {
 
           {/* Actions */}
           <div className="flex gap-3">
-            <Button onClick={saveSettings} className="flex-1">
+            <Button onClick={saveSettings} className="flex-1 rounded-2xl">
               {t('dashboard.chatWidgetPage.saveSettings')}
             </Button>
             <Button
               onClick={() => setShowPreview(!showPreview)}
               variant="outline"
-              className="flex-1"
+              className={cn(
+                'flex-1 rounded-2xl',
+                dark ? 'border-white/10 bg-[#081224] text-slate-200 hover:bg-white/10 hover:text-white' : ''
+              )}
             >
               <Eye className="h-4 w-4 mr-2" />
               {showPreview ? t('dashboard.chatWidgetPage.hide') : t('dashboard.chatWidgetPage.preview')}
@@ -580,23 +594,34 @@ export default function ChatWidgetPage() {
         {/* Right Column: Embed Code + Instructions + Stats */}
         <div className="flex flex-col gap-6">
           {/* Embed Code — preview with expand */}
-          <Card className="p-6">
+          <Card className={getDashboardPanelClass(dark, 'p-6')}>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <Code className="h-5 w-5 text-primary-600" />
-                <h3 className="text-lg font-semibold">{t('dashboard.chatWidgetPage.embedCode')}</h3>
+                <Code className={cn('h-5 w-5', dark ? 'text-cyan-300' : 'text-primary-600')} />
+                <h3 className={cn('text-lg font-semibold', dark ? 'text-white' : 'text-slate-900')}>{t('dashboard.chatWidgetPage.embedCode')}</h3>
               </div>
-              <Button onClick={copyEmbedCode} variant="outline" size="sm">
+              <Button
+                onClick={copyEmbedCode}
+                variant="outline"
+                size="sm"
+                className={cn(
+                  'rounded-2xl',
+                  dark ? 'border-white/10 bg-[#081224] text-slate-200 hover:bg-white/10 hover:text-white' : ''
+                )}
+              >
                 <Copy className="h-4 w-4 mr-2" />
                 {t('dashboard.chatWidgetPage.copy')}
               </Button>
             </div>
             <div className="relative">
-              <pre className={`bg-gray-900 text-gray-100 p-4 rounded-lg text-xs overflow-x-auto transition-all duration-200 ${showEmbedCode ? 'max-h-96 overflow-y-auto' : 'max-h-32 overflow-hidden'}`}>
+              <pre className={cn(
+                `p-4 rounded-lg text-xs overflow-x-auto transition-all duration-200 ${showEmbedCode ? 'max-h-96 overflow-y-auto' : 'max-h-32 overflow-hidden'}`,
+                dark ? 'bg-[#050B18] text-slate-200' : 'bg-gray-900 text-gray-100'
+              )}>
                 <code>{generateEmbedCode()}</code>
               </pre>
               {!showEmbedCode && (
-                <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-gray-900 to-transparent rounded-b-lg" />
+                <div className={cn('absolute bottom-0 left-0 right-0 h-12 rounded-b-lg bg-gradient-to-t', dark ? 'from-[#050B18] to-transparent' : 'from-gray-900 to-transparent')} />
               )}
             </div>
             <button
@@ -608,15 +633,15 @@ export default function ChatWidgetPage() {
                 ? t('dashboard.chatWidgetPage.collapse')
                 : t('dashboard.chatWidgetPage.showAll')}
             </button>
-            <p className="text-xs text-gray-500 mt-2">
+            <p className={cn('mt-2 text-xs', dark ? 'text-slate-500' : 'text-gray-500')}>
               {t('dashboard.chatWidgetPage.embedCodeInstructions')}
             </p>
           </Card>
 
           {/* Instructions */}
-          <Card className="p-6 flex-1">
-            <h3 className="text-lg font-semibold mb-3">{t('dashboard.chatWidgetPage.howToInstall')}</h3>
-            <ol className="space-y-3 text-sm text-gray-700 dark:text-gray-300">
+          <Card className={getDashboardPanelClass(dark, 'p-6 flex-1')}>
+            <h3 className={cn('mb-3 text-lg font-semibold', dark ? 'text-white' : 'text-slate-900')}>{t('dashboard.chatWidgetPage.howToInstall')}</h3>
+            <ol className={cn('space-y-3 text-sm', dark ? 'text-slate-300' : 'text-gray-700')}>
               <li className="flex items-start gap-2">
                 <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary-600 text-white flex items-center justify-center text-xs font-bold">
                   1
@@ -639,24 +664,24 @@ export default function ChatWidgetPage() {
           </Card>
 
           {/* Stats */}
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold mb-3">{t('dashboard.chatWidgetPage.widgetAnalytics')}</h3>
+          <Card className={getDashboardPanelClass(dark, 'p-6')}>
+            <h3 className={cn('mb-3 text-lg font-semibold', dark ? 'text-white' : 'text-slate-900')}>{t('dashboard.chatWidgetPage.widgetAnalytics')}</h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-2xl font-bold text-primary-600">{chatStats.totalChats}</p>
-                <p className="text-xs text-gray-600 dark:text-gray-400">{t('dashboard.chatWidgetPage.conversations')}</p>
+                <p className={cn('text-xs', dark ? 'text-slate-500' : 'text-gray-600')}>{t('dashboard.chatWidgetPage.conversations')}</p>
               </div>
               <div>
                 <p className="text-2xl font-bold text-primary-600">{chatStats.totalMessages}</p>
-                <p className="text-xs text-gray-600 dark:text-gray-400">{t('dashboard.chatWidgetPage.totalMessages')}</p>
+                <p className={cn('text-xs', dark ? 'text-slate-500' : 'text-gray-600')}>{t('dashboard.chatWidgetPage.totalMessages')}</p>
               </div>
               <div>
                 <p className="text-2xl font-bold text-primary-600">{chatStats.avgMessagesPerChat}</p>
-                <p className="text-xs text-gray-600 dark:text-gray-400">{t('dashboard.chatWidgetPage.avgMessages')}</p>
+                <p className={cn('text-xs', dark ? 'text-slate-500' : 'text-gray-600')}>{t('dashboard.chatWidgetPage.avgMessages')}</p>
               </div>
               <div>
                 <p className="text-2xl font-bold text-primary-600">{chatStats.todayChats || 0}</p>
-                <p className="text-xs text-gray-600 dark:text-gray-400">{t('dashboard.chatWidgetPage.todayChats')}</p>
+                <p className={cn('text-xs', dark ? 'text-slate-500' : 'text-gray-600')}>{t('dashboard.chatWidgetPage.todayChats')}</p>
               </div>
             </div>
           </Card>

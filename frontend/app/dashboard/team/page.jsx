@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useTheme } from 'next-themes';
 import { apiClient } from '@/lib/api';
 import { usePermissions, getRoleDisplayName, getRoleBadgeColor } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
@@ -76,11 +77,21 @@ import {
 import { useLanguage } from '@/contexts/LanguageContext';
 import PageIntro from '@/components/PageIntro';
 import { getPageHelp } from '@/content/pageHelp';
+import { cn } from '@/lib/utils';
+import {
+  getDashboardStatCardClass,
+  getDashboardStatCardStyle,
+  getDashboardInsetClass,
+  getDashboardTabsListClass,
+  getDashboardTableHeaderClass,
+} from '@/components/dashboard/dashboardSurfaceTheme';
 
 export default function TeamPage() {
   const { t, locale } = useLanguage();
+  const { resolvedTheme } = useTheme();
   const pageHelp = getPageHelp('team', locale);
   const { can, isOwner, user, loading: permissionsLoading } = usePermissions();
+  const dark = resolvedTheme === 'dark';
 
   // React Query hooks
   const { data: members = [], isLoading: membersLoading } = useTeamMembers();
@@ -233,7 +244,7 @@ export default function TeamPage() {
         }}
         actions={
           can('team:invite') ? (
-            <Button onClick={() => setInviteModalOpen(true)}>
+            <Button onClick={() => setInviteModalOpen(true)} className="rounded-2xl">
               <UserPlus className="h-4 w-4 mr-2" />
               {t('dashboard.teamPage.sendInvite')}
             </Button>
@@ -243,37 +254,37 @@ export default function TeamPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
+        <Card className={getDashboardStatCardClass(dark)} style={getDashboardStatCardStyle(dark, 'cyan')}>
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
-              <Users className="h-7 w-7 text-neutral-600 dark:text-neutral-400" />
+              <Users className={cn('h-7 w-7', dark ? 'text-cyan-300' : 'text-neutral-600')} />
               <div>
-                <p className="text-sm text-neutral-600">{t('dashboard.teamPage.stats.totalMembers')}</p>
-                <p className="text-2xl font-bold">{members.length}</p>
+                <p className={cn('text-sm', dark ? 'text-slate-300' : 'text-neutral-600')}>{t('dashboard.teamPage.stats.totalMembers')}</p>
+                <p className={cn('text-2xl font-bold', dark ? 'text-white' : '')}>{members.length}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={getDashboardStatCardClass(dark)} style={getDashboardStatCardStyle(dark, 'blue')}>
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
-              <Mail className="h-7 w-7 text-neutral-600 dark:text-neutral-400" />
+              <Mail className={cn('h-7 w-7', dark ? 'text-blue-300' : 'text-neutral-600')} />
               <div>
-                <p className="text-sm text-neutral-600">{t('dashboard.teamPage.stats.pendingInvites')}</p>
-                <p className="text-2xl font-bold">{invitations.length}</p>
+                <p className={cn('text-sm', dark ? 'text-slate-300' : 'text-neutral-600')}>{t('dashboard.teamPage.stats.pendingInvites')}</p>
+                <p className={cn('text-2xl font-bold', dark ? 'text-white' : '')}>{invitations.length}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={getDashboardStatCardClass(dark)} style={getDashboardStatCardStyle(dark, 'indigo')}>
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
-              <Shield className="h-7 w-7 text-neutral-600 dark:text-neutral-400" />
+              <Shield className={cn('h-7 w-7', dark ? 'text-indigo-300' : 'text-neutral-600')} />
               <div>
-                <p className="text-sm text-neutral-600">{t('dashboard.teamPage.stats.yourRole')}</p>
-                <p className="text-2xl font-bold">{getRoleDisplayName(user?.role, locale)}</p>
+                <p className={cn('text-sm', dark ? 'text-slate-300' : 'text-neutral-600')}>{t('dashboard.teamPage.stats.yourRole')}</p>
+                <p className={cn('text-2xl font-bold', dark ? 'text-white' : '')}>{getRoleDisplayName(user?.role, locale)}</p>
               </div>
             </div>
           </CardContent>
@@ -282,7 +293,7 @@ export default function TeamPage() {
 
       {/* Tabs */}
       <Tabs defaultValue="members" className="space-y-4">
-        <TabsList>
+        <TabsList className={getDashboardTabsListClass(dark)}>
           <TabsTrigger value="members">{t('dashboard.teamPage.tabs.members')} ({members.length})</TabsTrigger>
           {can('team:invite') && (
             <TabsTrigger value="invitations">
@@ -294,7 +305,7 @@ export default function TeamPage() {
         {/* Members Tab */}
         <TabsContent value="members">
           <Card>
-            <CardHeader>
+            <CardHeader className={getDashboardInsetClass(dark, 'rounded-b-none border-x-0 border-t-0')}>
               <CardTitle>{t('dashboard.teamPage.members.title')}</CardTitle>
               <CardDescription>
                 {t('dashboard.teamPage.members.description')}
@@ -311,7 +322,7 @@ export default function TeamPage() {
                 </div>
               ) : (
                 <Table>
-                  <TableHeader>
+                  <TableHeader className={cn(dark ? '!bg-[#0B1730]/88 [&_tr]:!border-white/10' : 'bg-slate-50/80 border-b border-slate-200', getDashboardTableHeaderClass(dark))}>
                     <TableRow>
                       <TableHead>{t('dashboard.teamPage.members.tableHeaders.user')}</TableHead>
                       <TableHead>{t('dashboard.teamPage.members.tableHeaders.role')}</TableHead>
@@ -401,7 +412,7 @@ export default function TeamPage() {
         {can('team:invite') && (
           <TabsContent value="invitations">
             <Card>
-              <CardHeader>
+              <CardHeader className={getDashboardInsetClass(dark, 'rounded-b-none border-x-0 border-t-0')}>
                 <CardTitle>{t('dashboard.teamPage.invitations.title')}</CardTitle>
                 <CardDescription>
                   {t('dashboard.teamPage.invitations.description')}
@@ -418,7 +429,7 @@ export default function TeamPage() {
                   </div>
                 ) : (
                   <Table>
-                    <TableHeader>
+                  <TableHeader className={cn(dark ? '!bg-[#0B1730]/88 [&_tr]:!border-white/10' : 'bg-slate-50/80 border-b border-slate-200', getDashboardTableHeaderClass(dark))}>
                       <TableRow>
                         <TableHead>{t('dashboard.teamPage.invitations.tableHeaders.email')}</TableHead>
                         <TableHead>{t('dashboard.teamPage.invitations.tableHeaders.role')}</TableHead>
@@ -484,7 +495,7 @@ export default function TeamPage() {
 
       {/* Invite Modal */}
       <Dialog open={inviteModalOpen} onOpenChange={setInviteModalOpen}>
-        <DialogContent>
+        <DialogContent className={cn(dark && '!border-white/10 !bg-[#081224]/98 !text-gray-100')}>
           <DialogHeader>
             <DialogTitle>{t('dashboard.teamPage.inviteModal.title')}</DialogTitle>
             <DialogDescription>

@@ -26,6 +26,16 @@ import {
   encryptSikayetvarCredentials,
   normalizeSikayetvarSettings,
 } from '../services/complaints/sikayetvarShared.js';
+import AmazonSpApiService, {
+  AMAZON_INTEGRATION_TYPE,
+  buildAmazonCredentials,
+  encryptAmazonCredentials,
+  getAmazonAuthUrl,
+  getAmazonCallbackUri,
+  getAmazonEnvConfig,
+  getAmazonLoginUri,
+  safeDecryptAmazonCredentials,
+} from '../services/integrations/marketplace/amazon-sp-api.service.js';
 import {
   buildWhatsAppConnectionCredentials,
   buildWhatsAppRefreshFailureCredentials,
@@ -148,6 +158,148 @@ function appendEmbeddedSignupTelemetry(sessionInfo, entry) {
   };
 }
 
+router.get('/amazon/login', async (req, res) => authenticateToken(req, res, async () => {
+  try {
+    const amazonCallbackUri = String(req.query?.amazon_callback_uri || '').trim();
+    const amazonState = String(req.query?.amazon_state || '').trim();
+    const version = String(req.query?.version || '').trim();
+
+    if (!amazonCallbackUri || !amazonState || !isAllowedAmazonCallbackUri(amazonCallbackUri)) {
+      return safeRedirect(res, '/dashboard/integrations?error=amazon-invalid');
+    }
+
+    const pendingState = await prisma.oAuthState.findFirst({
+      where: {
+        businessId: req.businessId,
+        provider: 'amazon',
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!pendingState) {
+      return safeRedirect(res, '/dashboard/integrations?error=amazon-expired');
+    }
+
+    const callbackUrl = new URL(amazonCallbackUri);
+    callbackUrl.searchParams.set('amazon_state', amazonState);
+    callbackUrl.searchParams.set('state', pendingState.state);
+    callbackUrl.searchParams.set('redirect_uri', getAmazonCallbackUri());
+    if (version === 'beta') {
+      callbackUrl.searchParams.set('version', version);
+    }
+
+    return res.redirect(callbackUrl.toString());
+  } catch (error) {
+    console.error('Amazon login URI error:', error);
+    return safeRedirect(res, '/dashboard/integrations?error=amazon-login');
+  }
+}));
+
+router.get('/amazon/callback', async (req, res) => {
+  try {
+    const state = String(req.query?.state || '').trim();
+    const code = String(req.query?.spapi_oauth_code || '').trim();
+    const sellingPartnerId = String(req.query?.selling_partner_id || '').trim();
+
+    if (!state || !code) {
+      return safeRedirect(res, '/dashboard/integrations?error=amazon-invalid');
+    }
+
+    const stateValidation = await validateOAuthState(state, null, 'amazon');
+    if (!stateValidation.valid) {
+      return safeRedirect(res, '/dashboard/integrations?error=amazon-csrf');
+    }
+
+    const businessId = stateValidation.businessId;
+    const business = await prisma.business.findUnique({
+      where: { id: businessId },
+      select: { language: true },
+    });
+
+    const amazonService = new AmazonSpApiService();
+    const tokenPayload = await amazonService.exchangeAuthorizationCode(code);
+    const pendingMetadata = buildAmazonCredentials(stateValidation.metadata || {});
+
+    let authorizedMarketplaces = [];
+    let validationWarning = null;
+
+    try {
+      const testResult = await amazonService.testConnection({
+        ...pendingMetadata,
+        refreshToken: tokenPayload.refresh_token,
+        sellingPartnerId,
+      });
+
+      authorizedMarketplaces = Array.isArray(testResult.authorizedMarketplaces)
+        ? testResult.authorizedMarketplaces
+        : [];
+      validationWarning = testResult.validationWarning || null;
+    } catch (validationError) {
+      validationWarning = validationError.message || 'Amazon marketplace doğrulaması yapılamadı';
+    }
+
+    const existingIntegration = await prisma.integration.findUnique({
+      where: {
+        businessId_type: {
+          businessId,
+          type: AMAZON_INTEGRATION_TYPE,
+        },
+      },
+    });
+
+    const credentials = buildAmazonIntegrationPayload({
+      existingCredentials: existingIntegration?.credentials || {},
+      incomingCredentials: {
+        ...pendingMetadata,
+        refreshToken: tokenPayload.refresh_token,
+        sellingPartnerId: sellingPartnerId || pendingMetadata.sellingPartnerId || null,
+        tokenType: tokenPayload.token_type || 'bearer',
+        accessTokenExpiresIn: tokenPayload.expires_in || null,
+        authorizedMarketplaces,
+        lastValidationError: validationWarning,
+        connectedAt: new Date().toISOString(),
+        language: business?.language || 'tr',
+      },
+    });
+
+    await prisma.integration.upsert({
+      where: {
+        businessId_type: {
+          businessId,
+          type: AMAZON_INTEGRATION_TYPE,
+        },
+      },
+      update: {
+        credentials,
+        connected: true,
+        isActive: true,
+        syncEnabled: true,
+        lastSync: new Date(),
+      },
+      create: {
+        businessId,
+        type: AMAZON_INTEGRATION_TYPE,
+        credentials,
+        connected: true,
+        isActive: true,
+        syncEnabled: true,
+        lastSync: new Date(),
+      },
+    });
+
+    return safeRedirect(
+      res,
+      validationWarning
+        ? '/dashboard/integrations?success=amazon&warning=amazon-validation'
+        : '/dashboard/integrations?success=amazon'
+    );
+  } catch (error) {
+    console.error('Amazon callback error:', error);
+    return safeRedirect(res, '/dashboard/integrations?error=amazon');
+  }
+});
+
 router.use(authenticateToken);
 
 function buildMarketplaceIntegrationPayload({
@@ -185,6 +337,61 @@ function buildMarketplaceStatusResponse(integration, identifierField) {
     ),
     hasSecret: Boolean(credentials?.apiSecret || rawCredentials?.apiSecret),
   };
+}
+
+function buildAmazonIntegrationPayload({
+  existingCredentials = {},
+  incomingCredentials = {},
+}) {
+  const normalizedExisting = safeDecryptAmazonCredentials(existingCredentials);
+  const normalizedIncoming = buildAmazonCredentials(incomingCredentials);
+
+  return encryptAmazonCredentials({
+    ...normalizedExisting,
+    ...normalizedIncoming,
+    authorizedMarketplaces: Array.isArray(normalizedIncoming.authorizedMarketplaces)
+      ? normalizedIncoming.authorizedMarketplaces
+      : normalizedExisting.authorizedMarketplaces,
+  });
+}
+
+function buildAmazonStatusResponse(integration) {
+  const rawCredentials = getIntegrationCredentials(integration);
+  const credentials = safeDecryptAmazonCredentials(rawCredentials);
+
+  return {
+    connected: Boolean(integration?.connected && integration?.isActive),
+    sellingPartnerId: credentials?.sellingPartnerId || rawCredentials?.sellingPartnerId || null,
+    marketplaceId: credentials?.marketplaceId || rawCredentials?.marketplaceId || null,
+    sellingRegion: credentials?.sellingRegion || rawCredentials?.sellingRegion || null,
+    sellerCentralUrl: credentials?.sellerCentralUrl || rawCredentials?.sellerCentralUrl || null,
+    authorizedMarketplaces: Array.isArray(credentials?.authorizedMarketplaces)
+      ? credentials.authorizedMarketplaces
+      : [],
+    supportsBuyerMessaging: true,
+    supportsProductQa: false,
+    useSandbox: Boolean(credentials?.useSandbox),
+    lastValidationError: credentials?.lastValidationError || null,
+    lastSync: integration?.lastSync || null,
+  };
+}
+
+function isAllowedAmazonCallbackUri(value) {
+  if (!value || typeof value !== 'string') {
+    return false;
+  }
+
+  try {
+    const parsed = new URL(value);
+    const hostname = parsed.hostname.toLowerCase();
+    return parsed.protocol === 'https:' && (
+      hostname === 'amazon.com'
+      || hostname.endsWith('.amazon.com')
+      || hostname.includes('.amazon.')
+    );
+  } catch {
+    return false;
+  }
 }
 
 function buildSikayetvarIntegrationPayload({
@@ -2301,6 +2508,132 @@ router.post('/ikas/test', async (req, res) => {
 /* ============================================================
    MARKETPLACE Q&A INTEGRATIONS
 ============================================================ */
+
+router.get('/amazon/auth', checkPermission('integrations:connect'), async (req, res) => {
+  try {
+    const envConfig = getAmazonEnvConfig();
+
+    if (!envConfig.applicationId || !envConfig.clientId || !envConfig.clientSecret) {
+      return res.status(400).json({
+        error: 'Amazon SP-API ortam degiskenleri eksik. AMAZON_SP_API_APP_ID, AMAZON_SP_API_CLIENT_ID ve AMAZON_SP_API_CLIENT_SECRET tanimlanmali.',
+      });
+    }
+
+    const pendingCredentials = buildAmazonCredentials({
+      marketplaceId: req.query?.marketplaceId || undefined,
+      useSandbox: req.query?.sandbox === 'true',
+    });
+
+    const { state } = await generateOAuthState(
+      req.businessId,
+      'amazon',
+      {
+        marketplaceId: pendingCredentials.marketplaceId,
+        sellerCentralUrl: pendingCredentials.sellerCentralUrl,
+        useSandbox: pendingCredentials.useSandbox,
+      },
+      false
+    );
+
+    const authUrl = getAmazonAuthUrl({
+      state,
+      marketplaceId: pendingCredentials.marketplaceId,
+      sellerCentralUrl: pendingCredentials.sellerCentralUrl,
+    });
+
+    res.json({
+      success: true,
+      authUrl,
+      callbackUri: getAmazonCallbackUri(),
+      loginUri: getAmazonLoginUri(),
+      marketplaceId: pendingCredentials.marketplaceId,
+      useSandbox: pendingCredentials.useSandbox,
+    });
+  } catch (error) {
+    console.error('Amazon auth start error:', error);
+    res.status(500).json({ error: error.message || 'Amazon yetkilendirme akisi baslatilamadi' });
+  }
+});
+
+router.get('/amazon/status', async (req, res) => {
+  try {
+    const integration = await findIntegrationStatusRecord(prisma, req.businessId, AMAZON_INTEGRATION_TYPE);
+    res.json(buildAmazonStatusResponse(integration));
+  } catch (error) {
+    console.error('Amazon status error:', error);
+    res.json(buildAmazonStatusResponse(null));
+  }
+});
+
+router.post('/amazon/test', checkPermission('integrations:connect'), async (req, res) => {
+  try {
+    const amazonService = new AmazonSpApiService();
+    const credentials = await amazonService.getCredentials(req.businessId);
+    const testResult = await amazonService.testConnection(credentials);
+
+    const existingIntegration = await prisma.integration.findUnique({
+      where: {
+        businessId_type: {
+          businessId: req.businessId,
+          type: AMAZON_INTEGRATION_TYPE,
+        },
+      },
+    });
+
+    const updatedCredentials = buildAmazonIntegrationPayload({
+      existingCredentials: existingIntegration?.credentials || {},
+      incomingCredentials: {
+        ...credentials,
+        authorizedMarketplaces: testResult.authorizedMarketplaces || [],
+        lastValidationError: testResult.validationWarning || null,
+      },
+    });
+
+    await prisma.integration.updateMany({
+      where: {
+        businessId: req.businessId,
+        type: AMAZON_INTEGRATION_TYPE,
+      },
+      data: {
+        credentials: updatedCredentials,
+        lastSync: new Date(),
+      },
+    });
+
+    res.json({
+      success: true,
+      message: testResult.validationWarning || 'Amazon baglantisi aktif',
+      details: testResult,
+      validationWarning: testResult.validationWarning || null,
+    });
+  } catch (error) {
+    console.error('Amazon test error:', error);
+    res.status(500).json({ success: false, error: error.message || 'Amazon test basarisiz' });
+  }
+});
+
+router.post('/amazon/disconnect', checkPermission('integrations:connect'), async (req, res) => {
+  try {
+    await prisma.integration.updateMany({
+      where: {
+        businessId: req.businessId,
+        type: AMAZON_INTEGRATION_TYPE,
+      },
+      data: {
+        connected: false,
+        isActive: false,
+      },
+    });
+
+    res.json({
+      success: true,
+      message: 'Amazon baglantisi kesildi',
+    });
+  } catch (error) {
+    console.error('Amazon disconnect error:', error);
+    res.status(500).json({ error: 'Amazon baglantisi kesilemedi' });
+  }
+});
 
 router.post('/trendyol/connect', checkPermission('integrations:connect'), async (req, res) => {
   try {

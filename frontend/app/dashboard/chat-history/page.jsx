@@ -7,6 +7,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -54,6 +55,12 @@ import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { formatSessionHandle } from '@/lib/utils';
 import { subscribeLiveHandoffSync } from '@/lib/liveHandoffSync';
 import { resolveConversationSystemMessage } from '@/lib/conversationSystemMessages';
+import { cn } from '@/lib/utils';
+import {
+  getDashboardInsetClass,
+  getDashboardMessageBubbleClass,
+  getDashboardTableHeaderClass,
+} from '@/components/dashboard/dashboardSurfaceTheme';
 
 // Simple cache for chats data
 const chatsCache = {
@@ -110,7 +117,9 @@ function formatPhone(value, fallback = '—') {
 }
 
 export default function ChatsPage() {
+  const { resolvedTheme } = useTheme();
   const { t, locale } = useLanguage();
+  const dark = resolvedTheme === 'dark';
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -433,7 +442,7 @@ export default function ChatsPage() {
   const getMessagePresentation = (message = {}) => {
     if (message.role === 'user') {
       return {
-        wrapperClass: 'bg-blue-50 dark:bg-blue-900/20',
+        wrapperClass: getDashboardMessageBubbleClass(dark, 'user'),
         avatarClass: 'bg-blue-100 dark:bg-blue-800',
         icon: <User className="h-3 w-3 text-blue-600 dark:text-blue-400" />,
         label: t('dashboard.chatsPage.customerLabel'),
@@ -442,7 +451,7 @@ export default function ChatsPage() {
 
     if (message.role === 'human_agent') {
       return {
-        wrapperClass: 'bg-emerald-50 dark:bg-emerald-900/20',
+        wrapperClass: getDashboardMessageBubbleClass(dark, 'human'),
         avatarClass: 'bg-emerald-100 dark:bg-emerald-800',
         icon: <Headphones className="h-3 w-3 text-emerald-600 dark:text-emerald-300" />,
         label: message?.metadata?.actorName || t('dashboard.chatsPage.liveAgentLabel'),
@@ -451,7 +460,7 @@ export default function ChatsPage() {
 
     if (message.role === 'system') {
       return {
-        wrapperClass: 'bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20',
+        wrapperClass: getDashboardMessageBubbleClass(dark, 'system'),
         avatarClass: 'bg-amber-100 dark:bg-amber-800',
         icon: <RefreshCw className="h-3 w-3 text-amber-700 dark:text-amber-300" />,
         label: t('dashboard.chatsPage.systemLabel'),
@@ -459,9 +468,9 @@ export default function ChatsPage() {
     }
 
     return {
-      wrapperClass: 'bg-gray-50 dark:bg-gray-800',
-      avatarClass: 'bg-gray-200 dark:bg-gray-700',
-      icon: <Bot className="h-3 w-3 text-gray-600 dark:text-gray-400" />,
+      wrapperClass: getDashboardMessageBubbleClass(dark, 'assistant'),
+      avatarClass: 'bg-gray-200 dark:bg-cyan-500/15',
+      icon: <Bot className="h-3 w-3 text-gray-600 dark:text-cyan-200" />,
       label: t('dashboard.chatsPage.aiAssistantLabel'),
     };
   };
@@ -553,17 +562,17 @@ export default function ChatsPage() {
 
       {/* Table */}
       {loading ? (
-        <div className="bg-white dark:bg-gray-900 rounded-md border border-gray-200 dark:border-gray-800 p-6">
+        <div className="bg-white dark:bg-[#081224]/95 rounded-md border border-gray-200 dark:border-white/10 p-6 shadow-sm">
           <div className="space-y-3">
             {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="h-14 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" />
+              <div key={i} className="h-14 rounded animate-pulse bg-gray-100 dark:bg-[linear-gradient(135deg,rgba(8,18,36,0.96),rgba(48,92,229,0.18),rgba(0,168,199,0.14))]" />
             ))}
           </div>
         </div>
       ) : chats.length > 0 ? (
-        <div className="bg-white dark:bg-gray-900 rounded-md border border-gray-200 dark:border-gray-800 overflow-hidden">
+        <div className="bg-white dark:bg-[#081224]/95 rounded-md border border-gray-200 dark:border-white/10 overflow-hidden shadow-sm">
           <Table>
-            <TableHeader>
+            <TableHeader className={cn(dark ? '!bg-[#0B1730]/88 [&_tr]:!border-white/10' : 'bg-slate-50/80 border-b border-slate-200', getDashboardTableHeaderClass(dark))}>
               <TableRow>
                 <TableHead>{t('dashboard.chatsPage.date')}</TableHead>
                 <TableHead>{t('dashboard.chatsPage.channel')}</TableHead>
@@ -617,8 +626,8 @@ export default function ChatsPage() {
 
           {/* Pagination */}
           {pagination.totalPages > 1 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-gray-800">
-              <span className="text-sm text-gray-500">
+            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-white/10">
+              <span className="text-sm text-gray-500 dark:text-gray-400">
                 {t('dashboard.chatsPage.showingResults', {
                   from: (pagination.page - 1) * pagination.limit + 1,
                   to: Math.min(pagination.page * pagination.limit, pagination.total),
@@ -662,7 +671,7 @@ export default function ChatsPage() {
           )}
         </div>
       ) : (
-        <div className="bg-white dark:bg-gray-900 rounded-md border border-gray-200 dark:border-gray-800 p-8">
+        <div className="bg-white dark:bg-[#081224]/95 rounded-md border border-gray-200 dark:border-white/10 p-8 shadow-sm">
           <EmptyState
             icon={MessageCircle}
             title={searchQuery || channelFilter !== 'all' || statusFilter !== 'all' || dateRange.from
@@ -677,7 +686,7 @@ export default function ChatsPage() {
 
       {/* Chat Detail Modal */}
       <Dialog open={showChatModal} onOpenChange={handleChatModalChange}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className={cn('max-w-2xl max-h-[80vh] overflow-y-auto', dark && '!border-white/10 !bg-[#081224]/98 !text-gray-100')}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {selectedChat?.channel === 'WHATSAPP' ? (
@@ -692,7 +701,7 @@ export default function ChatsPage() {
           {selectedChat && (
             <div className="space-y-4">
               {/* Chat Info */}
-              <div className="grid grid-cols-2 gap-4 rounded-lg bg-gray-50 p-4 text-sm dark:bg-gray-800">
+              <div className={getDashboardInsetClass(dark, 'grid grid-cols-2 gap-4 p-4 text-sm')}>
                 <div>
                   <span className="text-gray-500">{t('dashboard.chatsPage.channel')}</span>
                   <p className="font-medium">{selectedChat.channel === 'CHAT' ? t('dashboard.chatsPage.chat') : 'WhatsApp'}</p>
@@ -736,7 +745,7 @@ export default function ChatsPage() {
                         return (
                           <div
                             key={index}
-                            className={`flex gap-2 rounded-lg p-3 ${presentation.wrapperClass}`}
+                            className={cn('flex gap-2', presentation.wrapperClass)}
                           >
                             <div className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full ${presentation.avatarClass}`}>
                               {presentation.icon}

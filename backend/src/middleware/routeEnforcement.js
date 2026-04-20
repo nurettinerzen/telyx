@@ -66,6 +66,8 @@ const PUBLIC_PATHS = [
   '/api/auth/microsoft/callback',
   '/api/integrations/shopify/callback',
   '/api/integrations/ideasoft/callback',
+  '/api/integrations/amazon/login',
+  '/api/integrations/amazon/callback',
 
   // Public invitation endpoints (token in request body, not URL path)
   '/api/team/invitation/lookup',

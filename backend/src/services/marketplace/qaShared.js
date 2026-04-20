@@ -3,6 +3,7 @@ import { decryptPossiblyEncryptedValue, encryptTokenValue } from '../../utils/en
 export const MARKETPLACE_PLATFORM = {
   TRENDYOL: 'TRENDYOL',
   HEPSIBURADA: 'HEPSIBURADA',
+  AMAZON: 'AMAZON',
 };
 
 export const MARKETPLACE_QUESTION_STATUS = {

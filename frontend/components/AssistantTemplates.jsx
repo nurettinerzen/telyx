@@ -74,7 +74,7 @@ export default function AssistantTemplates({ onTemplateUsed }) {
     }
   };
 
-  const useTemplate = async (template) => {
+  const applyTemplate = async (template) => {
     setCreatingTemplate(template.id);
     try {
       const response = await api.templates.createFromTemplate({
@@ -141,7 +141,7 @@ export default function AssistantTemplates({ onTemplateUsed }) {
                 <Button
                   className="w-full"
                   variant="outline"
-                  onClick={() => useTemplate(template)}
+                  onClick={() => applyTemplate(template)}
                   disabled={creatingTemplate === template.id}
                 >
                   {creatingTemplate === template.id ? (

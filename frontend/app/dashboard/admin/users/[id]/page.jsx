@@ -249,7 +249,7 @@ export default function AdminUserDetailPage() {
 
       {/* Info Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
+        <div className="bg-white dark:bg-[#081224]/95 rounded-lg border border-gray-200 dark:border-white/10 p-4">
           <div className="flex items-center gap-2 text-gray-500 mb-2">
             <CreditCard className="w-4 h-4" />
             <span className="text-sm">Plan</span>
@@ -259,7 +259,7 @@ export default function AdminUserDetailPage() {
           </Badge>
         </div>
 
-        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
+        <div className="bg-white dark:bg-[#081224]/95 rounded-lg border border-gray-200 dark:border-white/10 p-4">
           <div className="flex items-center gap-2 text-gray-500 mb-2">
             <Clock className="w-4 h-4" />
             <span className="text-sm">Dakika Kullanımı</span>
@@ -269,7 +269,7 @@ export default function AdminUserDetailPage() {
           </p>
         </div>
 
-        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
+        <div className="bg-white dark:bg-[#081224]/95 rounded-lg border border-gray-200 dark:border-white/10 p-4">
           <div className="flex items-center gap-2 text-gray-500 mb-2">
             <Bot className="w-4 h-4" />
             <span className="text-sm">Asistanlar</span>
@@ -279,7 +279,7 @@ export default function AdminUserDetailPage() {
           </p>
         </div>
 
-        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
+        <div className="bg-white dark:bg-[#081224]/95 rounded-lg border border-gray-200 dark:border-white/10 p-4">
           <div className="flex items-center gap-2 text-gray-500 mb-2">
             <Phone className="w-4 h-4" />
             <span className="text-sm">Toplam Arama</span>
@@ -293,7 +293,7 @@ export default function AdminUserDetailPage() {
       {/* Details */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Business Info */}
-        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6">
+        <div className="bg-white dark:bg-[#081224]/95 rounded-lg border border-gray-200 dark:border-white/10 p-6">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
             <Building2 className="w-5 h-5" />
             İşletme Bilgileri
@@ -329,7 +329,7 @@ export default function AdminUserDetailPage() {
         </div>
 
         {/* Subscription Info */}
-        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6">
+        <div className="bg-white dark:bg-[#081224]/95 rounded-lg border border-gray-200 dark:border-white/10 p-6">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
             <CreditCard className="w-5 h-5" />
             Abonelik Bilgileri
@@ -373,14 +373,14 @@ export default function AdminUserDetailPage() {
 
       {/* Assistants */}
       {user.business?.assistants?.length > 0 && (
-        <div className="mt-6 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6">
+        <div className="mt-6 bg-white dark:bg-[#081224]/95 rounded-lg border border-gray-200 dark:border-white/10 p-6">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
             <Bot className="w-5 h-5" />
             Asistanlar ({user.business.assistants.length})
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {user.business.assistants.map((assistant) => (
-              <div key={assistant.id} className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+              <div key={assistant.id} className="rounded-lg bg-gray-50 p-4 dark:bg-[#0B1730]/88">
                 <div className="flex items-center justify-between mb-2">
                   <span className="font-medium text-gray-900 dark:text-white">{assistant.name}</span>
                   <Badge variant={assistant.isActive ? 'outline' : 'secondary'}>
@@ -396,7 +396,7 @@ export default function AdminUserDetailPage() {
 
       {/* Recent Calls */}
       {user.recentCalls?.length > 0 && (
-        <div className="mt-6 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6">
+        <div className="mt-6 bg-white dark:bg-[#081224]/95 rounded-lg border border-gray-200 dark:border-white/10 p-6">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
             <Phone className="w-5 h-5" />
             Son Aramalar
@@ -411,7 +411,7 @@ export default function AdminUserDetailPage() {
                   <th className="pb-2">Durum</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
+              <tbody className="divide-y divide-gray-200 dark:divide-white/10">
                 {user.recentCalls.map((call) => (
                   <tr key={call.id}>
                     <td className="py-2 text-sm text-gray-900 dark:text-white">
@@ -494,7 +494,7 @@ export default function AdminUserDetailPage() {
                 />
               </div>
             </div>
-            <div className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-800 p-3">
+            <div className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-white/10 p-3">
               <div>
                 <Label className="text-sm">Telefon Inbound (V2)</Label>
                 <p className="text-xs text-gray-500 mt-1">

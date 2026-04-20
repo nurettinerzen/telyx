@@ -1,6 +1,8 @@
 'use client';
 
 import React from 'react';
+import { useTheme } from 'next-themes';
+import { cn } from '@/lib/utils';
 import PageIntro from '@/components/PageIntro';
 import { getPageHelp } from '@/content/pageHelp';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -21,6 +23,10 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import {
+  getDashboardInsetClass,
+  getDashboardPanelClass,
+} from '@/components/dashboard/dashboardSurfaceTheme';
 
 /* ------------------------------------------------------------------ */
 /*  Bilingual guide content                                           */
@@ -236,23 +242,25 @@ const GUIDE_CONTENT = {
 /* ------------------------------------------------------------------ */
 
 function SectionCard({ section, locale }) {
+  const { resolvedTheme } = useTheme();
+  const dark = resolvedTheme === 'dark';
   const Icon = section.icon;
 
   return (
-    <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 overflow-hidden">
+    <div className={getDashboardPanelClass(dark, 'overflow-hidden')}>
       {/* Header */}
-      <div className="flex items-center gap-3 px-6 py-4 border-b border-neutral-200 dark:border-neutral-700">
-        <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-neutral-100 dark:bg-neutral-800">
-          <Icon className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
+      <div className={cn('flex items-center gap-3 border-b px-6 py-4', dark ? 'border-white/10 bg-white/[0.02]' : 'border-neutral-200 bg-slate-50/80')}>
+        <div className={getDashboardInsetClass(dark, 'flex h-9 w-9 items-center justify-center rounded-lg')}>
+          <Icon className={cn('h-5 w-5', dark ? 'text-cyan-300' : 'text-cyan-700')} />
         </div>
-        <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">{section.title}</h2>
+        <h2 className={cn('text-lg font-semibold', dark ? 'text-white' : 'text-neutral-900')}>{section.title}</h2>
       </div>
 
       {/* Body */}
       <div className="p-6 space-y-4">
         {/* Text paragraphs */}
         {section.body?.map((paragraph, i) => (
-          <p key={i} className="text-sm leading-relaxed text-neutral-700 dark:text-neutral-300">
+          <p key={i} className={cn('text-sm leading-relaxed', dark ? 'text-slate-300' : 'text-neutral-700')}>
             {paragraph}
           </p>
         ))}
@@ -265,12 +273,12 @@ function SectionCard({ section, locale }) {
               return (
                 <div
                   key={ch.label}
-                  className="flex items-start gap-3 rounded-lg border border-neutral-100 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/50 p-3"
+                  className={getDashboardInsetClass(dark, 'flex items-start gap-3 rounded-lg p-3')}
                 >
-                  <ChIcon className="h-5 w-5 text-primary-600 dark:text-primary-400 mt-0.5 shrink-0" />
+                  <ChIcon className={cn('mt-0.5 h-5 w-5 shrink-0', dark ? 'text-cyan-300' : 'text-primary-600')} />
                   <div>
-                    <p className="text-sm font-medium text-neutral-900 dark:text-white">{ch.label}</p>
-                    <p className="text-xs text-neutral-600 dark:text-neutral-400">{ch.desc}</p>
+                    <p className={cn('text-sm font-medium', dark ? 'text-white' : 'text-neutral-900')}>{ch.label}</p>
+                    <p className={cn('text-xs', dark ? 'text-slate-400' : 'text-neutral-600')}>{ch.desc}</p>
                   </div>
                 </div>
               );
@@ -279,7 +287,7 @@ function SectionCard({ section, locale }) {
         )}
 
         {section.footer && (
-          <p className="text-xs text-neutral-500 dark:text-neutral-400 italic">{section.footer}</p>
+          <p className={cn('text-xs italic', dark ? 'text-slate-500' : 'text-neutral-500')}>{section.footer}</p>
         )}
 
         {/* Privacy note (custom-data section) */}
@@ -292,14 +300,14 @@ function SectionCard({ section, locale }) {
 
         {/* Constraints (campaigns section) */}
         {section.constraints && (
-          <div className="rounded-lg bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200 dark:border-neutral-700 p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400 mb-2">
+          <div className={getDashboardInsetClass(dark, 'p-4')}>
+            <p className={cn('mb-2 text-xs font-semibold uppercase tracking-wide', dark ? 'text-slate-500' : 'text-neutral-500')}>
               {locale === 'tr' ? 'Kısıtlar & Notlar' : 'Constraints & Notes'}
             </p>
             <ul className="space-y-1.5">
               {section.constraints.map((c, i) => (
-                <li key={i} className="flex items-start gap-2 text-sm text-neutral-600 dark:text-neutral-400">
-                  <span className="text-neutral-400 dark:text-neutral-500 mt-0.5">&#8226;</span>
+                <li key={i} className={cn('flex items-start gap-2 text-sm', dark ? 'text-slate-400' : 'text-neutral-600')}>
+                  <span className={cn('mt-0.5', dark ? 'text-slate-500' : 'text-neutral-400')}>&#8226;</span>
                   {c}
                 </li>
               ))}
@@ -312,12 +320,12 @@ function SectionCard({ section, locale }) {
           <ol className="space-y-3">
             {section.checklist.map((item, i) => (
               <li key={i} className="flex items-center gap-3">
-                <span className="flex items-center justify-center w-7 h-7 rounded-full bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 text-sm font-semibold shrink-0">
+                <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-semibold', dark ? 'bg-cyan-500/10 text-cyan-300' : 'bg-primary-100 text-primary-700')}>
                   {i + 1}
                 </span>
-                <span className="text-sm text-neutral-700 dark:text-neutral-300 flex-1">{item.step}</span>
+                <span className={cn('flex-1 text-sm', dark ? 'text-slate-300' : 'text-neutral-700')}>{item.step}</span>
                 <Link href={item.href}>
-                  <Button variant="ghost" size="sm" className="shrink-0 text-primary-600 dark:text-primary-400 hover:text-primary-700">
+                  <Button variant="ghost" size="sm" className={cn('shrink-0', dark ? 'text-cyan-300 hover:bg-white/8 hover:text-cyan-200' : 'text-primary-600 hover:text-primary-700')}>
                     <ArrowRight className="h-4 w-4" />
                   </Button>
                 </Link>
@@ -330,7 +338,14 @@ function SectionCard({ section, locale }) {
         {section.link && (
           <div className="pt-2">
             <Link href={section.link.href}>
-              <Button variant="outline" size="sm" className="gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn(
+                  'gap-2',
+                  dark ? 'border-white/10 bg-[#081224] text-slate-200 hover:bg-white/10 hover:text-white' : ''
+                )}
+              >
                 {section.link.label}
                 <ArrowRight className="h-3.5 w-3.5" />
               </Button>

@@ -40,7 +40,7 @@ const STATUS_COLORS = {
   failed: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
   missed: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
   busy: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
-  no_answer: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400',
+  no_answer: 'bg-gray-100 text-gray-700 dark:bg-white/8 dark:text-gray-400',
 };
 
 export default function AdminCallsPage() {
@@ -205,7 +205,7 @@ export default function AdminCallsPage() {
       </div>
 
       {/* Calls Table */}
-      <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
+      <div className="bg-white dark:bg-[#081224]/95 rounded-lg border border-gray-200 dark:border-white/10 overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <Loader2 className="w-8 h-8 animate-spin text-primary-500" />
@@ -218,7 +218,7 @@ export default function AdminCallsPage() {
         ) : (
           <table className="w-full">
             <thead>
-              <tr className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
+              <tr className="border-b border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#0B1730]/88">
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.table.date}</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.table.direction}</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.table.phone}</th>
@@ -228,9 +228,9 @@ export default function AdminCallsPage() {
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.table.status}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
+            <tbody className="divide-y divide-gray-200 dark:divide-white/10">
               {calls.map((call) => (
-                <tr key={call.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                <tr key={call.id} className="hover:bg-gray-50 dark:hover:bg-white/[0.03]">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-gray-400" />
@@ -284,7 +284,7 @@ export default function AdminCallsPage() {
 
         {/* Pagination */}
         {pagination.pages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-gray-800">
+          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-white/10">
             <p className="text-sm text-gray-500">
               {((pagination.page - 1) * pagination.limit) + 1} - {Math.min(pagination.page * pagination.limit, pagination.total)} / {pagination.total}
             </p>

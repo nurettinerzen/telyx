@@ -7,6 +7,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -51,6 +52,7 @@ import {
   useIkasStatus,
   useTrendyolStatus,
   useHepsiburadaStatus,
+  useAmazonStatus,
   useSikayetvarStatus,
   useConnectWhatsApp,
   useDisconnectWhatsApp,
@@ -64,6 +66,8 @@ import {
   useConnectHepsiburada,
   useDisconnectHepsiburada,
   useTestHepsiburada,
+  useDisconnectAmazon,
+  useTestAmazon,
   useConnectSikayetvar,
   useDisconnectSikayetvar,
   useTestSikayetvar,
@@ -77,6 +81,11 @@ import {
   useRefreshWhatsAppConnection,
 } from '@/hooks/useIntegrations';
 import { useWhatsAppEmbeddedSignup } from '@/hooks/useWhatsAppEmbeddedSignup';
+import { cn } from '@/lib/utils';
+import {
+  getDashboardInsetClass,
+  getDashboardOverlaySurfaceClass,
+} from '@/components/dashboard/dashboardSurfaceTheme';
 
 // Integration logo paths
 const INTEGRATION_LOGOS = {
@@ -116,12 +125,6 @@ const INTEGRATION_LOGOS = {
     height: 24,
     className: 'h-6 w-6 object-contain',
   },
-  CUSTOM: {
-    src: '/assets/integrations/crm.png',
-    width: 24,
-    height: 24,
-    className: 'h-6 w-6 object-contain',
-  },
   WEBHOOK: {
     src: '/assets/integrations/webhook.png',
     width: 24,
@@ -135,6 +138,12 @@ const INTEGRATION_LOGOS = {
     className: 'h-7 w-7 rounded-md object-cover',
     unoptimized: true,
   },
+  AMAZON: {
+    src: '/assets/integrations/amazon.svg',
+    width: 32,
+    height: 32,
+    className: 'h-8 w-8 object-contain',
+  },
   HEPSIBURADA: {
     src: '/assets/integrations/hepsiburada.png',
     width: 28,
@@ -144,24 +153,28 @@ const INTEGRATION_LOGOS = {
   },
 };
 
-const CARD_ICON_WRAPPER_CLASS = 'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-950/40';
+const CARD_ICON_WRAPPER_CLASS = 'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-neutral-200 bg-white dark:border-white/10 dark:bg-[#0B1730]/88';
 
 const LockedPlanBadge = ({ text }) => (
   <div tabIndex={0} className="group relative inline-flex outline-none">
     <Badge
       variant="secondary"
-      className="cursor-help bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-400 text-xs focus-visible:ring-2 focus-visible:ring-neutral-300 dark:focus-visible:ring-neutral-600"
+      className="cursor-help bg-neutral-100 text-neutral-700 dark:bg-white/8 dark:text-neutral-400 text-xs focus-visible:ring-2 focus-visible:ring-neutral-300 dark:focus-visible:ring-cyan-500/20"
     >
       <Lock className="h-3 w-3 mr-1" />
       Pro
     </Badge>
-    <div className="pointer-events-none absolute left-0 top-full z-20 mt-2 w-56 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs text-neutral-700 opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
+    <div className="pointer-events-none absolute left-0 top-full z-20 mt-2 w-56 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs text-neutral-700 opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 dark:border-white/10 dark:bg-[#081224]/98 dark:text-neutral-200">
       {text}
     </div>
   </div>
 );
 
 const IntegrationLogo = ({ type, className }) => {
+  if (type === 'CUSTOM') {
+    return <Target className={cn('h-6 w-6 text-sky-500 dark:text-cyan-300', className)} />;
+  }
+
   const logo = INTEGRATION_LOGOS[type];
   if (logo) {
     return (
@@ -185,6 +198,7 @@ const INTEGRATION_ICONS = {
   IKAS: ({ className }) => <IntegrationLogo type="IKAS" className={className} />,
   TRENDYOL: ({ className }) => <IntegrationLogo type="TRENDYOL" className={className} />,
   HEPSIBURADA: ({ className }) => <IntegrationLogo type="HEPSIBURADA" className={className} />,
+  AMAZON: ({ className }) => <IntegrationLogo type="AMAZON" className={className} />,
   SIKAYETVAR: AlertTriangle,
   CUSTOM: Hash
 };
@@ -196,11 +210,14 @@ const INTEGRATION_DOCS = {
   IKAS: 'https://ikas.dev',
   TRENDYOL: 'https://developers.trendyol.com/docs/musteri-sorularini-cekme',
   HEPSIBURADA: 'https://developers.hepsiburada.com/hepsiburada/reference/saticiya-sor',
+  AMAZON: 'https://developer-docs.amazon.com/sp-api/docs/messaging-api',
   SIKAYETVAR: 'https://doc.sikayetplus.com/'
 };
 
 export default function IntegrationsPage() {
+  const { resolvedTheme } = useTheme();
   const { t, locale } = useLanguage();
+  const dark = resolvedTheme === 'dark';
   const isTr = locale === 'tr';
   const marketplaceCopy = {
     beta: 'Beta',
@@ -210,6 +227,8 @@ export default function IntegrationsPage() {
     connectionActive: isTr ? 'Bağlantı aktif' : 'Connection active',
     sellerId: 'Seller ID',
     merchantId: 'Merchant ID',
+    sellingPartnerId: isTr ? 'Selling Partner ID' : 'Selling Partner ID',
+    marketplaceId: isTr ? 'Marketplace ID' : 'Marketplace ID',
     apiKey: 'API Key',
     apiSecret: 'API Secret',
     company: isTr ? 'Şirket' : 'Company',
@@ -250,6 +269,17 @@ export default function IntegrationsPage() {
     merchantIdPlaceholder: isTr ? 'mağaza kimliği' : 'merchant identifier',
     hepsiburadaHelper: isTr ? 'Hepsiburada soruları çekilir, AI yanıtı oluşturulur ve panelden onaylandığında platforma gönderilir.' : 'Hepsiburada questions are pulled, AI replies are generated, and posted after approval from the panel.',
     hepsiburadaConnectButton: isTr ? 'Hepsiburada Bağla' : 'Connect Hepsiburada',
+    amazonConnectDescription: isTr ? 'Amazon mağazanızı bağlayın, buyer messaging akışlarını yönetin ve sipariş iletişimini panelden hızlandırın.' : 'Connect your Amazon store, manage buyer messaging flows, and speed up order-based communication from the dashboard.',
+    amazonConnectSuccess: isTr ? 'Amazon yönlendirmesi başlatıldı' : 'Amazon authorization started',
+    amazonConnectError: isTr ? 'Amazon bağlantısı başlatılamadı' : 'Failed to start Amazon authorization',
+    amazonDisconnected: isTr ? 'Amazon bağlantısı kesildi' : 'Amazon disconnected',
+    amazonActive: isTr ? 'Amazon bağlantısı aktif' : 'Amazon connection is active',
+    amazonValidationWarning: isTr ? 'OAuth tamam, ancak test için SP-API rolü ve/veya gerçek sipariş verisi gerekebilir.' : 'OAuth is complete, but SP-API roles and/or real order data may still be required for validation.',
+    amazonBuyerMessaging: isTr ? 'Buyer Messaging hazır' : 'Buyer Messaging ready',
+    amazonProductQaUnsupported: isTr ? 'Ürün soru-cevap feedi Amazon SP-API içinde birebir sunulmuyor.' : 'Product Q&A feed is not exposed one-to-one in Amazon SP-API.',
+    amazonSandbox: isTr ? 'Sandbox modu' : 'Sandbox mode',
+    amazonAuthorizedMarketplaces: isTr ? 'Yetkili pazarlar' : 'Authorized marketplaces',
+    amazonRolesHint: isTr ? 'Derin test için uygulamada en az Selling Partner Insights veya Product Listing rolü önerilir.' : 'For deeper validation, configure at least the Selling Partner Insights or Product Listing role in the app.',
     sikayetvarModalTitle: isTr ? 'Şikayetvar Bağlantısı' : 'Sikayetvar Connection',
     sikayetvarModalDescription: isTr ? 'Kurumsal üyelik tokenınızı girin. Sistem bağlantıyı test eder, açık şikayetleri çeker ve AI taslaklarını manuel onaya hazırlar.' : 'Enter your corporate membership token. The system will test the connection, pull open complaints, and prepare AI drafts for manual approval.',
     sikayetvarTokenLabel: isTr ? 'X-Auth-Key / API Token' : 'X-Auth-Key / API Token',
@@ -298,6 +328,9 @@ export default function IntegrationsPage() {
   const { data: hepsiburadaStatus } = useHepsiburadaStatus({
     enabled: integrationsLoaded && hasIntegrationType('HEPSIBURADA') && (isIntegrationConnected('HEPSIBURADA') || hepsiburadaModalOpen),
   });
+  const { data: amazonStatus } = useAmazonStatus({
+    enabled: integrationsLoaded && hasIntegrationType('AMAZON') && isIntegrationConnected('AMAZON'),
+  });
   const { data: sikayetvarStatus } = useSikayetvarStatus({
     enabled: integrationsLoaded && hasIntegrationType('SIKAYETVAR') && (isIntegrationConnected('SIKAYETVAR') || sikayetvarModalOpen),
   });
@@ -319,6 +352,8 @@ export default function IntegrationsPage() {
   const connectHepsiburada = useConnectHepsiburada();
   const disconnectHepsiburada = useDisconnectHepsiburada();
   const testHepsiburada = useTestHepsiburada();
+  const disconnectAmazon = useDisconnectAmazon();
+  const testAmazon = useTestAmazon();
   const connectSikayetvar = useConnectSikayetvar();
   const disconnectSikayetvar = useDisconnectSikayetvar();
   const testSikayetvar = useTestSikayetvar();
@@ -338,6 +373,7 @@ export default function IntegrationsPage() {
   const [whatsappModalOpen, setWhatsappModalOpen] = useState(false);
   const [whatsappLoading, setWhatsappLoading] = useState(false);
   const [whatsappForm, setWhatsappForm] = useState({ accessToken: '', phoneNumberId: '', verifyToken: '' });
+  const [whatsappTestModalOpen, setWhatsappTestModalOpen] = useState(false);
   const [whatsappTestForm, setWhatsappTestForm] = useState({ recipientPhone: '', message: '' });
   const [whatsappTestSending, setWhatsappTestSending] = useState(false);
   const [whatsappTestResult, setWhatsappTestResult] = useState(null);
@@ -784,12 +820,21 @@ const handleShopifyConnect = async () => {
         window.location.href = response.data.authUrl;
         return;
       }
+      if (integration.type === 'AMAZON') {
+        const response = await apiClient.get('/api/integrations/amazon/auth');
+        window.location.href = response.data.authUrl;
+        return;
+      }
       if (integration.type === 'IKAS') { setIkasModalOpen(true); return; }
       if (integration.type === 'TRENDYOL') { setTrendyolModalOpen(true); return; }
       if (integration.type === 'HEPSIBURADA') { setHepsiburadaModalOpen(true); return; }
       if (integration.type === 'SIKAYETVAR') { setSikayetvarModalOpen(true); return; }
       toast.info(`${integration.name} ${t('dashboard.integrationsPage.comingSoonIntegration')}`);
     } catch (error) {
+      if (integration.type === 'AMAZON') {
+        toast.error(error.response?.data?.error || marketplaceCopy.amazonConnectError);
+        return;
+      }
       toast.error(t('dashboard.integrationsPage.connectFailed'));
     }
   };
@@ -815,6 +860,10 @@ const handleShopifyConnect = async () => {
     else if (integration.type === 'HEPSIBURADA') {
       await disconnectHepsiburada.mutateAsync();
       toast.success(marketplaceCopy.hepsiburadaDisconnected);
+    }
+    else if (integration.type === 'AMAZON') {
+      await disconnectAmazon.mutateAsync();
+      toast.success(marketplaceCopy.amazonDisconnected);
     }
     else if (integration.type === 'SIKAYETVAR') {
       await disconnectSikayetvar.mutateAsync();
@@ -855,6 +904,19 @@ const handleShopifyConnect = async () => {
       else toast.error(t('dashboard.integrationsPage.testFailed'));
       return;
     }
+    if (integration.type === 'AMAZON') {
+      const response = await testAmazon.mutateAsync();
+      if (response.data.success) {
+        if (response.data.validationWarning) {
+          toast.info(response.data.validationWarning);
+        } else {
+          toast.success(marketplaceCopy.amazonActive);
+        }
+      } else {
+        toast.error(t('dashboard.integrationsPage.testFailed'));
+      }
+      return;
+    }
     if (integration.type === 'SIKAYETVAR') {
       const response = await testSikayetvar.mutateAsync();
       if (response.data.success) toast.success(marketplaceCopy.sikayetvarActive);
@@ -868,7 +930,7 @@ const handleShopifyConnect = async () => {
 };
 
   const getIntegrationIcon = (type) => INTEGRATION_ICONS[type] || Hash;
-  const getCategoryColors = () => ({ icon: 'text-neutral-600 dark:text-neutral-400', bg: 'bg-neutral-100 dark:bg-neutral-800' });
+  const getCategoryColors = () => ({ icon: 'text-neutral-600 dark:text-neutral-400', bg: 'bg-neutral-100 dark:bg-white/8' });
   const getDocsUrl = (type) => INTEGRATION_DOCS[type] || '#';
   const formatWhatsAppTimestamp = (value) => {
     if (!value) return null;
@@ -904,6 +966,7 @@ const handleShopifyConnect = async () => {
       IKAS: t('dashboard.integrationsPage.ikasConnect'),
       TRENDYOL: t('dashboard.integrationsPage.trendyolConnect'),
       HEPSIBURADA: t('dashboard.integrationsPage.hepsiburadaConnect'),
+      AMAZON: marketplaceCopy.amazonConnectDescription,
       SIKAYETVAR: t('dashboard.integrationsPage.sikayetvarConnect'),
       IDEASOFT: t('dashboard.integrationsPage.ideasoftConnect'),
       TICIMAX: t('dashboard.integrationsPage.ticimaxConnect')
@@ -953,7 +1016,7 @@ const handleShopifyConnect = async () => {
       id: 'marketplace',
       title: marketplaceCopy.marketplaceCategory,
       icon: Package,
-      types: ['TRENDYOL', 'HEPSIBURADA']
+      types: ['TRENDYOL', 'HEPSIBURADA', 'AMAZON']
     },
     {
       id: 'complaints',
@@ -1005,20 +1068,26 @@ const handleShopifyConnect = async () => {
     const isWhatsApp = integration.type === 'WHATSAPP';
     const isTrendyol = integration.type === 'TRENDYOL';
     const isHepsiburada = integration.type === 'HEPSIBURADA';
+    const isAmazon = integration.type === 'AMAZON';
     const isSikayetvar = integration.type === 'SIKAYETVAR';
-    const isMarketplaceBeta = isTrendyol || isHepsiburada || isSikayetvar;
+    const isMarketplaceBeta = isTrendyol || isHepsiburada || isAmazon || isSikayetvar;
     const isMarketplaceImageIcon = isTrendyol || isHepsiburada;
+    const iconClassName = isAmazon
+      ? 'h-8 w-8 object-contain'
+      : isMarketplaceImageIcon
+        ? 'h-7 w-7 rounded-md object-cover'
+        : `h-6 w-6 ${disabled ? 'text-neutral-400 dark:text-neutral-500' : 'text-neutral-600 dark:text-neutral-400'}`;
     const disabled = isEcommerceDisabled(integration.type);
     const marketplaceStatus = isTrendyol
       ? trendyolStatus
-      : (isHepsiburada ? hepsiburadaStatus : null);
+      : (isHepsiburada ? hepsiburadaStatus : (isAmazon ? amazonStatus : null));
     const complaintStatus = isSikayetvar ? sikayetvarStatus : null;
     const whatsappConnected = isWhatsApp ? Boolean(whatsappStatus?.connected ?? integration.connected) : integration.connected;
     const whatsappNeedsReconnect = isWhatsApp ? Boolean(whatsappStatus?.needsReconnect) : false;
     const shouldShowWhatsappDetails = isWhatsApp && (whatsappConnected || whatsappNeedsReconnect);
     const isEffectivelyConnected = isWhatsApp
       ? (whatsappConnected || whatsappNeedsReconnect)
-      : (isTrendyol || isHepsiburada)
+      : (isTrendyol || isHepsiburada || isAmazon)
         ? Boolean(marketplaceStatus?.connected ?? integration.connected)
         : isSikayetvar
           ? Boolean(complaintStatus?.connected ?? integration.connected)
@@ -1029,12 +1098,14 @@ const handleShopifyConnect = async () => {
     const whatsappExpiryLabel = formatWhatsAppTimestamp(whatsappStatus?.tokenExpiresAt);
     const marketplaceIdentifier = isTrendyol
       ? marketplaceStatus?.sellerId
-      : marketplaceStatus?.merchantId;
+      : isHepsiburada
+        ? marketplaceStatus?.merchantId
+        : marketplaceStatus?.sellingPartnerId;
     const complaintIdentifier = complaintStatus?.companyName || complaintStatus?.companyId;
     const whatsappActionLabel = whatsappEmbeddedSignupState === 'awaiting_completion'
       ? t('dashboard.integrationsPage.whatsappWaitingForMeta')
       : (whatsappNeedsReconnect ? t('dashboard.integrationsPage.whatsappReconnect') : t('dashboard.integrationsPage.connect'));
-    const whatsappRefreshLabel = refreshWhatsAppConnection.isPending
+    const whatsappReconnectLabel = refreshWhatsAppConnection.isPending
       ? t('dashboard.integrationsPage.whatsappRefreshing')
       : (whatsappNeedsReconnect ? t('dashboard.integrationsPage.whatsappReconnect') : t('dashboard.integrationsPage.whatsappRefresh'));
 
@@ -1043,11 +1114,23 @@ const handleShopifyConnect = async () => {
     const isLocked = featureInfo.isLocked && !isEffectivelyConnected;
 
     return (
-      <div key={integration.type} className={`flex h-full flex-col rounded-xl border p-6 transition-shadow ${disabled || isLocked ? 'bg-neutral-50 dark:bg-neutral-800/70' : 'bg-white dark:bg-neutral-900 hover:shadow-md'} border-neutral-200 dark:border-neutral-700`}>
+      <div
+        key={integration.type}
+        className={cn(
+          'flex h-full flex-col rounded-xl border p-6 transition-shadow',
+          dark
+            ? isLocked || disabled
+              ? 'border-white/10 bg-[#0B1730]/88'
+              : 'border-white/10 bg-[#081224]/95 hover:shadow-md'
+            : isLocked || disabled
+              ? 'border-neutral-200 bg-neutral-50'
+              : 'border-neutral-200 bg-white hover:shadow-md'
+        )}
+      >
         <div className="flex items-start justify-between mb-4">
           <div className="flex min-h-10 items-center gap-3">
             <div className={CARD_ICON_WRAPPER_CLASS}>
-              <Icon className={isMarketplaceImageIcon ? 'h-7 w-7 rounded-md object-cover' : `h-6 w-6 ${disabled ? 'text-neutral-400 dark:text-neutral-500' : 'text-neutral-600 dark:text-neutral-400'}`} />
+              <Icon className={iconClassName} />
             </div>
             <div className="min-h-10 flex items-center">
               <div className="flex flex-wrap items-center gap-2">
@@ -1108,6 +1191,56 @@ const handleShopifyConnect = async () => {
           </div>
         )}
 
+        {isAmazon && isEffectivelyConnected && (
+          <div className="space-y-2 mb-4">
+            <p className="text-xs text-emerald-700 dark:text-emerald-300 inline-flex items-center gap-1">
+              <CheckCircle2 className="h-3 w-3" />
+              {marketplaceCopy.amazonBuyerMessaging}
+            </p>
+            {marketplaceIdentifier && (
+              <p className="text-xs text-neutral-700 dark:text-neutral-300">
+                {marketplaceCopy.sellingPartnerId}: <span className="font-medium">{marketplaceIdentifier}</span>
+              </p>
+            )}
+            {marketplaceStatus?.marketplaceId && (
+              <p className="text-xs text-neutral-700 dark:text-neutral-300">
+                {marketplaceCopy.marketplaceId}: <span className="font-medium">{marketplaceStatus.marketplaceId}</span>
+              </p>
+            )}
+            {marketplaceStatus?.sellerCentralUrl && (
+              <p className="text-xs text-neutral-500 dark:text-neutral-400 break-all">
+                Seller Central: <span className="font-medium">{marketplaceStatus.sellerCentralUrl}</span>
+              </p>
+            )}
+            {marketplaceStatus?.useSandbox && (
+              <p className="text-xs text-amber-700 dark:text-amber-300">
+                {marketplaceCopy.amazonSandbox}
+              </p>
+            )}
+            {marketplaceStatus?.authorizedMarketplaces?.length > 0 && (
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                {marketplaceCopy.amazonAuthorizedMarketplaces}: {marketplaceStatus.authorizedMarketplaces.map((item) => item.marketplaceName || item.marketplaceId).filter(Boolean).join(', ')}
+              </p>
+            )}
+            <p className="text-xs text-neutral-500 dark:text-neutral-400">
+              {marketplaceCopy.amazonProductQaUnsupported}
+            </p>
+            <p className="text-xs text-neutral-500 dark:text-neutral-400">
+              {marketplaceCopy.amazonRolesHint}
+            </p>
+            {marketplaceStatus?.lastValidationError && (
+              <p className="text-xs text-amber-700 dark:text-amber-300">
+                {marketplaceStatus.lastValidationError}
+              </p>
+            )}
+            {marketplaceStatus?.lastSync && (
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                {marketplaceCopy.lastSync}: {formatWhatsAppTimestamp(marketplaceStatus.lastSync)}
+              </p>
+            )}
+          </div>
+        )}
+
         {isSikayetvar && isEffectivelyConnected && (
           <div className="space-y-2 mb-4">
             <p className="text-xs text-emerald-700 dark:text-emerald-300 inline-flex items-center gap-1">
@@ -1120,7 +1253,7 @@ const handleShopifyConnect = async () => {
               </p>
             )}
             {complaintStatus?.companyUrl && (
-              <p className="text-xs text-neutral-500 dark:text-neutral-400">
+              <p className="break-all text-xs text-neutral-500 dark:text-neutral-400">
                 {marketplaceCopy.companyPage}: <span className="font-medium">{complaintStatus.companyUrl}</span>
               </p>
             )}
@@ -1136,180 +1269,38 @@ const handleShopifyConnect = async () => {
         )}
 
         {isWhatsApp && shouldShowWhatsappDetails && (
-          <div className="space-y-2 mb-4">
-            {whatsappNumberLabel && (
-              <p className="text-xs text-neutral-700 dark:text-neutral-300">
-                {t('dashboard.integrationsPage.whatsappConnectedNumber')}: <span className="font-medium">{whatsappNumberLabel}</span>
-              </p>
-            )}
-            {whatsappStatus?.tokenExpired ? (
-              <p className="text-xs text-amber-700 dark:text-amber-300">
-                {t('dashboard.integrationsPage.whatsappTokenExpired')}
-              </p>
-            ) : whatsappExpiryLabel ? (
-              <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                {t('dashboard.integrationsPage.whatsappTokenExpires')}: {whatsappExpiryLabel}
-              </p>
-            ) : null}
+          <div className="mb-4 space-y-2">
+            <div className="flex items-start justify-between gap-3 rounded-lg px-1">
+              <div className="min-w-0">
+                <div className="text-[11px] uppercase tracking-[0.16em] text-neutral-500 dark:text-cyan-200/55">
+                  {t('dashboard.integrationsPage.whatsappConnectedNumber')}
+                </div>
+                {whatsappNumberLabel && (
+                  <p className="mt-1 truncate text-sm font-medium text-neutral-900 dark:text-white">
+                    {whatsappNumberLabel}
+                  </p>
+                )}
+              </div>
+              {whatsappStatus?.tokenExpired ? (
+                <span className="shrink-0 rounded-full bg-amber-100 px-2 py-1 text-[11px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                  {t('dashboard.integrationsPage.whatsappTokenExpired')}
+                </span>
+              ) : whatsappExpiryLabel ? (
+                <span className="shrink-0 text-[11px] text-neutral-500 dark:text-neutral-400">
+                  {whatsappExpiryLabel}
+                </span>
+              ) : null}
+            </div>
+
             {whatsappEmbeddedSignupState === 'awaiting_completion' && (
-              <p className="text-xs text-blue-700 dark:text-blue-300">
+              <p className="px-1 text-xs text-blue-700 dark:text-blue-300">
                 {t('dashboard.integrationsPage.whatsappEmbeddedSignupInProgress')}
               </p>
             )}
             {whatsappEmbeddedSignupState === 'error' && whatsappEmbeddedSignupError && (
-              <p className="text-xs text-red-600 dark:text-red-400">
+              <p className="px-1 text-xs text-red-600 dark:text-red-400">
                 {whatsappEmbeddedSignupError?.response?.data?.error || whatsappEmbeddedSignupError?.message}
               </p>
-            )}
-          </div>
-        )}
-
-        {isWhatsApp && whatsappConnected && !whatsappNeedsReconnect && can('integrations:connect') && (
-          <div className="mb-4 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/50 p-4 space-y-4">
-            <div className="space-y-1">
-              <h4 className="text-sm font-semibold text-neutral-900 dark:text-white">
-                {t('dashboard.integrationsPage.whatsappTestPanelTitle')}
-              </h4>
-            </div>
-
-            <div className="grid grid-cols-1 gap-2 text-xs text-neutral-600 dark:text-neutral-400 sm:grid-cols-2">
-              {whatsappStatus?.phoneNumberId && (
-                <div className="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white/80 dark:bg-neutral-900/40 px-3 py-2">
-                  <div className="text-[11px] uppercase tracking-wide text-neutral-500 dark:text-neutral-500">
-                    {t('dashboard.integrationsPage.whatsappPhoneNumberIdLabel')}
-                  </div>
-                  <div className="mt-1 font-medium text-neutral-900 dark:text-white break-all">{whatsappStatus.phoneNumberId}</div>
-                </div>
-              )}
-              {whatsappStatus?.wabaId && (
-                <div className="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white/80 dark:bg-neutral-900/40 px-3 py-2">
-                  <div className="text-[11px] uppercase tracking-wide text-neutral-500 dark:text-neutral-500">
-                    {t('dashboard.integrationsPage.whatsappBusinessAccountLabel')}
-                  </div>
-                  <div className="mt-1 font-medium text-neutral-900 dark:text-white break-all">{whatsappStatus.wabaId}</div>
-                </div>
-              )}
-            </div>
-
-            {whatsappTestResult?.acceptedByMeta && (
-              <div className="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white/80 dark:bg-neutral-900/40 px-3 py-2 text-xs text-neutral-600 dark:text-neutral-300">
-                {t('dashboard.integrationsPage.whatsappTestAcceptedHint')}
-                {whatsappTestResult.templateInfo?.name === 'hello_world' && (
-                  <div className="mt-1 text-neutral-500 dark:text-neutral-400">
-                    {t('dashboard.integrationsPage.whatsappTestTemplateFallbackHint')}
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor={`whatsapp-test-recipient-${integration.type}`}>
-                {t('dashboard.integrationsPage.whatsappTestRecipientLabel')}
-              </Label>
-              <Input
-                id={`whatsapp-test-recipient-${integration.type}`}
-                type="tel"
-                value={whatsappTestForm.recipientPhone}
-                placeholder={t('dashboard.integrationsPage.whatsappTestRecipientPlaceholder')}
-                onChange={(event) => setWhatsappTestForm((prev) => ({ ...prev, recipientPhone: event.target.value }))}
-              />
-              <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
-                {t('dashboard.integrationsPage.whatsappTestRecipientHint')}
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor={`whatsapp-test-message-${integration.type}`}>
-                {t('dashboard.integrationsPage.whatsappTestMessageLabel')}
-              </Label>
-              <Textarea
-                id={`whatsapp-test-message-${integration.type}`}
-                rows={4}
-                value={whatsappTestForm.message}
-                placeholder={t('dashboard.integrationsPage.whatsappTestMessagePlaceholder')}
-                onChange={(event) => setWhatsappTestForm((prev) => ({ ...prev, message: event.target.value }))}
-              />
-            </div>
-
-            <Button
-              size="sm"
-              className="w-full"
-              onClick={handleSendWhatsAppTestMessage}
-              disabled={whatsappTestSending}
-            >
-              {whatsappTestSending ? (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  {t('dashboard.integrationsPage.whatsappTestSending')}
-                </>
-              ) : (
-                t('dashboard.integrationsPage.whatsappTestSendButton')
-              )}
-            </Button>
-
-            {whatsappTestResult && (
-              <div className="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white/80 dark:bg-neutral-900/40 px-3 py-3 text-xs text-neutral-700 dark:text-neutral-300 space-y-2">
-                <div className="font-medium text-neutral-900 dark:text-white">{t('dashboard.integrationsPage.whatsappTestLastResult')}</div>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <div>
-                    <div className="text-[11px] uppercase tracking-wide text-neutral-500 dark:text-neutral-500">
-                      {t('dashboard.integrationsPage.whatsappTestSentTo')}
-                    </div>
-                    <div className="mt-1 font-medium text-neutral-900 dark:text-white break-words">{whatsappTestResult.recipientPhone}</div>
-                  </div>
-                  {whatsappTestResult.deliveryMode && (
-                    <div>
-                      <div className="text-[11px] uppercase tracking-wide text-neutral-500 dark:text-neutral-500">
-                        {t('dashboard.integrationsPage.whatsappTestDeliveryMode')}
-                      </div>
-                      <div className="mt-1 font-medium text-neutral-900 dark:text-white">
-                        {whatsappTestResult.deliveryMode === 'template' ? t('dashboard.integrationsPage.whatsappTestDeliveryModeTemplate') : t('dashboard.integrationsPage.whatsappTestDeliveryModeText')}
-                      </div>
-                    </div>
-                  )}
-                  <div>
-                    <div className="text-[11px] uppercase tracking-wide text-neutral-500 dark:text-neutral-500">
-                      {t('dashboard.integrationsPage.whatsappTestDeliveryStatus')}
-                    </div>
-                    <div className="mt-1 font-medium text-neutral-900 dark:text-white">
-                      {getWhatsAppTestStatusLabel(whatsappTestResult.status)}
-                    </div>
-                  </div>
-                </div>
-                {whatsappTestResult.templateInfo?.name && (
-                  <div>
-                    <div className="text-[11px] uppercase tracking-wide text-neutral-500 dark:text-neutral-500">
-                      {t('dashboard.integrationsPage.whatsappTestTemplateUsed')}
-                    </div>
-                    <div className="mt-1 font-medium text-neutral-900 dark:text-white break-words">
-                      {whatsappTestResult.templateInfo.name}{whatsappTestResult.templateInfo.language ? ` (${whatsappTestResult.templateInfo.language})` : ''}
-                    </div>
-                  </div>
-                )}
-                {whatsappTestResult.messageId && (
-                  <div>
-                    <div className="text-[11px] uppercase tracking-wide text-neutral-500 dark:text-neutral-500">
-                      {t('dashboard.integrationsPage.whatsappTestMessageId')}
-                    </div>
-                    <div className="mt-1 break-all font-medium text-neutral-900 dark:text-white">{whatsappTestResult.messageId}</div>
-                  </div>
-                )}
-                {whatsappTestResult.lastStatusAt && (
-                  <div>
-                    <div className="text-[11px] uppercase tracking-wide text-neutral-500 dark:text-neutral-500">
-                      {t('dashboard.integrationsPage.whatsappTestLastStatusAt')}
-                    </div>
-                    <div className="mt-1 font-medium text-neutral-900 dark:text-white">
-                      {formatWhatsAppTimestamp(whatsappTestResult.lastStatusAt)}
-                    </div>
-                  </div>
-                )}
-                {whatsappTestResult.lastError?.message && (
-                  <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
-                    {whatsappTestResult.lastError.message}
-                  </div>
-                )}
-              </div>
             )}
           </div>
         )}
@@ -1333,11 +1324,23 @@ const handleShopifyConnect = async () => {
                     size="sm"
                     className="flex-1"
                     variant={whatsappConnected && !whatsappNeedsReconnect ? 'outline' : 'default'}
-                    onClick={() => (whatsappConnected && !whatsappNeedsReconnect ? handleWhatsAppRefresh() : handleConnect(integration))}
+                    onClick={() => {
+                      if (whatsappConnected && !whatsappNeedsReconnect) {
+                        setWhatsappTestModalOpen(true);
+                        return;
+                      }
+
+                      if (whatsappNeedsReconnect) {
+                        handleWhatsAppRefresh();
+                        return;
+                      }
+
+                      handleConnect(integration);
+                    }}
                     disabled={disabled || whatsappEmbeddedSignupBusy || refreshWhatsAppConnection.isPending}
                   >
                     {(whatsappEmbeddedSignupBusy || refreshWhatsAppConnection.isPending) && <RefreshCw className="h-4 w-4 mr-2 animate-spin" />}
-                    {whatsappConnected && !whatsappNeedsReconnect ? whatsappRefreshLabel : whatsappActionLabel}
+                    {whatsappConnected && !whatsappNeedsReconnect ? t('dashboard.integrationsPage.testIntegration') : (whatsappNeedsReconnect ? whatsappReconnectLabel : whatsappActionLabel)}
                   </Button>
                   {whatsappConnected && (
                     <Button
@@ -1397,11 +1400,11 @@ const handleShopifyConnect = async () => {
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-6 animate-pulse">
-              <div className="h-12 w-12 bg-neutral-200 dark:bg-neutral-700 rounded-lg mb-4"></div>
-              <div className="h-6 w-32 bg-neutral-200 dark:bg-neutral-700 rounded mb-2"></div>
-              <div className="h-4 w-full bg-neutral-200 dark:bg-neutral-700 rounded mb-4"></div>
-              <div className="h-10 w-full bg-neutral-200 dark:bg-neutral-700 rounded"></div>
+            <div key={i} className="bg-white dark:bg-[#081224]/95 rounded-xl border border-neutral-200 dark:border-white/10 p-6 animate-pulse">
+              <div className="h-12 w-12 bg-neutral-200 dark:bg-[linear-gradient(135deg,rgba(8,18,36,0.96),rgba(48,92,229,0.18),rgba(0,168,199,0.14))] rounded-lg mb-4"></div>
+              <div className="h-6 w-32 bg-neutral-200 dark:bg-[linear-gradient(135deg,rgba(8,18,36,0.96),rgba(48,92,229,0.18),rgba(0,168,199,0.14))] rounded mb-2"></div>
+              <div className="h-4 w-full bg-neutral-200 dark:bg-[linear-gradient(135deg,rgba(8,18,36,0.96),rgba(48,92,229,0.18),rgba(0,168,199,0.14))] rounded mb-4"></div>
+              <div className="h-10 w-full bg-neutral-200 dark:bg-[linear-gradient(135deg,rgba(8,18,36,0.96),rgba(48,92,229,0.18),rgba(0,168,199,0.14))] rounded"></div>
             </div>
           ))}
         </div>
@@ -1413,7 +1416,22 @@ const handleShopifyConnect = async () => {
             const isCrmConnected = !isCRMLocked && crmStatus?.hasWebhook && crmStatus?.isActive;
 
             return (
-            <div className={`flex h-full flex-col rounded-xl border p-6 transition-shadow ${isCRMLocked ? 'bg-neutral-50 dark:bg-neutral-800/70 border-neutral-200 dark:border-neutral-700' : isCrmConnected ? 'bg-white dark:bg-neutral-900 border-neutral-400 dark:border-neutral-600 hover:shadow-md' : 'bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-700 hover:shadow-md'}`}>
+            <div
+              className={cn(
+                'flex h-full flex-col rounded-xl border p-6 transition-shadow',
+                dark
+                  ? isCRMLocked
+                    ? 'border-white/10 bg-[#0B1730]/88'
+                    : isCrmConnected
+                      ? 'border-cyan-500/35 bg-[#081224]/95 hover:shadow-md'
+                      : 'border-white/10 bg-[#081224]/95 hover:shadow-md'
+                  : isCRMLocked
+                    ? 'border-neutral-200 bg-neutral-50'
+                    : isCrmConnected
+                      ? 'border-neutral-400 bg-white hover:shadow-md'
+                      : 'border-neutral-200 bg-white hover:shadow-md'
+              )}
+            >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex min-h-10 items-center gap-3">
                   <div className={CARD_ICON_WRAPPER_CLASS}>
@@ -1499,7 +1517,7 @@ const handleShopifyConnect = async () => {
           })()}
 
           {/* Gmail Card */}
-          <div className={`flex h-full flex-col bg-white dark:bg-neutral-900 rounded-xl border p-6 hover:shadow-md transition-shadow ${emailStatus?.connected && emailStatus?.provider === 'GMAIL' ? 'border-neutral-400 dark:border-neutral-600' : 'border-neutral-200 dark:border-neutral-700'}`}>
+          <div className={`flex h-full flex-col bg-white dark:bg-[#081224]/95 rounded-xl border p-6 hover:shadow-md transition-shadow ${emailStatus?.connected && emailStatus?.provider === 'GMAIL' ? 'border-neutral-400 dark:border-cyan-500/35' : 'border-neutral-200 dark:border-white/10'}`}>
             <div className="flex items-start justify-between mb-4">
               <div className="flex min-h-10 items-center gap-3">
                 <div className={CARD_ICON_WRAPPER_CLASS}>
@@ -1537,7 +1555,7 @@ const handleShopifyConnect = async () => {
           </div>
 
           {/* Outlook Card */}
-          <div className={`flex h-full flex-col bg-white dark:bg-neutral-900 rounded-xl border p-6 hover:shadow-md transition-shadow ${emailStatus?.connected && emailStatus?.provider === 'OUTLOOK' ? 'border-neutral-400 dark:border-neutral-600' : 'border-neutral-200 dark:border-neutral-700'}`}>
+          <div className={`flex h-full flex-col bg-white dark:bg-[#081224]/95 rounded-xl border p-6 hover:shadow-md transition-shadow ${emailStatus?.connected && emailStatus?.provider === 'OUTLOOK' ? 'border-neutral-400 dark:border-cyan-500/35' : 'border-neutral-200 dark:border-white/10'}`}>
             <div className="flex items-start justify-between mb-4">
               <div className="flex min-h-10 items-center gap-3">
                 <div className={CARD_ICON_WRAPPER_CLASS}>
@@ -1581,34 +1599,36 @@ const handleShopifyConnect = async () => {
 
       {isWhatsAppManualFallbackEnabled && (
         <Dialog open={whatsappModalOpen} onOpenChange={setWhatsappModalOpen}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>{t('dashboard.integrationsPage.whatsappModalTitle')}</DialogTitle>
-              <DialogDescription>{t('dashboard.integrationsPage.whatsappModalDesc')}</DialogDescription>
+          <DialogContent className={getDashboardOverlaySurfaceClass(dark, 'max-w-2xl')}>
+            <DialogHeader className={cn(dark && 'text-gray-100')}>
+              <DialogTitle className={cn(dark && '!text-white')}>{t('dashboard.integrationsPage.whatsappModalTitle')}</DialogTitle>
+              <DialogDescription className={cn(dark && '!text-neutral-300')}>
+                {t('dashboard.integrationsPage.whatsappModalDesc')}
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label>{t('dashboard.integrationsPage.accessToken')}</Label>
+                <Label className={cn(dark && 'text-slate-200')}>{t('dashboard.integrationsPage.accessToken')}</Label>
                 <Input type="password" placeholder={t('dashboard.integrationsPage.accessTokenPlaceholder')} value={whatsappForm.accessToken} onChange={(e) => setWhatsappForm({ ...whatsappForm, accessToken: e.target.value })} />
               </div>
               <div className="space-y-2">
-                <Label>{t('dashboard.integrationsPage.phoneNumberId')}</Label>
+                <Label className={cn(dark && 'text-slate-200')}>{t('dashboard.integrationsPage.phoneNumberId')}</Label>
                 <Input type="text" placeholder={t('dashboard.integrationsPage.phoneNumberIdPlaceholder')} value={whatsappForm.phoneNumberId} onChange={(e) => setWhatsappForm({ ...whatsappForm, phoneNumberId: e.target.value })} />
               </div>
               <div className="space-y-2">
-                <Label>{t('dashboard.integrationsPage.verifyToken')}</Label>
+                <Label className={cn(dark && 'text-slate-200')}>{t('dashboard.integrationsPage.verifyToken')}</Label>
                 <Input type="text" placeholder={t('dashboard.integrationsPage.verifyTokenPlaceholder')} value={whatsappForm.verifyToken} onChange={(e) => setWhatsappForm({ ...whatsappForm, verifyToken: e.target.value })} />
-                <p className="text-xs text-neutral-500">
+                <p className={cn('text-xs', dark ? 'text-neutral-400' : 'text-neutral-500')}>
                   {t('dashboard.integrationsPage.verifyTokenHint')}
                 </p>
               </div>
               <div className="space-y-2">
-                <Label>Webhook URL</Label>
+                <Label className={cn(dark && 'text-slate-200')}>Webhook URL</Label>
                 <div className="flex gap-2">
-                  <Input type="text" readOnly value={`${runtimeConfig.apiUrl}/api/whatsapp/webhook`} className="bg-neutral-50" />
+                  <Input type="text" readOnly value={`${runtimeConfig.apiUrl}/api/whatsapp/webhook`} className={cn(dark ? '!border-white/10 !bg-[#0B1730]/88 !text-gray-100' : 'bg-neutral-50')} />
                   <Button type="button" variant="outline" size="icon" onClick={copyWebhookUrl}><Copy className="h-4 w-4" /></Button>
                 </div>
-                <p className="text-xs text-neutral-500">
+                <p className={cn('text-xs', dark ? 'text-neutral-400' : 'text-neutral-500')}>
                   {t('dashboard.integrationsPage.webhookUrlPasteHint')}
                 </p>
               </div>
@@ -1620,6 +1640,105 @@ const handleShopifyConnect = async () => {
           </DialogContent>
         </Dialog>
       )}
+
+      <Dialog open={whatsappTestModalOpen} onOpenChange={setWhatsappTestModalOpen}>
+        <DialogContent className={getDashboardOverlaySurfaceClass(dark, 'max-w-xl')}>
+          <DialogHeader className={cn(dark && 'text-gray-100')}>
+            <DialogTitle className={cn(dark && '!text-white')}>
+              {t('dashboard.integrationsPage.whatsappTestPanelTitle')}
+            </DialogTitle>
+            <DialogDescription className={cn(dark && '!text-neutral-300')}>
+              {t('dashboard.integrationsPage.whatsappTestAcceptedHint')}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {whatsappStatus?.displayPhoneNumber && (
+              <div className={getDashboardInsetClass(dark, 'px-4 py-3')}>
+                <div className="text-[11px] uppercase tracking-[0.16em] text-neutral-500 dark:text-cyan-200/55">
+                  {t('dashboard.integrationsPage.whatsappConnectedNumber')}
+                </div>
+                <div className="mt-1 text-sm font-semibold text-neutral-900 dark:text-white">
+                  {whatsappStatus.displayPhoneNumber}
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="whatsapp-test-recipient" className={cn(dark && 'text-slate-200')}>
+                {t('dashboard.integrationsPage.whatsappTestRecipientLabel')}
+              </Label>
+              <Input
+                id="whatsapp-test-recipient"
+                type="tel"
+                value={whatsappTestForm.recipientPhone}
+                placeholder={t('dashboard.integrationsPage.whatsappTestRecipientPlaceholder')}
+                onChange={(event) => setWhatsappTestForm((prev) => ({ ...prev, recipientPhone: event.target.value }))}
+              />
+              <p className={cn('text-[11px]', dark ? 'text-neutral-400' : 'text-neutral-500')}>
+                {t('dashboard.integrationsPage.whatsappTestRecipientHint')}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="whatsapp-test-message" className={cn(dark && 'text-slate-200')}>
+                {t('dashboard.integrationsPage.whatsappTestMessageLabel')}
+              </Label>
+              <Textarea
+                id="whatsapp-test-message"
+                rows={4}
+                value={whatsappTestForm.message}
+                placeholder={t('dashboard.integrationsPage.whatsappTestMessagePlaceholder')}
+                onChange={(event) => setWhatsappTestForm((prev) => ({ ...prev, message: event.target.value }))}
+              />
+              <p className={cn('text-[11px]', dark ? 'text-neutral-400' : 'text-neutral-500')}>
+                {t('dashboard.integrationsPage.whatsappTestTemplateFallbackHint')}
+              </p>
+            </div>
+
+            {whatsappTestResult && (
+              <div className={getDashboardInsetClass(dark, 'px-4 py-3 text-xs text-neutral-700 dark:text-neutral-300')}>
+                <div className="font-medium text-neutral-900 dark:text-white">{t('dashboard.integrationsPage.whatsappTestLastResult')}</div>
+                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wide text-neutral-500 dark:text-neutral-500">
+                      {t('dashboard.integrationsPage.whatsappTestSentTo')}
+                    </div>
+                    <div className="mt-1 break-words font-medium text-neutral-900 dark:text-white">{whatsappTestResult.recipientPhone}</div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wide text-neutral-500 dark:text-neutral-500">
+                      {t('dashboard.integrationsPage.whatsappTestDeliveryStatus')}
+                    </div>
+                    <div className="mt-1 font-medium text-neutral-900 dark:text-white">
+                      {getWhatsAppTestStatusLabel(whatsappTestResult.status)}
+                    </div>
+                  </div>
+                </div>
+                {whatsappTestResult.lastError?.message && (
+                  <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
+                    {whatsappTestResult.lastError.message}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setWhatsappTestModalOpen(false)} disabled={whatsappTestSending}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={handleSendWhatsAppTestMessage} disabled={whatsappTestSending}>
+              {whatsappTestSending ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  {t('dashboard.integrationsPage.whatsappTestSending')}
+                </>
+              ) : (
+                t('dashboard.integrationsPage.whatsappTestSendButton')
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Shopify Modal */}
       <Dialog open={shopifyModalOpen} onOpenChange={(open) => { setShopifyModalOpen(open); if (!open) setShopifyLoading(false); }}>
@@ -1648,13 +1767,13 @@ const handleShopifyConnect = async () => {
             </div>
 
             {shopifyStatus?.connected && (
-              <div className="flex items-center gap-2 p-3 bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg">
+              <div className="flex items-center gap-2 p-3 bg-neutral-100 dark:bg-white/8 border border-neutral-200 dark:border-white/10 rounded-lg">
                 <CheckCircle2 className="h-5 w-5 text-neutral-600 dark:text-neutral-400" />
                 <p className="text-sm font-medium text-neutral-900 dark:text-white">{t('dashboard.integrationsPage.connectedLabel')}: {shopifyStatus.shopName || shopifyStatus.shopDomain}</p>
               </div>
             )}
 
-            <div className="bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg p-4">
+            <div className="bg-neutral-50 dark:bg-[#0B1730]/88 border border-neutral-200 dark:border-white/10 rounded-lg p-4">
               <h4 className="text-sm font-medium text-neutral-900 dark:text-white mb-2">{t('dashboard.integrationsPage.howItWorks')}</h4>
               <ol className="text-sm text-neutral-700 dark:text-neutral-300 space-y-1 list-decimal list-inside">
                 <li>{t('dashboard.integrationsPage.shopifyStep1')}</li>
@@ -1761,12 +1880,12 @@ const handleShopifyConnect = async () => {
               />
             </div>
             {ikasStatus?.connected && (
-              <div className="flex items-center gap-2 p-3 bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg">
+              <div className="flex items-center gap-2 p-3 bg-neutral-100 dark:bg-white/8 border border-neutral-200 dark:border-white/10 rounded-lg">
                 <CheckCircle2 className="h-5 w-5 text-neutral-600 dark:text-neutral-400" />
                 <p className="text-sm font-medium text-neutral-900 dark:text-white">{t('dashboard.integrationsPage.connectedLabel')}: {ikasStatus.storeName}</p>
               </div>
             )}
-            <div className="bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg p-4">
+            <div className="bg-neutral-50 dark:bg-[#0B1730]/88 border border-neutral-200 dark:border-white/10 rounded-lg p-4">
               <h4 className="text-sm font-medium text-neutral-900 dark:text-white mb-2">{t('dashboard.integrationsPage.ikasApiInfoTitle')}</h4>
               <ol className="text-sm text-neutral-700 dark:text-neutral-300 space-y-1 list-decimal list-inside">
                 <li>{t('dashboard.integrationsPage.ikasStep1')}</li>

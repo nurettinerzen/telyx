@@ -7,6 +7,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useTheme } from 'next-themes';
 import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,6 +38,17 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import PageIntro from '@/components/PageIntro';
 import { getPageHelp } from '@/content/pageHelp';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { cn } from '@/lib/utils';
+import {
+  getDashboardBadgeClass,
+  getDashboardInputClass,
+  getDashboardPanelClass,
+  getDashboardRowHoverClass,
+  getDashboardSelectContentClass,
+  getDashboardSelectTriggerClass,
+  getDashboardSkeletonClass,
+  getDashboardTableHeaderClass,
+} from '@/components/dashboard/dashboardSurfaceTheme';
 
 // Generate page numbers with ellipsis for pagination
 function generatePageNumbers(currentPage, totalPages) {
@@ -80,7 +92,9 @@ const callsCache = {
 
 export default function CallsPage() {
   const { t, locale } = useLanguage();
+  const { resolvedTheme } = useTheme();
   const pageHelp = getPageHelp('callHistory', locale);
+  const dark = resolvedTheme === 'dark';
   const searchParams = useSearchParams();
   const [calls, setCalls] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -263,14 +277,14 @@ export default function CallsPage() {
     const isOutbound = call.direction?.startsWith('outbound');
     if (isOutbound) {
       return (
-        <Badge variant="ghost" className="text-orange-700 dark:text-orange-400 text-xs">
+        <Badge variant="ghost" className={getDashboardBadgeClass(dark, 'blue', 'text-xs')}>
           <PhoneOutgoing className="h-3 w-3 mr-1" />
           {t('dashboard.callsPage.outbound')}
         </Badge>
       );
     }
     return (
-      <Badge variant="ghost" className="text-emerald-700 dark:text-emerald-400 text-xs">
+      <Badge variant="ghost" className={getDashboardBadgeClass(dark, 'cyan', 'text-xs')}>
         <PhoneIncoming className="h-3 w-3 mr-1" />
         {t('dashboard.callsPage.inbound')}
       </Badge>
@@ -282,17 +296,17 @@ export default function CallsPage() {
     if (!endReason) return <span className="text-sm text-gray-400">-</span>;
 
     const reasonConfig = {
-      client_ended: { label: t('dashboard.callsPage.clientEnded'), color: 'text-blue-700 dark:text-blue-400' },
-      agent_ended: { label: t('dashboard.callsPage.agentEnded'), color: 'text-teal-700 dark:text-teal-400' },
-      system_timeout: { label: t('dashboard.callsPage.systemTimeout'), color: 'text-yellow-700 dark:text-yellow-400' },
-      error: { label: t('dashboard.callsPage.error'), color: 'text-red-700 dark:text-red-400' },
-      completed: { label: t('dashboard.callsPage.completed'), color: 'text-green-700 dark:text-green-400' },
+      client_ended: { label: t('dashboard.callsPage.clientEnded'), tone: 'neutral' },
+      agent_ended: { label: t('dashboard.callsPage.agentEnded'), tone: 'cyan' },
+      system_timeout: { label: t('dashboard.callsPage.systemTimeout'), tone: 'amber' },
+      error: { label: t('dashboard.callsPage.error'), tone: 'rose' },
+      completed: { label: t('dashboard.callsPage.completed'), tone: 'blue' },
     };
 
-    const config = reasonConfig[endReason] || { label: endReason, color: 'text-gray-700 dark:text-gray-400' };
+    const config = reasonConfig[endReason] || { label: endReason, tone: 'neutral' };
 
     return (
-      <Badge variant="ghost" className={`${config.color} text-xs`}>
+      <Badge variant="ghost" className={getDashboardBadgeClass(dark, config.tone, 'text-xs')}>
         {config.label}
       </Badge>
     );
@@ -363,7 +377,15 @@ export default function CallsPage() {
           quickSteps: pageHelp.quickSteps,
         }}
         actions={
-          <Button onClick={handleExport} variant="outline" size="sm">
+          <Button
+            onClick={handleExport}
+            variant="outline"
+            size="sm"
+            className={cn(
+              dark ? 'border-white/10 bg-[#081224] text-slate-200 hover:bg-white/10 hover:text-white' : '',
+              'rounded-2xl'
+            )}
+          >
             <Download className="h-4 w-4 mr-2" />
             {t('dashboard.callsPage.exportCSV')}
           </Button>
@@ -379,14 +401,14 @@ export default function CallsPage() {
             placeholder={t('dashboard.callsPage.searchByPhone')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
+            className={getDashboardInputClass(dark, 'pl-9')}
           />
         </div>
         <Select value={statusFilter} onValueChange={(val) => { setStatusFilter(val); setPagination(prev => ({ ...prev, page: 1 })); }}>
-          <SelectTrigger className="w-full sm:w-40">
+          <SelectTrigger className={getDashboardSelectTriggerClass(dark, 'w-full sm:w-40')}>
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className={getDashboardSelectContentClass(dark)}>
             <SelectItem value="all">{t('dashboard.callsPage.allStatus')}</SelectItem>
             <SelectItem value="answered">{t('dashboard.callsPage.answered')}</SelectItem>
             <SelectItem value="failed">{t('dashboard.callsPage.failed')}</SelectItem>
@@ -394,20 +416,20 @@ export default function CallsPage() {
           </SelectContent>
         </Select>
         <Select value={directionFilter} onValueChange={(val) => { setDirectionFilter(val); setPagination(prev => ({ ...prev, page: 1 })); }}>
-          <SelectTrigger className="w-full sm:w-40">
+          <SelectTrigger className={getDashboardSelectTriggerClass(dark, 'w-full sm:w-40')}>
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className={getDashboardSelectContentClass(dark)}>
             <SelectItem value="all">{t('dashboard.callsPage.allDirections')}</SelectItem>
             <SelectItem value="inbound">{t('dashboard.callsPage.inbound')}</SelectItem>
             <SelectItem value="outbound">{t('dashboard.callsPage.outbound')}</SelectItem>
           </SelectContent>
         </Select>
         <Select value={endReasonFilter} onValueChange={(val) => { setEndReasonFilter(val); setPagination(prev => ({ ...prev, page: 1 })); }}>
-          <SelectTrigger className="w-full sm:w-44">
+          <SelectTrigger className={getDashboardSelectTriggerClass(dark, 'w-full sm:w-44')}>
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className={getDashboardSelectContentClass(dark)}>
             <SelectItem value="all">{t('dashboard.callsPage.allEndReasons')}</SelectItem>
             <SelectItem value="client_ended">{t('dashboard.callsPage.clientEnded')}</SelectItem>
             <SelectItem value="agent_ended">{t('dashboard.callsPage.agentEnded')}</SelectItem>
@@ -423,24 +445,27 @@ export default function CallsPage() {
             setPagination(prev => ({ ...prev, page: 1 }));
           }}
           locale={locale}
-          className="w-full sm:w-auto"
+          className={cn(
+            'w-full sm:w-auto',
+            dark ? 'border-white/10 bg-[#081224] text-slate-200 hover:bg-white/10 hover:text-white' : ''
+          )}
         />
       </div>
 
       {/* Table */}
       {loading ? (
-        <div className="bg-white dark:bg-gray-900 rounded-md border border-gray-200 dark:border-gray-800 p-6">
+        <div className={getDashboardPanelClass(dark, 'p-6')}>
           <div className="space-y-3">
             {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="h-14 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" />
+              <div key={i} className={cn('h-14 rounded animate-pulse', getDashboardSkeletonClass(dark))} />
             ))}
           </div>
         </div>
       ) : calls.length > 0 ? (
-        <div className="bg-white dark:bg-gray-900 rounded-md border border-gray-200 dark:border-gray-800 overflow-hidden">
+        <div className={getDashboardPanelClass(dark, 'overflow-hidden')}>
           <Table>
-            <TableHeader>
-              <TableRow>
+            <TableHeader className={getDashboardTableHeaderClass(dark)}>
+              <TableRow className={cn(dark ? 'border-white/10' : 'border-gray-200', 'hover:bg-transparent')}>
                 <TableHead>{t('dashboard.callsPage.dateTime')}</TableHead>
                 <TableHead>{t('dashboard.callsPage.duration')}</TableHead>
                 <TableHead>{t('dashboard.callsPage.direction')}</TableHead>
@@ -452,7 +477,7 @@ export default function CallsPage() {
             </TableHeader>
             <TableBody>
               {calls.map((call) => (
-                <TableRow key={call.id}>
+                <TableRow key={call.id} className={getDashboardRowHoverClass(dark)}>
                   <TableCell>
                     <span className="text-sm text-gray-900 dark:text-white">
                       {formatCallDate(call.createdAt)}
@@ -511,7 +536,7 @@ export default function CallsPage() {
 
           {/* Pagination */}
           {pagination.totalPages > 1 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-gray-800">
+            <div className={cn('flex items-center justify-between border-t px-4 py-3', dark ? 'border-white/10' : 'border-gray-200')}>
               <span className="text-sm text-gray-500">
                 {t('dashboard.callsPage.showingResults', {
                   from: (pagination.page - 1) * pagination.limit + 1,
@@ -556,7 +581,7 @@ export default function CallsPage() {
           )}
         </div>
       ) : (
-        <div className="bg-white dark:bg-gray-900 rounded-md border border-gray-200 dark:border-gray-800 p-8">
+        <div className={getDashboardPanelClass(dark, 'p-8')}>
           <EmptyState
             icon={Phone}
             title={searchQuery || statusFilter !== 'all' || directionFilter !== 'all' || endReasonFilter !== 'all' || dateRange.from

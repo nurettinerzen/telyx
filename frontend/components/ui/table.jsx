@@ -15,7 +15,7 @@ Table.displayName = "Table"
 const TableHeader = React.forwardRef(({ className, ...props }, ref) => (
   <thead
     ref={ref}
-    className={cn("bg-gray-50 dark:bg-gray-800/50 [&_tr]:border-b [&_tr]:border-gray-200 dark:[&_tr]:border-gray-800", className)}
+    className={cn("bg-gray-50 dark:bg-[#0B1730]/88 [&_tr]:border-b [&_tr]:border-gray-200 dark:[&_tr]:border-white/10", className)}
     {...props} />
 ))
 TableHeader.displayName = "TableHeader"
@@ -31,7 +31,7 @@ TableBody.displayName = "TableBody"
 const TableFooter = React.forwardRef(({ className, ...props }, ref) => (
   <tfoot
     ref={ref}
-    className={cn("border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 font-medium [&>tr]:last:border-b-0", className)}
+    className={cn("border-t border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#0B1730]/88 font-medium [&>tr]:last:border-b-0", className)}
     {...props} />
 ))
 TableFooter.displayName = "TableFooter"
@@ -40,7 +40,7 @@ const TableRow = React.forwardRef(({ className, ...props }, ref) => (
   <tr
     ref={ref}
     className={cn(
-      "border-b border-gray-100 dark:border-gray-800 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50 data-[state=selected]:bg-gray-100 dark:data-[state=selected]:bg-gray-800",
+      "border-b border-gray-100 dark:border-white/10 transition-colors hover:bg-gray-50 dark:hover:bg-white/[0.03] data-[state=selected]:bg-gray-100 dark:data-[state=selected]:bg-white/[0.06]",
       className
     )}
     {...props} />

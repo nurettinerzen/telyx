@@ -8,6 +8,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SecurePasswordInput } from '@/components/ui/secure-password-input';
@@ -41,6 +42,11 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import PageIntro from '@/components/PageIntro';
 import { getPageHelp } from '@/content/pageHelp';
+import { cn } from '@/lib/utils';
+import {
+  getDashboardInsetClass,
+  getDashboardPanelClass,
+} from '@/components/dashboard/dashboardSurfaceTheme';
 
 import {
   useProfile,
@@ -55,9 +61,11 @@ import {
 
 export default function SettingsPage() {
   const router = useRouter();
+  const { resolvedTheme } = useTheme();
   const { t, locale, changeLocale } = useLanguage();
   const { can } = usePermissions();
   const pageHelp = getPageHelp('settings', locale);
+  const dark = resolvedTheme === 'dark';
 
   // React Query hooks
   const { data: profileData, isLoading: profileLoading } = useProfile();
@@ -98,7 +106,7 @@ export default function SettingsPage() {
 
   const deleteConfirmationPhrase = locale === 'tr' ? 'hesabımı sil' : 'delete my account';
   const isOwner = profileData?.user?.role === 'OWNER';
-  const editableFieldClass = 'dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:placeholder:text-gray-500';
+  const editableFieldClass = 'dark:border-white/10 dark:bg-[#081224] dark:text-gray-100 dark:placeholder:text-cyan-200/45';
 
   // Update local state when data is loaded
   useEffect(() => {
@@ -354,9 +362,9 @@ export default function SettingsPage() {
       />
 
       {/* Profile Section */}
-      <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-3 shadow-sm">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="p-2 rounded-lg">
+      <div className={getDashboardPanelClass(dark, 'p-3')}>
+        <div className={getDashboardInsetClass(dark, 'mb-3 flex items-center gap-2 px-3 py-2')}>
+          <div className="rounded-lg p-2">
             <User className="h-5 w-5 text-primary-600 dark:text-primary-400" />
           </div>
           <div>
@@ -383,7 +391,7 @@ export default function SettingsPage() {
               value={profile.email}
               readOnly
               disabled
-              className="bg-neutral-50 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400"
+              className="bg-neutral-50 text-neutral-500 dark:bg-[#0B1730]/88 dark:border-white/10 dark:text-neutral-400"
             />
             <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
               <p className="text-xs text-neutral-500 dark:text-neutral-400">
@@ -410,7 +418,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <div className="mt-4 rounded-lg border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-700 dark:bg-neutral-800/50">
+        <div className={getDashboardInsetClass(dark, 'mt-4 p-3')}>
           <p className="text-xs text-neutral-600 dark:text-neutral-300">
             <span className="font-medium text-neutral-900 dark:text-white">{t('dashboard.settingsPage.profileImpactTitle')}</span>{' '}
             {t('dashboard.settingsPage.profileImpactDescription')}
@@ -433,9 +441,9 @@ export default function SettingsPage() {
 
       {/* Region & Language Section */}
       {can('settings:edit') && (
-      <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-3 shadow-sm">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="p-2 rounded-lg">
+      <div className={getDashboardPanelClass(dark, 'p-3')}>
+        <div className={getDashboardInsetClass(dark, 'mb-3 flex items-center gap-2 px-3 py-2')}>
+          <div className="rounded-lg p-2">
             <Globe className="h-5 w-5 text-primary-600 dark:text-primary-400" />
           </div>
           <div>
@@ -508,9 +516,9 @@ export default function SettingsPage() {
       )}
 
       {/* Email Signature Section */}
-      <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-3 shadow-sm">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="p-2 rounded-lg">
+      <div className={getDashboardPanelClass(dark, 'p-3')}>
+        <div className={getDashboardInsetClass(dark, 'mb-3 flex items-center gap-2 px-3 py-2')}>
+          <div className="rounded-lg p-2">
             <Mail className="h-5 w-5 text-primary-600 dark:text-primary-400" />
           </div>
           <div>
@@ -576,7 +584,7 @@ export default function SettingsPage() {
 
           {/* Pair Stats */}
           {pairStats && pairStats.total > 0 && (
-            <div className="mt-4 p-3 bg-neutral-50 dark:bg-neutral-800/50 rounded-lg border border-neutral-200 dark:border-neutral-700">
+            <div className={getDashboardInsetClass(dark, 'mt-4 p-3')}>
               <p className="text-xs text-neutral-600 dark:text-neutral-400">
                 <span className="font-semibold text-neutral-900 dark:text-white">{pairStats.total}</span> {t('dashboard.settingsPage.learnedEmailExamples')}
                 {pairStats.byLanguage && pairStats.byLanguage.length > 0 && (
@@ -601,9 +609,9 @@ export default function SettingsPage() {
       </div>
 
       {/* Security Section */}
-      <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-3 shadow-sm">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="p-2 rounded-lg">
+      <div className={getDashboardPanelClass(dark, 'p-3')}>
+        <div className={getDashboardInsetClass(dark, 'mb-3 flex items-center gap-2 px-3 py-2')}>
+          <div className="rounded-lg p-2">
             <AlertTriangle className="h-5 w-5 text-primary-600 dark:text-primary-400" />
           </div>
           <div>
@@ -723,7 +731,7 @@ export default function SettingsPage() {
       </div>
 
       <Dialog open={showEmailChangeModal} onOpenChange={handleEmailModalOpenChange}>
-        <DialogContent>
+        <DialogContent className={cn(dark && '!border-white/10 !bg-[#081224]/98 !text-gray-100')}>
           <DialogHeader>
             <DialogTitle>{t('auth.changeEmailAddress')}</DialogTitle>
             <DialogDescription>

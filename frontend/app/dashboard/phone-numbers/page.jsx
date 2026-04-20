@@ -97,7 +97,7 @@ function getLockReasonText(reason, t) {
 /* ── Progress Bar ── */
 function ProgressBar({ value, colorClass = 'bg-primary' }) {
   return (
-    <div className="h-1.5 overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-800">
+    <div className="h-1.5 overflow-hidden rounded-full bg-neutral-200 dark:bg-[#0B1730]/88">
       <div className={`h-full rounded-full transition-all ${colorClass}`} style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
     </div>
   );
@@ -106,7 +106,7 @@ function ProgressBar({ value, colorClass = 'bg-primary' }) {
 /* ── Metric Pill ── */
 function Metric({ label, value, sub, className = '' }) {
   return (
-    <div className={`rounded-2xl bg-neutral-50 px-4 py-3 dark:bg-neutral-800/60 ${className}`}>
+    <div className={`rounded-2xl bg-neutral-50 px-4 py-3 dark:bg-[#0B1730]/88 dark:border dark:border-white/10 ${className}`}>
       <p className="text-[11px] font-medium tracking-wide text-neutral-500 dark:text-neutral-400">{label}</p>
       <p className="mt-0.5 text-lg font-bold text-neutral-900 dark:text-white">{value}</p>
       {sub && <p className="mt-0.5 text-xs text-neutral-400 dark:text-neutral-500">{sub}</p>}
@@ -302,13 +302,13 @@ export default function PhoneNumbersPage() {
       {/* ═══ 1. Phone Numbers — always first ═══ */}
       <section className="space-y-4">
         {loading ? (
-          <div className="rounded-2xl border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900">
+          <div className="rounded-2xl border border-neutral-200 bg-white p-6 dark:border-white/10 dark:bg-[#081224]/95 shadow-sm">
             <div className="h-8 w-48 animate-pulse rounded bg-neutral-200 dark:bg-neutral-700" />
-            <div className="mt-4 grid gap-3 sm:grid-cols-3"><div className="h-16 animate-pulse rounded-xl bg-neutral-100 dark:bg-neutral-800" /><div className="h-16 animate-pulse rounded-xl bg-neutral-100 dark:bg-neutral-800" /><div className="h-16 animate-pulse rounded-xl bg-neutral-100 dark:bg-neutral-800" /></div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-3"><div className="h-16 animate-pulse rounded-xl bg-neutral-100 dark:bg-[linear-gradient(135deg,rgba(8,18,36,0.96),rgba(48,92,229,0.18),rgba(0,168,199,0.14))]" /><div className="h-16 animate-pulse rounded-xl bg-neutral-100 dark:bg-[linear-gradient(135deg,rgba(8,18,36,0.96),rgba(48,92,229,0.18),rgba(0,168,199,0.14))]" /><div className="h-16 animate-pulse rounded-xl bg-neutral-100 dark:bg-[linear-gradient(135deg,rgba(8,18,36,0.96),rgba(48,92,229,0.18),rgba(0,168,199,0.14))]" /></div>
           </div>
         ) : phoneNumbers.length > 0 ? (
           phoneNumbers.map((number) => (
-            <div key={number.id} className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+            <div key={number.id} className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#081224]/95">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-4">
                   <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 dark:bg-primary-500/15">
@@ -405,7 +405,7 @@ export default function PhoneNumbersPage() {
             </div>
           ))
         ) : isLocked ? (
-          <div className="rounded-2xl border border-neutral-200 bg-white p-8 dark:border-neutral-800 dark:bg-neutral-900">
+          <div className="rounded-2xl border border-neutral-200 bg-white p-8 dark:border-white/10 dark:bg-[#081224]/95 shadow-sm">
             <EmptyState
               icon={Lock}
               title={t('dashboard.phoneNumbersPage.phoneLockedTitle')}
@@ -415,7 +415,7 @@ export default function PhoneNumbersPage() {
             />
           </div>
         ) : (
-          <div className="rounded-2xl border border-neutral-200 bg-white p-8 dark:border-neutral-800 dark:bg-neutral-900">
+          <div className="rounded-2xl border border-neutral-200 bg-white p-8 dark:border-white/10 dark:bg-[#081224]/95 shadow-sm">
             <EmptyState
               icon={Phone}
               title={t('dashboard.phoneNumbersPage.noPhoneNumbersYet')}
@@ -429,7 +429,7 @@ export default function PhoneNumbersPage() {
 
       {/* ═══ 2. Usage Overview ═══ */}
       {!loading && snapshot && (
-        <section className="rounded-2xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900">
+        <section className="rounded-2xl border border-neutral-200 bg-white p-5 dark:border-white/10 dark:bg-[#081224]/95 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="rounded-full text-xs font-semibold">
@@ -515,7 +515,7 @@ export default function PhoneNumbersPage() {
 
           {/* Add-on balances row */}
           {(toNumber(addOns?.voiceMinutes?.remaining) > 0 || toNumber(addOns?.writtenInteractions?.remaining) > 0) && (
-            <div className="mt-4 flex flex-wrap gap-3 pt-3 border-t border-neutral-100 dark:border-neutral-800">
+            <div className="mt-4 flex flex-wrap gap-3 pt-3 border-t border-neutral-100 dark:border-white/10">
               {toNumber(addOns?.voiceMinutes?.remaining) > 0 && (
                 <Badge variant="outline" className="text-xs text-teal-600 border-teal-200 dark:text-teal-400 dark:border-teal-800">
                   +{fmt(addOns.voiceMinutes.remaining, 1)} {t('dashboard.phoneNumbersPage.voiceMinutesAddon')}

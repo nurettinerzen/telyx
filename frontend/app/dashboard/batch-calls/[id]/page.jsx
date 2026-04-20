@@ -56,7 +56,7 @@ const STATUS_CONFIG = {
   },
   CANCELLED: {
     labelKey: 'dashboard.batchCallDetailPage.status.cancelled',
-    color: 'bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-300',
+    color: 'bg-neutral-100 dark:bg-white/8 text-neutral-800 dark:text-neutral-300',
     icon: Pause
   }
 };
@@ -84,7 +84,7 @@ const CALL_STATUS_CONFIG = {
   },
   no_answer: {
     labelKey: 'dashboard.batchCallDetailPage.callStatus.noAnswer',
-    color: 'bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-300',
+    color: 'bg-neutral-100 dark:bg-white/8 text-neutral-800 dark:text-neutral-300',
     icon: PhoneOff
   }
 };
@@ -273,7 +273,7 @@ export default function BatchCallDetailPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-4">
+        <div className="bg-white dark:bg-[#081224]/95 rounded-xl border border-neutral-200 dark:border-white/10 p-4 shadow-sm">
           <div className="flex items-center gap-3">
             <Users className="h-5 w-5 text-neutral-600 dark:text-neutral-400" />
             <div>
@@ -283,7 +283,7 @@ export default function BatchCallDetailPage() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-4">
+        <div className="bg-white dark:bg-[#081224]/95 rounded-xl border border-neutral-200 dark:border-white/10 p-4 shadow-sm">
           <div className="flex items-center gap-3">
             <CheckCircle2 className="h-5 w-5 text-neutral-600 dark:text-neutral-400" />
             <div>
@@ -293,7 +293,7 @@ export default function BatchCallDetailPage() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-4">
+        <div className="bg-white dark:bg-[#081224]/95 rounded-xl border border-neutral-200 dark:border-white/10 p-4 shadow-sm">
           <div className="flex items-center gap-3">
             <XCircle className="h-5 w-5 text-neutral-600 dark:text-neutral-400" />
             <div>
@@ -303,7 +303,7 @@ export default function BatchCallDetailPage() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-4">
+        <div className="bg-white dark:bg-[#081224]/95 rounded-xl border border-neutral-200 dark:border-white/10 p-4 shadow-sm">
           <div className="flex items-center gap-3">
             <Clock className="h-5 w-5 text-neutral-600 dark:text-neutral-400" />
             <div>
@@ -317,7 +317,7 @@ export default function BatchCallDetailPage() {
       </div>
 
       {/* Progress Bar */}
-      <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-4">
+      <div className="bg-white dark:bg-[#081224]/95 rounded-xl border border-neutral-200 dark:border-white/10 p-4 shadow-sm">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
             {t('dashboard.batchCallDetailPage.progress')}
@@ -326,7 +326,7 @@ export default function BatchCallDetailPage() {
             {batchCall.completedCalls} / {batchCall.totalRecipients} ({progress}%)
           </span>
         </div>
-        <div className="w-full h-3 bg-neutral-200 dark:bg-neutral-700 rounded-full overflow-hidden">
+        <div className="w-full h-3 bg-neutral-200 dark:bg-[#0B1730]/88 rounded-full overflow-hidden">
           <div
             className="h-full bg-primary-600 rounded-full transition-all duration-500"
             style={{ width: `${progress}%` }}
@@ -335,8 +335,8 @@ export default function BatchCallDetailPage() {
       </div>
 
       {/* Recipients Table */}
-      <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 overflow-hidden">
-        <div className="px-6 py-4 border-b border-neutral-200 dark:border-neutral-700">
+      <div className="bg-white dark:bg-[#081224]/95 rounded-xl border border-neutral-200 dark:border-white/10 overflow-hidden shadow-sm">
+        <div className="px-6 py-4 border-b border-neutral-200 dark:border-white/10">
           <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">
             {t('dashboard.batchCallDetailPage.recipientsList')}
           </h2>
@@ -344,7 +344,7 @@ export default function BatchCallDetailPage() {
 
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-neutral-50 dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700">
+            <thead className="bg-neutral-50 dark:bg-[#0B1730]/88 border-b border-neutral-200 dark:border-white/10">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
                   {t('dashboard.batchCallDetailPage.phoneHeader')}
@@ -366,19 +366,19 @@ export default function BatchCallDetailPage() {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-neutral-200 dark:divide-neutral-700">
+            <tbody className="divide-y divide-neutral-200 dark:divide-white/10">
               {recipients.length > 0 ? (
                 recipients.map((recipient, index) => {
                   const callStatus = CALL_STATUS_CONFIG[recipient.status] || CALL_STATUS_CONFIG.pending;
                   const normalizedTerminationReason = normalizeBatchTerminationReason(recipient.terminationReason);
                   const terminationBadgeClass = TERMINATION_BADGE_STYLES[normalizedTerminationReason]
-                    || 'bg-neutral-50 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 border-neutral-200 dark:border-neutral-600';
+                    || 'bg-neutral-50 dark:bg-[#0B1730]/88 text-neutral-700 dark:text-neutral-300 border-neutral-200 dark:border-white/10';
                   const terminationLabel = TERMINATION_KEYS[normalizedTerminationReason]
                     ? t(TERMINATION_KEYS[normalizedTerminationReason])
                     : recipient.terminationReason;
 
                   return (
-                    <tr key={index} className="hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
+                    <tr key={index} className="hover:bg-neutral-50 dark:hover:bg-white/[0.03]">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <Phone className="h-4 w-4 text-neutral-400 dark:text-neutral-500 mr-2" />
