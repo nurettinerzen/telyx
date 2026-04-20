@@ -70,11 +70,52 @@ export default function Sidebar({ user, credits, business }) {
   const [mounted, setMounted] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState([]);
+  const [adminAccess, setAdminAccess] = useState({ enabled: false, mfaVerified: false });
 
   // Prevent hydration mismatch for theme
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadAdminAccess = async () => {
+      if (!user?.email) {
+        setAdminAccess({ enabled: false, mfaVerified: false });
+        return;
+      }
+
+      try {
+        const response = await apiClient.auth.adminMfaStatus({
+          validateStatus: () => true,
+          suppressExpected403: true,
+        });
+
+        if (cancelled) return;
+
+        if (response.status === 200) {
+          setAdminAccess({
+            enabled: true,
+            mfaVerified: response.data?.mfaVerified === true,
+          });
+          return;
+        }
+      } catch (error) {
+        console.warn('Failed to determine admin sidebar access:', error);
+      }
+
+      if (!cancelled) {
+        setAdminAccess({ enabled: false, mfaVerified: false });
+      }
+    };
+
+    loadAdminAccess();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.email]);
 
   // Upgrade modal state
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
@@ -130,6 +171,7 @@ export default function Sidebar({ user, credits, business }) {
         { icon: Database, label: t('dashboard.sidebar.inbox'), href: NAVIGATION_ITEMS.inbox.href, permission: 'campaigns:view' },
         { icon: Megaphone, label: t('dashboard.sidebar.campaigns'), href: NAVIGATION_ITEMS.campaigns.href, permission: 'campaigns:view', featureId: 'batch_calls' },
         { icon: Mail, label: t('dashboard.sidebar.email'), href: NAVIGATION_ITEMS.email.href, permission: 'campaigns:view' },
+        { icon: MessageSquare, label: t('dashboard.sidebar.conversations'), href: NAVIGATION_ITEMS.conversations.href, permission: 'whatsapp:view' },
       ],
     },
     {
@@ -146,6 +188,7 @@ export default function Sidebar({ user, credits, business }) {
       items: [
         { icon: Puzzle, label: t('dashboard.sidebar.integrations'), href: NAVIGATION_ITEMS.integrations.href, permission: 'integrations:view' },
         { icon: Users, label: t('dashboard.sidebar.team'), href: NAVIGATION_ITEMS.team.href, permission: 'team:view' },
+        { icon: Phone, label: t('dashboard.sidebar.phoneNumbers'), href: NAVIGATION_ITEMS.phoneNumbers.href, permission: 'phone:view' },
         { icon: CreditCard, label: t('dashboard.subscription'), href: NAVIGATION_ITEMS.subscription.href, permission: 'billing:view' },
         { icon: Settings, label: t('dashboard.sidebar.account'), href: NAVIGATION_ITEMS.account.href, permission: 'settings:view' },
       ],
@@ -154,18 +197,19 @@ export default function Sidebar({ user, credits, business }) {
 
   // Admin-only navigation
   const isUserAdmin = user?.isAdmin === true;
-  const ADMIN_NAVIGATION = isUserAdmin ? [
+  const showAdminNavigation = isUserAdmin || adminAccess.enabled;
+  const ADMIN_NAVIGATION = showAdminNavigation ? [
     {
       label: 'Admin',
       items: [
-        { icon: Shield, label: 'Admin Panel', href: '/dashboard/admin' },
-        { icon: AlertTriangle, label: 'Red Alert', href: '/dashboard/admin/red-alert' },
-        { icon: Users, label: 'Kullanıcılar', href: '/dashboard/admin/users' },
-        { icon: Bot, label: 'Asistanlar', href: '/dashboard/admin/assistants' },
-        { icon: Phone, label: 'Aramalar', href: '/dashboard/admin/calls' },
-        { icon: CreditCard, label: 'Abonelikler', href: '/dashboard/admin/subscriptions' },
-        { icon: Database, label: 'Kurumsal', href: '/dashboard/admin/enterprise' },
-        { icon: BarChart3, label: 'Audit Log', href: '/dashboard/admin/audit-log' },
+        { icon: Shield, label: 'Admin Panel', href: buildAdminHref() },
+        { icon: AlertTriangle, label: 'Red Alert', href: buildAdminHref('/red-alert') },
+        { icon: Users, label: 'Kullanıcılar', href: buildAdminHref('/users') },
+        { icon: Bot, label: 'Asistanlar', href: buildAdminHref('/assistants') },
+        { icon: Phone, label: 'Aramalar', href: buildAdminHref('/calls') },
+        { icon: CreditCard, label: 'Abonelikler', href: buildAdminHref('/subscriptions') },
+        { icon: Database, label: 'Kurumsal', href: buildAdminHref('/enterprise') },
+        { icon: BarChart3, label: 'Audit Log', href: buildAdminHref('/audit-log') },
       ],
     },
   ] : [];
@@ -200,6 +244,15 @@ export default function Sidebar({ user, credits, business }) {
 
   // Get plan display name from centralized config
   const getPlanDisplay = () => getPlanDisplayName(userPlan, locale);
+
+  const buildAdminHref = (path = '') => {
+    const target = `/dashboard/admin${path}`;
+    if (!adminAccess.enabled || adminAccess.mfaVerified) {
+      return target;
+    }
+
+    return `/dashboard/admin-auth?returnTo=${encodeURIComponent(target)}`;
+  };
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
