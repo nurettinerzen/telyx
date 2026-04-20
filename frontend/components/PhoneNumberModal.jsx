@@ -5,7 +5,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -42,27 +42,7 @@ export default function PhoneNumberModal({ isOpen, onClose, onSuccess }) {
     sipTransport: 'TCP'  // ElevenLabs only supports TCP/TLS
   });
 
-  useEffect(() => {
-    if (isOpen) {
-      loadCountries();
-    }
-  }, [isOpen]);
-
-  // Update SIP defaults when provider changes
-  useEffect(() => {
-    if (selectedProvider) {
-      setSipForm(prev => ({
-        ...prev,
-        // Use provider's default, or clear if no default (user must enter manually)
-        sipServer: selectedProvider.defaultServer || 'sip.netgsm.com.tr',
-        sipPort: String(selectedProvider.defaultPort || 5060),
-        // TCP is required for ElevenLabs (UDP not supported)
-        sipTransport: selectedProvider.defaultTransport || 'TCP'
-      }));
-    }
-  }, [selectedProvider]);
-
-  const loadCountries = async () => {
+  const loadCountries = useCallback(async () => {
     setLoadingCountries(true);
     try {
       const response = await apiClient.phoneNumbers.getCountries();
@@ -88,7 +68,27 @@ export default function PhoneNumberModal({ isOpen, onClose, onSuccess }) {
     } finally {
       setLoadingCountries(false);
     }
-  };
+  }, [t]);
+
+  useEffect(() => {
+    if (isOpen) {
+      loadCountries();
+    }
+  }, [isOpen, loadCountries]);
+
+  // Update SIP defaults when provider changes
+  useEffect(() => {
+    if (selectedProvider) {
+      setSipForm(prev => ({
+        ...prev,
+        // Use provider's default, or clear if no default (user must enter manually)
+        sipServer: selectedProvider.defaultServer || 'sip.netgsm.com.tr',
+        sipPort: String(selectedProvider.defaultPort || 5060),
+        // TCP is required for ElevenLabs (UDP not supported)
+        sipTransport: selectedProvider.defaultTransport || 'TCP'
+      }));
+    }
+  }, [selectedProvider]);
 
   const handleSipFormChange = (field, value) => {
     setSipForm(prev => ({
@@ -104,7 +104,7 @@ export default function PhoneNumberModal({ isOpen, onClose, onSuccess }) {
       return;
     }
     if (!sipForm.sipServer) {
-      toast.error(t('dashboard.phoneNumbersPage.modal.sipServerRequired') || 'SIP sunucu adresi gerekli');
+      toast.error(t('dashboard.phoneNumbersPage.modal.sipServerRequired'));
       return;
     }
     if (!sipForm.sipUsername) {
@@ -117,7 +117,7 @@ export default function PhoneNumberModal({ isOpen, onClose, onSuccess }) {
     }
     setLoading(true);
     try {
-      const response = await apiClient.phoneNumbers.importSip({
+      await apiClient.phoneNumbers.importSip({
         phoneNumber: sipForm.phoneNumber,
         sipServer: sipForm.sipServer,
         sipUsername: sipForm.sipUsername,
@@ -127,16 +127,12 @@ export default function PhoneNumberModal({ isOpen, onClose, onSuccess }) {
         provider: selectedProvider?.id || 'other'
       });
 
-      toast.success(response.data.message || t('dashboard.phoneNumbersPage.modal.numberProvisioned'));
+      toast.success(t('dashboard.phoneNumbersPage.modal.numberProvisioned'));
       onSuccess && onSuccess();
       handleClose();
     } catch (error) {
       console.error('Import SIP error:', error);
-
-      const errorMessage = error.response?.data?.message ||
-                          error.response?.data?.error ||
-                          t('dashboard.phoneNumbersPage.modal.sipImportFailed');
-      toast.error(errorMessage);
+      toast.error(t('dashboard.phoneNumbersPage.modal.sipImportFailed'));
     } finally {
       setLoading(false);
     }
@@ -179,10 +175,10 @@ export default function PhoneNumberModal({ isOpen, onClose, onSuccess }) {
               </div>
               <div className="flex-1">
                 <h4 className="font-semibold text-primary-900 dark:text-white mb-1">
-                  NetGSM ile Bağlantı
+                  {t('dashboard.phoneNumbersPage.modal.netgsmConnectionTitle')}
                 </h4>
                 <p className="text-sm text-primary-700 dark:text-cyan-100 mb-3">
-                  NetGSM 0850 numaranızı AI asistanınıza bağlamak için SIP bilgilerinizi girin.
+                  {t('dashboard.phoneNumbersPage.modal.netgsmConnectionDescription')}
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <a
@@ -191,13 +187,13 @@ export default function PhoneNumberModal({ isOpen, onClose, onSuccess }) {
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-2 py-1 rounded hover:bg-blue-200 dark:hover:bg-blue-800"
                   >
-                    Ses Paketi Al <ExternalLink className="h-3 w-3" />
+                    {t('dashboard.phoneNumbersPage.modal.buyVoicePackage')} <ExternalLink className="h-3 w-3" />
                   </a>
                   <Link
                     href="/dashboard/guides/netgsm-connection"
                     className="inline-flex items-center gap-1 text-xs bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-300 px-2 py-1 rounded hover:bg-teal-200 dark:hover:bg-teal-800"
                   >
-                    <BookOpen className="h-3 w-3" /> Bağlantı Rehberi
+                    <BookOpen className="h-3 w-3" /> {t('dashboard.phoneNumbersPage.modal.connectionGuide')}
                   </Link>
                 </div>
               </div>
@@ -217,7 +213,7 @@ export default function PhoneNumberModal({ isOpen, onClose, onSuccess }) {
             <div className="flex items-center gap-2 mb-2">
               <Phone className="h-5 w-5 text-primary-600 dark:text-primary-400" />
               <h4 className="font-medium text-neutral-900 dark:text-white">
-                NetGSM SIP Bilgileri
+                {t('dashboard.phoneNumbersPage.modal.sipFormTitle')}
               </h4>
             </div>
 
@@ -225,44 +221,47 @@ export default function PhoneNumberModal({ isOpen, onClose, onSuccess }) {
             <div className="text-sm text-neutral-600 dark:text-neutral-400 flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-950 rounded-lg border border-amber-200 dark:border-amber-800">
               <Info className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
               <div>
-                <span>NetGSM panelinden: <strong>Ses Hizmeti → Ayarlar → SIP Bilgileri</strong></span>
+                <span>
+                  {t('dashboard.phoneNumbersPage.modal.sipPanelIntro')}{' '}
+                  <strong>{t('dashboard.phoneNumbersPage.modal.sipPanelPath')}</strong>
+                </span>
               </div>
             </div>
 
             {/* Phone Number */}
             <div>
-              <Label htmlFor="phoneNumber">Telefon Numarası</Label>
+              <Label htmlFor="phoneNumber">{t('dashboard.phoneNumbersPage.modal.sipPhoneLabel')}</Label>
               <Input
                 id="phoneNumber"
-                placeholder="örn: 08501234567"
+                placeholder={t('dashboard.phoneNumbersPage.modal.sipPhonePlaceholder')}
                 value={sipForm.phoneNumber}
                 onChange={(e) => handleSipFormChange('phoneNumber', e.target.value)}
                 className="mt-1"
               />
-              <p className="text-xs text-neutral-500 mt-1">NetGSM panelindeki telefon numaranız</p>
+              <p className="text-xs text-neutral-500 mt-1">{t('dashboard.phoneNumbersPage.modal.sipPhoneHint')}</p>
             </div>
 
             {/* SIP Username */}
             <div>
-              <Label htmlFor="sipUsername">SIP Kullanıcı Adı</Label>
+              <Label htmlFor="sipUsername">{t('dashboard.phoneNumbersPage.modal.sipUsernameLabel')}</Label>
               <Input
                 id="sipUsername"
-                placeholder="örn: 8501234567"
+                placeholder={t('dashboard.phoneNumbersPage.modal.sipUsernamePlaceholder')}
                 value={sipForm.sipUsername}
                 onChange={(e) => handleSipFormChange('sipUsername', e.target.value)}
                 className="mt-1"
               />
-              <p className="text-xs text-neutral-500 mt-1">NetGSM SIP Bilgileri'ndeki Kullanıcı Adı</p>
+              <p className="text-xs text-neutral-500 mt-1">{t('dashboard.phoneNumbersPage.modal.sipUsernameHint')}</p>
             </div>
 
             {/* SIP Password */}
             <div>
-              <Label htmlFor="sipPassword">SIP Şifresi</Label>
+              <Label htmlFor="sipPassword">{t('dashboard.phoneNumbersPage.modal.sipPasswordLabel')}</Label>
               <div className="relative mt-1">
                 <Input
                   id="sipPassword"
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="NetGSM SIP şifreniz"
+                  placeholder={t('dashboard.phoneNumbersPage.modal.sipPasswordPlaceholder')}
                   value={sipForm.sipPassword}
                   onChange={(e) => handleSipFormChange('sipPassword', e.target.value)}
                   className="pr-10"
@@ -275,7 +274,7 @@ export default function PhoneNumberModal({ isOpen, onClose, onSuccess }) {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-              <p className="text-xs text-neutral-500 mt-1">NetGSM SIP Bilgileri'ndeki Şifre (Şifreyi Göster butonuna tıklayın)</p>
+              <p className="text-xs text-neutral-500 mt-1">{t('dashboard.phoneNumbersPage.modal.sipPasswordHint')}</p>
             </div>
 
             {/* Hidden fields with defaults */}
@@ -299,7 +298,7 @@ export default function PhoneNumberModal({ isOpen, onClose, onSuccess }) {
             ) : (
               <>
                 <Phone className="mr-2 h-5 w-5" />
-                Numarayı Ekle
+                {t('dashboard.phoneNumbersPage.modal.addNumber')}
               </>
             )}
           </Button>

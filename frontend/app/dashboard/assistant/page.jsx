@@ -1,12 +1,11 @@
 /**
  * Assistants Page
- * Manage AI assistants — Text (chat/WA/email) + Phone (inbound/outbound)
+ * Manage AI assistants — Text (chat/WA/email) + Phone (outbound)
  */
 
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useTheme } from 'next-themes';
 import {
   useAssistants,
   useVoices,
@@ -41,19 +40,14 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import EmptyState from '@/components/EmptyState';
-import VoiceCard from '@/components/VoiceCard';
 import { apiClient } from '@/lib/api';
-import { Bot, Plus, Edit, Trash2, Search, PhoneIncoming, PhoneOutgoing, MessageSquare, Loader2, RefreshCw, ChevronDown, ChevronRight } from 'lucide-react';
+import { Bot, Plus, Edit, Trash2, Search, PhoneOutgoing, MessageSquare, Loader2, RefreshCw, ChevronDown, ChevronRight } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import PageIntro from '@/components/PageIntro';
 import { getPageHelp } from '@/content/pageHelp';
-import {
-  DashboardFlowBackdrop,
-  getDashboardFlowPageStyle,
-} from '@/components/dashboard/DashboardFlowBackdrop';
 
 // Language code to accent name mapping
 const LANGUAGE_TO_ACCENT = {
@@ -89,12 +83,30 @@ const CALL_PURPOSES = {
   }
 };
 
+// Default first messages
+const DEFAULT_FIRST_MESSAGES = {
+  outbound: {
+    tr: (businessName, assistantName) => {
+      const name = assistantName || '';
+      const company = businessName || '';
+      if (name && company) return `Merhaba! Ben ${name}. ${company} adına arıyorum.`;
+      if (name) return `Merhaba! Ben ${name}.`;
+      if (company) return `Merhaba! ${company} adına arıyorum.`;
+      return `Merhaba!`;
+    },
+    en: (businessName, assistantName) => {
+      const name = assistantName || '';
+      const company = businessName || '';
+      if (name && company) return `Hello! I'm ${name}. I'm calling on behalf of ${company}.`;
+      if (name) return `Hello! I'm ${name}.`;
+      if (company) return `Hello! I'm calling on behalf of ${company}.`;
+      return `Hello!`;
+    }
+  }
+};
+
 // Default system prompts based on call purpose
 const DEFAULT_SYSTEM_PROMPTS = {
-  inbound: {
-    tr: 'Müşteri sizi aradığında kısa, net ve yardım odaklı şekilde konuş. İhtiyacı anlamaya çalış, gerekirse bilgi topla ve çözüm üret.',
-    en: 'When a customer calls, speak briefly, clearly, and helpfully. Understand the need first, gather details when needed, and guide toward a solution.'
-  },
   sales: {
     tr: `Satış araması yap. Ürün veya hizmeti tanıt. Müşterinin ihtiyaçlarını dinle ve uygun çözümler sun.`,
     en: `Make a sales call. Introduce the product or service. Listen to customer needs and offer suitable solutions.`
@@ -109,53 +121,16 @@ const DEFAULT_SYSTEM_PROMPTS = {
   }
 };
 
-const usesSilentStart = (direction) => typeof direction === 'string' && direction.startsWith('outbound');
-
-const buildDefaultOutboundFirstMessage = ({
-  language = 'tr',
-  businessName = '',
-  assistantName = '',
-  purpose = 'sales'
-} = {}) => {
-  const lang = language === 'tr' ? 'tr' : 'en';
-  const name = assistantName || (lang === 'tr' ? 'Asistan' : 'Assistant');
-  const company = businessName || (lang === 'tr' ? 'İşletme' : 'the company');
-
-  if (lang === 'tr') {
-    if (purpose === 'sales') {
-      return `Merhaba, ben ${name}. ${company} adına arıyorum. Uygunsanız arama sebebimi kısaca paylaşayım.`;
-    }
-
-    if (purpose === 'collection') {
-      return `Merhaba, ben ${name}. ${company} adına arıyorum. Kısa bir bilgilendirme için uygun musunuz?`;
-    }
-
-    return `Merhaba, ben ${name}. ${company} adına arıyorum. Size kısa bir bilgilendirme aktarmak istiyorum. Uygunsanız hemen paylaşayım.`;
-  }
-
-  if (purpose === 'sales') {
-    return `Hello, I'm ${name} calling on behalf of ${company}. If now is a good time, I can briefly explain why I'm calling.`;
-  }
-
-  if (purpose === 'collection') {
-    return `Hello, I'm ${name} calling on behalf of ${company}. Is now a good time for a brief update?`;
-  }
-
-  return `Hello, I'm ${name} calling on behalf of ${company}. I have a brief update to share if now is a good time.`;
-};
-
 export default function AssistantsPage() {
   const { t, locale } = useLanguage();
   const { can, user } = usePermissions();
-  const { resolvedTheme } = useTheme();
   const pageHelp = getPageHelp('assistants', locale);
   const [searchQuery, setSearchQuery] = useState('');
-  const isDark = resolvedTheme === 'dark';
   const isOutboundDirection = (direction) => typeof direction === 'string' && direction.startsWith('outbound');
 
   // React Query hooks
   const { data: assistantsData, isLoading: assistantsLoading } = useAssistants();
-  const { data: voicesData, isLoading: voicesLoading } = useVoices({ withSamples: true });
+  const { data: voicesData, isLoading: voicesLoading } = useVoices();
   const { data: businessData } = useBusiness(user?.businessId);
   const createAssistant = useCreateAssistant();
   const updateAssistant = useUpdateAssistant();
@@ -179,7 +154,6 @@ export default function AssistantsPage() {
   // Business info
   const businessLanguage = businessData?.data?.language?.toLowerCase() || locale || 'tr';
   const businessName = businessData?.data?.name || '';
-  const phoneInboundEnabled = Boolean(businessData?.data?.phoneInboundEnabled);
 
   // Modal states
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -201,7 +175,6 @@ export default function AssistantsPage() {
   const [updating, setUpdating] = useState(false);
   const [syncing, setSyncing] = useState(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [isFirstMessageCustomized, setIsFirstMessageCustomized] = useState(false);
 
   // Business identity — business-level fields shown in assistant wizard
   const [bizIdentity, setBizIdentity] = useState({
@@ -221,8 +194,21 @@ export default function AssistantsPage() {
   }, [businessData]);
 
   const isTextMode = formData.assistantType === 'text';
-  const isSilentStartMode = !isTextMode && usesSilentStart(formData.callDirection);
-  const isOutboundPhoneMode = !isTextMode && isOutboundDirection(formData.callDirection);
+
+  // Update first message when assistant name changes (phone only)
+  useEffect(() => {
+    if (editingAssistant) return;
+    if (isTextMode) return;
+
+    if (isOutboundDirection(formData.callDirection)) {
+      const lang = businessLanguage === 'tr' ? 'tr' : 'en';
+      const outboundGreeting = DEFAULT_FIRST_MESSAGES.outbound?.[lang]?.(businessName, formData.name) || '';
+      setFormData(prev => ({
+        ...prev,
+        firstMessage: outboundGreeting,
+      }));
+    }
+  }, [formData.name, formData.callDirection, editingAssistant, businessName, businessLanguage, isTextMode]);
 
   // Handle "Yazı Asistanı" button click
   const handleNewTextAssistant = () => {
@@ -246,7 +232,6 @@ export default function AssistantsPage() {
       callPurpose: '',
       assistantType: 'text',
     });
-    setIsFirstMessageCustomized(false);
     setEditingAssistant(null);
     setShowCreateModal(true);
   };
@@ -263,8 +248,8 @@ export default function AssistantsPage() {
     setFormData({
       name: '',
       voiceId: defaultVoiceId,
-      systemPrompt: getDefaultSystemPrompt('outbound', defaultPurpose),
-      firstMessage: getDefaultFirstMessage('outbound', '', businessLanguage || 'tr', defaultPurpose),
+      systemPrompt: getDefaultSystemPrompt(defaultPurpose),
+      firstMessage: getDefaultFirstMessage('outbound', ''),
       language: businessLanguage || 'tr',
       tone: 'formal',
       customNotes: '',
@@ -272,7 +257,6 @@ export default function AssistantsPage() {
       callPurpose: defaultPurpose,
       assistantType: 'phone',
     });
-    setIsFirstMessageCustomized(false);
     setEditingAssistant(null);
     setShowCreateModal(true);
   };
@@ -284,44 +268,17 @@ export default function AssistantsPage() {
     }));
   };
 
-  // Get default first/response message based on call direction
-  const getDefaultFirstMessage = (
-    direction,
-    assistantName,
-    language = formData.language || businessLanguage,
-    purpose = formData.callPurpose
-  ) => {
-    if (usesSilentStart(direction)) {
-      return buildDefaultOutboundFirstMessage({
-        language,
-        businessName,
-        assistantName,
-        purpose
-      });
-    }
-
-    const lang = language === 'tr' ? 'tr' : 'en';
-    const name = assistantName || '';
-    if (lang === 'tr') {
-      if (name) return `Merhaba, ben ${name}. Size nasıl yardımcı olabilirim?`;
-      return 'Merhaba, size nasıl yardımcı olabilirim?';
-    }
-    if (name) return `Hello, I'm ${name}. How can I help you today?`;
-    return 'Hello, how can I help you today?';
+  // Get default first message based on call direction
+  const getDefaultFirstMessage = (direction, assistantName) => {
+    const lang = businessLanguage === 'tr' ? 'tr' : 'en';
+    const messageFn = DEFAULT_FIRST_MESSAGES.outbound?.[lang];
+    return messageFn ? messageFn(businessName, assistantName) : '';
   };
 
   // Get default system prompt for a call purpose
-  const getDefaultSystemPrompt = (direction, purpose, language = formData.language || businessLanguage) => {
-    const lang = language === 'tr' ? 'tr' : 'en';
-    if (direction === 'inbound') {
-      return DEFAULT_SYSTEM_PROMPTS.inbound?.[lang] || '';
-    }
+  const getDefaultSystemPrompt = (purpose) => {
+    const lang = businessLanguage === 'tr' ? 'tr' : 'en';
     return DEFAULT_SYSTEM_PROMPTS[purpose]?.[lang] || '';
-  };
-
-  const isDefaultFirstMessage = (message, direction, assistantName, language, purpose = formData.callPurpose) => {
-    if (!message?.trim()) return true;
-    return message === getDefaultFirstMessage(direction, assistantName, language, purpose);
   };
 
   // Handle call purpose change
@@ -329,21 +286,8 @@ export default function AssistantsPage() {
     setFormData(prev => ({
       ...prev,
       callPurpose: purpose,
-      systemPrompt: getDefaultSystemPrompt(prev.callDirection, purpose, prev.language),
-      firstMessage: prev.assistantType !== 'text' && (!isFirstMessageCustomized || !prev.firstMessage?.trim())
-        ? getDefaultFirstMessage(prev.callDirection, prev.name, prev.language, purpose)
-        : prev.firstMessage,
-    }));
-  };
-
-  const handleDirectionChange = (direction) => {
-    setFormData((prev) => ({
-      ...prev,
-      callDirection: direction,
-      systemPrompt: getDefaultSystemPrompt(direction, prev.callPurpose, prev.language),
-      firstMessage: !isFirstMessageCustomized || !prev.firstMessage?.trim()
-        ? getDefaultFirstMessage(direction, prev.name, prev.language, prev.callPurpose)
-        : prev.firstMessage,
+      systemPrompt: getDefaultSystemPrompt(purpose),
+      firstMessage: getDefaultFirstMessage('outbound', prev.name),
     }));
   };
 
@@ -406,6 +350,11 @@ export default function AssistantsPage() {
         return;
       }
 
+      if (isOutboundDirection(formData.callDirection) && !formData.firstMessage) {
+        toast.error(t('dashboard.assistantsPage.enterAssistantName'));
+        return;
+      }
+
       setCreating(true);
       try {
         // Phone payload — includes all phone fields
@@ -452,23 +401,13 @@ export default function AssistantsPage() {
         callPurpose: '',
         assistantType: 'text',
       });
-      setIsFirstMessageCustomized(false);
     } else {
       // Phone assistant edit
       const voice = voices.find(v => v.id === assistant.voiceId);
       const inferredLang = voice?.language || businessLanguage || 'en';
-      const assistantDirection = assistant.callDirection || 'outbound';
-      const initialFirstMessage = assistant.firstMessage || getDefaultFirstMessage(
-        assistantDirection,
-        assistant.name,
-        assistant.language || inferredLang,
-        assistant.callPurpose || 'sales'
-      );
 
       let displayPrompt = '';
-      if (assistant.callDirection === 'inbound') {
-        displayPrompt = DEFAULT_SYSTEM_PROMPTS.inbound?.[inferredLang] || '';
-      } else if (assistant.callPurpose) {
+      if (assistant.callPurpose) {
         displayPrompt = DEFAULT_SYSTEM_PROMPTS[assistant.callPurpose]?.[inferredLang] || '';
       }
 
@@ -476,23 +415,14 @@ export default function AssistantsPage() {
         name: assistant.name,
         voiceId: assistant.voiceId || '',
         systemPrompt: displayPrompt,
-        firstMessage: initialFirstMessage,
+        firstMessage: assistant.firstMessage || '',
         language: assistant.language || inferredLang,
         tone: assistant.tone || 'formal',
         customNotes: assistant.customNotes || '',
-        callDirection: assistantDirection,
+        callDirection: assistant.callDirection || 'outbound',
         callPurpose: assistant.callPurpose || 'collection',
         assistantType: 'phone',
       });
-      setIsFirstMessageCustomized(
-        !isDefaultFirstMessage(
-          initialFirstMessage,
-          assistantDirection,
-          assistant.name,
-          assistant.language || inferredLang,
-          assistant.callPurpose || 'sales'
-        )
-      );
     }
     setShowCreateModal(true);
   };
@@ -541,8 +471,8 @@ export default function AssistantsPage() {
   const handleSync = async (assistant) => {
     setSyncing(assistant.id);
     try {
-      await syncAssistant.mutateAsync(assistant.id);
-      toast.success(t('dashboard.assistantsPage.syncSuccess'));
+      const response = await syncAssistant.mutateAsync(assistant.id);
+      toast.success(t('dashboard.assistantsPage.syncSuccess').replace('{tools}', response.data.tools?.join(', ') || 'tools updated'));
     } catch (error) {
       toast.error(error.response?.data?.error || t('errors.generic'));
     } finally {
@@ -563,7 +493,6 @@ export default function AssistantsPage() {
       callPurpose: 'collection',
       assistantType: 'phone',
     });
-    setIsFirstMessageCustomized(false);
     setEditingAssistant(null);
   };
 
@@ -576,7 +505,7 @@ export default function AssistantsPage() {
     a.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const pageContent = (
+  return (
     <div className="space-y-6">
       {/* Header */}
       <PageIntro
@@ -667,8 +596,6 @@ export default function AssistantsPage() {
                       <div className="flex items-center gap-2">
                         {isText ? (
                           <MessageSquare className="h-4 w-4 text-teal-500" />
-                        ) : assistant.callDirection === 'inbound' ? (
-                          <PhoneIncoming className="h-4 w-4 text-blue-500" />
                         ) : (
                           <PhoneOutgoing className="h-4 w-4 text-orange-500" />
                         )}
@@ -689,9 +616,7 @@ export default function AssistantsPage() {
                       <span className="text-sm text-neutral-600 dark:text-neutral-400">
                         {!isText && assistant.callPurpose
                           ? t(`dashboard.assistantsPage.purpose${assistant.callPurpose.charAt(0).toUpperCase() + assistant.callPurpose.slice(1)}`) || assistant.callPurpose
-                          : (!isText && assistant.callDirection === 'inbound'
-                            ? t('dashboard.assistantsPage.inboundCall')
-                            : '-')
+                          : '-'
                         }
                       </span>
                     </td>
@@ -702,48 +627,39 @@ export default function AssistantsPage() {
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <span className="text-sm text-neutral-600 dark:text-neutral-400">
-                        {formatDate(assistant.createdAt, 'short', locale)}
+                        {formatDate(assistant.createdAt, 'short')}
                       </span>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-center">
-                      <div className="grid grid-cols-3 gap-1 justify-center w-fit mx-auto">
+                      <div className="flex items-center justify-center gap-1">
                         {can('assistants:edit') && (
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => handleEdit(assistant)}
-                            className="h-8 w-8 px-0"
+                            className="h-8 px-2"
                           >
                             <Edit className="h-3.5 w-3.5" />
                           </Button>
                         )}
-                        {can('assistants:edit') && (
-                          !isText ? (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleSync(assistant)}
-                              disabled={syncing === assistant.id}
-                              title={t('dashboard.assistantsPage.syncWith11Labs')}
-                              className="h-8 w-8 px-0"
-                            >
-                              <RefreshCw className={`h-3.5 w-3.5 ${syncing === assistant.id ? 'animate-spin' : ''}`} />
-                            </Button>
-                          ) : (
-                            <div
-                              className="h-8 w-8 flex items-center justify-center text-neutral-300 dark:text-neutral-600"
-                              title={t('dashboard.assistantsPage.syncNotRequired')}
-                            >
-                              <span className="text-sm leading-none">-</span>
-                            </div>
-                          )
+                        {!isText && can('assistants:edit') && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleSync(assistant)}
+                            disabled={syncing === assistant.id}
+                            title={t('dashboard.assistantsPage.syncWith11Labs')}
+                            className="h-8 px-2"
+                          >
+                            <RefreshCw className={`h-3.5 w-3.5 ${syncing === assistant.id ? 'animate-spin' : ''}`} />
+                          </Button>
                         )}
                         {can('assistants:delete') && (
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => handleDelete(assistant)}
-                            className="h-8 w-8 px-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                            className="h-8 px-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
@@ -784,11 +700,7 @@ export default function AssistantsPage() {
                 </>
               ) : (
                 <>
-                  {formData.callDirection === 'inbound' ? (
-                    <PhoneIncoming className="h-5 w-5 text-neutral-500" />
-                  ) : (
-                    <PhoneOutgoing className="h-5 w-5 text-neutral-500" />
-                  )}
+                  <PhoneOutgoing className="h-5 w-5 text-neutral-500" />
                   {editingAssistant ? t('common.edit') : t('common.create')} — {t('dashboard.assistantsPage.phoneAssistant')}
                 </>
               )}
@@ -811,15 +723,8 @@ export default function AssistantsPage() {
                 id="name"
                 value={formData.name}
                 onChange={(e) => {
-                  const nextName = e.target.value;
-                  if (nextName.length <= 25) {
-                    setFormData((prev) => ({
-                      ...prev,
-                      name: nextName,
-                      firstMessage: prev.assistantType !== 'text' && (!isFirstMessageCustomized || !prev.firstMessage?.trim())
-                        ? getDefaultFirstMessage(prev.callDirection, nextName, prev.language, prev.callPurpose)
-                        : prev.firstMessage,
-                    }));
+                  if (e.target.value.length <= 25) {
+                    setFormData({ ...formData, name: e.target.value });
                   }
                 }}
                 maxLength={25}
@@ -830,26 +735,7 @@ export default function AssistantsPage() {
             {/* ===== PHONE-ONLY FIELDS ===== */}
             {!isTextMode && (
               <>
-                {phoneInboundEnabled && (
-                  <div>
-                    <Label>{t('dashboard.assistantsPage.directionCol')}</Label>
-                    <Select
-                      value={formData.callDirection}
-                      onValueChange={handleDirectionChange}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="outbound">{t('dashboard.assistantsPage.outboundCall')}</SelectItem>
-                        <SelectItem value="inbound">{t('dashboard.assistantsPage.inboundCall')}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
                 {/* Call Purpose */}
-                {isOutboundDirection(formData.callDirection) && (
                 <div>
                   <Label>{t('dashboard.assistantsPage.callPurpose')}</Label>
                   <Select
@@ -871,21 +757,13 @@ export default function AssistantsPage() {
                     {t('dashboard.assistantsPage.purposeAutoPromptHint')}
                   </p>
                 </div>
-                )}
 
                 {/* Language */}
                 <div>
                   <Label htmlFor="language">{t('dashboard.assistantsPage.assistantLanguage')}</Label>
                   <Select
                     value={formData.language}
-                    onValueChange={(value) => setFormData((prev) => ({
-                      ...prev,
-                      language: value,
-                      voiceId: '',
-                      firstMessage: prev.assistantType !== 'text' && (!isFirstMessageCustomized || !prev.firstMessage?.trim())
-                        ? getDefaultFirstMessage(prev.callDirection, prev.name, value, prev.callPurpose)
-                        : prev.firstMessage,
-                    }))}
+                    onValueChange={(value) => setFormData({ ...formData, language: value, voiceId: '' })}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -914,73 +792,42 @@ export default function AssistantsPage() {
                   </p>
                 </div>
 
-                {/* Voice Selection Grid */}
+                {/* Voice */}
                 <div>
-                  <Label>{t('dashboard.assistantsPage.voiceRequired')}</Label>
-                  <p className="text-xs text-neutral-500 mb-3">
-                    {t('dashboard.assistantsPage.voicePreviewHint')}
-                  </p>
-                  {filteredVoices.length > 0 ? (
-                    <div className="grid grid-cols-2 gap-3 max-h-[400px] overflow-y-auto pr-1">
-                      {filteredVoices.map((voice) => (
-                        <VoiceCard
-                          key={voice.id}
-                          voice={voice}
-                          compact
-                          isSelected={formData.voiceId === voice.id}
-                          onSelect={(v) => setFormData({ ...formData, voiceId: v.id })}
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-sm text-neutral-500 py-4 text-center border border-dashed border-neutral-200 dark:border-neutral-700 rounded-lg">
-                      {t('dashboard.assistantsPage.noVoicesForLanguage')}
-                    </div>
-                  )}
+                  <Label htmlFor="voice">{t('dashboard.assistantsPage.voiceRequired')}</Label>
+                  <Select
+                    value={formData.voiceId}
+                    onValueChange={(value) => setFormData({ ...formData, voiceId: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('dashboard.assistantsPage.selectVoice')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {filteredVoices.length > 0 ? (
+                        filteredVoices.map((voice) => (
+                          <SelectItem key={voice.id} value={voice.id}>
+                            {voice.name} ({voice.gender})
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <div className="px-2 py-1 text-sm text-neutral-500">
+                          {t('dashboard.assistantsPage.noVoicesForLanguage')}
+                        </div>
+                      )}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* First Message */}
                 <div>
                   <Label htmlFor="firstMessage">
-                    {isOutboundPhoneMode
-                      ? (locale === 'tr' ? 'İlk Yanıt Mesajı' : 'First Response Message')
-                      : t('dashboard.assistantsPage.greetingMessage')}
+                    {t('dashboard.assistantsPage.greetingMessage')}
                   </Label>
-                  <Input
-                    id="firstMessage"
-                    value={formData.firstMessage}
-                    onChange={(e) => {
-                      const nextValue = e.target.value;
-                      setFormData({ ...formData, firstMessage: nextValue });
-                      setIsFirstMessageCustomized(
-                        !isDefaultFirstMessage(
-                          nextValue,
-                          formData.callDirection,
-                          formData.name,
-                          formData.language,
-                          formData.callPurpose
-                        )
-                      );
-                    }}
-                    placeholder={
-                      isOutboundPhoneMode
-                        ? (locale === 'tr'
-                          ? 'örn: Merhaba, ben Ali. ABC firması adına arıyorum...'
-                          : 'e.g., Hello, I\'m Ali calling on behalf of ABC Company...')
-                        : t('dashboard.assistantsPage.greetingPlaceholder')
-                    }
-                  />
-                  {isSilentStartMode && (
-                    <div className="mt-2 p-3 bg-neutral-50 border border-neutral-200 rounded-md text-sm text-neutral-700 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300">
-                      {t('dashboard.assistantsPage.silentStartEnabled')}
-                    </div>
-                  )}
+                  <div className="p-3 bg-neutral-50 border border-neutral-200 rounded-md text-sm text-neutral-700 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300">
+                    {formData.firstMessage || t('dashboard.assistantsPage.autoGeneratedWhenNamed')}
+                  </div>
                   <p className="text-xs text-neutral-500 mt-1">
-                    {isOutboundPhoneMode
-                      ? (locale === 'tr'
-                        ? 'Karşı taraf telefonu açıp konuştuğunda asistanın vereceği ilk yanıt. Sessiz başlangıçta ilk sözü yine karşı taraf söyler; bu metin o ilk cevabınız için kullanılır.'
-                        : 'The first response the assistant gives after the other side answers and speaks. With silent start, the other side still speaks first; this text is used for your first reply.')
-                      : t('dashboard.assistantsPage.greetingHint')}
+                    {t('dashboard.assistantsPage.autoGeneratedHint')}
                   </p>
                 </div>
               </>
@@ -1085,7 +932,7 @@ export default function AssistantsPage() {
                 value={bizIdentity.identitySummary}
                 onChange={(e) => setBizIdentity({ ...bizIdentity, identitySummary: e.target.value })}
                 placeholder={locale === 'tr'
-                  ? 'İşletmenizi 1-2 cümleyle tanımlayın. Örn: "ABC Lojistik, şehir içi kurye ve dağıtım hizmeti sunar."'
+                  ? 'İşletmenizi 1-2 cümleyle tanımlayın. Örn: "Telyx, yapay zeka destekli müşteri iletişim platformudur."'
                   : 'Describe your business in 1-2 sentences.'
                 }
               />
@@ -1119,8 +966,8 @@ export default function AssistantsPage() {
                     value={bizIdentity.aliases}
                     onChange={(e) => setBizIdentity({ ...bizIdentity, aliases: e.target.value })}
                     placeholder={locale === 'tr'
-                      ? 'Kısaltma, eski isim veya şube adı varsa ekleyin. Örn: ABC, ABC Teknoloji, ABC İstanbul'
-                      : 'Add abbreviations, old names, or branch names. E.g.: ABC, ABC Tech'
+                      ? 'Kısaltma, eski isim veya şube adı varsa ekleyin. Örn: Telix, Telyx AI, Telyx İstanbul'
+                      : 'Add abbreviations, old names, or branch names. E.g.: Telix, Telyx AI'
                     }
                   />
                   <p className="text-xs text-neutral-500 mt-1">
@@ -1150,20 +997,6 @@ export default function AssistantsPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
-  );
-
-  if (!isDark) {
-    return pageContent;
-  }
-
-  return (
-    <div
-      className="relative -m-6 min-h-screen overflow-hidden p-6"
-      style={getDashboardFlowPageStyle(isDark)}
-    >
-      <DashboardFlowBackdrop dark={isDark} />
-      <div className="relative z-10">{pageContent}</div>
     </div>
   );
 }

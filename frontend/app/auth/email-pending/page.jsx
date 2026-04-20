@@ -146,7 +146,7 @@ export default function EmailPendingPage() {
         <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-xl border border-neutral-200 dark:border-neutral-700 p-8">
           {/* Logo */}
           <div className="flex items-center justify-center mb-8">
-            <TelyxLogoFull width={148} height={42} darkMode={mounted && resolvedTheme === 'dark'} />
+            <TelyxLogoFull width={200} height={60} darkMode={mounted && resolvedTheme === 'dark'} />
           </div>
 
           {/* Main Content */}

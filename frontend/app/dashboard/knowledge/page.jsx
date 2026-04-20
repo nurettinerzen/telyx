@@ -5,9 +5,8 @@
 
 'use client';
 
-import React, { useState, useEffect, Suspense, useRef } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useTheme } from 'next-themes';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,17 +38,11 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import PageIntro from '@/components/PageIntro';
 import { getPageHelp } from '@/content/pageHelp';
-import {
-  DashboardFlowBackdrop,
-  getDashboardFlowPageStyle,
-} from '@/components/dashboard/DashboardFlowBackdrop';
 
 function KnowledgeBaseContent() {
   const { t, locale } = useLanguage();
   const { can } = usePermissions();
-  const { resolvedTheme } = useTheme();
   const pageHelp = getPageHelp('knowledgeBase', locale);
-  const isDark = resolvedTheme === 'dark';
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -96,115 +89,21 @@ function KnowledgeBaseContent() {
   // Form states
   const [docName, setDocName] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
-  const [isDragActive, setIsDragActive] = useState(false);
   const [faqForm, setFaqForm] = useState({ question: '', answer: '', category: '' });
-  const fileInputRef = useRef(null);
 
   // Content viewer modal states
   const [showContentModal, setShowContentModal] = useState(false);
   const [contentModalData, setContentModalData] = useState(null);
   const [loadingContent, setLoadingContent] = useState(false);
 
-  const allowedExtensions = ['pdf', 'docx', 'txt', 'csv'];
-  const maxUploadSizeBytes = 10 * 1024 * 1024;
-
-  const resetFilePicker = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
-  const clearDocumentUploadState = () => {
-    setDocName('');
-    setSelectedFile(null);
-    setIsDragActive(false);
-    resetFilePicker();
-  };
-
-  const handleDocModalOpenChange = (nextOpen) => {
-    setShowDocModal(nextOpen);
-    if (!nextOpen) {
-      clearDocumentUploadState();
-    }
-  };
-
-  const getUploadValidationError = (file) => {
-    if (!file) {
-      return locale === 'tr' ? 'Dosya seçilemedi.' : 'Could not read the selected file.';
-    }
-
-    const extension = file.name.split('.').pop()?.toLowerCase();
-    if (!extension || !allowedExtensions.includes(extension)) {
-      return locale === 'tr'
-        ? 'Yalnızca PDF, DOCX, TXT veya CSV dosyaları yükleyebilirsiniz.'
-        : 'Only PDF, DOCX, TXT, or CSV files can be uploaded.';
-    }
-
-    if (file.size > maxUploadSizeBytes) {
-      return locale === 'tr'
-        ? 'Dosya boyutu 10 MB sınırını aşıyor.'
-        : 'The file exceeds the 10 MB size limit.';
-    }
-
-    return null;
-  };
-
-  const applySelectedFile = (file) => {
-    const validationError = getUploadValidationError(file);
-    if (validationError) {
-      toast.error(validationError);
-      resetFilePicker();
-      return false;
-    }
-
-    setSelectedFile(file);
-    if (!docName) {
-      setDocName(file.name.replace(/\.[^/.]+$/, ''));
-    }
-
-    return true;
-  };
-
   const handleFileSelect = (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      applySelectedFile(file);
+      setSelectedFile(file);
+      if (!docName) {
+        setDocName(file.name.replace(/\.[^/.]+$/, ''));
+      }
     }
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!isDragActive) {
-      setIsDragActive(true);
-    }
-  };
-
-  const handleDragLeave = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const nextTarget = e.relatedTarget;
-    if (nextTarget && e.currentTarget.contains(nextTarget)) {
-      return;
-    }
-    setIsDragActive(false);
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragActive(false);
-
-    const droppedFiles = Array.from(e.dataTransfer?.files || []);
-    if (droppedFiles.length === 0) {
-      return;
-    }
-
-    if (droppedFiles.length > 1) {
-      toast.error(t('dashboard.knowledgeBasePage.dropSingleFile'));
-    }
-
-    applySelectedFile(droppedFiles[0]);
   };
 
   const handleSaveDocument = async () => {
@@ -229,7 +128,8 @@ function KnowledgeBaseContent() {
       await uploadDocument.mutateAsync(formData);
       toast.success(t('dashboard.knowledgeBasePage.documentUploadedSuccess'), { id: uploadToast });
       setShowDocModal(false);
-      clearDocumentUploadState();
+      setDocName('');
+      setSelectedFile(null);
     } catch (error) {
       toast.error(error.response?.data?.error || t('dashboard.knowledgeBasePage.uploadFailed'), { id: uploadToast });
     } finally {
@@ -280,18 +180,6 @@ function KnowledgeBaseContent() {
     setShowContentModal(true);
     setContentModalData({ type: 'document', title: doc.name || doc.title, content: null });
 
-    // Content is already available from the list query (Prisma returns all fields)
-    if (doc.content) {
-      setContentModalData({
-        type: 'document',
-        title: doc.name || doc.title,
-        content: doc.content
-      });
-      setLoadingContent(false);
-      return;
-    }
-
-    // Fallback: fetch from API if content wasn't in list data
     try {
       const response = await apiClient.knowledge.getDocument(doc.id);
       setContentModalData({
@@ -300,7 +188,6 @@ function KnowledgeBaseContent() {
         content: response.data.document?.content || t('dashboard.knowledgeBasePage.noContent')
       });
     } catch (error) {
-      console.error('Failed to load document content:', error);
       setContentModalData({
         type: 'document',
         title: doc.name || doc.title,
@@ -349,24 +236,10 @@ function KnowledgeBaseContent() {
 
   // Show skeleton while loading initial data
   if (loading) {
-    if (!isDark) {
-      return <KnowledgeBaseSkeleton />;
-    }
-
-    return (
-      <div
-        className="relative -m-6 min-h-screen overflow-hidden p-6"
-        style={getDashboardFlowPageStyle(isDark)}
-      >
-        <DashboardFlowBackdrop dark={isDark} />
-        <div className="relative z-10">
-          <KnowledgeBaseSkeleton />
-        </div>
-      </div>
-    );
+    return <KnowledgeBaseSkeleton />;
   }
 
-  const pageContent = (
+  return (
     <div className="space-y-6">
       {/* Header */}
       <PageIntro
@@ -457,7 +330,7 @@ function KnowledgeBaseContent() {
                         ) : '-'}
                       </td>
                       <td className="px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400">
-                        {formatDate(doc.uploadedAt, 'short', locale)}
+                        {formatDate(doc.uploadedAt, 'short')}
                       </td>
                       <td className="px-4 py-3">
                         {can('knowledge:delete') && (
@@ -524,7 +397,7 @@ function KnowledgeBaseContent() {
       </Tabs>
 
       {/* Document Upload Modal */}
-      <Dialog open={showDocModal} onOpenChange={handleDocModalOpenChange}>
+      <Dialog open={showDocModal} onOpenChange={setShowDocModal}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t('dashboard.knowledgeBasePage.addKnowledgeBase')}</DialogTitle>
@@ -543,32 +416,12 @@ function KnowledgeBaseContent() {
 
             <div>
               <Label>{t('dashboard.knowledgeBasePage.documentsLabel')}</Label>
-              <div
-                className={`mt-2 border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
-                  isDragActive
-                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-950/20'
-                    : 'border-neutral-200 hover:border-primary-300'
-                }`}
-                onClick={() => fileInputRef.current?.click()}
-                onDragEnter={handleDragOver}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    fileInputRef.current?.click();
-                  }
-                }}
-              >
+              <div className="mt-2 border-2 border-dashed border-neutral-200 rounded-lg p-8 text-center hover:border-primary-300 transition-colors cursor-pointer">
                 <input
                   type="file"
                   accept=".pdf,.docx,.txt,.csv"
                   className="hidden"
                   id="file-input"
-                  ref={fileInputRef}
                   onChange={handleFileSelect}
                 />
                 <label htmlFor="file-input" className="cursor-pointer">
@@ -585,15 +438,10 @@ function KnowledgeBaseContent() {
                   ) : (
                     <>
                       <p className="text-sm text-neutral-600 mb-1">
-                        {isDragActive
-                          ? (locale === 'tr' ? 'Dosyayi birakabilirsiniz' : 'Drop the file here')
-                          : t('dashboard.knowledgeBasePage.clickToUpload')}
+                        {t('dashboard.knowledgeBasePage.clickToUpload')}
                       </p>
                       <p className="text-xs text-neutral-500">
                         {t('dashboard.knowledgeBasePage.pdfDocxTxtCsv')}
-                      </p>
-                      <p className="text-xs text-neutral-400 mt-2">
-                        {locale === 'tr' ? 'Isterseniz dosyayi buraya surukleyip birakabilirsiniz' : 'You can also drag and drop a file here'}
                       </p>
                     </>
                   )}
@@ -604,7 +452,11 @@ function KnowledgeBaseContent() {
           <div className="flex justify-end gap-3 pt-4 border-t">
             <Button
               variant="outline"
-              onClick={() => handleDocModalOpenChange(false)}
+              onClick={() => {
+                setShowDocModal(false);
+                setDocName('');
+                setSelectedFile(null);
+              }}
             >
               {t('common.cancel')}
             </Button>
@@ -705,20 +557,6 @@ function KnowledgeBaseContent() {
         </DialogContent>
       </Dialog>
 
-    </div>
-  );
-
-  if (!isDark) {
-    return pageContent;
-  }
-
-  return (
-    <div
-      className="relative -m-6 min-h-screen overflow-hidden p-6"
-      style={getDashboardFlowPageStyle(isDark)}
-    >
-      <DashboardFlowBackdrop dark={isDark} />
-      <div className="relative z-10">{pageContent}</div>
     </div>
   );
 }

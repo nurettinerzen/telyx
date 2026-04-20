@@ -1,14 +1,9 @@
 'use client';
 
 import React from 'react';
-import { useTheme } from 'next-themes';
 import PageIntro from '@/components/PageIntro';
 import { getPageHelp } from '@/content/pageHelp';
 import { useLanguage } from '@/contexts/LanguageContext';
-import {
-  DashboardFlowBackdrop,
-  getDashboardFlowPageStyle,
-} from '@/components/dashboard/DashboardFlowBackdrop';
 import {
   Globe,
   BookOpen,
@@ -353,12 +348,10 @@ function SectionCard({ section, locale }) {
 
 export default function GuidePage() {
   const { locale } = useLanguage();
-  const { resolvedTheme } = useTheme();
   const pageHelp = getPageHelp('guides', locale);
   const content = GUIDE_CONTENT[locale === 'tr' ? 'tr' : 'en'];
-  const isDark = resolvedTheme === 'dark';
 
-  const pageContent = (
+  return (
     <div className="max-w-4xl mx-auto space-y-8 pb-12">
       <PageIntro
         title={pageHelp.title}
@@ -374,20 +367,6 @@ export default function GuidePage() {
       {content.sections.map((section) => (
         <SectionCard key={section.id} section={section} locale={locale} />
       ))}
-    </div>
-  );
-
-  if (!isDark) {
-    return pageContent;
-  }
-
-  return (
-    <div
-      className="relative -m-6 min-h-screen overflow-hidden p-6"
-      style={getDashboardFlowPageStyle(isDark)}
-    >
-      <DashboardFlowBackdrop dark={isDark} />
-      <div className="relative z-10">{pageContent}</div>
     </div>
   );
 }

@@ -4,7 +4,7 @@
  * Clean, minimal design with grouped sections
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTheme } from 'next-themes';
@@ -29,6 +29,7 @@ import {
   Lock,
   Check,
   Database,
+  Sparkles,
   Shield,
   MessageSquare,
   Mail,
@@ -37,8 +38,6 @@ import {
   History,
   AlertTriangle,
   BookMarked,
-  Package,
-  Building2
 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
@@ -62,13 +61,8 @@ import { VISIBILITY, getFeatureVisibility } from '@/lib/features';
 import { getPlanDisplayName } from '@/lib/planConfig';
 import { TelyxLogoCompact } from './TelyxLogo';
 import { NAVIGATION_ITEMS } from '@/lib/navigationConfig';
-import { useSubscription } from '@/hooks/useSubscription';
-import { useHepsiburadaStatus, useSikayetvarStatus, useTrendyolStatus } from '@/hooks/useIntegrations';
-import { getDashboardFlowSurfaceStyle } from '@/components/dashboard/DashboardFlowBackdrop';
 
-export default function Sidebar({ user, credits, business, whatsappPendingCount = 0, chatPendingCount = 0 }) {
-  const whatsappLiveHandoffEnabled = process.env.NEXT_PUBLIC_WHATSAPP_LIVE_HANDOFF_V2 === 'true';
-  const chatLiveHandoffEnabled = process.env.NEXT_PUBLIC_CHAT_LIVE_HANDOFF_V1 === 'true';
+export default function Sidebar({ user, credits, business }) {
   const pathname = usePathname();
   const { t, locale } = useLanguage();
   const { can } = usePermissions();
@@ -76,100 +70,21 @@ export default function Sidebar({ user, credits, business, whatsappPendingCount 
   const [mounted, setMounted] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState([]);
-  const [adminAccess, setAdminAccess] = useState({ enabled: false, mfaVerified: false });
-  const navRef = useRef(null);
-  const sidebarScrollRef = useRef(0);
 
   // Prevent hydration mismatch for theme
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  useEffect(() => {
-    const savedScroll = sessionStorage.getItem('sidebar-scroll');
-    if (!savedScroll) return;
-
-    const nextScroll = Number.parseInt(savedScroll, 10);
-    if (Number.isNaN(nextScroll)) return;
-
-    sidebarScrollRef.current = nextScroll;
-
-    requestAnimationFrame(() => {
-      if (navRef.current) {
-        navRef.current.scrollTop = nextScroll;
-      }
-    });
-  }, []);
-
-  useEffect(() => {
-    const restoreScroll = sidebarScrollRef.current;
-    const frame = requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        if (navRef.current) {
-          navRef.current.scrollTop = restoreScroll;
-        }
-      });
-    });
-
-    return () => cancelAnimationFrame(frame);
-  }, [pathname]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadAdminAccess = async () => {
-      if (!user?.email) {
-        setAdminAccess({ enabled: false, mfaVerified: false });
-        return;
-      }
-
-      try {
-        const response = await apiClient.auth.adminMfaStatus({
-          validateStatus: () => true,
-          suppressExpected403: true,
-        });
-
-        if (cancelled) return;
-
-        if (response.status === 200) {
-          setAdminAccess({
-            enabled: true,
-            mfaVerified: response.data?.mfaVerified === true,
-          });
-          return;
-        }
-      } catch (error) {
-        console.warn('Failed to determine admin sidebar access:', error);
-      }
-
-      if (!cancelled) {
-        setAdminAccess({ enabled: false, mfaVerified: false });
-      }
-    };
-
-    loadAdminAccess();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.email]);
-
   // Upgrade modal state
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [selectedFeatureId, setSelectedFeatureId] = useState(null);
-  const { data: liveSubscription } = useSubscription();
-  const { data: trendyolStatus } = useTrendyolStatus();
-  const { data: hepsiburadaStatus } = useHepsiburadaStatus();
-  const { data: sikayetvarStatus } = useSikayetvarStatus();
 
   // Get user's current plan and country
   // Only use actual plan from subscription - don't assume STARTER as default
   // This prevents flash where features appear/disappear as plan loads
-  const userPlan = liveSubscription?.plan || user?.subscription?.plan || user?.plan || null;
+  const userPlan = user?.subscription?.plan || user?.plan || null;
   const userCountry = business?.country || user?.business?.country || 'TR';
-  const hasMarketplaceQaAccess = Boolean(trendyolStatus?.connected || hepsiburadaStatus?.connected);
-  const hasComplaintAccess = Boolean(sikayetvarStatus?.connected);
-  const isDarkTheme = mounted && resolvedTheme === 'dark';
 
   // Show skeleton until BOTH conditions are met:
   // 1. Component is mounted (hydration complete)
@@ -179,11 +94,8 @@ export default function Sidebar({ user, credits, business, whatsappPendingCount 
 
   // Sidebar Skeleton while loading
   const SidebarSkeleton = () => (
-    <div
-      className="flex flex-col h-full bg-gray-50 dark:bg-[linear-gradient(180deg,rgba(3,10,32,0.98),rgba(4,10,28,0.94))]"
-      style={isDarkTheme ? getDashboardFlowSurfaceStyle(true, 'sidebar') : undefined}
-    >
-      <div className="h-14 flex items-center px-4 border-b border-gray-200 dark:border-white/[0.08]">
+    <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
+      <div className="h-14 flex items-center px-4 border-b border-gray-200 dark:border-gray-800">
         <div className="h-8 w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
       </div>
       <nav className="flex-1 overflow-y-auto py-4 px-3">
@@ -206,7 +118,7 @@ export default function Sidebar({ user, credits, business, whatsappPendingCount 
     {
       label: t('dashboard.sidebar.product'),
       items: [
-        { icon: BookMarked, label: t('dashboard.sidebar.guides'), href: NAVIGATION_ITEMS.guides.href, permission: 'assistants:view' },
+        { icon: BookMarked, label: locale === 'tr' ? 'Rehber' : 'Guide', href: NAVIGATION_ITEMS.guides.href, permission: 'assistants:view' },
         { icon: Bot, label: t('dashboard.assistants'), href: NAVIGATION_ITEMS.assistants.href, permission: 'assistants:view' },
         { icon: BookOpen, label: t('dashboard.knowledgeBase'), href: NAVIGATION_ITEMS.knowledgeBase.href, permission: 'knowledge:view' },
         { icon: MessageSquare, label: t('dashboard.sidebar.chatWidget'), href: NAVIGATION_ITEMS.chatWidget.href, permission: 'assistants:view' },
@@ -218,11 +130,6 @@ export default function Sidebar({ user, credits, business, whatsappPendingCount 
         { icon: Database, label: t('dashboard.sidebar.inbox'), href: NAVIGATION_ITEMS.inbox.href, permission: 'campaigns:view' },
         { icon: Megaphone, label: t('dashboard.sidebar.campaigns'), href: NAVIGATION_ITEMS.campaigns.href, permission: 'campaigns:view', featureId: 'batch_calls' },
         { icon: Mail, label: t('dashboard.sidebar.email'), href: NAVIGATION_ITEMS.email.href, permission: 'campaigns:view' },
-        ...((whatsappLiveHandoffEnabled || chatLiveHandoffEnabled)
-          ? [{ icon: MessageSquare, label: t('dashboard.sidebar.conversations'), href: NAVIGATION_ITEMS.conversations.href, permission: 'campaigns:view' }]
-          : []),
-        ...(hasMarketplaceQaAccess ? [{ icon: Package, label: locale === 'tr' ? NAVIGATION_ITEMS.marketplaceQa.labelTr : NAVIGATION_ITEMS.marketplaceQa.labelEn, href: NAVIGATION_ITEMS.marketplaceQa.href, permission: 'campaigns:view' }] : []),
-        ...(hasComplaintAccess ? [{ icon: AlertTriangle, label: locale === 'tr' ? NAVIGATION_ITEMS.complaints.labelTr : NAVIGATION_ITEMS.complaints.labelEn, href: NAVIGATION_ITEMS.complaints.href, permission: 'campaigns:view' }] : []),
       ],
     },
     {
@@ -231,6 +138,7 @@ export default function Sidebar({ user, credits, business, whatsappPendingCount 
         { icon: BarChart3, label: t('dashboard.analytics'), href: NAVIGATION_ITEMS.analytics.href, permission: 'analytics:view' },
         { icon: PhoneCall, label: t('dashboard.sidebar.callbacks'), href: NAVIGATION_ITEMS.callbacks.href, permission: 'campaigns:view' },
         { icon: Phone, label: t('dashboard.sidebar.callHistory'), href: NAVIGATION_ITEMS.callHistory.href, permission: 'analytics:view' },
+        { icon: MessageCircle, label: t('dashboard.sidebar.chatHistory'), href: NAVIGATION_ITEMS.chatHistory.href, permission: 'analytics:view' },
       ],
     },
     {
@@ -238,23 +146,29 @@ export default function Sidebar({ user, credits, business, whatsappPendingCount 
       items: [
         { icon: Puzzle, label: t('dashboard.sidebar.integrations'), href: NAVIGATION_ITEMS.integrations.href, permission: 'integrations:view' },
         { icon: Users, label: t('dashboard.sidebar.team'), href: NAVIGATION_ITEMS.team.href, permission: 'team:view' },
-        { icon: Phone, label: t('dashboard.sidebar.phoneNumbers'), href: NAVIGATION_ITEMS.phoneNumbers.href, permission: 'settings:view' },
         { icon: CreditCard, label: t('dashboard.subscription'), href: NAVIGATION_ITEMS.subscription.href, permission: 'billing:view' },
         { icon: Settings, label: t('dashboard.sidebar.account'), href: NAVIGATION_ITEMS.account.href, permission: 'settings:view' },
       ],
     },
-    ...(adminAccess.enabled ? [{
-      label: t('dashboard.sidebar.adminSection'),
-      items: [
-        { icon: Shield, label: t('dashboard.sidebar.adminPanel'), href: buildAdminHref() },
-        { icon: AlertTriangle, label: t('dashboard.sidebar.redAlert'), href: buildAdminHref('/red-alert') },
-        { icon: Users, label: t('dashboard.sidebar.adminUsers'), href: buildAdminHref('/users') },
-        { icon: Building2, label: t('dashboard.sidebar.adminEnterprise'), href: buildAdminHref('/enterprise') },
-        { icon: CreditCard, label: t('dashboard.sidebar.adminSubscriptions'), href: buildAdminHref('/subscriptions') },
-        { icon: History, label: t('dashboard.sidebar.adminAuditLog'), href: buildAdminHref('/audit-log') },
-      ],
-    }] : []),
   ];
+
+  // Admin-only navigation
+  const isUserAdmin = user?.isAdmin === true;
+  const ADMIN_NAVIGATION = isUserAdmin ? [
+    {
+      label: 'Admin',
+      items: [
+        { icon: Shield, label: 'Admin Panel', href: '/dashboard/admin' },
+        { icon: AlertTriangle, label: 'Red Alert', href: '/dashboard/admin/red-alert' },
+        { icon: Users, label: 'Kullanıcılar', href: '/dashboard/admin/users' },
+        { icon: Bot, label: 'Asistanlar', href: '/dashboard/admin/assistants' },
+        { icon: Phone, label: 'Aramalar', href: '/dashboard/admin/calls' },
+        { icon: CreditCard, label: 'Abonelikler', href: '/dashboard/admin/subscriptions' },
+        { icon: Database, label: 'Kurumsal', href: '/dashboard/admin/enterprise' },
+        { icon: BarChart3, label: 'Audit Log', href: '/dashboard/admin/audit-log' },
+      ],
+    },
+  ] : [];
 
   const handleLockedFeatureClick = (featureId) => {
     setSelectedFeatureId(featureId);
@@ -287,22 +201,10 @@ export default function Sidebar({ user, credits, business, whatsappPendingCount 
   // Get plan display name from centralized config
   const getPlanDisplay = () => getPlanDisplayName(userPlan, locale);
 
-  function buildAdminHref(path = '') {
-    const target = `/dashboard/admin${path}`;
-    if (adminAccess.mfaVerified) {
-      return target;
-    }
-
-    return `/dashboard/admin-auth?returnTo=${encodeURIComponent(target)}`;
-  }
-
   const SidebarContent = () => (
-    <div
-      className="flex flex-col h-full bg-gray-50 dark:bg-[linear-gradient(180deg,rgba(3,10,32,0.98),rgba(4,10,28,0.94))]"
-      style={isDarkTheme ? getDashboardFlowSurfaceStyle(true, 'sidebar') : undefined}
-    >
+    <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
       {/* Logo */}
-      <div className="h-14 flex items-center px-4 border-b border-gray-200 dark:border-white/[0.08]">
+      <div className="h-14 flex items-center px-4 border-b border-gray-200 dark:border-gray-800">
         <Link href="/dashboard/assistant" className="flex items-center">
           <TelyxLogoCompact darkMode={mounted && resolvedTheme === 'dark'} />
         </Link>
@@ -311,14 +213,12 @@ export default function Sidebar({ user, credits, business, whatsappPendingCount 
       {/* Navigation */}
       <nav
         data-sidebar-nav
-        ref={navRef}
-        onScroll={(event) => {
-          sidebarScrollRef.current = event.currentTarget.scrollTop;
-          sessionStorage.setItem('sidebar-scroll', String(event.currentTarget.scrollTop));
+        onScroll={(e) => {
+          sessionStorage.setItem('sidebar-scroll', e.target.scrollTop);
         }}
         className="flex-1 min-h-0 overflow-y-auto py-2 px-3"
       >
-        {NAVIGATION.map((section) => {
+        {[...NAVIGATION, ...ADMIN_NAVIGATION].map((section) => {
           const sectionLabel = section.label;
           const isCollapsed = collapsedSections.includes(sectionLabel);
 
@@ -378,10 +278,7 @@ export default function Sidebar({ user, credits, business, whatsappPendingCount 
                       <Link
                         key={item.href}
                         href={item.href}
-                        onClick={(event) => {
-                          event.currentTarget.blur();
-                          setIsMobileOpen(false);
-                        }}
+                        onClick={() => setIsMobileOpen(false)}
                         className={cn(
                           'flex items-center gap-2.5 px-3 py-1 rounded-md text-[13px] font-medium transition-all',
                           isActive
@@ -390,12 +287,7 @@ export default function Sidebar({ user, credits, business, whatsappPendingCount 
                         )}
                       >
                         <Icon className="h-4 w-4 flex-shrink-0" />
-                        <span className="flex-1 truncate">{item.label}</span>
-                        {item.href === NAVIGATION_ITEMS.conversations.href && (whatsappPendingCount + chatPendingCount) > 0 && (
-                          <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
-                            {(whatsappPendingCount + chatPendingCount) > 99 ? '99+' : (whatsappPendingCount + chatPendingCount)}
-                          </span>
-                        )}
+                        <span>{item.label}</span>
                       </Link>
                     );
                   })}
@@ -407,29 +299,28 @@ export default function Sidebar({ user, credits, business, whatsappPendingCount 
       </nav>
 
       {/* Language Switcher */}
-      <div className="px-4 py-1.5 border-t border-gray-200 dark:border-white/[0.08]">
+      <div className="px-4 py-1.5 border-t border-gray-200 dark:border-gray-800">
         <LanguageSwitcher />
       </div>
 
       {/* User profile */}
-      <div className="px-3 py-1.5 border-t border-gray-200 dark:border-white/[0.08]">
+      <div className="px-3 py-1.5 border-t border-gray-200 dark:border-gray-800">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-3 w-full rounded-xl border border-gray-200/80 bg-white/80 px-3 py-2.5 text-left shadow-sm transition-colors hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:hover:bg-gray-800">
-              <Avatar className="h-9 w-9 flex-shrink-0">
-                <AvatarFallback className="bg-primary-600 text-white text-sm font-semibold">
+            <button className="flex items-center gap-3 w-full px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+              <Avatar className="h-8 w-8">
+                <AvatarFallback className="bg-primary-600 text-white text-sm">
                   {user?.name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U'}
                 </AvatarFallback>
               </Avatar>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">
-                  {user?.name || t('dashboard.userFallback')}
+              <div className="flex-1 text-left min-w-0">
+                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                  {user?.name || 'User'}
                 </p>
-                <div className="mt-1 flex items-center">
-                  <span className="inline-flex max-w-full truncate whitespace-nowrap rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-medium text-primary-700 dark:bg-primary-900/30 dark:text-primary-300">
-                    {getPlanDisplay()}
-                  </span>
-                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                  <Sparkles className="h-3 w-3" />
+                  {getPlanDisplay()} Plan
+                </p>
               </div>
               <ChevronDown className="h-4 w-4 text-gray-400 flex-shrink-0" />
             </button>
@@ -482,7 +373,7 @@ export default function Sidebar({ user, credits, business, whatsappPendingCount 
       {/* Mobile menu button */}
       <button
         onClick={() => setIsMobileOpen(!isMobileOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white dark:bg-[#081126] rounded-md shadow-md border border-gray-200 dark:border-white/[0.08]"
+        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white dark:bg-gray-900 rounded-md shadow-md border border-gray-200 dark:border-gray-800"
       >
         {isMobileOpen ? (
           <X className="h-5 w-5 text-gray-700 dark:text-gray-300" />
@@ -507,7 +398,7 @@ export default function Sidebar({ user, credits, business, whatsappPendingCount 
       )}
 
       {/* Desktop sidebar - 240px width as per spec */}
-      <div className="hidden lg:block w-60 border-r border-gray-200 dark:border-white/[0.08] fixed left-0 top-0 bottom-0 overflow-hidden">
+      <div className="hidden lg:block w-60 border-r border-gray-200 dark:border-gray-800 fixed left-0 top-0 bottom-0 overflow-hidden">
         {isReady ? <SidebarContent /> : <SidebarSkeleton />}
       </div>
 

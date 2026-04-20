@@ -6,7 +6,6 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -28,22 +27,11 @@ import ChatWidget from '@/components/ChatWidget';
 import { useChatWidgetSettings, useChatStats, useUpdateChatWidget } from '@/hooks/useChatWidget';
 import { useAssistants } from '@/hooks/useAssistants';
 import { useSubscription } from '@/hooks/useSubscription';
-import { getChatWidgetFeedbackCopy } from '@/lib/chatWidgetFeedbackCopy';
-import runtimeConfig from '@/lib/runtime-config';
-import {
-  DashboardFlowBackdrop,
-  getDashboardFlowPageStyle,
-} from '@/components/dashboard/DashboardFlowBackdrop';
 
-const DEFAULT_CHAT_WIDGET_COLOR = '#051752';
-const LEGACY_CHAT_WIDGET_COLOR = '#00A2B3';
 
 export default function ChatWidgetPage() {
   const { t, locale } = useLanguage();
-  const { resolvedTheme } = useTheme();
   const pageHelp = getPageHelp('chatWidget', locale);
-  const feedbackCopy = getChatWidgetFeedbackCopy(locale);
-  const isDark = resolvedTheme === 'dark';
 
   // React Query hooks
   const { data: widgetSettings, isLoading: widgetLoading } = useChatWidgetSettings();
@@ -67,7 +55,7 @@ export default function ChatWidgetPage() {
   // Local UI state
   const [isEnabled, setIsEnabled] = useState(false);
   const [position, setPosition] = useState('bottom-right');
-  const [primaryColor, setPrimaryColor] = useState(DEFAULT_CHAT_WIDGET_COLOR);
+  const [primaryColor, setPrimaryColor] = useState('#00A2B3');
   const [showBranding, setShowBranding] = useState(true);
   const [buttonText, setButtonText] = useState('');
   const [welcomeMessage, setWelcomeMessage] = useState('');
@@ -119,12 +107,7 @@ export default function ChatWidgetPage() {
     if (saved) {
       const settings = JSON.parse(saved);
       setPosition(settings.position || 'bottom-right');
-      const savedColor = settings.primaryColor;
-      setPrimaryColor(
-        !savedColor || savedColor === LEGACY_CHAT_WIDGET_COLOR
-          ? DEFAULT_CHAT_WIDGET_COLOR
-          : savedColor
-      );
+      setPrimaryColor(settings.primaryColor || '#00A2B3');
       setShowBranding(settings.showBranding !== undefined ? settings.showBranding : true);
       if (settings.buttonText) setButtonText(settings.buttonText);
       if (settings.welcomeMessage) setWelcomeMessage(settings.welcomeMessage);
@@ -174,25 +157,23 @@ export default function ChatWidgetPage() {
   };
 
   const generateEmbedCode = () => {
-    const apiUrl = runtimeConfig.apiUrl;
-    const siteUrl = runtimeConfig.siteUrl;
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 
-    const positionMap = {
-      'bottom-right': 'bottom: 20px; right: 20px;',
-      'bottom-left': 'bottom: 20px; left: 20px;',
-      'top-right': 'top: 20px; right: 20px;',
-      'top-left': 'top: 20px; left: 20px;'
-    };
+  const positionMap = {
+    'bottom-right': 'bottom: 20px; right: 20px;',
+    'bottom-left': 'bottom: 20px; left: 20px;',
+    'top-right': 'top: 20px; right: 20px;',
+    'top-left': 'top: 20px; left: 20px;'
+  };
 
-    // Use actual values or fallback to translated defaults
-    const actualButtonText = buttonText || t('dashboard.chatWidgetPage.defaultButtonText');
-    const actualWelcomeMessage = welcomeMessage || t('dashboard.chatWidgetPage.defaultWelcomeMessage');
-    const actualPlaceholder = placeholderText || t('dashboard.chatWidgetPage.defaultPlaceholder');
-    // Free users can't disable branding
-    const actualShowBranding = isPro ? showBranding : true;
-    const feedbackI18n = JSON.stringify(feedbackCopy);
+  // Use actual values or fallback to translated defaults
+  const actualButtonText = buttonText || t('dashboard.chatWidgetPage.defaultButtonText');
+  const actualWelcomeMessage = welcomeMessage || t('dashboard.chatWidgetPage.defaultWelcomeMessage');
+  const actualPlaceholder = placeholderText || t('dashboard.chatWidgetPage.defaultPlaceholder');
+  // Free users can't disable branding
+  const actualShowBranding = isPro ? showBranding : true;
 
-    return `<!-- Telyx.ai Chat Widget -->
+  return `<!-- Telyx.ai Chat Widget -->
 <script>
 (function() {
   var CONFIG = {
@@ -203,8 +184,7 @@ export default function ChatWidgetPage() {
     buttonText: '${actualButtonText}',
     welcomeMessage: '${actualWelcomeMessage}',
     placeholderText: '${actualPlaceholder}',
-    showBranding: ${actualShowBranding},
-    i18n: ${feedbackI18n}
+    showBranding: ${actualShowBranding}
   };
 
   // Styles
@@ -223,7 +203,7 @@ export default function ChatWidgetPage() {
     #telyx-widget-btn svg { width: 28px; height: 28px; fill: white; }
     #telyx-chat-window {
       position: fixed; \${CONFIG.position}
-      width: 380px; height: 620px;
+      width: 380px; height: 520px;
       background: white; border-radius: 16px;
       box-shadow: 0 10px 40px rgba(0,0,0,0.2);
       z-index: 99999; display: none; flex-direction: column;
@@ -256,41 +236,6 @@ export default function ChatWidgetPage() {
     #telyx-chat-input-area {
       padding: 12px; border-top: 1px solid #e2e8f0;
       display: flex; gap: 8px;
-    }
-    #telyx-feedback {
-      display: none;
-      flex-direction: column;
-      gap: 8px;
-      padding: 10px 12px;
-      border-top: 1px solid #e2e8f0;
-      background: #f8fafc;
-      font-size: 12px;
-      color: #334155;
-    }
-    #telyx-feedback-actions {
-      display: flex;
-      gap: 6px;
-    }
-    #telyx-feedback-reasons {
-      display: none;
-      flex-wrap: wrap;
-      gap: 6px;
-      max-height: 220px;
-      overflow-y: auto;
-      overscroll-behavior: contain;
-      padding-right: 4px;
-    }
-    .telyx-feedback-btn {
-      border: 1px solid #cbd5e1;
-      border-radius: 999px;
-      background: white;
-      cursor: pointer;
-      padding: 4px 10px;
-      font-size: 12px;
-    }
-    .telyx-feedback-btn:hover {
-      border-color: \${CONFIG.primaryColor};
-      color: \${CONFIG.primaryColor};
     }
     #telyx-chat-input {
       flex: 1; padding: 10px 14px; border: 1px solid #e2e8f0;
@@ -338,38 +283,6 @@ export default function ChatWidgetPage() {
 
   var inputArea = document.createElement('div');
   inputArea.id = 'telyx-chat-input-area';
-  var feedbackBar = document.createElement('div');
-  feedbackBar.id = 'telyx-feedback';
-  var feedbackTitle = document.createElement('span');
-  feedbackTitle.textContent = CONFIG.i18n.triggerLabel;
-  var feedbackActions = document.createElement('div');
-  feedbackActions.id = 'telyx-feedback-actions';
-  var feedbackYes = document.createElement('button');
-  feedbackYes.className = 'telyx-feedback-btn';
-  feedbackYes.textContent = '👍';
-  feedbackYes.setAttribute('aria-label', CONFIG.i18n.positiveAriaLabel);
-  var feedbackNo = document.createElement('button');
-  feedbackNo.className = 'telyx-feedback-btn';
-  feedbackNo.textContent = '👎';
-  feedbackNo.setAttribute('aria-label', CONFIG.i18n.negativeAriaLabel);
-  var feedbackReasons = document.createElement('div');
-  feedbackReasons.id = 'telyx-feedback-reasons';
-  var negativeReasons = CONFIG.i18n.reasons || [];
-  negativeReasons.forEach(function(item) {
-    var reasonBtn = document.createElement('button');
-    reasonBtn.className = 'telyx-feedback-btn';
-    reasonBtn.textContent = item.label;
-    reasonBtn.onclick = function() {
-      var note = window.prompt(CONFIG.i18n.commentPlaceholder, '');
-      submitFeedback('negative', item.code, note || null);
-    };
-    feedbackReasons.appendChild(reasonBtn);
-  });
-  feedbackActions.appendChild(feedbackYes);
-  feedbackActions.appendChild(feedbackNo);
-  feedbackBar.appendChild(feedbackTitle);
-  feedbackBar.appendChild(feedbackActions);
-  feedbackBar.appendChild(feedbackReasons);
   var input = document.createElement('input');
   input.id = 'telyx-chat-input';
   input.type = 'text';
@@ -382,7 +295,6 @@ export default function ChatWidgetPage() {
 
   chatWindow.appendChild(chatHeader);
   chatWindow.appendChild(messagesDiv);
-  chatWindow.appendChild(feedbackBar);
   chatWindow.appendChild(inputArea);
 
   if (CONFIG.showBranding) {
@@ -391,7 +303,7 @@ export default function ChatWidgetPage() {
     var brandingText = document.createElement('span');
     brandingText.textContent = 'Powered by ';
     var brandingLink = document.createElement('a');
-    brandingLink.href = '${siteUrl}';
+    brandingLink.href = 'https://telyx.ai';
     brandingLink.target = '_blank';
     brandingLink.rel = 'noopener noreferrer';
     brandingLink.textContent = 'Telyx.ai';
@@ -413,15 +325,10 @@ export default function ChatWidgetPage() {
   sendBtn = document.getElementById('telyx-send-btn');
 
   var conversationHistory = [];
-  var latestTraceId = null;
-  var latestAssistantPreview = '';
-  var assistantTraceCount = 0;
-  var feedbackSubmitted = {};
   var isOpen = false;
   var sessionStorageKey = 'telyxChatSessionId_' + CONFIG.embedKey;
   var sessionTsKey = 'telyxChatSessionTs_' + CONFIG.embedKey;
   var SESSION_TTL_MS = 30 * 60 * 1000; // 30 minutes
-  var LIGHTWEIGHT_CHATTER_PATTERN = /^(selam|merhaba|nasılsın|iyi misin|teşekkürler|teşekkür ederim|sağ ol|sağ olun|günaydın|iyi akşamlar|görüşürüz|bye|hi|hello|hey|how are you|thanks|thank you|good morning|good evening)[!.?, ]*$/i;
   var sessionId = (function() {
     try {
       var stored = localStorage.getItem(sessionStorageKey);
@@ -462,85 +369,6 @@ export default function ChatWidgetPage() {
     return div;
   }
 
-  function isMeaningfulUserMessage(message) {
-    var normalized = String(message || '').trim();
-    if (!normalized) return false;
-    if (LIGHTWEIGHT_CHATTER_PATTERN.test(normalized)) return false;
-
-    var hasDigits = /\\d/.test(normalized);
-    var hasQuestion = /[?？]/.test(normalized);
-    var words = normalized.split(/\\s+/).filter(Boolean).length;
-
-    return hasDigits || hasQuestion || words >= 2 || normalized.length >= 12;
-  }
-
-  function hideFeedback() {
-    feedbackBar.style.display = 'none';
-    feedbackReasons.style.display = 'none';
-  }
-
-  function resetFeedbackComposer() {
-    feedbackTitle.textContent = CONFIG.i18n.triggerLabel;
-    feedbackActions.style.display = 'flex';
-    feedbackReasons.style.display = 'none';
-  }
-
-  function showFeedback(traceId, reply) {
-    latestTraceId = traceId || null;
-    latestAssistantPreview = reply || '';
-    if (latestTraceId) {
-      assistantTraceCount += 1;
-    }
-    var hasMeaningfulUserTurn = conversationHistory.some(function(item) {
-      return item.role === 'user' && isMeaningfulUserMessage(item.content);
-    });
-
-    if (!latestTraceId || feedbackSubmitted[latestTraceId] || assistantTraceCount < 2 || !hasMeaningfulUserTurn) {
-      hideFeedback();
-      return;
-    }
-    resetFeedbackComposer();
-    feedbackBar.style.display = 'flex';
-  }
-
-  async function submitFeedback(sentiment, reason, comment) {
-    if (!latestTraceId || feedbackSubmitted[latestTraceId]) return;
-
-    try {
-      await fetch(CONFIG.apiUrl + '/api/chat/widget/feedback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          traceId: latestTraceId,
-          sessionId: sessionId,
-          sentiment: sentiment,
-          reason: reason || null,
-          comment: comment || null,
-          source: 'embedded_widget',
-          assistantReplyPreview: latestAssistantPreview || null
-        })
-      });
-      feedbackSubmitted[latestTraceId] = true;
-      feedbackTitle.textContent = CONFIG.i18n.thankYouLabel;
-      feedbackActions.style.display = 'none';
-      feedbackReasons.style.display = 'none';
-      setTimeout(function() {
-        resetFeedbackComposer();
-        hideFeedback();
-      }, 2000);
-    } catch (err) {
-      console.error('Failed to submit feedback', err);
-    }
-  }
-
-  feedbackYes.onclick = function() {
-    submitFeedback('positive', 'HELPFUL', null);
-  };
-
-  feedbackNo.onclick = function() {
-    feedbackReasons.style.display = feedbackReasons.style.display === 'flex' ? 'none' : 'flex';
-  };
-
   // Send message
   async function sendMessage() {
     var text = input.value.trim();
@@ -551,11 +379,10 @@ export default function ChatWidgetPage() {
 
     input.value = '';
     sendBtn.disabled = true;
-    hideFeedback();
     addMessage('user', text);
     conversationHistory.push({ role: 'user', content: text });
 
-    var typingDiv = addMessage('bot', CONFIG.i18n.typingLabel, true);
+    var typingDiv = addMessage('bot', 'Typing...', true);
 
     try {
       var res = await fetch(CONFIG.apiUrl + '/api/chat/widget', {
@@ -574,15 +401,12 @@ export default function ChatWidgetPage() {
       if (data.reply) {
         addMessage('bot', data.reply);
         conversationHistory.push({ role: 'assistant', content: data.reply });
-        showFeedback(data.traceId, data.reply);
       } else {
-        addMessage('bot', CONFIG.i18n.genericError);
-        hideFeedback();
+        addMessage('bot', 'Sorry, something went wrong.');
       }
     } catch (err) {
       typingDiv.remove();
-      addMessage('bot', CONFIG.i18n.connectionError);
-      hideFeedback();
+      addMessage('bot', 'Connection error. Please try again.');
     }
     sendBtn.disabled = false;
     input.focus();
@@ -592,7 +416,7 @@ export default function ChatWidgetPage() {
   input.onkeypress = function(e) { if (e.key === 'Enter') sendMessage(); };
 })();
 </script>`;
-  };
+};
 
   const copyEmbedCode = () => {
     const code = generateEmbedCode();
@@ -601,28 +425,14 @@ export default function ChatWidgetPage() {
   };
 
   if (loading) {
-    if (!isDark) {
-      return (
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-        </div>
-      );
-    }
-
     return (
-      <div
-        className="relative -m-6 min-h-screen overflow-hidden p-6"
-        style={getDashboardFlowPageStyle(isDark)}
-      >
-        <DashboardFlowBackdrop dark={isDark} />
-        <div className="relative z-10 flex h-64 items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-        </div>
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
       </div>
     );
   }
 
-  const pageContent = (
+  return (
     <div className="space-y-6">
       {/* Header */}
       <PageIntro
@@ -865,20 +675,6 @@ export default function ChatWidgetPage() {
           buttonText={buttonText}
         />
       )}
-    </div>
-  );
-
-  if (!isDark) {
-    return pageContent;
-  }
-
-  return (
-    <div
-      className="relative -m-6 min-h-screen overflow-hidden p-6"
-      style={getDashboardFlowPageStyle(isDark)}
-    >
-      <DashboardFlowBackdrop dark={isDark} />
-      <div className="relative z-10">{pageContent}</div>
     </div>
   );
 }
