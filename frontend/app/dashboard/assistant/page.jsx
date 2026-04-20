@@ -6,6 +6,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useTheme } from 'next-themes';
+import { cn } from '@/lib/utils';
 import {
   useAssistants,
   useVoices,
@@ -48,6 +50,14 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import PageIntro from '@/components/PageIntro';
 import { getPageHelp } from '@/content/pageHelp';
+import {
+  getDashboardDividerClass,
+  getDashboardInsetClass,
+  getDashboardInputClass,
+  getDashboardPanelClass,
+  getDashboardRowHoverClass,
+  getDashboardTableHeaderClass,
+} from '@/components/dashboard/dashboardSurfaceTheme';
 
 // Language code to accent name mapping
 const LANGUAGE_TO_ACCENT = {
@@ -123,9 +133,13 @@ const DEFAULT_SYSTEM_PROMPTS = {
 
 export default function AssistantsPage() {
   const { t, locale } = useLanguage();
+  const { resolvedTheme } = useTheme();
   const { can, user } = usePermissions();
+  const dark = resolvedTheme === 'dark';
   const pageHelp = getPageHelp('assistants', locale);
   const [searchQuery, setSearchQuery] = useState('');
+  const canEditAssistants = can('assistants:edit');
+  const canDeleteAssistants = can('assistants:delete');
   const isOutboundDirection = (direction) => typeof direction === 'string' && direction.startsWith('outbound');
 
   // React Query hooks
@@ -516,7 +530,7 @@ export default function AssistantsPage() {
         actions={can('assistants:create') && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button>
+              <Button className="rounded-2xl">
                 <Plus className="h-4 w-4 mr-2" />
                 {t('dashboard.assistantsPage.create')}
                 <ChevronDown className="h-4 w-4 ml-2" />
@@ -550,20 +564,20 @@ export default function AssistantsPage() {
             placeholder={t('dashboard.assistantsPage.searchAssistants')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
+            className={getDashboardInputClass(dark, 'pl-10')}
           />
         </div>
       )}
 
       {/* Assistants Table */}
       {loading ? (
-        <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-12 flex items-center justify-center">
+        <div className={getDashboardPanelClass(dark, 'p-12 flex items-center justify-center')}>
           <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
         </div>
       ) : filteredAssistants.length > 0 ? (
-        <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 overflow-hidden">
+        <div className={getDashboardPanelClass(dark, 'overflow-hidden')}>
           <table className="w-full">
-            <thead className="bg-neutral-50 dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700">
+            <thead className={getDashboardTableHeaderClass(dark)}>
               <tr>
                 <th className="text-left p-4 text-sm font-medium text-neutral-600 dark:text-neutral-300 w-auto">
                   {t('dashboard.assistantsPage.assistantNameCol')}
@@ -585,13 +599,13 @@ export default function AssistantsPage() {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-neutral-200 dark:divide-neutral-700">
+            <tbody className={cn('divide-y', getDashboardDividerClass(dark))}>
               {filteredAssistants.map((assistant) => {
                 const voice = voices.find((v) => v.id === assistant.voiceId);
                 const isText = assistant.assistantType === 'text';
 
                 return (
-                  <tr key={assistant.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800">
+                  <tr key={assistant.id} className={getDashboardRowHoverClass(dark)}>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="flex items-center gap-2">
                         {isText ? (
@@ -631,35 +645,35 @@ export default function AssistantsPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        {can('assistants:edit') && (
+                      <div className="flex min-h-8 items-center justify-center gap-1">
+                        {canEditAssistants && (
                           <Button
                             variant="ghost"
-                            size="sm"
+                            size="icon"
                             onClick={() => handleEdit(assistant)}
-                            className="h-8 px-2"
+                            className="h-8 w-8"
                           >
                             <Edit className="h-3.5 w-3.5" />
                           </Button>
                         )}
-                        {!isText && can('assistants:edit') && (
+                        {!isText && canEditAssistants && (
                           <Button
                             variant="ghost"
-                            size="sm"
+                            size="icon"
                             onClick={() => handleSync(assistant)}
                             disabled={syncing === assistant.id}
                             title={t('dashboard.assistantsPage.syncWith11Labs')}
-                            className="h-8 px-2"
+                            className="h-8 w-8"
                           >
                             <RefreshCw className={`h-3.5 w-3.5 ${syncing === assistant.id ? 'animate-spin' : ''}`} />
                           </Button>
                         )}
-                        {can('assistants:delete') && (
+                        {canDeleteAssistants && (
                           <Button
                             variant="ghost"
-                            size="sm"
+                            size="icon"
                             onClick={() => handleDelete(assistant)}
-                            className="h-8 px-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                            className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
@@ -823,7 +837,7 @@ export default function AssistantsPage() {
                   <Label htmlFor="firstMessage">
                     {t('dashboard.assistantsPage.greetingMessage')}
                   </Label>
-                  <div className="p-3 bg-neutral-50 border border-neutral-200 rounded-md text-sm text-neutral-700 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300">
+                  <div className={cn(getDashboardInsetClass(dark, 'rounded-md p-3 text-sm'), dark ? 'text-slate-300' : 'text-neutral-700')}>
                     {formData.firstMessage || t('dashboard.assistantsPage.autoGeneratedWhenNamed')}
                   </div>
                   <p className="text-xs text-neutral-500 mt-1">

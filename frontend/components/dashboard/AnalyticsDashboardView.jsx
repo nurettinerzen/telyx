@@ -32,13 +32,13 @@ import {
 } from 'recharts';
 import {
   Phone,
-  Clock,
   Calendar,
   Download,
   MessageCircle,
   Mail,
 } from 'lucide-react';
 import { formatDuration } from '@/lib/utils';
+import { getDashboardSkeletonClass } from '@/components/dashboard/dashboardSurfaceTheme';
 
 const BRAND = {
   phone: {
@@ -262,7 +262,6 @@ export default function AnalyticsDashboardView({
     { icon: MessageCircle, value: analytics?.chatSessions || 0, label: t('dashboard.analyticsPage.chatSessions'), tone: 'chat' },
     { icon: WhatsAppIcon, value: analytics?.whatsappSessions || 0, label: t('dashboard.analyticsPage.whatsappMessages'), tone: 'whatsapp' },
     { icon: Mail, value: analytics?.emailsAnswered || 0, label: t('dashboard.analyticsPage.emailsAnswered'), tone: 'email' },
-    { icon: Clock, value: formatDuration(analytics?.avgDuration || 0), label: t('dashboard.analyticsPage.avgCallDuration'), tone: 'duration' },
   ];
 
   const channelStats = analytics?.channelStats
@@ -308,6 +307,13 @@ export default function AnalyticsDashboardView({
 
   const sessionCards = [
     {
+      key: 'phone',
+      tone: 'phone',
+      icon: Phone,
+      label: t('dashboard.analyticsPage.phoneCalls'),
+      data: analytics?.channelSessionDuration?.phone,
+    },
+    {
       key: 'chat',
       tone: 'chat',
       icon: MessageCircle,
@@ -340,13 +346,13 @@ export default function AnalyticsDashboardView({
   if (loading) {
     return (
       <div className="space-y-8">
-        <div className={cn('h-8 w-64 rounded-xl', dark ? 'bg-white/8' : 'bg-slate-200')} />
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
-          {[1, 2, 3, 4, 5].map((card) => (
-            <div key={card} className={cn('h-36 rounded-[28px]', dark ? 'bg-white/6' : 'bg-slate-200')} />
+        <div className={cn('h-8 w-64 rounded-xl animate-pulse', getDashboardSkeletonClass(dark))} />
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {[1, 2, 3, 4].map((card) => (
+            <div key={card} className={cn('h-36 rounded-[28px] animate-pulse', getDashboardSkeletonClass(dark))} />
           ))}
         </div>
-        <div className={cn('h-96 rounded-[28px]', dark ? 'bg-white/6' : 'bg-slate-200')} />
+        <div className={cn('h-96 rounded-[28px] animate-pulse', getDashboardSkeletonClass(dark))} />
       </div>
     );
   }
@@ -401,7 +407,7 @@ export default function AnalyticsDashboardView({
         }
       />
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         {statCards.map((card) => (
           <StatCard key={card.label} dark={dark} {...card} />
         ))}
@@ -503,7 +509,7 @@ export default function AnalyticsDashboardView({
         <h3 className={cn('mb-4 text-base font-semibold', dark ? 'text-white' : 'text-slate-900')}>
           {t('dashboard.analyticsPage.channelSessionDurationTitle')}
         </h3>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           {sessionCards.map((card) => {
             const tone = BRAND[card.tone];
             const Icon = card.icon;
@@ -519,9 +525,6 @@ export default function AnalyticsDashboardView({
                   </div>
                   <div>
                     <div className={cn('text-sm font-semibold', dark ? 'text-white' : 'text-slate-900')}>{card.label}</div>
-                    <div className={cn('text-xs', dark ? 'text-slate-500' : 'text-slate-500')}>
-                      {t('dashboard.analyticsPage.totalSessionDuration')}
-                    </div>
                   </div>
                 </div>
 
@@ -581,7 +584,7 @@ export default function AnalyticsDashboardView({
           {topicsLoading ? (
             <div className="space-y-3">
               {[1, 2, 3].map((item) => (
-                <div key={item} className={cn('h-20 rounded-3xl', dark ? 'bg-white/6' : 'bg-slate-100')} />
+                <div key={item} className={cn('h-20 rounded-3xl animate-pulse', getDashboardSkeletonClass(dark))} />
               ))}
             </div>
           ) : topTopics.length > 0 ? (

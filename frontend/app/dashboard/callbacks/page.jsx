@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTheme } from 'next-themes';
 import { useRouter } from 'next/navigation';
 import { useCallbacks, useCallbackStats, useCallbackDetail, useUpdateCallback, useRetryCallback } from '@/hooks/useCallbacks';
 import {
@@ -40,6 +41,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { useLanguage } from '@/contexts/LanguageContext';
 import PageIntro from '@/components/PageIntro';
 import { getPageHelp } from '@/content/pageHelp';
+import { cn } from '@/lib/utils';
+import {
+  getDashboardInputClass,
+  getDashboardPanelClass,
+  getDashboardRowHoverClass,
+  getDashboardStatCardClass,
+  getDashboardStatCardStyle,
+  getDashboardTableHeaderClass,
+} from '@/components/dashboard/dashboardSurfaceTheme';
 
 const STATUS_CONFIG = {
   PENDING: { tKey: 'dashboard.callbacksPage.statusPending', color: 'text-yellow-600 dark:text-yellow-500', icon: Clock },
@@ -72,7 +82,9 @@ function formatPhone(value, fallback = '—') {
 
 export default function CallbacksPage() {
   const { t, locale } = useLanguage();
+  const { resolvedTheme } = useTheme();
   const pageHelp = getPageHelp('callbacks', locale);
+  const dark = resolvedTheme === 'dark';
   const router = useRouter();
 
   // React Query hooks
@@ -171,7 +183,15 @@ export default function CallbacksPage() {
           quickSteps: pageHelp.quickSteps,
         }}
         actions={
-          <Button onClick={() => { refetchCallbacks(); refetchStats(); }} variant="outline" size="sm">
+          <Button
+            onClick={() => { refetchCallbacks(); refetchStats(); }}
+            variant="outline"
+            size="sm"
+            className={cn(
+              dark ? 'border-white/10 bg-[#081224] text-slate-200 hover:bg-white/10 hover:text-white' : '',
+              'rounded-2xl'
+            )}
+          >
             <RefreshCw className="h-4 w-4 mr-2" />
             {t('dashboard.callbacksPage.refresh')}
           </Button>
@@ -181,23 +201,23 @@ export default function CallbacksPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-        <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg p-4">
+        <div className={getDashboardStatCardClass(dark)} style={getDashboardStatCardStyle(dark, 'cyan')}>
           <div className="text-2xl font-bold text-neutral-900 dark:text-white">{stats.pending}</div>
           <div className="text-sm text-neutral-600 dark:text-neutral-400">{t('dashboard.callbacksPage.pending')}</div>
         </div>
-        <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg p-4">
+        <div className={getDashboardStatCardClass(dark)} style={getDashboardStatCardStyle(dark, 'blue')}>
           <div className="text-2xl font-bold text-neutral-900 dark:text-white">{stats.inProgress}</div>
           <div className="text-sm text-neutral-600 dark:text-neutral-400">{t('dashboard.callbacksPage.inProgress')}</div>
         </div>
-        <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg p-4">
+        <div className={getDashboardStatCardClass(dark)} style={getDashboardStatCardStyle(dark, 'indigo')}>
           <div className="text-2xl font-bold text-neutral-900 dark:text-white">{stats.completed}</div>
           <div className="text-sm text-neutral-600 dark:text-neutral-400">{t('dashboard.callbacksPage.completed')}</div>
         </div>
-        <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg p-4">
+        <div className={getDashboardStatCardClass(dark)} style={getDashboardStatCardStyle(dark, 'blue')}>
           <div className="text-2xl font-bold text-neutral-900 dark:text-white">{stats.today}</div>
           <div className="text-sm text-neutral-600 dark:text-neutral-400">{t('dashboard.callbacksPage.today')}</div>
         </div>
-        <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg p-4">
+        <div className={getDashboardStatCardClass(dark)} style={getDashboardStatCardStyle(dark, 'cyan')}>
           <div className="text-2xl font-bold text-neutral-900 dark:text-white">{stats.urgent}</div>
           <div className="text-sm text-neutral-600 dark:text-neutral-400">{t('dashboard.callbacksPage.urgent')}</div>
         </div>
@@ -211,7 +231,7 @@ export default function CallbacksPage() {
             placeholder={t('dashboard.callbacksPage.search')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
+            className={getDashboardInputClass(dark, 'pl-10')}
           />
         </div>
         <div className="flex gap-2">
@@ -247,7 +267,7 @@ export default function CallbacksPage() {
       </div>
 
       {/* Callbacks List */}
-      <div className="bg-white dark:bg-neutral-900 rounded-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden">
+      <div className={getDashboardPanelClass(dark, 'overflow-hidden')}>
         {loading ? (
           <div className="p-8 text-center text-neutral-500">{t('common.loading')}</div>
         ) : filteredCallbacks.length === 0 ? (
@@ -255,7 +275,7 @@ export default function CallbacksPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-neutral-50 dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700">
+              <thead className={getDashboardTableHeaderClass(dark)}>
                 <tr>
                   <th className="text-left p-4 text-sm font-medium text-neutral-600 dark:text-neutral-300">{t('dashboard.callbacksPage.customer')}</th>
                   <th className="text-left p-4 text-sm font-medium text-neutral-600 dark:text-neutral-300">{t('dashboard.callbacksPage.topic')}</th>
@@ -265,7 +285,7 @@ export default function CallbacksPage() {
                   <th className="text-left p-4 text-sm font-medium text-neutral-600 dark:text-neutral-300">{t('dashboard.callbacksPage.actions')}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-neutral-200 dark:divide-neutral-700">
+              <tbody className={cn('divide-y', dark ? 'divide-white/10' : 'divide-neutral-200')}>
                 {filteredCallbacks.map(callback => {
                   const statusConfig = STATUS_CONFIG[callback.status];
                   const priorityConfig = PRIORITY_CONFIG[callback.priority];
@@ -274,7 +294,7 @@ export default function CallbacksPage() {
                   return (
                     <tr
                       key={callback.id}
-                      className="hover:bg-neutral-50 dark:hover:bg-neutral-800/50 cursor-pointer"
+                      className={cn(getDashboardRowHoverClass(dark), 'cursor-pointer')}
                       onClick={() => openDetails(callback)}
                     >
                       <td className="p-4">
