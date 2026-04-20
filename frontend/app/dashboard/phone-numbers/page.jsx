@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { useTheme } from 'next-themes';
 import Link from 'next/link';
 import { ArrowRight, Lock, MessageSquare, Phone, PhoneCall, Plus, Trash2, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -21,6 +22,12 @@ import { formatPhone, formatDate } from '@/lib/utils';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { getPageHelp } from '@/content/pageHelp';
 import { getPlanDisplayName } from '@/lib/planConfig';
+import { cn } from '@/lib/utils';
+import {
+  getDashboardInsetClass,
+  getDashboardPanelClass,
+  getDashboardSkeletonClass
+} from '@/components/dashboard/dashboardSurfaceTheme';
 
 /* ── Helpers ── */
 function toNumber(value, fallback = 0) {
@@ -95,18 +102,18 @@ function getLockReasonText(reason, t) {
 }
 
 /* ── Progress Bar ── */
-function ProgressBar({ value, colorClass = 'bg-primary' }) {
+function ProgressBar({ value, colorClass = 'bg-primary', dark = false }) {
   return (
-    <div className="h-1.5 overflow-hidden rounded-full bg-neutral-200 dark:bg-[#0B1730]/88">
+    <div className={cn('h-1.5 overflow-hidden rounded-full', dark ? 'bg-[#0B1730]/88' : 'bg-neutral-200')}>
       <div className={`h-full rounded-full transition-all ${colorClass}`} style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
     </div>
   );
 }
 
 /* ── Metric Pill ── */
-function Metric({ label, value, sub, className = '' }) {
+function Metric({ label, value, sub, className = '', dark = false }) {
   return (
-    <div className={`rounded-2xl bg-neutral-50 px-4 py-3 dark:bg-[#0B1730]/88 dark:border dark:border-white/10 ${className}`}>
+    <div className={getDashboardInsetClass(dark, cn('rounded-2xl px-4 py-3', className))}>
       <p className="text-[11px] font-medium tracking-wide text-neutral-500 dark:text-neutral-400">{label}</p>
       <p className="mt-0.5 text-lg font-bold text-neutral-900 dark:text-white">{value}</p>
       {sub && <p className="mt-0.5 text-xs text-neutral-400 dark:text-neutral-500">{sub}</p>}
@@ -118,7 +125,9 @@ function Metric({ label, value, sub, className = '' }) {
 
 export default function PhoneNumbersPage() {
   const { t, locale } = useLanguage();
+  const { resolvedTheme } = useTheme();
   const pageHelp = getPageHelp('phoneNumbers', locale);
+  const dark = resolvedTheme === 'dark';
 
   const [phoneNumbers, setPhoneNumbers] = useState([]);
   const [phoneMeta, setPhoneMeta] = useState({
@@ -128,6 +137,7 @@ export default function PhoneNumbersPage() {
     inboundEnabled: false
   });
   const [assistants, setAssistants] = useState([]);
+  const [assistantUsageCount, setAssistantUsageCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showProvisionModal, setShowProvisionModal] = useState(false);
   const [subscription, setSubscription] = useState(null);
@@ -174,13 +184,14 @@ export default function PhoneNumbersPage() {
         ]);
         const sub = subRes.status === 'fulfilled' ? subRes.value.data : null;
         const numbers = phoneRes.status === 'fulfilled' ? (phoneRes.value.data.phoneNumbers || []) : [];
-        const activePhoneAssistants = assistantsRes.status === 'fulfilled'
-          ? ((assistantsRes.value.data.assistants || []).filter((assistant) => (
+        const allAssistants = assistantsRes.status === 'fulfilled'
+          ? (assistantsRes.value.data.assistants || [])
+          : [];
+        const activePhoneAssistants = allAssistants.filter((assistant) => (
             assistant?.assistantType !== 'text'
             && assistant?.isActive
             && assistant?.callDirection === 'inbound'
-          )))
-          : [];
+          ));
         const numbersMeta = phoneRes.status === 'fulfilled'
           ? {
             limit: phoneRes.value.data.limit ?? null,
@@ -196,6 +207,7 @@ export default function PhoneNumbersPage() {
         setPhoneNumbers(numbers);
         setPhoneMeta(numbersMeta);
         setAssistants(activePhoneAssistants);
+        setAssistantUsageCount(allAssistants.length);
 
         if (snap?.channels?.phone === false) { setIsLocked(true); setLockReason('PHONE_NOT_INCLUDED'); }
         else if (outEnt && outEnt.enabled === false) { setIsLocked(true); setLockReason(outEnt.reason || 'OUTBOUND_DISABLED'); }
@@ -217,14 +229,18 @@ export default function PhoneNumbersPage() {
         apiClient.assistants.getAll()
       ]);
       const response = phoneResponse.status === 'fulfilled' ? phoneResponse.value : null;
-      const activePhoneAssistants = assistantsResponse.status === 'fulfilled'
-        ? ((assistantsResponse.value.data.assistants || []).filter((assistant) => (
+      const allAssistants = assistantsResponse.status === 'fulfilled'
+        ? (assistantsResponse.value.data.assistants || [])
+        : [];
+      const activePhoneAssistants = allAssistants.filter((assistant) => (
           assistant?.assistantType !== 'text'
           && assistant?.isActive
           && assistant?.callDirection === 'inbound'
-        )))
-        : assistants;
+        ));
       setAssistants(activePhoneAssistants);
+      if (assistantsResponse.status === 'fulfilled') {
+        setAssistantUsageCount(allAssistants.length);
+      }
 
       if (!response) throw new Error('PHONE_NUMBERS_FETCH_FAILED');
 
@@ -281,6 +297,8 @@ export default function PhoneNumbersPage() {
 
   const voiceProgress = voiceUsage?.total > 0 ? (toNumber(voiceUsage.used) / toNumber(voiceUsage.total, 1)) * 100 : 0;
   const concurrentCalls = toNumber(snapshot?.entitlements?.concurrentCalls || subscription?.entitlements?.concurrentCalls, 0);
+  const assistantLimit = toNumber(snapshot?.entitlements?.assistants || subscription?.limits?.assistants, 0);
+  const assistantUsageProgress = assistantLimit > 0 ? (assistantUsageCount / assistantLimit) * 100 : 0;
 
   const actionButton = (
     <Button onClick={() => setShowProvisionModal(true)} disabled={!canAdd()}>
@@ -302,13 +320,13 @@ export default function PhoneNumbersPage() {
       {/* ═══ 1. Phone Numbers — always first ═══ */}
       <section className="space-y-4">
         {loading ? (
-          <div className="rounded-2xl border border-neutral-200 bg-white p-6 dark:border-white/10 dark:bg-[#081224]/95 shadow-sm">
+          <div className={getDashboardPanelClass(dark, 'p-6')}>
             <div className="h-8 w-48 animate-pulse rounded bg-neutral-200 dark:bg-neutral-700" />
-            <div className="mt-4 grid gap-3 sm:grid-cols-3"><div className="h-16 animate-pulse rounded-xl bg-neutral-100 dark:bg-[linear-gradient(135deg,rgba(8,18,36,0.96),rgba(48,92,229,0.18),rgba(0,168,199,0.14))]" /><div className="h-16 animate-pulse rounded-xl bg-neutral-100 dark:bg-[linear-gradient(135deg,rgba(8,18,36,0.96),rgba(48,92,229,0.18),rgba(0,168,199,0.14))]" /><div className="h-16 animate-pulse rounded-xl bg-neutral-100 dark:bg-[linear-gradient(135deg,rgba(8,18,36,0.96),rgba(48,92,229,0.18),rgba(0,168,199,0.14))]" /></div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-3"><div className={getDashboardSkeletonClass(dark, 'h-16 animate-pulse rounded-xl')} /><div className={getDashboardSkeletonClass(dark, 'h-16 animate-pulse rounded-xl')} /><div className={getDashboardSkeletonClass(dark, 'h-16 animate-pulse rounded-xl')} /></div>
           </div>
         ) : phoneNumbers.length > 0 ? (
           phoneNumbers.map((number) => (
-            <div key={number.id} className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#081224]/95">
+            <div key={number.id} className={getDashboardPanelClass(dark, 'p-5')}>
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-4">
                   <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 dark:bg-primary-500/15">
@@ -340,10 +358,12 @@ export default function PhoneNumbersPage() {
 
               <div className="mt-4 grid gap-2 sm:grid-cols-2">
                 <Metric
+                  dark={dark}
                   label={t('dashboard.phoneNumbersPage.added')}
                   value={formatDate(number.createdAt, 'short', locale)}
                 />
                 <Metric
+                  dark={dark}
                   label={t('dashboard.phoneNumbersPage.concurrentCallsLabel')}
                   value={fmt(concurrentCalls)}
                 />
@@ -405,7 +425,7 @@ export default function PhoneNumbersPage() {
             </div>
           ))
         ) : isLocked ? (
-          <div className="rounded-2xl border border-neutral-200 bg-white p-8 dark:border-white/10 dark:bg-[#081224]/95 shadow-sm">
+          <div className={getDashboardPanelClass(dark, 'p-8')}>
             <EmptyState
               icon={Lock}
               title={t('dashboard.phoneNumbersPage.phoneLockedTitle')}
@@ -415,7 +435,7 @@ export default function PhoneNumbersPage() {
             />
           </div>
         ) : (
-          <div className="rounded-2xl border border-neutral-200 bg-white p-8 dark:border-white/10 dark:bg-[#081224]/95 shadow-sm">
+          <div className={getDashboardPanelClass(dark, 'p-8')}>
             <EmptyState
               icon={Phone}
               title={t('dashboard.phoneNumbersPage.noPhoneNumbersYet')}
@@ -429,7 +449,7 @@ export default function PhoneNumbersPage() {
 
       {/* ═══ 2. Usage Overview ═══ */}
       {!loading && snapshot && (
-        <section className="rounded-2xl border border-neutral-200 bg-white p-5 dark:border-white/10 dark:bg-[#081224]/95 shadow-sm">
+        <section className={getDashboardPanelClass(dark, 'p-5')}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="rounded-full text-xs font-semibold">
@@ -460,7 +480,7 @@ export default function PhoneNumbersPage() {
                   <p className="text-lg font-bold text-neutral-900 dark:text-white">
                     {fmt(voiceUsage.used, 1)} <span className="text-sm font-normal text-neutral-400">/ {fmt(voiceUsage.total, 1)}</span>
                   </p>
-                  <ProgressBar value={voiceProgress} colorClass={voiceProgress >= 80 ? 'bg-orange-500' : 'bg-teal-500'} />
+                  <ProgressBar dark={dark} value={voiceProgress} colorClass={voiceProgress >= 80 ? 'bg-orange-500' : 'bg-teal-500'} />
                 </>
               ) : (
                 <p className="text-sm text-neutral-400 dark:text-neutral-500">{t('dashboard.phoneNumbersPage.notInPlan')}</p>
@@ -479,6 +499,7 @@ export default function PhoneNumbersPage() {
                     {fmt(writtenUsage.used)} <span className="text-sm font-normal text-neutral-400">/ {fmt(writtenUsage.total)}</span>
                   </p>
                   <ProgressBar
+                    dark={dark}
                     value={toNumber(writtenUsage.total) > 0 ? (toNumber(writtenUsage.used) / toNumber(writtenUsage.total)) * 100 : 0}
                     colorClass={toNumber(writtenUsage.used) / toNumber(writtenUsage.total, 1) >= 0.8 ? 'bg-orange-500' : 'bg-blue-500'}
                   />
@@ -486,6 +507,25 @@ export default function PhoneNumbersPage() {
               ) : (
                 <p className="text-sm text-neutral-400 dark:text-neutral-500">{t('dashboard.phoneNumbersPage.noLimit')}</p>
               )}
+            </div>
+
+            {/* Assistants */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-xs font-medium tracking-wide text-neutral-500 dark:text-neutral-400">
+                <Users className="h-3.5 w-3.5 text-amber-600 dark:text-amber-300" />
+                {t('dashboard.phoneNumbersPage.assistantsLabel')}
+              </div>
+              {assistantLimit > 0 ? (
+                <>
+                  <p className="text-lg font-bold text-neutral-900 dark:text-white">
+                    {fmt(assistantUsageCount)} <span className="text-sm font-normal text-neutral-400">/ {fmt(assistantLimit)}</span>
+                  </p>
+                  <ProgressBar dark={dark} value={assistantUsageProgress} colorClass={assistantUsageProgress >= 80 ? 'bg-orange-500' : 'bg-amber-500'} />
+                </>
+              ) : (
+                <p className="text-lg font-bold text-neutral-900 dark:text-white">{fmt(assistantUsageCount)}</p>
+              )}
+              <p className="text-xs text-neutral-400 dark:text-neutral-500">{t('dashboard.phoneNumbersPage.maxAssistants')}</p>
             </div>
 
             {/* Concurrent Calls */}
@@ -498,18 +538,6 @@ export default function PhoneNumbersPage() {
                 {concurrentCalls > 0 ? concurrentCalls : '—'}
               </p>
               <p className="text-xs text-neutral-400 dark:text-neutral-500">{t('dashboard.phoneNumbersPage.maxConcurrent')}</p>
-            </div>
-
-            {/* Assistants */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-xs font-medium tracking-wide text-neutral-500 dark:text-neutral-400">
-                <Users className="h-3.5 w-3.5 text-amber-600 dark:text-amber-300" />
-                {t('dashboard.phoneNumbersPage.assistantsLabel')}
-              </div>
-              <p className="text-lg font-bold text-neutral-900 dark:text-white">
-                {fmt(toNumber(snapshot?.entitlements?.assistants || subscription?.limits?.assistants, 0))}
-              </p>
-              <p className="text-xs text-neutral-400 dark:text-neutral-500">{t('dashboard.phoneNumbersPage.maxAssistants')}</p>
             </div>
           </div>
 
