@@ -11,6 +11,10 @@ import {
 import { resolvePhoneOutboundAccessForBusinessId } from '../services/phoneOutboundAccess.js';
 import { validateUntrustedUpload } from '../security/uploadSecurity.js';
 import { normalizeTranscriptBundle } from '../utils/transcript.js';
+import {
+  buildXlsxTemplateSheet,
+  dropEmptySpreadsheetRows
+} from '../utils/xlsxTemplate.js';
 
 const router = express.Router();
 
@@ -181,10 +185,11 @@ function parseFile(buffer, filename) {
   const sheet = workbook.Sheets[sheetName];
 
   // Convert to JSON with headers, preserving string values
-  const data = XLSX.utils.sheet_to_json(sheet, {
+  const rawData = XLSX.utils.sheet_to_json(sheet, {
     defval: '',
     raw: false  // Convert all values to strings
   });
+  const data = dropEmptySpreadsheetRows(rawData);
 
   if (data.length === 0) {
     throw new Error('File is empty or has no data rows');
@@ -911,10 +916,14 @@ router.get('/template', async (req, res) => {
 
     // Create workbook and worksheet
     const workbook = XLSX.utils.book_new();
-    const worksheet = XLSX.utils.json_to_sheet(sampleData);
-
-    // Set column widths
-    worksheet['!cols'] = columnWidths;
+    const phoneHeader = Object.keys(sampleData[0] || {}).find((header) => {
+      const normalizedHeader = String(header || '').trim().toLowerCase();
+      return normalizedHeader === 'telefon' || normalizedHeader === 'telefon no';
+    });
+    const worksheet = buildXlsxTemplateSheet(sampleData, {
+      columnWidths,
+      textColumns: phoneHeader ? [phoneHeader] : [],
+    });
 
     XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 
