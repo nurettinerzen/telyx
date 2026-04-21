@@ -10,6 +10,7 @@ import {
 } from '../services/phonePlanEntitlements.js';
 import { resolvePhoneOutboundAccessForBusinessId } from '../services/phoneOutboundAccess.js';
 import { validateUntrustedUpload } from '../security/uploadSecurity.js';
+import { normalizeTranscriptBundle } from '../utils/transcript.js';
 
 const router = express.Router();
 
@@ -1612,6 +1613,11 @@ router.get('/:id', checkPermission('campaigns:view'), async (req, res) => {
             convDuration = convData.metadata?.call_duration_secs || callDetail.duration || 0;
             terminationReason = convData.metadata?.termination_reason || null;
 
+            const {
+              transcript: normalizedTranscript,
+              transcriptText
+            } = normalizeTranscriptBundle(convData.transcript || []);
+
             // Create or update CallLog from 11Labs data (upsert to handle duplicates)
             callLog = await prisma.callLog.upsert({
               where: { callId: conversationId },
@@ -1619,10 +1625,8 @@ router.get('/:id', checkPermission('campaigns:view'), async (req, res) => {
                 duration: convDuration,
                 status: finalStatus,
                 direction: 'outbound', // Batch calls are always outbound
-                transcript: convData.transcript || null,
-                transcriptText: Array.isArray(convData.transcript)
-                  ? convData.transcript.map(t => `${t.role === 'agent' ? 'Asistan' : 'Müşteri'}: ${t.message || t.text || ''}`).join('\n')
-                  : null,
+                transcript: normalizedTranscript.length > 0 ? normalizedTranscript : null,
+                transcriptText: transcriptText || null,
                 recordingUrl: `https://api.elevenlabs.io/v1/convai/conversations/${conversationId}/audio`,
                 summary: convData.analysis?.transcript_summary || null,
                 sentiment: convData.analysis?.user_sentiment || 'neutral'
@@ -1634,10 +1638,8 @@ router.get('/:id', checkPermission('campaigns:view'), async (req, res) => {
                 duration: convDuration,
                 status: finalStatus,
                 direction: 'outbound', // Batch calls are always outbound
-                transcript: convData.transcript || null,
-                transcriptText: Array.isArray(convData.transcript)
-                  ? convData.transcript.map(t => `${t.role === 'agent' ? 'Asistan' : 'Müşteri'}: ${t.message || t.text || ''}`).join('\n')
-                  : null,
+                transcript: normalizedTranscript.length > 0 ? normalizedTranscript : null,
+                transcriptText: transcriptText || null,
                 recordingUrl: `https://api.elevenlabs.io/v1/convai/conversations/${conversationId}/audio`,
                 summary: convData.analysis?.transcript_summary || null,
                 sentiment: convData.analysis?.user_sentiment || 'neutral'

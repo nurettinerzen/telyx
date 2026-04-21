@@ -39,6 +39,7 @@ import {
 import { isPhoneInboundEnabledForBusiness } from '../services/phoneInboundGate.js';
 import runtimeConfig from '../config/runtime.js';
 import { safeCompareHex } from '../security/constantTime.js';
+import { normalizeTranscriptBundle } from '../utils/transcript.js';
 
 const router = express.Router();
 const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
@@ -682,17 +683,10 @@ router.post('/post-call', async (req, res) => {
     const business = assistant.business;
 
     // Parse transcript
-    let transcriptMessages = [];
-    let transcriptText = '';
-
-    if (transcript && Array.isArray(transcript)) {
-      transcriptMessages = transcript.map(msg => ({
-        speaker: msg.role === 'agent' ? 'assistant' : 'user',
-        text: msg.message || msg.text || '',
-        timestamp: msg.time_in_call_secs || msg.timestamp
-      }));
-      transcriptText = transcriptMessages.map(m => `${m.speaker}: ${m.text}`).join('\n');
-    }
+    const {
+      transcript: transcriptMessages,
+      transcriptText
+    } = normalizeTranscriptBundle(transcript);
 
     // Run AI analysis for eligible plans
     let aiAnalysis = {
@@ -1440,18 +1434,10 @@ async function handleConversationEnded(event) {
     const business = assistant.business;
 
     // Parse transcript from conversation data
-    let transcriptMessages = [];
-    let transcriptText = '';
-    const transcript = conversationData.transcript || [];
-
-    if (Array.isArray(transcript)) {
-      transcriptMessages = transcript.map(msg => ({
-        speaker: msg.role === 'agent' ? 'assistant' : 'user',
-        text: msg.message || msg.text || '',
-        timestamp: msg.time_in_call_secs || msg.timestamp
-      }));
-      transcriptText = transcriptMessages.map(m => `${m.speaker}: ${m.text}`).join('\n');
-    }
+    const {
+      transcript: transcriptMessages,
+      transcriptText
+    } = normalizeTranscriptBundle(conversationData.transcript || []);
 
     // Get analysis data if available
     const analysis = conversationData.analysis || {};
@@ -1791,18 +1777,10 @@ router.post('/sync-conversations', authenticateToken, async (req, res) => {
         }
 
         // Parse transcript
-        let transcriptMessages = [];
-        let transcriptText = '';
-        const transcript = conversationData.transcript || [];
-
-        if (Array.isArray(transcript)) {
-          transcriptMessages = transcript.map(msg => ({
-            speaker: msg.role === 'agent' ? 'assistant' : 'user',
-            text: msg.message || msg.text || '',
-            timestamp: msg.time_in_call_secs || msg.timestamp
-          }));
-          transcriptText = transcriptMessages.map(m => `${m.speaker}: ${m.text}`).join('\n');
-        }
+        const {
+          transcript: transcriptMessages,
+          transcriptText
+        } = normalizeTranscriptBundle(conversationData.transcript || []);
 
         // Get caller phone from metadata
         const callerPhone = conversationData.metadata?.phone_call?.external_number ||

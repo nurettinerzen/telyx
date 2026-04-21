@@ -36,6 +36,112 @@ import { apiClient } from '@/lib/api';
 import { toast } from 'sonner';
 import { useLanguage } from '@/contexts/LanguageContext';
 
+const BRACKETED_SPEECH_DIRECTION_REGEX = /\[(?:[a-z]+(?:[\s-][a-z]+)*)\]/gi;
+const MULTI_SPACE_REGEX = /\s{2,}/g;
+const SPACE_BEFORE_PUNCTUATION_REGEX = /\s+([,.;!?])/g;
+
+function cleanTranscriptText(text) {
+  if (text === null || text === undefined) return '';
+
+  return String(text)
+    .replace(BRACKETED_SPEECH_DIRECTION_REGEX, ' ')
+    .replace(SPACE_BEFORE_PUNCTUATION_REGEX, '$1')
+    .replace(MULTI_SPACE_REGEX, ' ')
+    .trim();
+}
+
+function coerceFiniteNumber(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) return null;
+  return numericValue;
+}
+
+function getTranscriptTimeInCallSeconds(message = {}) {
+  const explicitSeconds = coerceFiniteNumber(
+    message.timeInCallSecs ?? message.time_in_call_secs ?? null
+  );
+
+  if (explicitSeconds !== null && explicitSeconds >= 0) {
+    return Math.floor(explicitSeconds);
+  }
+
+  const numericTimestamp = coerceFiniteNumber(message.timestamp);
+  if (numericTimestamp !== null && numericTimestamp >= 0 && numericTimestamp < 24 * 60 * 60) {
+    return Math.floor(numericTimestamp);
+  }
+
+  return null;
+}
+
+function normalizeTranscriptMessage(message = {}) {
+  const speaker = message.speaker || (message.role === 'agent' ? 'assistant' : 'user');
+  const normalizedSpeaker = speaker === 'assistant' || speaker === 'agent' ? 'assistant' : 'user';
+  const normalizedText = cleanTranscriptText(message.text || message.message || message.content || '');
+  const timeInCallSecs = getTranscriptTimeInCallSeconds(message);
+
+  const normalizedMessage = {
+    ...message,
+    speaker: normalizedSpeaker,
+    text: normalizedText,
+  };
+
+  if (timeInCallSecs !== null) {
+    normalizedMessage.timeInCallSecs = timeInCallSecs;
+    normalizedMessage.time_in_call_secs = timeInCallSecs;
+  }
+
+  const absoluteTimestamp = timeInCallSecs === null && message.timestamp
+    ? new Date(message.timestamp)
+    : null;
+
+  if (absoluteTimestamp && !Number.isNaN(absoluteTimestamp.getTime())) {
+    normalizedMessage.timestamp = absoluteTimestamp.toISOString();
+  } else if (timeInCallSecs !== null) {
+    delete normalizedMessage.timestamp;
+  }
+
+  return normalizedMessage;
+}
+
+function normalizeCallDetail(callData) {
+  if (!callData) return callData;
+
+  const normalizedTranscript = Array.isArray(callData.transcript)
+    ? callData.transcript.map(normalizeTranscriptMessage).filter((message) => message.text)
+    : callData.transcript;
+  const normalizedTranscriptText = typeof callData.transcriptText === 'string'
+    ? cleanTranscriptText(callData.transcriptText)
+    : callData.transcriptText;
+
+  return {
+    ...callData,
+    transcript: Array.isArray(normalizedTranscript) && normalizedTranscript.length === 0
+      ? null
+      : normalizedTranscript,
+    transcriptText: normalizedTranscriptText,
+  };
+}
+
+function formatTranscriptTime(message, locale) {
+  const timeInCallSecs = getTranscriptTimeInCallSeconds(message);
+
+  if (timeInCallSecs !== null) {
+    const minutes = Math.floor(timeInCallSecs / 60);
+    const seconds = Math.floor(timeInCallSecs % 60);
+    return `${minutes}:${String(seconds).padStart(2, '0')}`;
+  }
+
+  if (message?.timestamp) {
+    const date = new Date(message.timestamp);
+    if (!Number.isNaN(date.getTime())) {
+      return date.toLocaleTimeString(locale === 'tr' ? 'tr-TR' : 'en-US');
+    }
+  }
+
+  return '';
+}
+
 export default function TranscriptModal({ callId, isOpen, onClose }) {
   const { locale } = useLanguage();
   const [call, setCall] = useState(null);
@@ -49,6 +155,24 @@ export default function TranscriptModal({ callId, isOpen, onClose }) {
   const audioRef = useRef(null);
 
   useEffect(() => {
+    const loadCallDetails = async () => {
+      setLoading(true);
+      try {
+        const response = await apiClient.calls.getById(callId);
+        const normalizedCall = normalizeCallDetail(response.data);
+        setCall(normalizedCall);
+        // Set duration from DB immediately
+        if (normalizedCall?.duration && normalizedCall.duration > 0) {
+          setDuration(normalizedCall.duration);
+        }
+      } catch (error) {
+        toast.error('Failed to load call details');
+        console.error('Load call details error:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     if (isOpen && callId) {
       loadCallDetails();
     }
@@ -66,23 +190,6 @@ export default function TranscriptModal({ callId, isOpen, onClose }) {
       setDuration(call.duration);
     }
   }, [call]);
-
-  const loadCallDetails = async () => {
-    setLoading(true);
-    try {
-      const response = await apiClient.calls.getById(callId);
-      setCall(response.data);
-      // Set duration from DB immediately
-      if (response.data?.duration && response.data.duration > 0) {
-        setDuration(response.data.duration);
-      }
-    } catch (error) {
-      toast.error('Failed to load call details');
-      console.error('Load call details error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handlePlayPause = () => {
     if (audioRef.current) {
@@ -151,23 +258,11 @@ export default function TranscriptModal({ callId, isOpen, onClose }) {
         const speaker = msg.speaker || (msg.role === 'agent' ? 'assistant' : 'user');
         const isAssistant = speaker === 'assistant' || speaker === 'agent';
         const speakerName = isAssistant ? 'Asistan' : 'Müşteri';
-        const messageText = msg.text || msg.message || '';
+        const messageText = cleanTranscriptText(msg.text || msg.message || '');
+        const timeStr = formatTranscriptTime(msg, locale);
+        const header = timeStr ? `[${timeStr}] ${speakerName}` : speakerName;
 
-        // Format time - handle both timestamp and time_in_call_secs
-        let timeStr = '';
-        if (msg.time_in_call_secs !== undefined && msg.time_in_call_secs !== null) {
-          const secs = Number(msg.time_in_call_secs) || 0;
-          const minutes = Math.floor(secs / 60);
-          const seconds = Math.floor(secs % 60);
-          timeStr = `${minutes}:${String(seconds).padStart(2, '0')}`;
-        } else if (msg.timestamp) {
-          const date = new Date(msg.timestamp);
-          if (!isNaN(date.getTime())) {
-            timeStr = date.toLocaleTimeString(locale === 'tr' ? 'tr-TR' : 'en-US');
-          }
-        }
-
-        transcriptText += `[${timeStr}] ${speakerName}:\n${messageText}\n\n`;
+        transcriptText += `${header}:\n${messageText}\n\n`;
       });
     } else if (call.transcriptText) {
       transcriptText = call.transcriptText;
@@ -203,9 +298,10 @@ export default function TranscriptModal({ callId, isOpen, onClose }) {
     );
   };
 
-  const filteredMessages = call?.transcript?.filter((msg) =>
-    searchQuery ? msg.text.toLowerCase().includes(searchQuery.toLowerCase()) : true
-  );
+  const filteredMessages = call?.transcript?.filter((msg) => {
+    const messageText = cleanTranscriptText(msg.text || msg.message || '');
+    return searchQuery ? messageText.toLowerCase().includes(searchQuery.toLowerCase()) : true;
+  });
 
   if (!isOpen) return null;
 
@@ -428,29 +524,11 @@ export default function TranscriptModal({ callId, isOpen, onClose }) {
                   {call.transcript && Array.isArray(call.transcript) ? (
                     filteredMessages && filteredMessages.length > 0 ? (
                       filteredMessages.map((msg, index) => {
-                        // Format time - handle both timestamp and time_in_call_secs
-                        const formatMsgTime = () => {
-                          // 11Labs format: time_in_call_secs (number of seconds into the call)
-                          if (msg.time_in_call_secs !== undefined && msg.time_in_call_secs !== null) {
-                            const secs = Number(msg.time_in_call_secs) || 0;
-                            const minutes = Math.floor(secs / 60);
-                            const seconds = Math.floor(secs % 60);
-                            return `${minutes}:${String(seconds).padStart(2, '0')}`;
-                          }
-                          // Standard timestamp format
-                          if (msg.timestamp) {
-                            const date = new Date(msg.timestamp);
-                            if (!isNaN(date.getTime())) {
-                              return date.toLocaleTimeString();
-                            }
-                          }
-                          return '';
-                        };
-
                         // Determine speaker - handle both formats
                         const speaker = msg.speaker || (msg.role === 'agent' ? 'assistant' : 'user');
                         const isAssistant = speaker === 'assistant' || speaker === 'agent';
-                        const messageText = msg.text || msg.message || '';
+                        const messageText = cleanTranscriptText(msg.text || msg.message || '');
+                        const messageTime = formatTranscriptTime(msg, locale);
 
                         return (
                           <div
@@ -468,9 +546,9 @@ export default function TranscriptModal({ callId, isOpen, onClose }) {
                                 <span className="text-xs font-medium">
                                   {isAssistant ? 'Asistan' : 'Müşteri'}
                                 </span>
-                                {formatMsgTime() && (
+                                {messageTime && (
                                   <span className="text-xs text-neutral-500 dark:text-neutral-400">
-                                    {formatMsgTime()}
+                                    {messageTime}
                                   </span>
                                 )}
                               </div>

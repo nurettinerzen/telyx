@@ -14,6 +14,10 @@ import { getInboundDisabledMessage } from '../phone-outbound-v1/index.js';
 import metricsService from '../services/metricsService.js';
 import { isPhoneInboundEnabledForBusinessId } from '../services/phoneInboundGate.js';
 import { safeCompareHex } from '../security/constantTime.js';
+import {
+  cleanTranscriptText,
+  normalizeTranscriptBundle
+} from '../utils/transcript.js';
 
 // OpenAI client for summary translation
 const openai = process.env.OPENAI_API_KEY
@@ -764,21 +768,15 @@ async function translateSummaryToTurkish(englishSummary) {
 async function createCallLog(businessId, data) {
   try {
     // Format transcript - handle 11Labs transcript format
-    let transcriptText = '';
     let transcriptData = data.transcript;
+    let transcriptText = '';
 
     if (Array.isArray(transcriptData)) {
-      // 11Labs format: [{ role: 'agent'|'user', message: '...', time_in_call_secs: 0 }]
-      transcriptText = transcriptData.map(t => {
-        const speaker = t.role === 'agent' ? 'Asistan' : 'Müşteri';
-        const timeInSecs = t.time_in_call_secs || 0;
-        const minutes = Math.floor(timeInSecs / 60);
-        const seconds = Math.floor(timeInSecs % 60);
-        const timeStr = `${minutes}:${String(seconds).padStart(2, '0')}`;
-        return `[${timeStr}] ${speaker}: ${t.message || t.text || ''}`;
-      }).join('\n');
+      const normalizedBundle = normalizeTranscriptBundle(transcriptData);
+      transcriptData = normalizedBundle.transcript;
+      transcriptText = normalizedBundle.transcriptText;
     } else if (typeof transcriptData === 'string') {
-      transcriptText = transcriptData;
+      transcriptText = cleanTranscriptText(transcriptData);
     }
 
     // Extract analysis data from 11Labs

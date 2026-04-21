@@ -5,6 +5,10 @@ import axios from 'axios';
 import OpenAI from 'openai';
 import { getPricePerMinute } from '../config/plans.js';
 import { auditSensitiveDataAccess } from '../middleware/sensitiveDataAudit.js';
+import {
+  cleanTranscriptText,
+  normalizeTranscriptBundle
+} from '../utils/transcript.js';
 
 const router = express.Router();
 const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
@@ -68,16 +72,7 @@ async function fetchAndProcessConversation(conversationId, business) {
     if (!data) return null;
 
     // Parse transcript
-    let transcriptMessages = [];
-    let transcriptText = '';
-    if (Array.isArray(data.transcript)) {
-      transcriptMessages = data.transcript.map(msg => ({
-        speaker: msg.role === 'agent' ? 'assistant' : 'user',
-        text: msg.message || msg.text || '',
-        timestamp: msg.time_in_call_secs || msg.timestamp
-      }));
-      transcriptText = transcriptMessages.map(m => `${m.speaker}: ${m.text}`).join('\n');
-    }
+    const { transcript: transcriptMessages, transcriptText } = normalizeTranscriptBundle(data.transcript);
 
     // Get summary and translate if needed
     let summary = data.analysis?.transcript_summary || data.analysis?.summary || null;
@@ -410,15 +405,15 @@ router.get('/:id', auditSensitiveDataAccess('call_log_detail', (req) => req.para
       }
 
       // Format chat messages to match transcript format
-      const transcript = chatLog.messages && Array.isArray(chatLog.messages)
-        ? chatLog.messages.map((msg, index) => ({
-            speaker: msg.role === 'user' ? 'user' : 'assistant',
-            text: msg.content || '',
-            timestamp: msg.timestamp || index
-          }))
-        : [];
-
-      const transcriptText = transcript.map(m => `${m.speaker}: ${m.text}`).join('\n');
+      const { transcript, transcriptText } = normalizeTranscriptBundle(
+        chatLog.messages && Array.isArray(chatLog.messages)
+          ? chatLog.messages.map((msg, index) => ({
+              speaker: msg.role === 'user' ? 'user' : 'assistant',
+              text: msg.content || '',
+              timestamp: msg.timestamp || index
+            }))
+          : []
+      );
 
       // Return chat log in the same format as call log
       const response = {
@@ -513,6 +508,16 @@ router.get('/:id', auditSensitiveDataAccess('call_log_detail', (req) => req.para
     }
 
     // Return full call details including transcript, recording, and analysis
+    const normalizedTranscriptBundle = Array.isArray(callLog.transcript)
+      ? normalizeTranscriptBundle(callLog.transcript)
+      : null;
+    const normalizedTranscript = normalizedTranscriptBundle?.transcript?.length
+      ? normalizedTranscriptBundle.transcript
+      : null;
+    const normalizedTranscriptText = normalizedTranscriptBundle?.transcriptText
+      || cleanTranscriptText(callLog.transcriptText)
+      || null;
+
     const response = {
       id: callLog.id,
       callId: callLog.callId,
@@ -529,8 +534,8 @@ router.get('/:id', auditSensitiveDataAccess('call_log_detail', (req) => req.para
       recordingUrl: callLog.recordingUrl,
 
       // Transcript
-      transcript: callLog.transcript, // JSON array of messages
-      transcriptText: callLog.transcriptText,
+      transcript: normalizedTranscript, // JSON array of messages
+      transcriptText: normalizedTranscriptText,
 
       // AI Analysis
       summary: callLog.summary,
