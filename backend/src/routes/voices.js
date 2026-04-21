@@ -13,14 +13,14 @@ const ELEVENLABS_BASE_URL = 'https://api.elevenlabs.io/v1';
 const VOICE_LIBRARY = {
   // TURKISH - 11Labs Turkish voices
   tr: [
-    { id: 'tr-m-mirza', voice_id: 'wWWn96OtTHu1sn8SRGEr', name: 'Mirza', accent: 'Turkish', gender: 'male', description: 'Profesyonel erkek ses', provider: '11labs' },
-    { id: 'tr-m-ali', voice_id: 'xKhbyU7E3bC6T89Kn26c', name: 'Ali', accent: 'Turkish', gender: 'male', description: 'Güvenilir erkek ses', provider: '11labs' },
-    { id: 'tr-m-berat', voice_id: 'UgBBYS2sOqTuMpoF3BR0', name: 'Berat', accent: 'Turkish', gender: 'male', description: 'Dinamik erkek ses', provider: '11labs' },
-    { id: 'tr-m-yasir', voice_id: '1SM7GgM6IMuvQlz2BwM3', name: 'Yasir', accent: 'Turkish', gender: 'male', description: 'Samimi erkek ses', provider: '11labs' },
-    { id: 'tr-f-eda', voice_id: '56AoDkrOh6qfVPDXZ7Pt', name: 'Eda', accent: 'Turkish', gender: 'female', description: 'Profesyonel kadın ses', provider: '11labs' },
-    { id: 'tr-f-selen', voice_id: 'g6xIsTj2HwM6VR4iXFCw', name: 'Selen', accent: 'Turkish', gender: 'female', description: 'Enerjik kadın ses', provider: '11labs' },
-    { id: 'tr-f-sare', voice_id: 'kdmDKE6EkgrWrrykO9Qt', name: 'Sare', accent: 'Turkish', gender: 'female', description: 'Sıcak kadın ses', provider: '11labs' },
-    { id: 'tr-f-miray', voice_id: 'BZgkqPqms7Kj9ulSkVzn', name: 'Miray', accent: 'Turkish', gender: 'female', description: 'Dinamik kadın ses', provider: '11labs' }
+    { id: 'tr-m-mirza', voice_id: '7VqWGAWwo2HMrylfKrcm', name: 'Fatih Yildirim', accent: 'Istanbul', gender: 'male', description: 'Derin, net ve zengin erkek ses', provider: '11labs' },
+    { id: 'tr-m-ali', voice_id: 'j82ax9yhzfYwq9lDvRWL', name: 'Kadir Kayisci', accent: 'Standard Turkish', gender: 'male', description: 'Olgun, yumusak ve guven veren erkek ses', provider: '11labs' },
+    { id: 'tr-m-berat', voice_id: '5ANiIbDLbNMQ65tBPPDe', name: 'Ali Burak', accent: 'Istanbul', gender: 'male', description: 'Sakin, net ve guvenilir erkek ses', provider: '11labs' },
+    { id: 'tr-m-yasir', voice_id: 'dgeCtiGkvIwzoR09qzjl', name: 'Murat', accent: 'Istanbul', gender: 'male', description: 'Dinamik, genc ve kendinden emin erkek ses', provider: '11labs' },
+    { id: 'tr-f-eda', voice_id: 'bj1uMlYGikistcXNmFoh', name: 'Nisa', accent: 'Standard Turkish', gender: 'female', description: 'Yumusak, sicak ve cesaret veren kadin sesi', provider: '11labs' },
+    { id: 'tr-f-selen', voice_id: 'JgYekNWmelei0oWTtYie', name: 'Elvan', accent: 'Standard Turkish', gender: 'female', description: 'Enerjik, sicak ve profesyonel kadin sesi', provider: '11labs' },
+    { id: 'tr-f-sare', voice_id: 'NNn9dv8zq2kUo7d3JSGG', name: 'Derya', accent: 'Standard Turkish', gender: 'female', description: 'Canli ve arkadas canlisi kadin sesi', provider: '11labs' },
+    { id: 'tr-f-miray', voice_id: 'uvU9jrgGLWNPeNA4NgNT', name: 'Irem', accent: 'Istanbul', gender: 'female', description: 'Otoriter ve guven veren kadin sesi', provider: '11labs' }
   ],
 
   // ENGLISH - using actual 11Labs English voices
@@ -317,14 +317,14 @@ router.get('/language/:code', (req, res) => {
 
 // Turkish preview text for each voice
 const TURKISH_PREVIEW_TEXT = {
-  'tr-m-mirza': 'Merhaba, ben Mirza. Size nasıl yardımcı olabilirim?',
-  'tr-m-ali': 'Merhaba, ben Ali. Bugün size nasıl yardımcı olabilirim?',
-  'tr-m-berat': 'Merhaba, ben Berat. Sizinle tanıştığıma memnun oldum.',
-  'tr-m-yasir': 'Merhaba, ben Yasir. Size yardımcı olmak için buradayım.',
-  'tr-f-eda': 'Merhaba, ben Eda. Size nasıl yardımcı olabilirim?',
-  'tr-f-selen': 'Merhaba, ben Selen. Bugün size nasıl yardımcı olabilirim?',
-  'tr-f-sare': 'Merhaba, ben Sare. Sizinle tanıştığıma memnun oldum.',
-  'tr-f-miray': 'Merhaba, ben Miray. Size yardımcı olmak için buradayım.'
+  'tr-m-mirza': 'Merhaba, ben Fatih. Size nasil yardimci olabilirim?',
+  'tr-m-ali': 'Merhaba, ben Kadir. Bugun size nasil yardimci olabilirim?',
+  'tr-m-berat': 'Merhaba, ben Ali Burak. Sizinle tanistigima memnun oldum.',
+  'tr-m-yasir': 'Merhaba, ben Murat. Size yardimci olmak icin buradayim.',
+  'tr-f-eda': 'Merhaba, ben Nisa. Size nasil yardimci olabilirim?',
+  'tr-f-selen': 'Merhaba, ben Elvan. Bugun size nasil yardimci olabilirim?',
+  'tr-f-sare': 'Merhaba, ben Derya. Sizinle tanistigima memnun oldum.',
+  'tr-f-miray': 'Merhaba, ben Irem. Size yardimci olmak icin buradayim.'
 };
 
 // Portuguese (Brazilian) preview text for each voice
@@ -394,12 +394,13 @@ router.get('/preview/:voiceId', async (req, res) => {
       `${ELEVENLABS_BASE_URL}/text-to-speech/${elevenLabsVoiceId}`,
       {
         text: previewText,
-        model_id: 'eleven_turbo_v2_5',
+        // Preview is not latency-sensitive, so prefer the higher-fidelity multilingual model.
+        model_id: 'eleven_multilingual_v2',
         language_code: languageCode,
         voice_settings: {
-          stability: 0.5,
+          stability: 0.42,
           similarity_boost: 0.75,
-          speed: 1.0
+          speed: 0.96
         }
       },
       {

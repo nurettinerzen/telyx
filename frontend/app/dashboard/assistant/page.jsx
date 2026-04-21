@@ -42,6 +42,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import EmptyState from '@/components/EmptyState';
+import VoiceCard from '@/components/VoiceCard';
 import { apiClient } from '@/lib/api';
 import { Bot, Plus, Edit, Trash2, Search, PhoneOutgoing, MessageSquare, Loader2, RefreshCw, ChevronDown, ChevronRight } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
@@ -514,6 +515,7 @@ export default function AssistantsPage() {
     const selectedAccent = LANGUAGE_TO_ACCENT[formData.language];
     return voice.accent === selectedAccent;
   });
+  const selectedVoice = filteredVoices.find((voice) => voice.id === formData.voiceId);
 
   const filteredAssistants = assistants.filter((a) =>
     a.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -704,7 +706,7 @@ export default function AssistantsPage() {
           if (!open) resetForm();
         }}
       >
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl lg:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {isTextMode ? (
@@ -809,27 +811,41 @@ export default function AssistantsPage() {
                 {/* Voice */}
                 <div>
                   <Label htmlFor="voice">{t('dashboard.assistantsPage.voiceRequired')}</Label>
-                  <Select
-                    value={formData.voiceId}
-                    onValueChange={(value) => setFormData({ ...formData, voiceId: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('dashboard.assistantsPage.selectVoice')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {filteredVoices.length > 0 ? (
-                        filteredVoices.map((voice) => (
-                          <SelectItem key={voice.id} value={voice.id}>
-                            {voice.name} ({voice.gender})
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <div className="px-2 py-1 text-sm text-neutral-500">
-                          {t('dashboard.assistantsPage.noVoicesForLanguage')}
-                        </div>
-                      )}
-                    </SelectContent>
-                  </Select>
+                  {voicesLoading ? (
+                    <div className={cn(
+                      getDashboardInsetClass(dark, 'rounded-xl px-4 py-8 text-sm'),
+                      'flex items-center justify-center gap-2 text-neutral-500'
+                    )}>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>{t('dashboard.voicesPage.loadingVoices')}</span>
+                    </div>
+                  ) : filteredVoices.length > 0 ? (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        {filteredVoices.map((voice) => (
+                          <VoiceCard
+                            key={voice.id}
+                            voice={voice}
+                            compact
+                            isSelected={formData.voiceId === voice.id}
+                            onSelect={(selected) => setFormData({ ...formData, voiceId: selected.id })}
+                          />
+                        ))}
+                      </div>
+                      <p className="text-xs text-neutral-500">
+                        {selectedVoice
+                          ? `${t('dashboard.assistantsPage.selectVoice')}: ${selectedVoice.name}`
+                          : t('dashboard.assistantsPage.selectVoice')}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className={cn(
+                      getDashboardInsetClass(dark, 'rounded-xl px-4 py-6 text-sm'),
+                      'text-neutral-500'
+                    )}>
+                      {t('dashboard.assistantsPage.noVoicesForLanguage')}
+                    </div>
+                  )}
                 </div>
 
                 {/* First Message */}

@@ -1978,48 +1978,79 @@ const _signedUrlRequests = new Map();
 const SIGNED_URL_RATE_LIMIT = 5;
 const SIGNED_URL_WINDOW_MS = 60_000;
 
+function consumeWebSessionRateLimit(req, scope = 'signed-url') {
+  const clientIp = req.ip || req.connection?.remoteAddress || 'unknown';
+  const now = Date.now();
+  const key = `${clientIp}:${scope}`;
+  const entry = _signedUrlRequests.get(key) || { count: 0, start: now };
+
+  if (now - entry.start > SIGNED_URL_WINDOW_MS) {
+    entry.count = 0;
+    entry.start = now;
+  }
+
+  entry.count++;
+  _signedUrlRequests.set(key, entry);
+
+  if (entry.count > SIGNED_URL_RATE_LIMIT) {
+    console.warn(`🚫 [WebSession] Rate limit exceeded for ${clientIp} (${scope})`);
+    return false;
+  }
+
+  return true;
+}
+
+async function loadVoiceAssistantForWebSession(assistantId) {
+  return prisma.assistant.findUnique({
+    where: { id: assistantId },
+    include: {
+      business: {
+        select: {
+          id: true,
+          suspended: true,
+          deletedAt: true
+        }
+      }
+    }
+  });
+}
+
+function validateVoiceAssistantForWebSession(assistant) {
+  if (!assistant) {
+    return { ok: false, status: 404, body: { error: 'Assistant not found' } };
+  }
+
+  if (!assistant.isActive) {
+    return { ok: false, status: 403, body: { error: 'Assistant is inactive' } };
+  }
+
+  if (!assistant.business || assistant.business.suspended || assistant.business.deletedAt) {
+    return { ok: false, status: 403, body: { error: 'Business is not active' } };
+  }
+
+  if (!assistant.elevenLabsAgentId) {
+    return { ok: false, status: 404, body: { error: 'Assistant not configured for voice' } };
+  }
+
+  return null;
+}
+
 router.get('/signed-url/:assistantId', async (req, res) => {
   try {
     const { assistantId } = req.params;
 
-    // Rate limit by IP
-    const clientIp = req.ip || req.connection?.remoteAddress || 'unknown';
-    const now = Date.now();
-    const key = `${clientIp}:signed-url`;
-    const entry = _signedUrlRequests.get(key) || { count: 0, start: now };
-    if (now - entry.start > SIGNED_URL_WINDOW_MS) {
-      entry.count = 0;
-      entry.start = now;
-    }
-    entry.count++;
-    _signedUrlRequests.set(key, entry);
-    if (entry.count > SIGNED_URL_RATE_LIMIT) {
-      console.warn(`🚫 [SignedURL] Rate limit exceeded for ${clientIp}`);
+    if (!consumeWebSessionRateLimit(req, 'signed-url')) {
       return res.status(429).json({ error: 'Too many requests' });
     }
 
     console.log('🔗 Signed URL requested for assistantId:', assistantId);
 
-    const assistant = await prisma.assistant.findUnique({
-      where: { id: assistantId },
-      include: { business: { select: { id: true, isActive: true } } }
-    });
-
-    if (!assistant) {
-      return res.status(404).json({ error: 'Assistant not found' });
+    const assistant = await loadVoiceAssistantForWebSession(assistantId);
+    const validation = validateVoiceAssistantForWebSession(assistant);
+    if (validation) {
+      return res.status(validation.status).json(validation.body);
     }
 
-    // SECURITY: Verify business is active
-    if (!assistant.business?.isActive) {
-      return res.status(403).json({ error: 'Business is not active' });
-    }
-
-    if (!assistant.elevenLabsAgentId) {
-      return res.status(404).json({ error: 'Assistant not configured for voice' });
-    }
-
-    // Import the service
-    const elevenLabsService = (await import('../services/elevenlabs.js')).default;
     console.log('🔑 Getting signed URL from 11Labs for agent:', assistant.elevenLabsAgentId);
     const result = await elevenLabsService.getSignedUrl(assistant.elevenLabsAgentId);
 
@@ -2028,6 +2059,39 @@ router.get('/signed-url/:assistantId', async (req, res) => {
     res.json({ signedUrl: result.signed_url });
   } catch (error) {
     console.error('❌ Error getting signed URL:', error.response?.data || error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/conversation-token/:assistantId', async (req, res) => {
+  try {
+    const { assistantId } = req.params;
+
+    if (!consumeWebSessionRateLimit(req, 'conversation-token')) {
+      return res.status(429).json({ error: 'Too many requests' });
+    }
+
+    console.log('🎟️ Conversation token requested for assistantId:', assistantId);
+
+    const assistant = await loadVoiceAssistantForWebSession(assistantId);
+    const validation = validateVoiceAssistantForWebSession(assistant);
+    if (validation) {
+      return res.status(validation.status).json(validation.body);
+    }
+
+    const participantName = String(req.query.participantName || '').trim() || undefined;
+    const environment = runtimeConfig.isBetaApp ? 'staging' : 'production';
+
+    console.log('🔑 Getting WebRTC token from 11Labs for agent:', assistant.elevenLabsAgentId);
+    const result = await elevenLabsService.getConversationToken(assistant.elevenLabsAgentId, {
+      participantName,
+      environment
+    });
+
+    console.log('✅ Conversation token obtained successfully');
+    res.json({ conversationToken: result.token });
+  } catch (error) {
+    console.error('❌ Error getting conversation token:', error.response?.data || error.message);
     res.status(500).json({ error: error.message });
   }
 });

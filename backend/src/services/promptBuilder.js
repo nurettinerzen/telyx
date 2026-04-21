@@ -2,6 +2,19 @@ import { BASE_RULES } from '../config/prompts/base-rules.js';
 import { BUSINESS_TEMPLATES } from '../config/prompts/business-templates.js';
 import { TONE_RULES } from '../config/prompts/tone-rules.js';
 
+const PHONE_SPOKEN_STYLE_RULES = `
+## SESLİ KONUŞMA DOĞALLIĞI (KRİTİK!)
+- Yazı dili değil, konuşma dili kullan.
+- Cümleleri kısa tut; her cümlede tek ana fikir ver.
+- Bir yanıtta mümkünse 1-2 kısa cümleyi geçme; gerekiyorsa devamını sonraki turda söyle.
+- Madde okur gibi değil, konuşur gibi anlat.
+- Gerektiğinde kısa sözlü onaylar kullan: "tabii", "anladım", "bir bakayım". Bunları her cümlede tekrarlama.
+- Gereksiz resmi geçiş cümleleri kurma; sıcak ama kontrollü kal.
+- Sayı, tarih, saat, telefon, e-posta ve URL'leri seslendirmesi kolay olacak biçimde söyle.
+- Uzun veya karmaşık bilgiyi tek nefeste yığma; kısa parçalara böl.
+- Müşteri düşünüyorsa acele ettirme, sözünü bitirmesi için alan bırak.
+`;
+
 /**
  * Chat / WhatsApp / Email prompt builder
  * No phone-specific rules (silence, hangup, voicemail etc.)
@@ -297,6 +310,7 @@ export function buildAssistantPrompt(assistant, business, integrations = [], opt
 
   // 4. Prompt birleştir
   let prompt = BASE_RULES;
+  prompt += '\n\n' + PHONE_SPOKEN_STYLE_RULES;
   prompt += '\n\n' + template;
   prompt += '\n\n' + toneRules;
 
@@ -436,6 +450,7 @@ function buildOutboundCollectionPrompt(assistant, business) {
   const assistantName = assistant.name || 'Asistan';
 
   let prompt = OUTBOUND_COLLECTION_RULES;
+  prompt += '\n\n' + PHONE_SPOKEN_STYLE_RULES;
 
   // Değişkenleri yerine koy
   prompt = prompt.replace(/{{business_name}}/g, businessName);
@@ -465,6 +480,7 @@ function buildOutboundSalesPrompt(assistant, business) {
   const assistantName = assistant.name || 'Asistan';
 
   let prompt = OUTBOUND_SALES_RULES;
+  prompt += '\n\n' + PHONE_SPOKEN_STYLE_RULES;
 
   // Değişkenleri yerine koy
   prompt = prompt.replace(/{{business_name}}/g, businessName);
@@ -494,6 +510,7 @@ function buildOutboundGeneralPrompt(assistant, business) {
   const assistantName = assistant.name || 'Asistan';
 
   let prompt = OUTBOUND_GENERAL_RULES;
+  prompt += '\n\n' + PHONE_SPOKEN_STYLE_RULES;
 
   // Değişkenleri yerine koy
   prompt = prompt.replace(/{{business_name}}/g, businessName);

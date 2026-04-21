@@ -43,22 +43,53 @@ export default function VoiceDemo({ assistantId, onClose }) {
       setIsConnecting(true);
       setCallStatus(t('onboarding.voiceDemo.callStatus.starting'));
 
-      // Get signed URL from backend
-      console.log('🔗 Fetching signed URL from:', `${BACKEND_URL}/api/elevenlabs/signed-url/${assistantId}`);
-      const response = await fetch(`${BACKEND_URL}/api/elevenlabs/signed-url/${assistantId}`);
+      let sessionConfig = null;
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('❌ Signed URL error:', response.status, errorData);
-        throw new Error(errorData.error || 'Failed to get signed URL');
+      try {
+        const tokenUrl = `${BACKEND_URL}/api/elevenlabs/conversation-token/${assistantId}`;
+        console.log('🎟️ Fetching conversation token from:', tokenUrl);
+        const tokenResponse = await fetch(tokenUrl);
+
+        if (!tokenResponse.ok) {
+          const errorData = await tokenResponse.json().catch(() => ({}));
+          throw new Error(errorData.error || 'Failed to get conversation token');
+        }
+
+        const { conversationToken } = await tokenResponse.json();
+        if (!conversationToken) {
+          throw new Error('Conversation token is empty');
+        }
+
+        sessionConfig = {
+          conversationToken,
+          connectionType: 'webrtc'
+        };
+        console.log('✅ Got conversation token for WebRTC session');
+      } catch (tokenError) {
+        console.warn('⚠️ WebRTC token flow failed, falling back to signed URL:', tokenError.message);
+
+        const signedUrlEndpoint = `${BACKEND_URL}/api/elevenlabs/signed-url/${assistantId}`;
+        console.log('🔗 Fetching signed URL from:', signedUrlEndpoint);
+        const response = await fetch(signedUrlEndpoint);
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          console.error('❌ Signed URL error:', response.status, errorData);
+          throw new Error(errorData.error || 'Failed to get signed URL');
+        }
+
+        const { signedUrl } = await response.json();
+        if (!signedUrl) {
+          throw new Error('Signed URL is empty');
+        }
+
+        sessionConfig = { signedUrl };
+        console.log('✅ Got signed URL for fallback session');
       }
-
-      const { signedUrl } = await response.json();
-      console.log('✅ Got signed URL for 11Labs conversation:', signedUrl ? 'OK' : 'EMPTY');
 
       // Start conversation using official SDK
       const conversation = await Conversation.startSession({
-        signedUrl: signedUrl,
+        ...sessionConfig,
         onConnect: () => {
           console.log('✅ Connected to 11Labs');
           setIsCallActive(true);

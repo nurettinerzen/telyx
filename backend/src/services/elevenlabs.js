@@ -10,6 +10,8 @@ import { getMessageVariant } from '../messages/messageCatalog.js';
 
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 const ELEVENLABS_BASE_URL = 'https://api.elevenlabs.io/v1';
+const DEFAULT_PHONE_TTS_SPEED = 0.96;
+const DEFAULT_SOFT_TIMEOUT_SECONDS = 3.0;
 
 const elevenLabsClient = axios.create({
   baseURL: ELEVENLABS_BASE_URL,
@@ -1000,6 +1002,34 @@ const elevenLabsService = {
     }
   },
 
+  /**
+   * Get WebRTC conversation token for web client
+   * Preferred for lower-latency browser voice sessions.
+   * @param {string} agentId - Agent ID
+   * @param {Object} [options]
+   * @param {string} [options.participantName]
+   * @param {string} [options.environment]
+   */
+  async getConversationToken(agentId, options = {}) {
+    try {
+      const query = new URLSearchParams({ agent_id: agentId });
+
+      if (options.participantName) {
+        query.set('participant_name', options.participantName);
+      }
+
+      if (options.environment) {
+        query.set('environment', options.environment);
+      }
+
+      const response = await elevenLabsClient.get(`/convai/conversation/token?${query.toString()}`);
+      return response.data;
+    } catch (error) {
+      console.error('❌ 11Labs getConversationToken error:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+
   // ============================================================================
   // KNOWLEDGE BASE MANAGEMENT
   // ============================================================================
@@ -1236,6 +1266,11 @@ export function buildAgentConfig(assistant, business, tools = [], integrations =
         success_evaluation: 'Was the conversation successful? Was the customer\'s request fulfilled?'
       };
 
+  const getSoftTimeoutMessage = (lang = 'tr') => {
+    const normalizedLang = String(lang || '').toLowerCase();
+    return normalizedLang.startsWith('tr') ? 'Hımm...' : 'Hmm...';
+  };
+
   const getSuggestedAudioTags = (direction) => {
     if (direction === 'outbound_sales') {
       return [
@@ -1309,16 +1344,20 @@ export function buildAgentConfig(assistant, business, tools = [], integrations =
     ? {
         voice_id: assistant.voiceId,
         model_id: 'eleven_v3_conversational',
+        agent_output_audio_format: 'pcm_48000',
         expressive_mode: true,
+        speed: DEFAULT_PHONE_TTS_SPEED,
+        optimize_streaming_latency: 3,
         suggested_audio_tags: getSuggestedAudioTags(normalizedDirection)
       }
     : {
         voice_id: assistant.voiceId,
         model_id: 'eleven_turbo_v2',
+        agent_output_audio_format: 'pcm_48000',
         stability: 0.4,
         similarity_boost: 0.6,
         style: 0.15,
-        speed: 1.1,
+        speed: DEFAULT_PHONE_TTS_SPEED,
         optimize_streaming_latency: 3,
         text_normalization: 'elevenlabs'
       };
@@ -1349,7 +1388,11 @@ export function buildAgentConfig(assistant, business, tools = [], integrations =
         mode: 'turn',
         turn_timeout: 8,                     // 8sn - tool çağrısı sırasında yoklama yapmasın
         turn_eagerness: 'normal',            // Normal mod - dengeli tepki
-        silence_end_call_timeout: 30         // 30sn toplam sessizlikten sonra kapat
+        silence_end_call_timeout: 30,        // 30sn toplam sessizlikten sonra kapat
+        soft_timeout_config: {
+          timeout_seconds: DEFAULT_SOFT_TIMEOUT_SECONDS,
+          message: getSoftTimeoutMessage(language)
+        }
       },
       // Analysis settings for post-call summary in correct language
       analysis: {

@@ -11,14 +11,14 @@
  */
 export const VOICE_MAPPING = {
   // Turkish voices
-  'tr-m-mirza': 'wWWn96OtTHu1sn8SRGEr',
-  'tr-m-ali': 'xKhbyU7E3bC6T89Kn26c',
-  'tr-m-berat': 'UgBBYS2sOqTuMpoF3BR0',
-  'tr-m-yasir': '1SM7GgM6IMuvQlz2BwM3',
-  'tr-f-eda': '56AoDkrOh6qfVPDXZ7Pt',
-  'tr-f-selen': 'g6xIsTj2HwM6VR4iXFCw',
-  'tr-f-sare': 'kdmDKE6EkgrWrrykO9Qt',
-  'tr-f-miray': 'BZgkqPqms7Kj9ulSkVzn',
+  'tr-m-mirza': '7VqWGAWwo2HMrylfKrcm',
+  'tr-m-ali': 'j82ax9yhzfYwq9lDvRWL',
+  'tr-m-berat': '5ANiIbDLbNMQ65tBPPDe',
+  'tr-m-yasir': 'dgeCtiGkvIwzoR09qzjl',
+  'tr-f-eda': 'bj1uMlYGikistcXNmFoh',
+  'tr-f-selen': 'JgYekNWmelei0oWTtYie',
+  'tr-f-sare': 'NNn9dv8zq2kUo7d3JSGG',
+  'tr-f-miray': 'uvU9jrgGLWNPeNA4NgNT',
 
   // English voices
   'en-m-jude': 'Yg7C1g7suzNt5TisIqkZ',
@@ -39,7 +39,7 @@ export const VOICE_MAPPING = {
  * Default 11Labs voice IDs by language
  */
 export const DEFAULT_VOICE_BY_LANGUAGE = {
-  tr: 'wWWn96OtTHu1sn8SRGEr', // Mirza
+  tr: 'j82ax9yhzfYwq9lDvRWL', // Kadir Kayışcı
   en: 'Yg7C1g7suzNt5TisIqkZ', // Jude
   de: 'Yg7C1g7suzNt5TisIqkZ', // Fallback to English
   fr: 'Yg7C1g7suzNt5TisIqkZ',

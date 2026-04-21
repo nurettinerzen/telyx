@@ -19,6 +19,7 @@ import {
   getDefaultCapabilitiesForCallDirection,
   normalizeChannelCapabilities
 } from '../services/assistantChannels.js';
+import { isPhoneRoutingFlagColumnMissingError } from '../services/businessPhoneRouting.js';
 import runtimeConfig from '../config/runtime.js';
 
 const router = express.Router();
@@ -263,12 +264,41 @@ function getSuggestedAudioTags(callDirection) {
   ];
 }
 
+const DEFAULT_PHONE_TTS_SPEED = 0.96;
+const DEFAULT_SOFT_TIMEOUT_SECONDS = 3.0;
+
+function getSoftTimeoutMessage(language = 'tr') {
+  const normalized = String(language || '').toLowerCase();
+
+  if (normalized.startsWith('tr')) {
+    return 'Hımm...';
+  }
+
+  return 'Hmm...';
+}
+
+function buildTurnConfig({ language = 'tr' } = {}) {
+  return {
+    mode: 'turn',
+    turn_timeout: 8,
+    turn_eagerness: 'normal',
+    silence_end_call_timeout: 30,
+    soft_timeout_config: {
+      timeout_seconds: DEFAULT_SOFT_TIMEOUT_SECONDS,
+      message: getSoftTimeoutMessage(language)
+    }
+  };
+}
+
 function buildPhoneTtsConfig({ voiceId, callDirection, assistantType = 'phone' } = {}) {
   if (shouldUseExpressiveVoice(callDirection, assistantType)) {
     return {
       voice_id: voiceId,
       model_id: 'eleven_v3_conversational',
+      agent_output_audio_format: 'pcm_48000',
       expressive_mode: true,
+      speed: DEFAULT_PHONE_TTS_SPEED,
+      optimize_streaming_latency: 3,
       suggested_audio_tags: getSuggestedAudioTags(callDirection)
     };
   }
@@ -276,9 +306,11 @@ function buildPhoneTtsConfig({ voiceId, callDirection, assistantType = 'phone' }
   return {
     voice_id: voiceId,
     model_id: 'eleven_turbo_v2_5',
+    agent_output_audio_format: 'pcm_48000',
     stability: 0.4,
     similarity_boost: 0.6,
     style: 0.15,
+    speed: DEFAULT_PHONE_TTS_SPEED,
     optimize_streaming_latency: 3
   };
 }
@@ -299,6 +331,41 @@ function resolveProviderFirstMessage({
 
 function isElevenLabsNotFound(error) {
   return Number(error?.response?.status) === 404;
+}
+
+async function getPreferredOutboundPhoneNumber({ businessId, phoneNumberId } = {}) {
+  if (!businessId) return null;
+
+  if (phoneNumberId) {
+    return prisma.phoneNumber.findFirst({
+      where: {
+        id: phoneNumberId,
+        businessId,
+        status: 'ACTIVE'
+      }
+    });
+  }
+
+  try {
+    return await prisma.phoneNumber.findFirst({
+      where: { businessId, status: 'ACTIVE' },
+      orderBy: [
+        { isDefaultOutbound: 'desc' },
+        { createdAt: 'asc' }
+      ]
+    });
+  } catch (error) {
+    if (!isPhoneRoutingFlagColumnMissingError(error)) {
+      throw error;
+    }
+
+    console.warn('⚠️ Assistant test-call falling back to legacy phone ordering because routing flag columns are missing.');
+
+    return prisma.phoneNumber.findFirst({
+      where: { businessId, status: 'ACTIVE' },
+      orderBy: { createdAt: 'asc' }
+    });
+  }
 }
 
 function getKnowledgeItemSyncName(item) {
@@ -728,12 +795,7 @@ router.post('/', authenticateToken, checkPermission('assistants:create'), async 
             model: 'scribe_v1',
             language: elevenLabsLang
           },
-          turn: {
-            mode: 'turn',
-            turn_timeout: 8,                     // 8sn - tool çağrısı sırasında yoklama yapmasın
-            turn_eagerness: 'normal',            // Normal mod - dengeli tepki
-            silence_end_call_timeout: 30         // 30sn toplam sessizlikten sonra kapat
-          },
+          turn: buildTurnConfig({ language: elevenLabsLang }),
           // Analysis settings for Turkish/language-specific summary
           analysis: {
             transcript_summary_prompt: langAnalysis.transcript_summary,
@@ -1042,21 +1104,10 @@ router.post('/test-call', async (req, res) => {
     }
 
     // Get phone number for outbound call
-    const fromPhoneNumber = phoneNumberId
-      ? await prisma.phoneNumber.findFirst({
-        where: {
-          id: phoneNumberId,
-          businessId,
-          status: 'ACTIVE'
-        }
-      })
-      : await prisma.phoneNumber.findFirst({
-        where: { businessId, status: 'ACTIVE' },
-        orderBy: [
-          { isDefaultOutbound: 'desc' },
-          { createdAt: 'asc' }
-        ]
-      });
+    const fromPhoneNumber = await getPreferredOutboundPhoneNumber({
+      businessId,
+      phoneNumberId
+    });
 
     if (!fromPhoneNumber || !fromPhoneNumber.elevenLabsPhoneId) {
       return res.status(400).json({ error: 'No phone number configured' });
@@ -1351,12 +1402,7 @@ router.put('/:id', authenticateToken, checkPermission('assistants:edit'), async 
               model: 'scribe_v1',
               language: elevenLabsLang
             },
-            turn: {
-              mode: 'turn',
-              turn_timeout: 8,
-              turn_eagerness: 'normal',
-              silence_end_call_timeout: 30
-            },
+            turn: buildTurnConfig({ language: elevenLabsLang }),
             analysis: {
               transcript_summary_prompt: langAnalysis.transcript_summary,
               success_evaluation_prompt: langAnalysis.success_evaluation
@@ -1690,12 +1736,7 @@ router.post('/:id/sync', authenticateToken, checkPermission('assistants:edit'), 
           model: 'scribe_v1',
           language: elevenLabsLang
         },
-        turn: {
-          mode: 'turn',
-          turn_timeout: 8,
-          turn_eagerness: 'normal',
-          silence_end_call_timeout: 30
-        },
+        turn: buildTurnConfig({ language: elevenLabsLang }),
         analysis: {
           transcript_summary_prompt: langAnalysis.transcript_summary,
           success_evaluation_prompt: langAnalysis.success_evaluation
