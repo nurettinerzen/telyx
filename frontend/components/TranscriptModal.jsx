@@ -74,6 +74,40 @@ function getTranscriptTimeInCallSeconds(message = {}) {
   return null;
 }
 
+function getTranscriptAbsoluteDate(message = {}, callStartedAt = null) {
+  const rawTimestamp = message?.timestamp;
+  const numericTimestamp = coerceFiniteNumber(rawTimestamp);
+
+  if (numericTimestamp !== null && numericTimestamp >= 24 * 60 * 60) {
+    const absoluteDate = numericTimestamp > 1e12
+      ? new Date(numericTimestamp)
+      : new Date(numericTimestamp * 1000);
+
+    if (!Number.isNaN(absoluteDate.getTime())) {
+      return absoluteDate;
+    }
+  }
+
+  if (rawTimestamp && numericTimestamp === null) {
+    const absoluteDate = new Date(rawTimestamp);
+    if (!Number.isNaN(absoluteDate.getTime())) {
+      return absoluteDate;
+    }
+  }
+
+  const timeInCallSecs = getTranscriptTimeInCallSeconds(message);
+  if (timeInCallSecs === null || !callStartedAt) {
+    return null;
+  }
+
+  const callStartDate = new Date(callStartedAt);
+  if (Number.isNaN(callStartDate.getTime())) {
+    return null;
+  }
+
+  return new Date(callStartDate.getTime() + (timeInCallSecs * 1000));
+}
+
 function normalizeTranscriptMessage(message = {}) {
   const speaker = message.speaker || (message.role === 'agent' ? 'assistant' : 'user');
   const normalizedSpeaker = speaker === 'assistant' || speaker === 'agent' ? 'assistant' : 'user';
@@ -91,11 +125,9 @@ function normalizeTranscriptMessage(message = {}) {
     normalizedMessage.time_in_call_secs = timeInCallSecs;
   }
 
-  const absoluteTimestamp = timeInCallSecs === null && message.timestamp
-    ? new Date(message.timestamp)
-    : null;
+  const absoluteTimestamp = getTranscriptAbsoluteDate(message);
 
-  if (absoluteTimestamp && !Number.isNaN(absoluteTimestamp.getTime())) {
+  if (absoluteTimestamp) {
     normalizedMessage.timestamp = absoluteTimestamp.toISOString();
   } else if (timeInCallSecs !== null) {
     delete normalizedMessage.timestamp;
@@ -123,20 +155,22 @@ function normalizeCallDetail(callData) {
   };
 }
 
-function formatTranscriptTime(message, locale) {
-  const timeInCallSecs = getTranscriptTimeInCallSeconds(message);
+function formatTranscriptTime(message, callStartedAt, locale) {
+  const absoluteDate = getTranscriptAbsoluteDate(message, callStartedAt);
 
+  if (absoluteDate) {
+    return absoluteDate.toLocaleTimeString(locale === 'tr' ? 'tr-TR' : 'en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+  }
+
+  const timeInCallSecs = getTranscriptTimeInCallSeconds(message);
   if (timeInCallSecs !== null) {
     const minutes = Math.floor(timeInCallSecs / 60);
     const seconds = Math.floor(timeInCallSecs % 60);
     return `${minutes}:${String(seconds).padStart(2, '0')}`;
-  }
-
-  if (message?.timestamp) {
-    const date = new Date(message.timestamp);
-    if (!Number.isNaN(date.getTime())) {
-      return date.toLocaleTimeString(locale === 'tr' ? 'tr-TR' : 'en-US');
-    }
   }
 
   return '';
@@ -259,7 +293,7 @@ export default function TranscriptModal({ callId, isOpen, onClose }) {
         const isAssistant = speaker === 'assistant' || speaker === 'agent';
         const speakerName = isAssistant ? 'Asistan' : 'Müşteri';
         const messageText = cleanTranscriptText(msg.text || msg.message || '');
-        const timeStr = formatTranscriptTime(msg, locale);
+        const timeStr = formatTranscriptTime(msg, call.createdAt, locale);
         const header = timeStr ? `[${timeStr}] ${speakerName}` : speakerName;
 
         transcriptText += `${header}:\n${messageText}\n\n`;
@@ -528,7 +562,7 @@ export default function TranscriptModal({ callId, isOpen, onClose }) {
                         const speaker = msg.speaker || (msg.role === 'agent' ? 'assistant' : 'user');
                         const isAssistant = speaker === 'assistant' || speaker === 'agent';
                         const messageText = cleanTranscriptText(msg.text || msg.message || '');
-                        const messageTime = formatTranscriptTime(msg, locale);
+                        const messageTime = formatTranscriptTime(msg, call.createdAt, locale);
 
                         return (
                           <div
