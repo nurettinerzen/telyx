@@ -86,7 +86,7 @@ export default function VoicesPage() {
       console.error('Failed to load voices:', error);
       toast.error(t('dashboard.voicesPage.failedToLoadVoices'));
     }
-  }, []);
+  }, [t]);
 
   // Single useEffect for initial data loading - runs only once
   useEffect(() => {
@@ -117,11 +117,15 @@ export default function VoicesPage() {
 
   // Get the preferred accent based on business language
   const preferredAccent = LANGUAGE_TO_ACCENT[businessLanguage] || 'Turkish';
+  const preferredLanguage = businessLanguage?.toLowerCase();
 
   // Filter voices - ONLY show voices matching business language
   const filteredVoices = voices.filter((voice) => {
     // Always filter by business language - no "all" option for language
-    const matchesLanguage = voice.accent === preferredAccent;
+    const voiceLanguage = voice.language?.toLowerCase();
+    const matchesLanguage = voiceLanguage
+      ? voiceLanguage === preferredLanguage
+      : voice.accent === preferredAccent;
     const matchesSearch =
       voice.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       voice.description?.toLowerCase().includes(searchQuery.toLowerCase());

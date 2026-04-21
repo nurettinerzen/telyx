@@ -145,7 +145,7 @@ export default function AssistantsPage() {
 
   // React Query hooks
   const { data: assistantsData, isLoading: assistantsLoading } = useAssistants();
-  const { data: voicesData, isLoading: voicesLoading } = useVoices();
+  const { data: voicesData, isLoading: voicesLoading } = useVoices({ withSamples: true });
   const { data: businessData } = useBusiness(user?.businessId);
   const createAssistant = useCreateAssistant();
   const updateAssistant = useUpdateAssistant();
@@ -511,8 +511,15 @@ export default function AssistantsPage() {
     setEditingAssistant(null);
   };
 
-  const filteredVoices = voices.filter(voice => {
-    const selectedAccent = LANGUAGE_TO_ACCENT[formData.language];
+  const filteredVoices = voices.filter((voice) => {
+    const selectedLanguage = formData.language?.toLowerCase();
+    const voiceLanguage = voice.language?.toLowerCase();
+
+    if (voiceLanguage) {
+      return voiceLanguage === selectedLanguage;
+    }
+
+    const selectedAccent = LANGUAGE_TO_ACCENT[selectedLanguage];
     return voice.accent === selectedAccent;
   });
   const selectedVoice = filteredVoices.find((voice) => voice.id === formData.voiceId);
