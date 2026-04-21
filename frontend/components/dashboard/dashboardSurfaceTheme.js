@@ -63,6 +63,14 @@ export function getDashboardInsetClass(dark, className) {
   );
 }
 
+export function getDashboardIconSurfaceClass(dark, className) {
+  return cn(
+    'rounded-lg border',
+    dark ? 'border-white/10 bg-[#0B1730]/88 text-slate-300' : 'border-slate-200 bg-slate-50/80 text-slate-600',
+    className
+  );
+}
+
 export function getDashboardOverlaySurfaceClass(dark, className) {
   return cn(
     'rounded-xl border shadow-[0_24px_70px_rgba(15,23,42,0.16)] backdrop-blur-xl',

@@ -6,6 +6,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
@@ -18,7 +19,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
-  Inbox,
   Mail,
   Send,
   RefreshCw,
@@ -43,21 +43,36 @@ import { getPageHelp } from '@/content/pageHelp';
 import { formatDistanceToNow } from 'date-fns';
 import { useEmailStatus, useEmailThreads, useEmailThread, useEmailStats } from '@/hooks/useEmail';
 import { useQueryClient } from '@tanstack/react-query';
+import { cn } from '@/lib/utils';
+import {
+  getDashboardBadgeClass,
+  getDashboardConversationItemClass,
+  getDashboardDividerClass,
+  getDashboardIconSurfaceClass,
+  getDashboardInputClass,
+  getDashboardInsetClass,
+  getDashboardMessageBubbleClass,
+  getDashboardPanelClass,
+  getDashboardRowHoverClass,
+  getDashboardStatCardClass
+} from '@/components/dashboard/dashboardSurfaceTheme';
 
 // Status badge colors and translation keys
 const STATUS_CONFIG = {
-  NEW: { bg: 'bg-neutral-100 dark:bg-white/8', text: 'text-neutral-700 dark:text-neutral-300', key: 'new' },
-  PENDING_REPLY: { bg: 'bg-neutral-100 dark:bg-white/8', text: 'text-neutral-700 dark:text-neutral-300', key: 'new' }, // Legacy - treat same as NEW
-  DRAFT_READY: { bg: 'bg-neutral-100 dark:bg-white/8', text: 'text-neutral-700 dark:text-neutral-300', key: 'draftReady' },
-  REPLIED: { bg: 'bg-neutral-100 dark:bg-white/8', text: 'text-neutral-700 dark:text-neutral-300', key: 'replied' },
-  CLOSED: { bg: 'bg-neutral-100 dark:bg-white/8', text: 'text-neutral-700 dark:text-neutral-300', key: 'closed' },
-  NO_REPLY_NEEDED: { bg: 'bg-neutral-100 dark:bg-white/8', text: 'text-neutral-700 dark:text-neutral-300', key: 'noReplyNeeded' }
+  NEW: { tone: 'neutral', key: 'new' },
+  PENDING_REPLY: { tone: 'neutral', key: 'new' }, // Legacy - treat same as NEW
+  DRAFT_READY: { tone: 'blue', key: 'draftReady' },
+  REPLIED: { tone: 'emerald', key: 'replied' },
+  CLOSED: { tone: 'neutral', key: 'closed' },
+  NO_REPLY_NEEDED: { tone: 'amber', key: 'noReplyNeeded' }
 };
 
 export default function EmailDashboardPage() {
   const { t, locale } = useLanguage();
+  const { resolvedTheme } = useTheme();
   const pageHelp = getPageHelp('email', locale);
   const queryClient = useQueryClient();
+  const dark = resolvedTheme === 'dark';
 
   // React Query hooks
   const { data: emailStatus, isLoading: statusLoading } = useEmailStatus();
@@ -331,7 +346,7 @@ export default function EmailDashboardPage() {
           }}
         />
 
-        <div className="bg-white dark:bg-[#081224]/95 rounded-xl border border-neutral-200 dark:border-white/10 p-12 text-center shadow-sm">
+        <div className={getDashboardPanelClass(dark, 'p-12 text-center')}>
           <Mail className="h-16 w-16 mx-auto text-neutral-600 dark:text-neutral-400 mb-4" />
           <h2 className="text-xl font-semibold text-neutral-900 dark:text-white mb-2">
             {t('dashboard.emailPage.connectYourEmail')}
@@ -379,9 +394,17 @@ export default function EmailDashboardPage() {
             onClick={() => {
               setStatusFilter(statusFilter === 'DRAFT_READY' ? null : 'DRAFT_READY');
             }}
-            className={`bg-white dark:bg-[#081224]/95 rounded-lg border p-4 text-left transition-all hover:shadow-md ${
-              statusFilter === 'DRAFT_READY' ? 'border-neutral-400 ring-2 ring-neutral-200 dark:ring-cyan-500/20' : 'border-neutral-200 dark:border-white/10'
-            }`}
+            className={getDashboardStatCardClass(
+              dark,
+              cn(
+                'text-left transition-all hover:shadow-md',
+                statusFilter === 'DRAFT_READY'
+                  ? dark
+                    ? 'border-cyan-400/35 ring-2 ring-cyan-500/20'
+                    : 'border-neutral-400 ring-2 ring-neutral-200'
+                  : ''
+              )
+            )}
           >
             <div className="flex items-center gap-3">
               <Pencil className="h-6 w-6 text-neutral-600 dark:text-neutral-400" />
@@ -396,9 +419,17 @@ export default function EmailDashboardPage() {
             onClick={() => {
               setStatusFilter(statusFilter === 'REPLIED' ? null : 'REPLIED');
             }}
-            className={`bg-white dark:bg-[#081224]/95 rounded-lg border p-4 text-left transition-all hover:shadow-md ${
-              statusFilter === 'REPLIED' ? 'border-neutral-400 ring-2 ring-neutral-200 dark:ring-cyan-500/20' : 'border-neutral-200 dark:border-white/10'
-            }`}
+            className={getDashboardStatCardClass(
+              dark,
+              cn(
+                'text-left transition-all hover:shadow-md',
+                statusFilter === 'REPLIED'
+                  ? dark
+                    ? 'border-cyan-400/35 ring-2 ring-cyan-500/20'
+                    : 'border-neutral-400 ring-2 ring-neutral-200'
+                  : ''
+              )
+            )}
           >
             <div className="flex items-center gap-3">
               <CheckCircle2 className="h-6 w-6 text-neutral-600 dark:text-neutral-400" />
@@ -413,9 +444,17 @@ export default function EmailDashboardPage() {
             onClick={() => {
               setStatusFilter(statusFilter === 'NO_REPLY_NEEDED' ? null : 'NO_REPLY_NEEDED');
             }}
-            className={`bg-white dark:bg-[#081224]/95 rounded-lg border p-4 text-left transition-all hover:shadow-md ${
-              statusFilter === 'NO_REPLY_NEEDED' ? 'border-neutral-400 ring-2 ring-neutral-200 dark:ring-cyan-500/20' : 'border-neutral-200 dark:border-white/10'
-            }`}
+            className={getDashboardStatCardClass(
+              dark,
+              cn(
+                'text-left transition-all hover:shadow-md',
+                statusFilter === 'NO_REPLY_NEEDED'
+                  ? dark
+                    ? 'border-cyan-400/35 ring-2 ring-cyan-500/20'
+                    : 'border-neutral-400 ring-2 ring-neutral-200'
+                  : ''
+              )
+            )}
           >
             <div className="flex items-center gap-3">
               <Clock className="h-6 w-6 text-neutral-600 dark:text-neutral-400" />
@@ -430,13 +469,21 @@ export default function EmailDashboardPage() {
             onClick={() => {
               setStatusFilter(null);
             }}
-            className={`bg-white dark:bg-[#081224]/95 rounded-lg border p-4 text-left transition-all hover:shadow-md ${
-              statusFilter === null ? 'border-neutral-500 ring-2 ring-neutral-200 dark:ring-cyan-500/20' : 'border-neutral-200 dark:border-white/10'
-            }`}
+            className={getDashboardStatCardClass(
+              dark,
+              cn(
+                'text-left transition-all hover:shadow-md',
+                statusFilter === null
+                  ? dark
+                    ? 'border-cyan-400/35 ring-2 ring-cyan-500/20'
+                    : 'border-neutral-500 ring-2 ring-neutral-200'
+                  : ''
+              )
+            )}
           >
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-neutral-100 dark:bg-[#0B1730]/88 rounded-lg border dark:border-white/10">
-                <Inbox className="h-5 w-5 text-neutral-600 dark:text-neutral-400" />
+              <div className={getDashboardIconSurfaceClass(dark, 'p-2')}>
+                <MessageSquare className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
               </div>
               <div>
                 <p className="text-2xl font-bold text-neutral-900 dark:text-white">{stats.totalThreads || 0}</p>
@@ -450,8 +497,8 @@ export default function EmailDashboardPage() {
       {/* Main Content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Thread List */}
-        <div className="lg:col-span-1 bg-white dark:bg-[#081224]/95 rounded-xl border border-neutral-200 dark:border-white/10 overflow-hidden shadow-sm">
-          <div className="p-4 border-b border-neutral-200 dark:border-white/10 space-y-3">
+        <div className={getDashboardPanelClass(dark, 'lg:col-span-1 overflow-hidden')}>
+          <div className={cn('p-4 border-b space-y-3', dark ? 'border-white/10' : 'border-neutral-200')}>
             <h2 className="font-semibold text-neutral-900 dark:text-white">{t('dashboard.emailPage.conversations')}</h2>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
@@ -460,7 +507,7 @@ export default function EmailDashboardPage() {
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 placeholder={locale === 'tr' ? 'Konu, isim veya e-posta ara...' : 'Search subject, name or email...'}
-                className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#081224] text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder:text-cyan-200/45 focus:outline-none focus:ring-2 focus:ring-neutral-300 dark:focus:ring-cyan-500/20"
+                className={getDashboardInputClass(dark, 'w-full pl-9 pr-3 py-2 text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-300 dark:focus:ring-cyan-500/20')}
               />
               {searchInput && (
                 <button
@@ -472,7 +519,7 @@ export default function EmailDashboardPage() {
               )}
             </div>
           </div>
-          <div className="divide-y divide-neutral-100 dark:divide-white/10 max-h-[600px] overflow-y-auto">
+          <div className={cn('divide-y max-h-[600px] overflow-y-auto', getDashboardDividerClass(dark))}>
             {loading ? (
               <div className="p-8 text-center">
                 <RefreshCw className="h-6 w-6 mx-auto text-neutral-400 animate-spin" />
@@ -498,9 +545,18 @@ export default function EmailDashboardPage() {
                   <button
                     key={thread.id}
                     onClick={() => setSelectedThreadId(thread.id)}
-                    className={`w-full text-left p-4 hover:bg-neutral-50 dark:hover:bg-white/[0.03] transition-colors ${
-                      isSelected ? 'bg-neutral-50 dark:bg-white/[0.03] border-l-4 border-neutral-400' : ''
-                    }`}
+                    className={getDashboardConversationItemClass(
+                      dark,
+                      isSelected,
+                      cn(
+                        'rounded-none border-x-0 border-t-0 border-b-0',
+                        isSelected
+                          ? dark
+                            ? 'border-l-4 border-l-cyan-400 bg-white/[0.03]'
+                            : 'border-l-4 border-l-neutral-400 bg-neutral-50'
+                          : 'border-l-4 border-l-transparent'
+                      )
+                    )}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
@@ -512,12 +568,12 @@ export default function EmailDashboardPage() {
                         </p>
                         <div className="flex items-center gap-2 mt-2">
                           {showStatusBadge && (
-                            <Badge className={`${statusStyle.bg} ${statusStyle.text} text-xs`}>
+                            <Badge className={getDashboardBadgeClass(dark, statusStyle.tone, 'text-xs')}>
                               {t(`dashboard.emailPage.status.${statusStyle.key}`)}
                             </Badge>
                           )}
                           {hasDraft && !showStatusBadge && (
-                              <Badge className="bg-neutral-100 text-neutral-700 dark:bg-white/8 dark:text-neutral-300 text-xs">
+                              <Badge className={getDashboardBadgeClass(dark, 'blue', 'text-xs')}>
                               {t('dashboard.emailPage.aiDraft')}
                             </Badge>
                           )}
@@ -548,7 +604,7 @@ export default function EmailDashboardPage() {
           {selectedThread ? (
             <>
               {/* Thread Header */}
-              <div className="bg-white dark:bg-[#081224]/95 rounded-xl border border-neutral-200 dark:border-white/10 p-4 shadow-sm">
+              <div className={getDashboardPanelClass(dark, 'p-4')}>
                 <div className="flex items-start justify-between">
                   <div>
                     <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">
@@ -574,17 +630,17 @@ export default function EmailDashboardPage() {
               </div>
 
               {/* Messages */}
-              <div className="bg-white dark:bg-[#081224]/95 rounded-xl border border-neutral-200 dark:border-white/10 p-4 max-h-[300px] overflow-y-auto shadow-sm">
+              <div className={getDashboardPanelClass(dark, 'p-4 max-h-[300px] overflow-y-auto')}>
                 <h3 className="font-medium text-neutral-900 dark:text-white mb-4">{t('dashboard.emailPage.conversation')}</h3>
                 <div className="space-y-4">
                   {selectedThread.messages?.map((message) => (
                     <div
                       key={message.id}
-                      className={`p-4 rounded-lg ${
-                        message.direction === 'INBOUND'
-                          ? 'bg-neutral-100 dark:bg-[#0B1730]/88 mr-8 border dark:border-white/10'
-                          : 'bg-neutral-50 dark:bg-[#081224]/70 ml-8 border dark:border-white/10'
-                      }`}
+                      className={getDashboardMessageBubbleClass(
+                        dark,
+                        message.direction === 'INBOUND' ? 'human' : 'assistant',
+                        message.direction === 'INBOUND' ? 'mr-8 max-w-none' : 'ml-8 max-w-none'
+                      )}
                     >
                       <div className="flex items-center justify-between mb-2">
                         <span className="font-medium text-sm">
@@ -610,7 +666,7 @@ export default function EmailDashboardPage() {
                             {message.attachments.map((att, idx) => (
                               <span
                                 key={idx}
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-neutral-50 dark:bg-[#0B1730]/88 text-xs text-neutral-600 dark:text-neutral-300 border border-neutral-200 dark:border-white/10"
+                                className={getDashboardInsetClass(dark, 'inline-flex items-center gap-1.5 px-2.5 py-1 text-xs text-neutral-600 dark:text-neutral-300')}
                               >
                                 <Paperclip className="h-3 w-3 flex-shrink-0" />
                                 <span className="truncate max-w-[180px]">{att.filename}</span>
@@ -631,7 +687,7 @@ export default function EmailDashboardPage() {
 
               {/* Draft Editor */}
               {getActiveDraft() && selectedThread.status !== 'CLOSED' && (
-                <div className="bg-white dark:bg-[#081224]/95 rounded-xl border border-neutral-200 dark:border-white/10 p-4 shadow-sm">
+                <div className={getDashboardPanelClass(dark, 'p-4')}>
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="font-medium text-neutral-900 dark:text-white flex items-center gap-2">
                       <Pencil className="h-4 w-4 text-blue-600 dark:text-blue-400" />
@@ -666,7 +722,7 @@ export default function EmailDashboardPage() {
                       placeholder={t('dashboard.emailPage.editResponsePlaceholder')}
                     />
                   ) : (
-                    <div className="bg-neutral-50 dark:bg-[#0B1730]/88 rounded-lg p-4 min-h-[200px] text-sm whitespace-pre-wrap dark:text-neutral-200 border dark:border-white/10">
+                    <div className={getDashboardInsetClass(dark, 'p-4 min-h-[200px] text-sm whitespace-pre-wrap dark:text-neutral-200')}>
                       {editedContent}
                     </div>
                   )}
@@ -699,7 +755,7 @@ export default function EmailDashboardPage() {
 
               {/* PENDING_REPLY or NEW - No draft yet, show action buttons */}
               {!getActiveDraft() && (selectedThread.status === 'PENDING_REPLY' || selectedThread.status === 'NEW') && (
-                <div className="bg-neutral-50 dark:bg-[#0B1730]/88 border border-neutral-200 dark:border-white/10 rounded-xl p-4">
+                <div className={getDashboardInsetClass(dark, 'rounded-xl p-4')}>
                   <div className="flex items-start gap-3">
                     <AlertCircle className="h-5 w-5 text-neutral-600 dark:text-neutral-400 mt-0.5" />
                     <div className="flex-1">
@@ -736,7 +792,7 @@ export default function EmailDashboardPage() {
 
               {/* NO_REPLY_NEEDED - Show generate draft option */}
               {selectedThread.status === 'NO_REPLY_NEEDED' && !getActiveDraft() && (
-                <div className="bg-neutral-50 dark:bg-[#0B1730]/88 border border-neutral-200 dark:border-white/10 rounded-xl p-4">
+                <div className={getDashboardInsetClass(dark, 'rounded-xl p-4')}>
                   <div className="flex items-start gap-3">
                     <AlertCircle className="h-5 w-5 text-neutral-600 dark:text-neutral-400 mt-0.5" />
                     <div className="flex-1">
@@ -764,14 +820,14 @@ export default function EmailDashboardPage() {
 
               {/* Thread closed */}
               {selectedThread.status === 'CLOSED' && (
-                <div className="bg-neutral-100 dark:bg-[#0B1730]/88 border border-neutral-200 dark:border-white/10 rounded-xl p-4 text-center">
+                <div className={getDashboardInsetClass(dark, 'rounded-xl p-4 text-center')}>
                   <CheckCircle2 className="h-8 w-8 mx-auto text-neutral-400 mb-2" />
                   <p className="text-neutral-600 dark:text-neutral-400">{t('dashboard.emailPage.conversationClosed')}</p>
                 </div>
               )}
             </>
           ) : (
-            <div className="bg-white dark:bg-[#081224]/95 rounded-xl border border-neutral-200 dark:border-white/10 p-12 text-center shadow-sm">
+            <div className={getDashboardPanelClass(dark, 'p-12 text-center')}>
               <MessageSquare className="h-12 w-12 mx-auto text-neutral-300 dark:text-neutral-600 mb-4" />
               <h3 className="text-lg font-medium text-neutral-900 dark:text-white mb-2">
                 {t('dashboard.emailPage.selectConversation')}
