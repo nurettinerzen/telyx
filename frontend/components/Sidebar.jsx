@@ -235,7 +235,7 @@ export default function Sidebar({ user, credits, business }) {
 
       return {
         key: itemKey,
-        icon: SIDEBAR_ICON_MAP[item.iconKey],
+        icon: SIDEBAR_ICON_MAP[item.iconKey] || Bot,
         label: getNavigationLabel(itemKey, locale),
         href: isAdminItem ? buildAdminHref(item.href) : item.href,
         featureId: item.featureId,

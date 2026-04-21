@@ -125,6 +125,7 @@ export const NAVIGATION_ITEMS = {
     descriptionEn: 'View WhatsApp conversations in one place, take them over, and reply live.',
     href: '/dashboard/whatsapp',
     group: 'operations',
+    iconKey: 'conversations',
   },
   emailSnippets: {
     labelTr: 'Hızlı Yanıtlar',
@@ -133,6 +134,7 @@ export const NAVIGATION_ITEMS = {
     descriptionEn: 'Create and manage reusable email reply snippets.',
     href: '/dashboard/email-snippets',
     group: 'operations',
+    iconKey: 'email',
   },
   marketplaceQa: {
     labelTr: 'Pazaryeri Q&A',
@@ -141,6 +143,7 @@ export const NAVIGATION_ITEMS = {
     descriptionEn: 'Manage Trendyol and Hepsiburada questions with AI drafts.',
     href: '/dashboard/marketplace-qa',
     group: 'operations',
+    iconKey: 'marketplaceQa',
   },
   complaints: {
     labelTr: 'Şikayet Yönetimi',
@@ -149,6 +152,7 @@ export const NAVIGATION_ITEMS = {
     descriptionEn: 'Manage Sikayetvar complaints with AI drafts.',
     href: '/dashboard/complaints',
     group: 'operations',
+    iconKey: 'complaints',
   },
   analytics: {
     labelTr: 'Analitik',

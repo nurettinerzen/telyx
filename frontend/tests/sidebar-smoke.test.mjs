@@ -41,6 +41,16 @@ test('critical sidebar items keep their intended permission and feature gates', 
   assert.equal(NAVIGATION_ITEMS.campaigns.featureId, 'batch_calls');
 });
 
+test('sidebar navigation items always define an icon key', () => {
+  for (const [itemKey, item] of Object.entries(NAVIGATION_ITEMS)) {
+    assert.ok(item.iconKey, `Missing iconKey for navigation item "${itemKey}"`);
+  }
+
+  for (const [itemKey, item] of Object.entries(ADMIN_NAVIGATION_ITEMS)) {
+    assert.ok(item.iconKey, `Missing iconKey for admin navigation item "${itemKey}"`);
+  }
+});
+
 test('owner sidebar smoke test covers all core sections and items', () => {
   const canAccess = createRolePermissionChecker('OWNER');
 
