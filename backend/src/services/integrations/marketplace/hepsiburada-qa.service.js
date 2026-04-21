@@ -303,6 +303,10 @@ class HepsiburadaQaService {
     return questions.filter((question) => question.externalId && question.questionText);
   }
 
+  async getProductContext() {
+    return null;
+  }
+
   async postAnswer(businessId, issueNumber, answerText) {
     const credentials = await this.getCredentials(businessId);
     this.validateCredentials(credentials);

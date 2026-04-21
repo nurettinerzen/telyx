@@ -9,6 +9,7 @@ import {
 const TRENDYOL_API_BASE_URL = process.env.TRENDYOL_API_BASE_URL || 'https://apigw.trendyol.com';
 const QUESTION_LIST_PATH = '/integration/qna/sellers/{sellerId}/questions/filter';
 const ANSWER_PATH = '/integration/qna/sellers/{sellerId}/questions/{questionId}/answers';
+const APPROVED_PRODUCTS_PATH = '/integration/product/sellers/{sellerId}/products/approved';
 
 function createBasicAuthHeader(username, password) {
   return `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`;
@@ -35,6 +36,20 @@ function buildAnswerUrl(sellerId, questionId) {
       .replace('{questionId}', encodeURIComponent(String(questionId))),
     TRENDYOL_API_BASE_URL
   ).toString();
+}
+
+function buildApprovedProductsUrl(sellerId, query = {}) {
+  const url = new URL(
+    APPROVED_PRODUCTS_PATH.replace('{sellerId}', encodeURIComponent(String(sellerId))),
+    TRENDYOL_API_BASE_URL
+  );
+
+  Object.entries(query).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === '') return;
+    url.searchParams.append(key, String(value));
+  });
+
+  return url.toString();
 }
 
 async function safeReadResponse(response) {
@@ -64,6 +79,41 @@ function normalizeQuestion(item = {}) {
     platformStatus: item.status || null,
     answeredAt: item.answer?.creationDate ? new Date(item.answer.creationDate) : null,
     raw: item,
+  };
+}
+
+function normalizeAttributeValues(attribute = {}) {
+  if (Array.isArray(attribute.attributeValues) && attribute.attributeValues.length > 0) {
+    return attribute.attributeValues
+      .map((item) => item?.attributeValue)
+      .filter(Boolean)
+      .map((value) => `${attribute.attributeName}: ${value}`);
+  }
+
+  if (attribute.attributeName && attribute.attributeValue) {
+    return [`${attribute.attributeName}: ${attribute.attributeValue}`];
+  }
+
+  return [];
+}
+
+function normalizeProductContext(item = {}) {
+  const factLines = [
+    ...(Array.isArray(item.attributes) ? item.attributes.flatMap(normalizeAttributeValues) : []),
+    ...(Array.isArray(item.variantAttributes) ? item.variantAttributes.flatMap(normalizeAttributeValues) : []),
+  ].filter(Boolean);
+
+  return {
+    title: item.title || null,
+    barcode: item.barcode || null,
+    stockCode: item.stockCode || null,
+    brand: item.brand?.name || item.brand || null,
+    categoryName: item.category?.name || item.categoryName || null,
+    description: item.description || null,
+    productUrl: item.productUrl || null,
+    productImageUrl: Array.isArray(item.images) ? item.images[0]?.url || null : null,
+    facts: factLines,
+    source: 'trendyol-product-api',
   };
 }
 
@@ -207,6 +257,38 @@ class TrendyolQaService {
     }
 
     return questions.filter((question) => question.externalId && question.questionText);
+  }
+
+  async getProductContext(businessId, { barcode } = {}) {
+    if (!barcode) {
+      return null;
+    }
+
+    try {
+      const credentials = await this.getCredentials(businessId);
+      this.validateCredentials(credentials);
+
+      const payload = await this.request(
+        credentials,
+        buildApprovedProductsUrl(credentials.sellerId, {
+          page: 0,
+          size: 1,
+          barcode,
+          supplierId: credentials.sellerId,
+        }),
+        { method: 'GET' }
+      );
+
+      const product = Array.isArray(payload?.content) ? payload.content[0] : null;
+      if (!product) {
+        return null;
+      }
+
+      return normalizeProductContext(product);
+    } catch (error) {
+      console.warn(`Trendyol product context lookup failed for barcode ${barcode}:`, error.message);
+      return null;
+    }
   }
 
   async postAnswer(businessId, questionId, answerText) {
