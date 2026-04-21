@@ -1072,12 +1072,12 @@ const handleShopifyConnect = async () => {
     const isSikayetvar = integration.type === 'SIKAYETVAR';
     const isMarketplaceBeta = isTrendyol || isHepsiburada || isAmazon || isSikayetvar;
     const isMarketplaceImageIcon = isTrendyol || isHepsiburada;
+    const disabled = isEcommerceDisabled(integration.type);
     const iconClassName = isAmazon
       ? 'h-8 w-8 object-contain'
       : isMarketplaceImageIcon
         ? 'h-7 w-7 rounded-md object-cover'
         : `h-6 w-6 ${disabled ? 'text-neutral-400 dark:text-neutral-500' : 'text-neutral-600 dark:text-neutral-400'}`;
-    const disabled = isEcommerceDisabled(integration.type);
     const marketplaceStatus = isTrendyol
       ? trendyolStatus
       : (isHepsiburada ? hepsiburadaStatus : (isAmazon ? amazonStatus : null));
