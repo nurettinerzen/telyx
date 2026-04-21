@@ -140,7 +140,10 @@ export default function VoiceCard({ voice, onSelect, isSelected, compact = false
         <h3 className={`${compact ? 'text-sm' : 'text-lg'} font-semibold text-neutral-900 dark:text-white ${compact ? 'mb-1' : 'mb-2'}`}>{voice.name}</h3>
 
         <div className="flex flex-wrap gap-1.5 mb-2">
-          <Badge variant="secondary" className="text-xs">
+          <Badge
+            variant="secondary"
+            className="text-xs bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700"
+          >
             {t(`dashboard.voicesPage.genders.${voice.gender?.toLowerCase()}`) || voice.gender}
           </Badge>
           {!compact && (
