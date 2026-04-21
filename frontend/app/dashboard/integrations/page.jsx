@@ -1127,7 +1127,7 @@ const handleShopifyConnect = async () => {
               : 'border-neutral-200 bg-white hover:shadow-md'
         )}
       >
-        <div className="flex items-start justify-between mb-4">
+        <div className="flex items-center justify-between mb-4">
           <div className="flex min-h-10 items-center gap-3">
             <div className={CARD_ICON_WRAPPER_CLASS}>
               <Icon className={iconClassName} />
@@ -1408,7 +1408,7 @@ const handleShopifyConnect = async () => {
                       : 'border-neutral-200 bg-white hover:shadow-md'
               )}
             >
-              <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center justify-between mb-4">
                 <div className="flex min-h-10 items-center gap-3">
                   <div className={CARD_ICON_WRAPPER_CLASS}>
                     <IntegrationLogo type="CUSTOM" className="h-6 w-6 object-contain" />
@@ -1494,7 +1494,7 @@ const handleShopifyConnect = async () => {
 
           {/* Gmail Card */}
           <div className={`${STANDARD_CARD_CLASS} bg-white dark:bg-[#081224]/95 hover:shadow-md ${emailStatus?.connected && emailStatus?.provider === 'GMAIL' ? 'border-neutral-400 dark:border-cyan-500/35' : 'border-neutral-200 dark:border-white/10'}`}>
-            <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center justify-between mb-4">
               <div className="flex min-h-10 items-center gap-3">
                 <div className={CARD_ICON_WRAPPER_CLASS}>
                   <IntegrationLogo type="GMAIL" className="h-6 w-6 object-contain" />
@@ -1532,7 +1532,7 @@ const handleShopifyConnect = async () => {
 
           {/* Outlook Card */}
           <div className={`${STANDARD_CARD_CLASS} bg-white dark:bg-[#081224]/95 hover:shadow-md ${emailStatus?.connected && emailStatus?.provider === 'OUTLOOK' ? 'border-neutral-400 dark:border-cyan-500/35' : 'border-neutral-200 dark:border-white/10'}`}>
-            <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center justify-between mb-4">
               <div className="flex min-h-10 items-center gap-3">
                 <div className={CARD_ICON_WRAPPER_CLASS}>
                   <IntegrationLogo type="OUTLOOK" className="h-6 w-6 object-contain" />
