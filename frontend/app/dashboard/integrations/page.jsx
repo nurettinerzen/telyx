@@ -154,7 +154,7 @@ const INTEGRATION_LOGOS = {
 };
 
 const CARD_ICON_WRAPPER_CLASS = 'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-neutral-200 bg-white dark:border-white/10 dark:bg-[#0B1730]/88';
-const STANDARD_CARD_CLASS = 'flex h-full min-h-[18rem] flex-col rounded-xl border p-6 transition-shadow';
+const STANDARD_CARD_CLASS = 'flex h-full min-h-[16rem] flex-col rounded-xl border p-6 transition-shadow';
 
 const LockedPlanBadge = ({ text }) => (
   <div tabIndex={0} className="group relative inline-flex outline-none">
@@ -1236,12 +1236,12 @@ const handleShopifyConnect = async () => {
         )}
 
         {isWhatsApp && shouldShowWhatsappDetails && (
-          <div className="mb-4 space-y-2">
-            <div className="grid grid-cols-12 items-center gap-2 text-xs text-neutral-600 dark:text-neutral-300">
-              <span className="col-span-5 lowercase text-neutral-500 dark:text-cyan-200/55">
+          <div className="mb-3 space-y-1.5">
+            <div className="flex items-center justify-between gap-2 text-xs text-neutral-600 dark:text-neutral-300">
+              <span className="shrink-0 text-neutral-500 dark:text-cyan-200/55">
                 {t('dashboard.integrationsPage.whatsappConnectedNumber')}:
               </span>
-              <span className="col-span-7 truncate text-right font-medium text-neutral-900 dark:text-white">
+              <span className="truncate text-right font-medium text-neutral-900 dark:text-white">
                 {whatsappNumberLabel}
               </span>
             </div>
