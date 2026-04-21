@@ -45,6 +45,7 @@ import {
   useMarketplaceQaStats,
   useMarketplaceQuestions,
   useRejectMarketplaceQuestion,
+  useSyncMarketplaceQuestions,
   useUpdateMarketplaceQaSettings,
 } from '@/hooks/useMarketplaceQA';
 
@@ -108,9 +109,19 @@ function getMarketplaceQaCopy(locale) {
       save: isTr ? 'Ayarları Kaydet' : 'Save Settings',
       saving: isTr ? 'Kaydediliyor' : 'Saving',
     },
+    sync: {
+      title: isTr ? 'Soru senkronu' : 'Question sync',
+      description: isTr
+        ? 'Bağlı pazaryeri hesaplarındaki yeni soruları şimdi çekin ve AI taslaklarını hazırlayın.'
+        : 'Pull new questions from connected marketplaces now and prepare AI drafts.',
+      action: isTr ? 'Senkronize Et' : 'Sync Now',
+      syncing: isTr ? 'Senkronize ediliyor...' : 'Syncing...',
+      neverSynced: isTr ? 'Henüz senkron yapılmadı' : 'No sync has run yet',
+      lastSyncPrefix: isTr ? 'Son senkron' : 'Last sync',
+    },
     states: {
       loading: isTr ? 'Sorular yükleniyor...' : 'Loading questions...',
-      empty: isTr ? 'Seçilen filtrelerle eşleşen soru bulunamadı.' : 'No questions matched the selected filters.',
+      empty: isTr ? 'Henüz soru görünmüyor. Yeni soruları çekmek için senkron başlatabilirsiniz.' : 'No questions are visible yet. Run a sync to pull new marketplace questions.',
       page: isTr ? 'Sayfa' : 'Page',
       previous: isTr ? 'Önceki' : 'Previous',
       next: isTr ? 'Sonraki' : 'Next',
@@ -137,6 +148,8 @@ function getMarketplaceQaCopy(locale) {
       rejectError: isTr ? 'Soru reddedilemedi' : 'Failed to reject the question',
       settingsSuccess: isTr ? 'Pazaryeri ayarları kaydedildi' : 'Marketplace settings saved',
       settingsError: isTr ? 'Ayarlar kaydedilemedi' : 'Failed to save settings',
+      syncSuccess: isTr ? 'Pazaryeri soruları senkronize edildi' : 'Marketplace questions synced',
+      syncError: isTr ? 'Pazaryeri soruları senkronize edilemedi' : 'Failed to sync marketplace questions',
     },
     statuses: {
       PENDING: isTr ? 'Onay bekliyor' : 'Pending approval',
@@ -300,6 +313,7 @@ export default function MarketplaceQaPage() {
   const editQuestion = useEditMarketplaceQuestion();
   const rejectQuestion = useRejectMarketplaceQuestion();
   const updateSettings = useUpdateMarketplaceQaSettings();
+  const syncQuestions = useSyncMarketplaceQuestions();
 
   useEffect(() => {
     if (!settingsQuery.data?.settings) {
@@ -320,6 +334,11 @@ export default function MarketplaceQaPage() {
   const items = questionsQuery.data?.items || [];
   const pagination = questionsQuery.data?.pagination || { page: 1, totalPages: 1 };
   const stats = statsQuery.data || {};
+  const connectedSettings = settingsQuery.data?.settings || [];
+  const latestSyncAt = connectedSettings
+    .map((item) => item.lastSync)
+    .filter(Boolean)
+    .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0] || null;
 
   const handleApprove = async (item) => {
     try {
@@ -390,6 +409,17 @@ export default function MarketplaceQaPage() {
     }
   };
 
+  const handleSync = async () => {
+    try {
+      const response = await syncQuestions.mutateAsync();
+      const created = response.data?.result?.created || 0;
+      const fetched = response.data?.result?.fetched || 0;
+      toast.success(`${copy.toasts.syncSuccess}${fetched || created ? ` (${fetched} çekildi, ${created} yeni)` : ''}`);
+    } catch (error) {
+      toast.error(error.response?.data?.error || copy.toasts.syncError);
+    }
+  };
+
   if (!hasConnectedIntegration) {
     return (
       <div className="space-y-8">
@@ -419,6 +449,36 @@ export default function MarketplaceQaPage() {
         locale={locale}
         help={pageHelp ? { tooltipTitle: pageHelp.tooltipTitle, tooltipBody: pageHelp.tooltipBody, quickSteps: pageHelp.quickSteps } : undefined}
       />
+
+      <div className="rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-950">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="text-sm font-semibold text-neutral-900 dark:text-white">{copy.sync.title}</div>
+            <div className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+              {copy.sync.description}
+            </div>
+            <div className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
+              {latestSyncAt
+                ? `${copy.sync.lastSyncPrefix}: ${formatDate(latestSyncAt, locale)}`
+                : copy.sync.neverSynced}
+            </div>
+          </div>
+
+          <Button onClick={handleSync} disabled={syncQuestions.isPending}>
+            {syncQuestions.isPending ? (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                {copy.sync.syncing}
+              </>
+            ) : (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                {copy.sync.action}
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MarketplaceStatCard title={copy.stats.todayQuestions.title} value={stats.todayQuestions || 0} hint={copy.stats.todayQuestions.hint} />
@@ -555,7 +615,25 @@ export default function MarketplaceQaPage() {
           </div>
         ) : items.length === 0 ? (
           <div className="rounded-xl border border-neutral-200 bg-white p-8 text-center text-neutral-500 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-400">
-            {copy.states.empty}
+            <p>{copy.states.empty}</p>
+            <Button
+              variant="outline"
+              className="mt-4"
+              onClick={handleSync}
+              disabled={syncQuestions.isPending}
+            >
+              {syncQuestions.isPending ? (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  {copy.sync.syncing}
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  {copy.sync.action}
+                </>
+              )}
+            </Button>
           </div>
         ) : (
           items.map((item) => (

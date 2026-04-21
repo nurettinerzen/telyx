@@ -154,6 +154,7 @@ const INTEGRATION_LOGOS = {
 };
 
 const CARD_ICON_WRAPPER_CLASS = 'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-neutral-200 bg-white dark:border-white/10 dark:bg-[#0B1730]/88';
+const STANDARD_CARD_CLASS = 'flex h-full min-h-[300px] flex-col rounded-xl border p-6 transition-shadow';
 
 const LockedPlanBadge = ({ text }) => (
   <div tabIndex={0} className="group relative inline-flex outline-none">
@@ -1117,7 +1118,7 @@ const handleShopifyConnect = async () => {
       <div
         key={integration.type}
         className={cn(
-          'flex h-full flex-col rounded-xl border p-6 transition-shadow',
+          STANDARD_CARD_CLASS,
           dark
             ? isLocked || disabled
               ? 'border-white/10 bg-[#0B1730]/88'
@@ -1134,6 +1135,11 @@ const handleShopifyConnect = async () => {
             </div>
             <div className="min-h-10 flex items-center">
               <div className="flex flex-wrap items-center gap-2">
+                {isMarketplaceBeta && (
+                  <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 text-xs border border-amber-200 dark:border-amber-800/40">
+                    {marketplaceCopy.beta}
+                  </Badge>
+                )}
                 <h3 className={`font-semibold ${disabled ? 'text-neutral-500 dark:text-neutral-400' : 'text-neutral-900 dark:text-white'}`}>{integration.name}</h3>
                 {isLocked && (
                   <LockedPlanBadge text={t('dashboard.integrationsPage.requiresProPlan')} />
@@ -1149,11 +1155,7 @@ const handleShopifyConnect = async () => {
               </div>
             </div>
           </div>
-          {isMarketplaceBeta ? (
-            <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 text-xs border border-amber-200 dark:border-amber-800/40">
-              {marketplaceCopy.beta}
-            </Badge>
-          ) : isEffectivelyConnected && (
+          {isEffectivelyConnected && (
             <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-xs">
               {t('dashboard.integrationsPage.connected')}
             </Badge>
@@ -1170,11 +1172,7 @@ const handleShopifyConnect = async () => {
         <p className="min-h-10 text-sm text-neutral-600 dark:text-neutral-400 mb-4 line-clamp-2">{getCategoryDescription(integration.type)}</p>
 
         {(isTrendyol || isHepsiburada) && isEffectivelyConnected && (
-          <div className="space-y-2 mb-4">
-            <p className="text-xs text-emerald-700 dark:text-emerald-300 inline-flex items-center gap-1">
-              <CheckCircle2 className="h-3 w-3" />
-              {marketplaceCopy.connectionActive}
-            </p>
+          <div className="mb-4 min-h-[52px] space-y-2">
             {marketplaceIdentifier && (
               <p className="text-xs text-neutral-700 dark:text-neutral-300">
                 {isTrendyol ? marketplaceCopy.sellerId : marketplaceCopy.merchantId}: <span className="font-medium">{marketplaceIdentifier}</span>
@@ -1185,18 +1183,11 @@ const handleShopifyConnect = async () => {
                 {marketplaceCopy.lastSync}: {formatWhatsAppTimestamp(marketplaceStatus.lastSync)}
               </p>
             )}
-            <p className="text-xs text-neutral-500 dark:text-neutral-400">
-              {marketplaceCopy.marketplacePanel}: <button className="underline" onClick={() => { window.location.href = '/dashboard/marketplace-qa'; }}>{marketplaceCopy.marketplacePanelCta}</button>
-            </p>
           </div>
         )}
 
         {isAmazon && isEffectivelyConnected && (
-          <div className="space-y-2 mb-4">
-            <p className="text-xs text-emerald-700 dark:text-emerald-300 inline-flex items-center gap-1">
-              <CheckCircle2 className="h-3 w-3" />
-              {marketplaceCopy.amazonBuyerMessaging}
-            </p>
+          <div className="mb-4 min-h-[52px] space-y-2">
             {marketplaceIdentifier && (
               <p className="text-xs text-neutral-700 dark:text-neutral-300">
                 {marketplaceCopy.sellingPartnerId}: <span className="font-medium">{marketplaceIdentifier}</span>
@@ -1205,11 +1196,6 @@ const handleShopifyConnect = async () => {
             {marketplaceStatus?.marketplaceId && (
               <p className="text-xs text-neutral-700 dark:text-neutral-300">
                 {marketplaceCopy.marketplaceId}: <span className="font-medium">{marketplaceStatus.marketplaceId}</span>
-              </p>
-            )}
-            {marketplaceStatus?.sellerCentralUrl && (
-              <p className="text-xs text-neutral-500 dark:text-neutral-400 break-all">
-                Seller Central: <span className="font-medium">{marketplaceStatus.sellerCentralUrl}</span>
               </p>
             )}
             {marketplaceStatus?.useSandbox && (
@@ -1222,12 +1208,6 @@ const handleShopifyConnect = async () => {
                 {marketplaceCopy.amazonAuthorizedMarketplaces}: {marketplaceStatus.authorizedMarketplaces.map((item) => item.marketplaceName || item.marketplaceId).filter(Boolean).join(', ')}
               </p>
             )}
-            <p className="text-xs text-neutral-500 dark:text-neutral-400">
-              {marketplaceCopy.amazonProductQaUnsupported}
-            </p>
-            <p className="text-xs text-neutral-500 dark:text-neutral-400">
-              {marketplaceCopy.amazonRolesHint}
-            </p>
             {marketplaceStatus?.lastValidationError && (
               <p className="text-xs text-amber-700 dark:text-amber-300">
                 {marketplaceStatus.lastValidationError}
@@ -1242,11 +1222,7 @@ const handleShopifyConnect = async () => {
         )}
 
         {isSikayetvar && isEffectivelyConnected && (
-          <div className="space-y-2 mb-4">
-            <p className="text-xs text-emerald-700 dark:text-emerald-300 inline-flex items-center gap-1">
-              <CheckCircle2 className="h-3 w-3" />
-              {marketplaceCopy.connectionActive}
-            </p>
+          <div className="mb-4 min-h-[52px] space-y-2">
             {complaintIdentifier && (
               <p className="text-xs text-neutral-700 dark:text-neutral-300">
                 {marketplaceCopy.company}: <span className="font-medium">{complaintIdentifier}</span>
@@ -1262,9 +1238,6 @@ const handleShopifyConnect = async () => {
                 {marketplaceCopy.lastSync}: {formatWhatsAppTimestamp(complaintStatus.lastSync)}
               </p>
             )}
-            <p className="text-xs text-neutral-500 dark:text-neutral-400">
-              {marketplaceCopy.complaintsPanel}: <button className="underline" onClick={() => { window.location.href = '/dashboard/complaints'; }}>{marketplaceCopy.complaintsPanelCta}</button>
-            </p>
           </div>
         )}
 
@@ -1305,7 +1278,7 @@ const handleShopifyConnect = async () => {
           </div>
         )}
 
-        <div className="mt-auto flex gap-2 pt-2">
+        <div className="mt-auto flex flex-wrap gap-2 pt-2">
           {isLocked ? (
             <Button
               size="sm"
@@ -1353,6 +1326,26 @@ const handleShopifyConnect = async () => {
                     </Button>
                   )}
                 </>
+              )}
+            </>
+          ) : (isTrendyol || isHepsiburada) && isEffectivelyConnected ? (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={() => { window.location.href = '/dashboard/marketplace-qa'; }}
+              >
+                <MessageSquare className="mr-2 h-4 w-4" />
+                {marketplaceCopy.marketplacePanelCta}
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => handleTest(integration)}>
+                {t('dashboard.integrationsPage.testIntegration')}
+              </Button>
+              {can('integrations:connect') && (
+                <Button variant="outline" size="sm" onClick={() => handleDisconnect(integration)}>
+                  {t('dashboard.integrationsPage.disconnect')}
+                </Button>
               )}
             </>
           ) : whatsappConnected ? (
@@ -1418,7 +1411,7 @@ const handleShopifyConnect = async () => {
             return (
             <div
               className={cn(
-                'flex h-full flex-col rounded-xl border p-6 transition-shadow',
+                STANDARD_CARD_CLASS,
                 dark
                   ? isCRMLocked
                     ? 'border-white/10 bg-[#0B1730]/88'
@@ -1517,7 +1510,7 @@ const handleShopifyConnect = async () => {
           })()}
 
           {/* Gmail Card */}
-          <div className={`flex h-full flex-col bg-white dark:bg-[#081224]/95 rounded-xl border p-6 hover:shadow-md transition-shadow ${emailStatus?.connected && emailStatus?.provider === 'GMAIL' ? 'border-neutral-400 dark:border-cyan-500/35' : 'border-neutral-200 dark:border-white/10'}`}>
+          <div className={`${STANDARD_CARD_CLASS} bg-white dark:bg-[#081224]/95 hover:shadow-md ${emailStatus?.connected && emailStatus?.provider === 'GMAIL' ? 'border-neutral-400 dark:border-cyan-500/35' : 'border-neutral-200 dark:border-white/10'}`}>
             <div className="flex items-start justify-between mb-4">
               <div className="flex min-h-10 items-center gap-3">
                 <div className={CARD_ICON_WRAPPER_CLASS}>
@@ -1555,7 +1548,7 @@ const handleShopifyConnect = async () => {
           </div>
 
           {/* Outlook Card */}
-          <div className={`flex h-full flex-col bg-white dark:bg-[#081224]/95 rounded-xl border p-6 hover:shadow-md transition-shadow ${emailStatus?.connected && emailStatus?.provider === 'OUTLOOK' ? 'border-neutral-400 dark:border-cyan-500/35' : 'border-neutral-200 dark:border-white/10'}`}>
+          <div className={`${STANDARD_CARD_CLASS} bg-white dark:bg-[#081224]/95 hover:shadow-md ${emailStatus?.connected && emailStatus?.provider === 'OUTLOOK' ? 'border-neutral-400 dark:border-cyan-500/35' : 'border-neutral-200 dark:border-white/10'}`}>
             <div className="flex items-start justify-between mb-4">
               <div className="flex min-h-10 items-center gap-3">
                 <div className={CARD_ICON_WRAPPER_CLASS}>

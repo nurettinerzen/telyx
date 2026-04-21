@@ -567,7 +567,8 @@ export default function SubscriptionPage() {
   const writtenAddOnCatalog = subscription?.addOnCatalog?.written || [];
   const voiceAddOnCatalog = subscription?.addOnCatalog?.voice || [];
   const currentPlanPricing = subscription ? getPlanPricing(subscription.plan) : null;
-  const showSubscriptionManagement = !['FREE', 'TRIAL', 'PAYG'].includes(subscription?.plan);
+  const showSubscriptionManagement = Boolean(subscription?.stripeSubscriptionId)
+    && !['FREE', 'TRIAL', 'PAYG'].includes(subscription?.plan);
   const canSubmitCancellation = Boolean(selectedCancellationReason)
     && (selectedCancellationReason !== 'OTHER' || Boolean(cancellationReasonDetail.trim()));
   const pendingPlanName = subscription?.pendingPlanId

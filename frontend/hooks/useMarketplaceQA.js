@@ -67,6 +67,17 @@ function invalidateMarketplaceQaQueries(queryClient) {
   queryClient.invalidateQueries({ queryKey: ['integrations', 'hepsiburada', 'status'] });
 }
 
+export function useSyncMarketplaceQuestions() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      return await apiClient.post('/api/marketplace-qa/sync');
+    },
+    onSuccess: () => invalidateMarketplaceQaQueries(queryClient),
+  });
+}
+
 export function useApproveMarketplaceQuestion() {
   const queryClient = useQueryClient();
 
@@ -110,4 +121,3 @@ export function useUpdateMarketplaceQaSettings() {
     onSuccess: () => invalidateMarketplaceQaQueries(queryClient),
   });
 }
-

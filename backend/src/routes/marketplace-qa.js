@@ -11,6 +11,7 @@ import {
   normalizeQaSettings,
   truncateMarketplaceAnswer,
 } from '../services/marketplace/qaShared.js';
+import { processMarketplaceQuestions } from '../services/marketplace/qaWorker.js';
 
 const router = express.Router();
 const DEFAULT_PAGE_SIZE = 20;
@@ -171,6 +172,21 @@ router.get('/questions', checkPermission('campaigns:view'), async (req, res) => 
   } catch (error) {
     console.error('Marketplace questions list error:', error);
     res.status(500).json({ error: 'Pazaryeri sorulari getirilemedi' });
+  }
+});
+
+router.post('/sync', checkPermission('campaigns:control'), async (req, res) => {
+  try {
+    const result = await processMarketplaceQuestions({ businessId: req.businessId });
+
+    res.json({
+      success: true,
+      message: 'Pazaryeri sorulari senkronize edildi',
+      result,
+    });
+  } catch (error) {
+    console.error('Marketplace manual sync error:', error);
+    res.status(500).json({ error: 'Pazaryeri sorulari senkronize edilemedi' });
   }
 });
 

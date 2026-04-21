@@ -290,7 +290,7 @@ export default function EnterpriseAdminPage() {
               </div>
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Toplam İşletme</p>
-                <p className="text-xl font-semibold text-gray-900 dark:text-white">{stats.totalBusinesses}</p>
+                <p className="text-xl font-semibold text-gray-900 dark:text-white">{stats.businesses?.total || 0}</p>
               </div>
             </div>
           </div>

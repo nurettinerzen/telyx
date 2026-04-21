@@ -131,9 +131,11 @@ async function autoPostIfAllowed({
   return { autoPosted: true, postResult };
 }
 
-export async function processMarketplaceQuestions() {
+export async function processMarketplaceQuestions(options = {}) {
+  const targetBusinessId = options?.businessId || null;
   const summary = {
     startedAt: new Date().toISOString(),
+    targetBusinessId,
     businessesProcessed: 0,
     integrationsProcessed: 0,
     fetched: 0,
@@ -147,6 +149,7 @@ export async function processMarketplaceQuestions() {
 
   const businesses = await prisma.business.findMany({
     where: {
+      ...(targetBusinessId ? { id: targetBusinessId } : {}),
       integrations: {
         some: {
           type: { in: SUPPORTED_MARKETPLACE_TYPES },
