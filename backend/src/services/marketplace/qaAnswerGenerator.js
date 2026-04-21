@@ -1,4 +1,3 @@
-import OpenAI from 'openai';
 import prisma from '../../prismaClient.js';
 import { buildBusinessIdentity } from '../businessIdentity.js';
 import { getGeminiModel, hasGeminiApiKey, isGeminiGenerationFailure } from '../gemini-utils.js';
@@ -7,14 +6,12 @@ import { truncateMarketplaceAnswer } from './qaShared.js';
 import { buildMarketplaceProductContextBlock, resolveMarketplaceProductContext } from './productContextService.js';
 
 const MARKETPLACE_QA_MODEL = process.env.MARKETPLACE_QA_MODEL || 'gemini-2.5-flash';
-const MARKETPLACE_QA_OPENAI_MODEL = process.env.MARKETPLACE_QA_OPENAI_MODEL || 'gpt-4o-mini';
 const MAX_MARKETPLACE_ANSWER_LENGTH = 2000;
 const QUESTION_STOPWORDS = new Set([
   'acaba', 'ama', 'bir', 'bu', 'da', 'de', 'diye', 'en', 'gibi', 'icin', 'için', 'ile', 'ilemi', 'ilemi',
   'mı', 'mi', 'mu', 'mü', 'muhtemel', 'nasil', 'nasıl', 'olan', 'olarak', 'sadece', 'seklinde', 'şeklinde',
   'var', 'yapar', 'yaparmi', 'yaparmi', 'uyumlu', 'uyumlu_mu', 've', 'veya', 'ya', 'yani'
 ]);
-const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
 
 function getLanguageLabel(language) {
   const normalized = String(language || 'tr').trim().toLowerCase();
@@ -91,24 +88,102 @@ function buildFactBasedFallback(language, productName, questionText, productCont
   return `${productLabel} için ürün bilgilerinde şu detaylar görünüyor: ${topMatches.join(' | ')}. Sorunuzla ilgili en yakın bilgi bu şekilde listelenmiş.`;
 }
 
-function getFallbackAnswer(language, productName, questionText, productContext) {
+function isBrandQuestion(questionText) {
+  const normalized = normalizeForSearch(questionText);
+  return (
+    normalized.includes('marka')
+    || normalized.includes('brand')
+    || normalized.includes('uretici')
+    || normalized.includes('üretici')
+  );
+}
+
+function getSafeNoEvidenceAnswer(language, productName) {
   const normalized = String(language || 'tr').trim().toLowerCase();
   const productLabel = productName ? `"${productName}"` : 'ürün';
-  const factBasedFallback = buildFactBasedFallback(normalized, productName, questionText, productContext);
 
+  if (normalized === 'en') {
+    return `For ${productLabel}, I cannot verify this detail from the current product data. Please review the listing details manually before sending a final reply.`;
+  }
+
+  if (normalized === 'de') {
+    return `Fuer ${productLabel} kann ich dieses Detail mit den aktuellen Produktdaten nicht verifizieren. Bitte pruefen Sie die Angebotsdaten vor dem Versenden manuell.`;
+  }
+
+  return `${productLabel} için bu bilgiyi mevcut ürün verisinden doğrulayamıyorum. Göndermeden önce ürün kaydını manuel kontrol etmeniz iyi olur.`;
+}
+
+function getGroundedAnswer(language, productName, questionText, productContext) {
+  const normalized = String(language || 'tr').trim().toLowerCase();
+
+  if (!productContext) {
+    return getSafeNoEvidenceAnswer(normalized, productName);
+  }
+
+  if (isBrandQuestion(questionText)) {
+    if (productContext.brand) {
+      if (normalized === 'en') {
+        return `"${productName}" is listed under the ${productContext.brand} brand in the current product data.`;
+      }
+
+      if (normalized === 'de') {
+        return `"${productName}" ist in den aktuellen Produktdaten unter der Marke ${productContext.brand} gelistet.`;
+      }
+
+      return `"${productName}" ürünü mevcut ürün kaydında ${productContext.brand} markası altında listeleniyor.`;
+    }
+
+    return getSafeNoEvidenceAnswer(normalized, productName);
+  }
+
+  const factBasedFallback = buildFactBasedFallback(normalized, productName, questionText, productContext);
   if (factBasedFallback) {
     return factBasedFallback;
   }
 
-  if (normalized === 'en') {
-    return `Thank you for your question about ${productLabel}. We are reviewing the details and will share a clear answer shortly.`;
+  return getSafeNoEvidenceAnswer(normalized, productName);
+}
+
+function answerMentionsBusinessAsBrand(answer, identity, productContext) {
+  if (!answer) return false;
+
+  const normalizedAnswer = normalizeForSearch(answer);
+  const normalizedBrand = normalizeForSearch(productContext?.brand || '');
+  const businessNames = [
+    identity?.businessName,
+    ...(identity?.aliases || []),
+  ]
+    .map((item) => normalizeForSearch(item))
+    .filter(Boolean);
+
+  return businessNames.some((item) => item && item !== normalizedBrand && normalizedAnswer.includes(item));
+}
+
+function enforceGroundedMarketplaceAnswer(answer, { language, productName, questionText, productContext, identity }) {
+  const normalizedAnswer = String(answer || '').trim();
+
+  if (!normalizedAnswer) {
+    return getGroundedAnswer(language, productName, questionText, productContext);
   }
 
-  if (normalized === 'de') {
-    return `Vielen Dank fuer Ihre Frage zu ${productLabel}. Wir pruefen die Details und melden uns in Kuerze mit einer klaren Antwort.`;
+  if (answerMentionsBusinessAsBrand(normalizedAnswer, identity, productContext)) {
+    return getGroundedAnswer(language, productName, questionText, productContext);
   }
 
-  return `${productLabel} ile ilgili sorunuz için teşekkür ederiz. Detayları kontrol edip size kısa ve net bir yanıt paylaşacağız.`;
+  if (isBrandQuestion(questionText)) {
+    const answerSearch = normalizeForSearch(normalizedAnswer);
+    const expectedBrand = normalizeForSearch(productContext?.brand || '');
+
+    if (expectedBrand) {
+      if (!answerSearch.includes(expectedBrand)) {
+        return getGroundedAnswer(language, productName, questionText, productContext);
+      }
+    } else if (!answerSearch.includes('doğrul') && !answerSearch.includes('verify')) {
+      return getGroundedAnswer(language, productName, questionText, productContext);
+    }
+  }
+
+  return normalizedAnswer;
 }
 
 function buildPrompt({
@@ -135,6 +210,8 @@ Urun ozelligi, stok, kargo, iade veya garanti konusunda bilgi kesin degilse uydu
 Ic sistemlerden, kaynak adlarindan, "AI", "bilgi bankasi", "dokuman" gibi ifadelerden bahsetme.
 Eger kullanisli bir bilgi yoksa nazik bir sekilde sinirli bilgiyle cevap ver; bos bir yanit verme.
 Elindeki urun baglami soruyu yanitlamak icin yeterliyse dogrudan somut cevap ver. Gereksiz sekilde "detaylari kontrol edip donecegiz" gibi oyalayici cevap yazma.
+Urun markasini, ureticisini veya teknik ozelligini sadece verilen urun baglaminda acikca geciyorsa soyle. Isletme adindan veya genel tahminden marka uydurma.
+Eger bilgi yetersizse bunu acikca belirt; emin olmadigin teknik ozelligi kesinmis gibi yazma.
 ${safeToneInstructions ? `Ton tercihi: ${safeToneInstructions}` : ''}
 
 ISLETME BAGLAMI:
@@ -152,28 +229,6 @@ ${questionText}
 
 Yanit:
 `;
-}
-
-async function generateWithOpenAi(prompt) {
-  if (!openai) {
-    return null;
-  }
-
-  try {
-    const response = await openai.chat.completions.create({
-      model: MARKETPLACE_QA_OPENAI_MODEL,
-      temperature: 0.35,
-      max_tokens: 500,
-      messages: [
-        { role: 'user', content: prompt },
-      ],
-    });
-
-    return response.choices?.[0]?.message?.content || '';
-  } catch (error) {
-    console.warn('Marketplace QA OpenAI fallback failed:', error.message);
-    return null;
-  }
 }
 
 export async function generateMarketplaceAnswer({
@@ -224,22 +279,13 @@ export async function generateMarketplaceAnswer({
     identitySummary: identity.identitySummary || business.identitySummary,
   });
 
-  if (!hasGeminiApiKey()) {
-    const openAiAnswer = await generateWithOpenAi(prompt);
-    if (openAiAnswer) {
-      return {
-        answer: truncateMarketplaceAnswer(openAiAnswer, MAX_MARKETPLACE_ANSWER_LENGTH),
-        kbSourcesUsed: kbResult.queriesUsed || [],
-        model: MARKETPLACE_QA_OPENAI_MODEL,
-        platform,
-        kbConfidence: kbResult.kbConfidence,
-      };
-    }
+  const groundedAnswer = getGroundedAnswer(language, productName, questionText, productContext);
 
+  if (!hasGeminiApiKey()) {
     return {
-      answer: truncateMarketplaceAnswer(getFallbackAnswer(language, productName, questionText, productContext), MAX_MARKETPLACE_ANSWER_LENGTH),
+      answer: truncateMarketplaceAnswer(groundedAnswer, MAX_MARKETPLACE_ANSWER_LENGTH),
       kbSourcesUsed: kbResult.queriesUsed || [],
-      model: 'fallback-no-gemini-key',
+      model: 'grounded-no-gemini-key',
       platform,
       kbConfidence: kbResult.kbConfidence,
     };
@@ -254,8 +300,16 @@ export async function generateMarketplaceAnswer({
   try {
     const result = await model.generateContent(prompt);
     const rawAnswer = result.response.text() || '';
-    const answer = truncateMarketplaceAnswer(rawAnswer, MAX_MARKETPLACE_ANSWER_LENGTH)
-      || truncateMarketplaceAnswer(getFallbackAnswer(language, productName, questionText, productContext), MAX_MARKETPLACE_ANSWER_LENGTH);
+    const answer = truncateMarketplaceAnswer(
+      enforceGroundedMarketplaceAnswer(rawAnswer, {
+        language,
+        productName,
+        questionText,
+        productContext,
+        identity,
+      }),
+      MAX_MARKETPLACE_ANSWER_LENGTH
+    ) || truncateMarketplaceAnswer(groundedAnswer, MAX_MARKETPLACE_ANSWER_LENGTH);
 
     return {
       answer,
@@ -269,24 +323,13 @@ export async function generateMarketplaceAnswer({
       throw error;
     }
 
-    console.warn('Marketplace QA Gemini generation failed, using fallback answer:', error.message);
-
-    const openAiAnswer = await generateWithOpenAi(prompt);
-    if (openAiAnswer) {
-      return {
-        answer: truncateMarketplaceAnswer(openAiAnswer, MAX_MARKETPLACE_ANSWER_LENGTH),
-        kbSourcesUsed: kbResult.queriesUsed || [],
-        kbConfidence: kbResult.kbConfidence,
-        model: MARKETPLACE_QA_OPENAI_MODEL,
-        platform,
-      };
-    }
+    console.warn('Marketplace QA Gemini generation failed, using grounded fallback answer:', error.message);
 
     return {
-      answer: truncateMarketplaceAnswer(getFallbackAnswer(language, productName, questionText, productContext), MAX_MARKETPLACE_ANSWER_LENGTH),
+      answer: truncateMarketplaceAnswer(groundedAnswer, MAX_MARKETPLACE_ANSWER_LENGTH),
       kbSourcesUsed: kbResult.queriesUsed || [],
       kbConfidence: kbResult.kbConfidence,
-      model: 'fallback-gemini-error',
+      model: 'grounded-gemini-error',
       platform,
     };
   }

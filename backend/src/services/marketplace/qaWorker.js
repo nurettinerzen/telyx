@@ -40,24 +40,6 @@ function shouldRetryQuestionGeneration(questionRecord) {
     [MARKETPLACE_QUESTION_STATUS.PENDING, MARKETPLACE_QUESTION_STATUS.ERROR].includes(questionRecord.status)
     && !questionRecord.finalAnswer
     && !isExpired(questionRecord.expiresAt)
-    && (
-      !questionRecord.generatedAnswer
-      || isLowSignalGeneratedAnswer(questionRecord.generatedAnswer)
-      || questionRecord.status === MARKETPLACE_QUESTION_STATUS.ERROR
-    )
-  );
-}
-
-function isLowSignalGeneratedAnswer(answerText) {
-  const normalized = String(answerText || '').toLocaleLowerCase('tr-TR');
-
-  return (
-    normalized.includes('sorunuz için teşekkür ederiz')
-    && (
-      normalized.includes('detayları kontrol edip')
-      || normalized.includes('kısa ve net bir yanıt paylaşacağız')
-      || normalized.includes('will share a clear answer shortly')
-    )
   );
 }
 
