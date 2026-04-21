@@ -150,7 +150,7 @@ router.get('/questions', checkPermission('campaigns:view'), async (req, res) => 
       ...buildQuestionFilters(req.query),
     };
 
-    const [items, total] = await Promise.all([
+    const [items, total] = await prisma.$transaction([
       prisma.marketplaceQuestion.findMany({
         where,
         orderBy: { createdAt: 'desc' },
@@ -349,7 +349,7 @@ router.get('/stats', checkPermission('campaigns:view'), async (req, res) => {
       autoPostedQuestions,
       postedQuestions,
       platformBreakdown,
-    ] = await Promise.all([
+    ] = await prisma.$transaction([
       prisma.marketplaceQuestion.count({ where: baseWhere }),
       prisma.marketplaceQuestion.count({ where: todayWhere }),
       prisma.marketplaceQuestion.count({

@@ -31,7 +31,7 @@ function getFallbackAnswer(language, productName) {
     return `Vielen Dank fuer Ihre Frage zu ${productLabel}. Wir pruefen die Details und melden uns in Kuerze mit einer klaren Antwort.`;
   }
 
-  return `${productLabel} ile ilgili sorunuz icin tesekkur ederiz. Detaylari kontrol edip size kisa ve net bir yanit sunuyoruz.`;
+  return `${productLabel} ile ilgili sorunuz için teşekkür ederiz. Detayları kontrol edip size kısa ve net bir yanıt paylaşacağız.`;
 }
 
 function buildPrompt({

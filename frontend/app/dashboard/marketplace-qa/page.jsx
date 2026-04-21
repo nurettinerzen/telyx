@@ -49,6 +49,9 @@ import {
   useUpdateMarketplaceQaSettings,
 } from '@/hooks/useMarketplaceQA';
 
+const PROVIDER_ERROR_STYLE = 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200';
+const GENERIC_ERROR_STYLE = 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/40 dark:bg-rose-950/30 dark:text-rose-300';
+
 function getMarketplaceQaCopy(locale) {
   const isTr = locale === 'tr';
 
@@ -88,10 +91,14 @@ function getMarketplaceQaCopy(locale) {
       customerQuestion: isTr ? 'Müşteri sorusu' : 'Customer question',
       aiAnswer: isTr ? 'AI cevabı' : 'AI answer',
       noAnswerYet: isTr ? 'Henüz cevap üretilmedi' : 'No answer has been generated yet',
+      manualDraftNeeded: isTr ? 'AI taslağı hazırlanamadı' : 'The AI draft could not be prepared',
       approveAndSend: isTr ? 'Onayla ve Gönder' : 'Approve and Send',
       edit: isTr ? 'Düzenle' : 'Edit',
       reject: isTr ? 'Reddet' : 'Reject',
       activeConnection: isTr ? 'Bağlantı aktif' : 'Connection active',
+      providerIssue: isTr
+        ? 'AI cevabı oluşturulamadı. Lütfen yeniden senkronize edin veya cevabı manuel düzenleyin.'
+        : 'The AI answer could not be generated. Please sync again or edit the answer manually.',
     },
     settings: {
       connected: isTr ? 'Bağlı' : 'Connected',
@@ -115,7 +122,7 @@ function getMarketplaceQaCopy(locale) {
         ? 'Bağlı pazaryeri hesaplarındaki yeni soruları şimdi çekin ve AI taslaklarını hazırlayın.'
         : 'Pull new questions from connected marketplaces now and prepare AI drafts.',
       action: isTr ? 'Senkronize Et' : 'Sync Now',
-      syncing: isTr ? 'Senkronize ediliyor...' : 'Syncing...',
+      syncing: isTr ? 'Senkronize Ediliyor' : 'Syncing',
       neverSynced: isTr ? 'Henüz senkron yapılmadı' : 'No sync has run yet',
       lastSyncPrefix: isTr ? 'Son senkron' : 'Last sync',
     },
@@ -158,6 +165,7 @@ function getMarketplaceQaCopy(locale) {
       REJECTED: isTr ? 'Reddedildi' : 'Rejected',
       EXPIRED: isTr ? 'Süresi doldu' : 'Expired',
       ERROR: isTr ? 'Hata' : 'Error',
+      REVIEW: isTr ? 'İnceleme gerekli' : 'Needs review',
     },
   };
 }
@@ -197,11 +205,23 @@ function getDisplayErrorMessage(errorMessage, locale) {
 
   if (isProviderError) {
     return locale === 'tr'
-      ? 'AI cevabi olusturulamadi. Lutfen yeniden senkronize edin veya cevabi manuel duzenleyin.'
+      ? 'AI cevabı oluşturulamadı. Lütfen yeniden senkronize edin veya cevabı manuel düzenleyin.'
       : 'The AI answer could not be generated. Please run sync again or edit the answer manually.';
   }
 
   return errorMessage;
+}
+
+function isProviderErrorMessage(errorMessage) {
+  if (!errorMessage) return false;
+
+  const normalized = String(errorMessage).toLowerCase();
+  return (
+    normalized.includes('googlegenerativeai')
+    || normalized.includes('generativelanguage.googleapis.com')
+    || normalized.includes('api key not valid')
+    || normalized.includes('api_key_invalid')
+  );
 }
 
 function MarketplaceStatCard({ title, value, hint }) {
@@ -214,11 +234,18 @@ function MarketplaceStatCard({ title, value, hint }) {
   );
 }
 
-const syncButtonClassName = 'disabled:opacity-100 disabled:cursor-wait';
+const syncButtonClassName = 'min-w-[220px] shrink-0 justify-center transition-none disabled:opacity-100 disabled:cursor-wait';
 
 function MarketplaceQuestionCard({ item, onApprove, onEdit, onReject, loading, copy, locale }) {
   const STATUS_META = getStatusMeta(copy);
-  const statusMeta = STATUS_META[item.status] || STATUS_META.PENDING;
+  const isProviderError = isProviderErrorMessage(item.errorMessage);
+  const statusMeta = isProviderError && item.status === 'ERROR'
+    ? { label: copy.statuses.REVIEW, className: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200' }
+    : (STATUS_META[item.status] || STATUS_META.PENDING);
+  const answerText = item.finalAnswer
+    || item.generatedAnswer
+    || (isProviderError ? copy.questionCard.manualDraftNeeded : copy.questionCard.noAnswerYet);
+  const displayErrorMessage = getDisplayErrorMessage(item.errorMessage, locale);
 
   return (
     <div className="rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-950">
@@ -265,13 +292,13 @@ function MarketplaceQuestionCard({ item, onApprove, onEdit, onReject, loading, c
                 {copy.questionCard.aiAnswer}
               </div>
               <p className="mt-1 whitespace-pre-wrap text-sm text-neutral-800 dark:text-neutral-100">
-                {item.finalAnswer || item.generatedAnswer || copy.questionCard.noAnswerYet}
+                {answerText}
               </p>
             </div>
 
             {item.errorMessage && (
-              <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-900/40 dark:bg-rose-950/30 dark:text-rose-300">
-                {getDisplayErrorMessage(item.errorMessage, locale)}
+              <div className={`rounded-lg border px-3 py-2 text-sm ${isProviderError ? PROVIDER_ERROR_STYLE : GENERIC_ERROR_STYLE}`}>
+                {displayErrorMessage}
               </div>
             )}
           </div>
@@ -495,17 +522,10 @@ export default function MarketplaceQaPage() {
           </div>
 
           <Button className={syncButtonClassName} onClick={handleSync} disabled={syncQuestions.isPending}>
-            {syncQuestions.isPending ? (
-              <>
-                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                {copy.sync.syncing}
-              </>
-            ) : (
-              <>
-                <RefreshCw className="mr-2 h-4 w-4" />
-                {copy.sync.action}
-              </>
-            )}
+            <RefreshCw className={`h-4 w-4 ${syncQuestions.isPending ? 'animate-spin' : ''}`} />
+            <span className="inline-flex min-w-[150px] justify-center text-center">
+              {syncQuestions.isPending ? copy.sync.syncing : copy.sync.action}
+            </span>
           </Button>
         </div>
       </div>
