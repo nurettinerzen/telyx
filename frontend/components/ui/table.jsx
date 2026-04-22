@@ -51,7 +51,7 @@ const TableHead = React.forwardRef(({ className, ...props }, ref) => (
   <th
     ref={ref}
     className={cn(
-      "bg-inherit p-4 text-left align-middle text-sm font-medium text-neutral-600 dark:text-neutral-300 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+      "bg-gray-50 dark:bg-[#0B1730]/88 p-4 text-left align-middle text-sm font-medium text-neutral-600 dark:text-neutral-300 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
       className
     )}
     {...props} />
