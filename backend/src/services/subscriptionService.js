@@ -408,11 +408,11 @@ export async function getSubscriptionDetails(businessId) {
       return null;
     }
 
+    const effectivePlanConfig = getEffectivePlanConfig(subscription);
     const country = subscription.business?.country || 'TR';
     const plan = subscription.plan;
-    const includedMinutes = getIncludedMinutes(plan, country);
+    const includedMinutes = Number(effectivePlanConfig.includedMinutes || 0);
     const pricePerMinute = getPricePerMinute(plan, country);
-    const effectivePlanConfig = getEffectivePlanConfig(subscription);
 
     // Calculate balance in minutes
     const balanceMinutes = pricePerMinute > 0
@@ -460,7 +460,7 @@ export async function getSubscriptionDetails(businessId) {
       // Limits
       concurrentLimit: effectivePlanConfig.concurrentLimit,
       activeCalls: subscription.activeCalls,
-      assistantsLimit: subscription.assistantsLimit,
+      assistantsLimit: effectivePlanConfig.assistantsLimit,
       assistantsCreated: subscription.assistantsCreated,
       phoneNumbersLimit: subscription.phoneNumbersLimit,
       phoneNumbersUsed: subscription.phoneNumbersUsed,

@@ -224,7 +224,7 @@ class FeatureAccessController {
         },
         limits: {
           concurrent: effectivePlanConfig.concurrentLimit,
-          assistants: planConfig.assistantsLimit,
+          assistants: effectivePlanConfig.assistantsLimit,
           phoneNumbers: planConfig.phoneNumbersLimit,
           overage: subscription.overageLimit || planConfig.overageLimit
         },

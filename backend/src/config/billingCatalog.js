@@ -10,6 +10,21 @@ function parsePositiveFloat(value, fallback) {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
 }
 
+function parseNonNegativeLimit(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return null;
+  return Math.max(Math.trunc(parsed), 0);
+}
+
+function parseAssistantLimit(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return null;
+  if (parsed < 0) return -1;
+  return Math.trunc(parsed);
+}
+
 const DEFAULT_WRITTEN_LIMITS = {
   TRIAL: parsePositiveInt(process.env.TRIAL_WRITTEN_INTERACTIONS, 50),
   PAYG: 0,
@@ -153,30 +168,30 @@ export function getBillingPlanDefinition(subscriptionOrPlan, country = null) {
 
   const base = getBasePlanDefinition(planName, resolvedCountry);
 
-  if (!subscriptionOrPlan || typeof subscriptionOrPlan === 'string' || base.plan !== 'ENTERPRISE') {
+  if (!subscriptionOrPlan || typeof subscriptionOrPlan === 'string') {
     return base;
   }
 
-  const customWritten = Number.isFinite(subscriptionOrPlan.enterpriseSupportInteractions)
-    ? Math.max(Number(subscriptionOrPlan.enterpriseSupportInteractions), 0)
-    : null;
-  const customVoice = Number.isFinite(subscriptionOrPlan.enterpriseMinutes)
-    ? Math.max(Number(subscriptionOrPlan.enterpriseMinutes), 0)
-    : null;
-  const customConcurrent = Number.isFinite(subscriptionOrPlan.enterpriseConcurrent)
-    ? Math.max(Number(subscriptionOrPlan.enterpriseConcurrent), 0)
-    : base.concurrentCallLimit;
-  const customAssistants = Number.isFinite(subscriptionOrPlan.enterpriseAssistants)
-    ? Math.max(Number(subscriptionOrPlan.enterpriseAssistants), 0)
-    : base.assistantLimit;
+  const customWritten = parseNonNegativeLimit(subscriptionOrPlan.enterpriseSupportInteractions);
+  const customVoice = parseNonNegativeLimit(subscriptionOrPlan.minutesLimit)
+    ?? parseNonNegativeLimit(subscriptionOrPlan.enterpriseMinutes);
+  const customConcurrent = parseNonNegativeLimit(subscriptionOrPlan.concurrentLimit)
+    ?? parseNonNegativeLimit(subscriptionOrPlan.enterpriseConcurrent);
+  const customAssistants = parseAssistantLimit(subscriptionOrPlan.assistantsLimit)
+    ?? parseAssistantLimit(subscriptionOrPlan.enterpriseAssistants);
 
   return {
     ...base,
     includedWrittenInteractions: customWritten ?? base.includedWrittenInteractions,
-    includedVoiceMinutes: customVoice,
-    concurrentCallLimit: customConcurrent,
-    assistantLimit: customAssistants,
-    customConfigured: customWritten !== null || customVoice !== null
+    includedVoiceMinutes: customVoice ?? base.includedVoiceMinutes,
+    concurrentCallLimit: customConcurrent ?? base.concurrentCallLimit,
+    assistantLimit: customAssistants ?? base.assistantLimit,
+    customConfigured: (
+      customWritten !== null
+      || customVoice !== null
+      || customConcurrent !== null
+      || customAssistants !== null
+    )
   };
 }
 

@@ -52,14 +52,14 @@ export function getEffectivePlanConfig(subscription) {
     country: country,
 
     // Minutes & pricing
-    includedMinutes: billingPlan.includedVoiceMinutes ?? subscription.enterpriseMinutes ?? getIncludedMinutes(plan, country),
+    includedMinutes: billingPlan.includedVoiceMinutes ?? getIncludedMinutes(plan, country),
     pricePerMinute: billingPlan.voiceMinuteUnitPrice ?? planDefaults.pricePerMinute ?? 0,
     overageRate: planDefaults.overageRate ?? 23,
     overageLimit: subscription.overageLimit ?? 200,
 
     // Limits
-    assistantsLimit: billingPlan.assistantLimit ?? subscription.enterpriseAssistants ?? planDefaults.assistantsLimit ?? 1,
-    concurrentLimit: billingPlan.concurrentCallLimit ?? subscription.enterpriseConcurrent ?? planDefaults.concurrentLimit ?? 1,
+    assistantsLimit: billingPlan.assistantLimit ?? planDefaults.assistantsLimit ?? 1,
+    concurrentLimit: billingPlan.concurrentCallLimit ?? planDefaults.concurrentLimit ?? 1,
     phoneNumbersLimit: 1, // Platform constraint (not plan-based)
 
     // Features (from plan defaults)
@@ -77,10 +77,14 @@ export function getEffectivePlanConfig(subscription) {
     // Enterprise metadata
     isEnterprise: plan === 'ENTERPRISE',
     hasCustomConfig: !!(
-      subscription.enterpriseMinutes ||
-      subscription.enterpriseAssistants ||
-      subscription.enterpriseConcurrent ||
-      subscription.enterprisePrice
+      subscription.minutesLimit !== null && subscription.minutesLimit !== undefined
+      || subscription.assistantsLimit !== null && subscription.assistantsLimit !== undefined
+      || subscription.concurrentLimit !== null && subscription.concurrentLimit !== undefined
+      || subscription.enterpriseSupportInteractions !== null && subscription.enterpriseSupportInteractions !== undefined
+      || subscription.enterpriseMinutes
+      || subscription.enterpriseAssistants
+      || subscription.enterpriseConcurrent
+      || subscription.enterprisePrice
     ),
     enterprisePrice: subscription.enterprisePrice,
     enterpriseStartDate: subscription.enterpriseStartDate,

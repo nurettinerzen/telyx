@@ -770,6 +770,8 @@ function buildBillingSnapshot({
   supportUsage,
   billingPlan,
   effectiveMinutesLimit,
+  effectiveConcurrentLimit,
+  effectiveAssistantsLimit,
   usageAlerts = []
 }) {
   const voiceUsed = Number(subscription.includedMinutesUsed || 0);
@@ -795,8 +797,8 @@ function buildBillingSnapshot({
       phone: billingPlan.channels.phone
     },
     entitlements: {
-      concurrentCalls: billingPlan.concurrentCallLimit,
-      assistants: billingPlan.assistantLimit
+      concurrentCalls: effectiveConcurrentLimit,
+      assistants: effectiveAssistantsLimit
     },
     includedUsage: {
       writtenInteractions: {
@@ -2014,6 +2016,8 @@ router.get('/current', verifyBusinessAccess, async (req, res) => {
       supportUsage,
       billingPlan,
       effectiveMinutesLimit,
+      effectiveConcurrentLimit,
+      effectiveAssistantsLimit,
       usageAlerts
     });
 

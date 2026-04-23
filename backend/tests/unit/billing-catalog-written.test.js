@@ -35,6 +35,23 @@ describe('billingCatalog written/support configuration', () => {
     });
   });
 
+  it('applies admin overrides to non-enterprise plans without changing channel access', () => {
+    const pro = getBillingPlanDefinition({
+      plan: 'PRO',
+      minutesLimit: 740,
+      concurrentLimit: 4,
+      assistantsLimit: 12,
+      enterpriseSupportInteractions: 3100,
+      business: { country: 'TR' }
+    });
+
+    expect(pro.includedVoiceMinutes).toBe(740);
+    expect(pro.includedWrittenInteractions).toBe(3100);
+    expect(pro.concurrentCallLimit).toBe(4);
+    expect(pro.assistantLimit).toBe(12);
+    expect(pro.channels.phone).toBe(true);
+  });
+
   it('applies enterprise written/concurrency overrides from the subscription record', () => {
     const enterprise = getBillingPlanDefinition({
       plan: 'ENTERPRISE',

@@ -23,6 +23,13 @@ import {
   isPhoneInboundForceDisabled
 } from '../services/phoneInboundGate.js';
 import { buildSecurityConfigDigest, compareBaselineDigest } from '../security/configIntegrity.js';
+import {
+  getAssistantsLimit,
+  getConcurrentLimit,
+  getIncludedMinutes,
+  getPlanConfig,
+  normalizePlanName
+} from '../config/plans.js';
 import runtimeConfig from '../config/runtime.js';
 
 const router = express.Router();
@@ -78,6 +85,40 @@ function getSubscriptionLifecycle(subscription, now = new Date()) {
   }
 
   return 'ACTIVE';
+}
+
+function addDays(date, days) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function getAdminManagedStatusForPlan(plan) {
+  return plan === 'TRIAL' ? 'TRIAL' : 'ACTIVE';
+}
+
+function buildAdminSubscriptionDefaults(plan, country = 'TR', now = new Date()) {
+  const normalizedPlan = normalizePlanName(plan || 'FREE');
+  const trialChatExpiry = normalizedPlan === 'TRIAL' ? addDays(now, 7) : null;
+  const basePlan = getPlanConfig(normalizedPlan);
+
+  return {
+    plan: normalizedPlan,
+    status: getAdminManagedStatusForPlan(normalizedPlan),
+    minutesLimit: getIncludedMinutes(normalizedPlan, country),
+    concurrentLimit: getConcurrentLimit(normalizedPlan, country),
+    assistantsLimit: getAssistantsLimit(normalizedPlan, country),
+    phoneNumbersLimit: basePlan.phoneNumbersLimit ?? 1,
+    currentPeriodStart: now,
+    currentPeriodEnd: normalizedPlan === 'TRIAL' ? trialChatExpiry : addDays(now, 30),
+    trialStartDate: normalizedPlan === 'TRIAL' ? now : null,
+    trialChatExpiry,
+  };
+}
+
+function recordAutoChange(changes, key, oldValue, newValue) {
+  if (oldValue === newValue) return;
+  changes[key] = { old: oldValue, new: newValue };
 }
 
 function getCancellationLifecycle(subscription, now = new Date()) {
@@ -433,6 +474,7 @@ router.get('/users/:id', async (req, res) => {
               select: {
                 id: true,
                 plan: true,
+                pendingPlanId: true,
                 status: true,
                 minutesUsed: true,
                 minutesLimit: true,
@@ -441,6 +483,7 @@ router.get('/users/:id', async (req, res) => {
                 assistantsCreated: true,
                 phoneNumbersUsed: true,
                 concurrentLimit: true,
+                assistantsLimit: true,
                 enterpriseMinutes: true,
                 enterpriseSupportInteractions: true,
                 enterprisePrice: true,
@@ -520,6 +563,7 @@ router.patch('/users/:id', async (req, res) => {
     const allowedBusinessFields = ['phoneInboundEnabled'];
     const allowedSubscriptionFields = [
       'plan', 'status', 'minutesUsed', 'balance', 'minutesLimit',
+      'concurrentLimit', 'assistantsLimit',
       'enterpriseSupportInteractions',
       'enterpriseMinutes', 'enterprisePrice', 'enterpriseConcurrent',
       'enterpriseAssistants', 'enterprisePaymentStatus', 'enterpriseNotes',
@@ -539,6 +583,12 @@ router.patch('/users/:id', async (req, res) => {
     const businessUpdates = {};
     const subscriptionUpdates = {};
     const changes = {};
+    const currentSubscription = user.business?.subscription || null;
+    const country = user.business?.country || 'TR';
+    const requestedPlan = req.body.plan !== undefined
+      ? normalizePlanName(req.body.plan)
+      : null;
+    const planChanged = requestedPlan && requestedPlan !== currentSubscription?.plan;
 
     // Filter user updates
     for (const field of allowedUserFields) {
@@ -552,6 +602,9 @@ router.patch('/users/:id', async (req, res) => {
     for (const field of allowedSubscriptionFields) {
       if (req.body[field] !== undefined) {
         let value = req.body[field];
+        if (field === 'plan' && value) {
+          value = normalizePlanName(value);
+        }
         // Handle date fields
         if (['currentPeriodStart', 'currentPeriodEnd', 'enterpriseStartDate', 'enterpriseEndDate'].includes(field) && value) {
           value = new Date(value);
@@ -561,6 +614,93 @@ router.patch('/users/:id', async (req, res) => {
           old: user.business?.subscription?.[field],
           new: value
         };
+      }
+    }
+
+    if (requestedPlan && (planChanged || !currentSubscription)) {
+      const now = new Date();
+      const planDefaults = buildAdminSubscriptionDefaults(requestedPlan, country, now);
+      const currentValues = currentSubscription || {};
+
+      if (subscriptionUpdates.status === undefined) {
+        subscriptionUpdates.status = planDefaults.status;
+        recordAutoChange(changes, 'subscription.status', currentValues.status, subscriptionUpdates.status);
+      }
+
+      if (subscriptionUpdates.minutesLimit === undefined) {
+        subscriptionUpdates.minutesLimit = planDefaults.minutesLimit;
+        recordAutoChange(changes, 'subscription.minutesLimit', currentValues.minutesLimit, subscriptionUpdates.minutesLimit);
+      }
+
+      if (subscriptionUpdates.concurrentLimit === undefined) {
+        subscriptionUpdates.concurrentLimit = planDefaults.concurrentLimit;
+        recordAutoChange(changes, 'subscription.concurrentLimit', currentValues.concurrentLimit, subscriptionUpdates.concurrentLimit);
+      }
+
+      if (subscriptionUpdates.assistantsLimit === undefined) {
+        subscriptionUpdates.assistantsLimit = planDefaults.assistantsLimit;
+        recordAutoChange(changes, 'subscription.assistantsLimit', currentValues.assistantsLimit, subscriptionUpdates.assistantsLimit);
+      }
+
+      if (subscriptionUpdates.currentPeriodStart === undefined) {
+        subscriptionUpdates.currentPeriodStart = planDefaults.currentPeriodStart;
+        recordAutoChange(changes, 'subscription.currentPeriodStart', currentValues.currentPeriodStart, subscriptionUpdates.currentPeriodStart);
+      }
+
+      if (subscriptionUpdates.currentPeriodEnd === undefined) {
+        subscriptionUpdates.currentPeriodEnd = planDefaults.currentPeriodEnd;
+        recordAutoChange(changes, 'subscription.currentPeriodEnd', currentValues.currentPeriodEnd, subscriptionUpdates.currentPeriodEnd);
+      }
+
+      if (requestedPlan === 'TRIAL') {
+        subscriptionUpdates.trialStartDate = planDefaults.trialStartDate;
+        subscriptionUpdates.trialChatExpiry = planDefaults.trialChatExpiry;
+        subscriptionUpdates.trialMinutesUsed = 0;
+        subscriptionUpdates.includedMinutesUsed = 0;
+      } else {
+        subscriptionUpdates.trialStartDate = null;
+        subscriptionUpdates.trialChatExpiry = null;
+      }
+      if (requestedPlan === 'ENTERPRISE') {
+        if (subscriptionUpdates.enterprisePaymentStatus === undefined) {
+          subscriptionUpdates.enterprisePaymentStatus = 'paid';
+          recordAutoChange(
+            changes,
+            'subscription.enterprisePaymentStatus',
+            currentValues.enterprisePaymentStatus,
+            subscriptionUpdates.enterprisePaymentStatus
+          );
+        }
+
+        if (subscriptionUpdates.enterpriseMinutes === undefined) {
+          subscriptionUpdates.enterpriseMinutes = subscriptionUpdates.minutesLimit;
+          recordAutoChange(changes, 'subscription.enterpriseMinutes', currentValues.enterpriseMinutes, subscriptionUpdates.enterpriseMinutes);
+        }
+
+        if (subscriptionUpdates.enterpriseConcurrent === undefined) {
+          subscriptionUpdates.enterpriseConcurrent = subscriptionUpdates.concurrentLimit;
+          recordAutoChange(changes, 'subscription.enterpriseConcurrent', currentValues.enterpriseConcurrent, subscriptionUpdates.enterpriseConcurrent);
+        }
+
+        if (subscriptionUpdates.enterpriseAssistants === undefined) {
+          subscriptionUpdates.enterpriseAssistants = subscriptionUpdates.assistantsLimit;
+          recordAutoChange(changes, 'subscription.enterpriseAssistants', currentValues.enterpriseAssistants, subscriptionUpdates.enterpriseAssistants);
+        }
+      }
+    }
+
+    if (requestedPlan) {
+      subscriptionUpdates.pendingPlanId = null;
+      recordAutoChange(changes, 'subscription.pendingPlanId', currentSubscription?.pendingPlanId, null);
+
+      if (requestedPlan !== 'ENTERPRISE' && req.body.enterprisePaymentStatus === undefined) {
+        subscriptionUpdates.enterprisePaymentStatus = null;
+        recordAutoChange(
+          changes,
+          'subscription.enterprisePaymentStatus',
+          currentSubscription?.enterprisePaymentStatus,
+          subscriptionUpdates.enterprisePaymentStatus
+        );
       }
     }
 
@@ -605,11 +745,32 @@ router.patch('/users/:id', async (req, res) => {
     }
 
     // Update subscription if needed
-    if (Object.keys(subscriptionUpdates).length > 0 && user.business?.subscription) {
-      await prisma.subscription.update({
-        where: { id: user.business.subscription.id },
-        data: subscriptionUpdates
-      });
+    if (Object.keys(subscriptionUpdates).length > 0 && user.business) {
+      if (currentSubscription) {
+        await prisma.subscription.update({
+          where: { id: currentSubscription.id },
+          data: subscriptionUpdates
+        });
+      } else {
+        const now = new Date();
+        const initialPlan = subscriptionUpdates.plan || 'FREE';
+        const defaults = buildAdminSubscriptionDefaults(initialPlan, country, now);
+
+        await prisma.subscription.create({
+          data: {
+            businessId: user.business.id,
+            balance: 0,
+            minutesUsed: 0,
+            callsThisMonth: 0,
+            assistantsCreated: 0,
+            phoneNumbersUsed: 0,
+            overageRate: 23,
+            overageLimit: 200,
+            ...defaults,
+            ...subscriptionUpdates
+          }
+        });
+      }
     }
 
     // Audit log

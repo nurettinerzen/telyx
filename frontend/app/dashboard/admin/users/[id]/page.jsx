@@ -51,7 +51,14 @@ import { apiClient } from '@/lib/api';
 import { toast } from 'sonner';
 import InfoTooltip from '@/components/InfoTooltip';
 import { getPageHelp } from '@/content/pageHelp';
-import { PLAN_COLORS } from '@/lib/planConfig';
+import { PLAN_COLORS, REGIONAL_PRICING, normalizePlan } from '@/lib/planConfig';
+
+function getRegionalPlanDefaults(plan, country = 'TR') {
+  const normalizedCountry = REGIONAL_PRICING[country] ? country : 'TR';
+  const normalizedPlan = normalizePlan(plan || 'FREE');
+  return REGIONAL_PRICING[normalizedCountry]?.plans?.[normalizedPlan]
+    || REGIONAL_PRICING.TR.plans.FREE;
+}
 
 
 export default function AdminUserDetailPage() {
@@ -73,8 +80,10 @@ export default function AdminUserDetailPage() {
     plan: '',
     minutesUsed: 0,
     balance: 0,
-    enterpriseMinutes: null,
-    enterpriseSupportInteractions: null,
+    minutesLimit: 0,
+    writtenInteractionsLimit: '',
+    concurrentLimit: 0,
+    assistantsLimit: 0,
     enterprisePrice: null,
     enterpriseNotes: '',
     phoneInboundEnabled: false,
@@ -86,14 +95,22 @@ export default function AdminUserDetailPage() {
     try {
       const response = await apiClient.admin.getUser(userId);
       setUser(response.data);
+      const subscription = response.data.business?.subscription;
+      const planDefaults = getRegionalPlanDefaults(
+        subscription?.plan || 'FREE',
+        response.data.business?.country || 'TR'
+      );
+
       setEditForm({
-        plan: response.data.business?.subscription?.plan || 'FREE',
-        minutesUsed: response.data.business?.subscription?.minutesUsed || 0,
-        balance: response.data.business?.subscription?.balance || 0,
-        enterpriseMinutes: response.data.business?.subscription?.enterpriseMinutes || null,
-        enterpriseSupportInteractions: response.data.business?.subscription?.enterpriseSupportInteractions || null,
-        enterprisePrice: response.data.business?.subscription?.enterprisePrice || null,
-        enterpriseNotes: response.data.business?.subscription?.enterpriseNotes || '',
+        plan: subscription?.plan || 'FREE',
+        minutesUsed: subscription?.minutesUsed || 0,
+        balance: subscription?.balance || 0,
+        minutesLimit: subscription?.minutesLimit ?? planDefaults.minutes ?? 0,
+        writtenInteractionsLimit: subscription?.enterpriseSupportInteractions ?? '',
+        concurrentLimit: subscription?.concurrentLimit ?? planDefaults.concurrent ?? 0,
+        assistantsLimit: subscription?.assistantsLimit ?? planDefaults.assistants ?? 0,
+        enterprisePrice: subscription?.enterprisePrice || null,
+        enterpriseNotes: subscription?.enterpriseNotes || '',
         phoneInboundEnabled: response.data.business?.phoneInboundEnabled || false,
       });
     } catch (error) {
@@ -113,7 +130,22 @@ export default function AdminUserDetailPage() {
   const handleSaveEdit = async () => {
     setActionLoading(true);
     try {
-      await apiClient.admin.updateUser(userId, editForm);
+      await apiClient.admin.updateUser(userId, {
+        plan: editForm.plan,
+        minutesUsed: editForm.minutesUsed,
+        balance: editForm.balance,
+        minutesLimit: editForm.minutesLimit,
+        concurrentLimit: editForm.concurrentLimit,
+        assistantsLimit: editForm.assistantsLimit,
+        enterpriseSupportInteractions: editForm.writtenInteractionsLimit === ''
+          ? null
+          : Number(editForm.writtenInteractionsLimit),
+        enterprisePrice: editForm.plan === 'ENTERPRISE'
+          ? (editForm.enterprisePrice === null || editForm.enterprisePrice === '' ? null : Number(editForm.enterprisePrice))
+          : undefined,
+        enterpriseNotes: editForm.plan === 'ENTERPRISE' ? editForm.enterpriseNotes : '',
+        phoneInboundEnabled: editForm.phoneInboundEnabled,
+      });
       toast.success('Kullanıcı güncellendi');
       setEditModal(false);
       loadUser();
@@ -193,6 +225,38 @@ export default function AdminUserDetailPage() {
   }
 
   const subscription = user.business?.subscription;
+  const planDefaults = getRegionalPlanDefaults(subscription?.plan || 'FREE', user.business?.country || 'TR');
+  const effectiveWrittenLimit = subscription?.enterpriseSupportInteractions ?? planDefaults.writtenInteractions ?? null;
+  const editPlanDefaults = getRegionalPlanDefaults(editForm.plan || 'FREE', user.business?.country || 'TR');
+
+  const handlePlanChange = (value) => {
+    const previousDefaults = getRegionalPlanDefaults(editForm.plan || 'FREE', user.business?.country || 'TR');
+    const nextDefaults = getRegionalPlanDefaults(value, user.business?.country || 'TR');
+
+    setEditForm((prev) => {
+      const nextWritten = (
+        prev.writtenInteractionsLimit === ''
+        || Number(prev.writtenInteractionsLimit) === Number(previousDefaults.writtenInteractions ?? 0)
+      )
+        ? ''
+        : prev.writtenInteractionsLimit;
+
+      return {
+        ...prev,
+        plan: value,
+        minutesLimit: Number(prev.minutesLimit) === Number(previousDefaults.minutes ?? 0)
+          ? Number(nextDefaults.minutes ?? 0)
+          : prev.minutesLimit,
+        concurrentLimit: Number(prev.concurrentLimit) === Number(previousDefaults.concurrent ?? 0)
+          ? Number(nextDefaults.concurrent ?? 0)
+          : prev.concurrentLimit,
+        assistantsLimit: Number(prev.assistantsLimit) === Number(previousDefaults.assistants ?? 0)
+          ? Number(nextDefaults.assistants ?? 0)
+          : prev.assistantsLimit,
+        writtenInteractionsLimit: nextWritten,
+      };
+    });
+  };
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
@@ -349,23 +413,43 @@ export default function AdminUserDetailPage() {
               <span className="text-gray-500">Bakiye</span>
               <span className="text-gray-900 dark:text-white">{subscription?.balance?.toFixed(2) || 0} TL</span>
             </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Dakika Limiti</span>
+              <span className="text-gray-900 dark:text-white">
+                {subscription?.minutesLimit ?? planDefaults.minutes ?? 0} dk
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Yazılı Limit</span>
+              <span className="text-gray-900 dark:text-white">
+                {effectiveWrittenLimit === null || effectiveWrittenLimit === undefined
+                  ? '-'
+                  : `${Number(effectiveWrittenLimit).toLocaleString('tr-TR')} etkileşim`}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Eşzamanlı Çağrı</span>
+              <span className="text-gray-900 dark:text-white">
+                {subscription?.concurrentLimit ?? planDefaults.concurrent ?? 0}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Asistan Limiti</span>
+              <span className="text-gray-900 dark:text-white">
+                {subscription?.assistantsLimit ?? planDefaults.assistants ?? 0}
+              </span>
+            </div>
+            {subscription?.pendingPlanId && (
+              <div className="flex justify-between">
+                <span className="text-gray-500">Bekleyen Plan</span>
+                <span className="text-gray-900 dark:text-white">{subscription.pendingPlanId}</span>
+              </div>
+            )}
             {subscription?.plan === 'ENTERPRISE' && (
-              <>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Kurumsal Dakika</span>
-                  <span className="text-gray-900 dark:text-white">{subscription?.enterpriseMinutes || '-'} dk</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Kurumsal Yazılı Limit</span>
-                  <span className="text-gray-900 dark:text-white">
-                    {subscription?.enterpriseSupportInteractions ? `${subscription.enterpriseSupportInteractions} etkileşim` : '-'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Kurumsal Fiyat</span>
-                  <span className="text-gray-900 dark:text-white">{subscription?.enterprisePrice || '-'} TL/ay</span>
-                </div>
-              </>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Kurumsal Fiyat</span>
+                <span className="text-gray-900 dark:text-white">{subscription?.enterprisePrice || '-'} TL/ay</span>
+              </div>
             )}
           </div>
         </div>
@@ -458,7 +542,7 @@ export default function AdminUserDetailPage() {
               <Label>Plan</Label>
               <Select
                 value={editForm.plan}
-                onValueChange={(value) => setEditForm({ ...editForm, plan: value })}
+                onValueChange={handlePlanChange}
               >
                 <SelectTrigger className="mt-1">
                   <SelectValue />
@@ -475,7 +559,7 @@ export default function AdminUserDetailPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Dakika Kullanımı</Label>
+                <Label>Kullanılan Dakika</Label>
                 <Input
                   type="number"
                   className="mt-1"
@@ -494,6 +578,61 @@ export default function AdminUserDetailPage() {
                 />
               </div>
             </div>
+            <div className="rounded-lg border border-gray-200 dark:border-white/10 p-4 space-y-4">
+              <div>
+                <h3 className="text-sm font-medium text-gray-900 dark:text-white">Paket Limitleri</h3>
+                <p className="text-xs text-gray-500 mt-1">
+                  Super admin override alanları. Yazılı limiti boş bırakırsan plan varsayılanı kullanılır.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Dakika Limiti</Label>
+                  <Input
+                    type="number"
+                    className="mt-1"
+                    value={editForm.minutesLimit}
+                    onChange={(e) => setEditForm({ ...editForm, minutesLimit: parseInt(e.target.value, 10) || 0 })}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">Plan varsayılanı: {Number(editPlanDefaults.minutes ?? 0)} dk</p>
+                </div>
+                <div>
+                  <Label>Yazılı Etkileşim Limiti</Label>
+                  <Input
+                    type="number"
+                    className="mt-1"
+                    value={editForm.writtenInteractionsLimit}
+                    placeholder={String(editPlanDefaults.writtenInteractions ?? 0)}
+                    onChange={(e) => setEditForm({ ...editForm, writtenInteractionsLimit: e.target.value })}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Boş = plan varsayılanı ({Number(editPlanDefaults.writtenInteractions ?? 0).toLocaleString('tr-TR')})
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Eşzamanlı Çağrı Limiti</Label>
+                  <Input
+                    type="number"
+                    className="mt-1"
+                    value={editForm.concurrentLimit}
+                    onChange={(e) => setEditForm({ ...editForm, concurrentLimit: parseInt(e.target.value, 10) || 0 })}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">Plan varsayılanı: {Number(editPlanDefaults.concurrent ?? 0)}</p>
+                </div>
+                <div>
+                  <Label>Asistan Limiti</Label>
+                  <Input
+                    type="number"
+                    className="mt-1"
+                    value={editForm.assistantsLimit}
+                    onChange={(e) => setEditForm({ ...editForm, assistantsLimit: parseInt(e.target.value, 10) || 0 })}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">Plan varsayılanı: {Number(editPlanDefaults.assistants ?? 0)}</p>
+                </div>
+              </div>
+            </div>
             <div className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-white/10 p-3">
               <div>
                 <Label className="text-sm">Telefon Inbound (V2)</Label>
@@ -509,26 +648,6 @@ export default function AdminUserDetailPage() {
             </div>
             {editForm.plan === 'ENTERPRISE' && (
               <>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Kurumsal Dakika</Label>
-                    <Input
-                      type="number"
-                      className="mt-1"
-                      value={editForm.enterpriseMinutes || ''}
-                      onChange={(e) => setEditForm({ ...editForm, enterpriseMinutes: parseInt(e.target.value) || null })}
-                    />
-                  </div>
-                  <div>
-                    <Label>Kurumsal Yazılı Limit</Label>
-                    <Input
-                      type="number"
-                      className="mt-1"
-                      value={editForm.enterpriseSupportInteractions || ''}
-                      onChange={(e) => setEditForm({ ...editForm, enterpriseSupportInteractions: parseInt(e.target.value) || null })}
-                    />
-                  </div>
-                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Kurumsal Fiyat (TL/ay)</Label>

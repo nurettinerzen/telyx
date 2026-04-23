@@ -22,11 +22,9 @@
 import prisma from '../prismaClient.js';
 import {
   getPricePerMinute,
-  getIncludedMinutes,
   getFixedOveragePrice
 } from '../config/plans.js';
 import { getEffectivePlanConfig } from './planConfig.js';
-import { getBillingPlanDefinition } from '../config/billingCatalog.js';
 
 /**
  * Calculate charge with PAYG balance priority
@@ -64,7 +62,7 @@ export async function calculateChargeWithBalance(subscription, durationMinutes, 
     };
   }
 
-  const billingPlan = getBillingPlanDefinition(subscription, country);
+  const effectivePlanConfig = getEffectivePlanConfig(subscription);
 
   // ===== PAYG PLAN (voice add-on first, then wallet) =====
   if (plan === 'PAYG') {
@@ -98,7 +96,7 @@ export async function calculateChargeWithBalance(subscription, durationMinutes, 
   // Payment priority: INCLUDED → ADDON → OVERAGE
 
   const pricePerMinute = getPricePerMinute(plan, country);
-  const includedMinutes = billingPlan.includedVoiceMinutes ?? getIncludedMinutes(plan, country);
+  const includedMinutes = Number(effectivePlanConfig.includedMinutes || 0);
   const usedIncluded = subscription.includedMinutesUsed || 0;
   const remainingIncluded = Math.max(0, includedMinutes - usedIncluded);
   const overageRate = getFixedOveragePrice(country); // Fixed 23 TL/min
@@ -341,8 +339,8 @@ export async function canMakeCallWithBalance(businessId) {
     // Authorization based on included + overage, NOT balance
     // Balance is optional payment method, not entitlement
 
-    const billingPlan = getBillingPlanDefinition(subscription, subscription.business?.country || 'TR');
-    const includedMinutes = billingPlan.includedVoiceMinutes ?? getIncludedMinutes(plan, subscription.business?.country || 'TR');
+    const effectivePlanConfig = getEffectivePlanConfig(subscription);
+    const includedMinutes = Number(effectivePlanConfig.includedMinutes || 0);
     const usedIncluded = subscription.includedMinutesUsed || 0;
     const remainingIncluded = Math.max(0, includedMinutes - usedIncluded);
     const addOnRemaining = Number(subscription.voiceAddOnMinutesBalance || 0);
