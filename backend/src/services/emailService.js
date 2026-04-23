@@ -1156,6 +1156,72 @@ export const sendWaitlistNotificationEmail = async ({ name, email, company, busi
   return sendEmail('info@telyx.ai', subject, html);
 };
 
+/**
+ * 23. Contact Form Notification (to admin)
+ */
+export const sendContactNotificationEmail = async ({ name, email, company, phone, businessType, message }) => {
+  const safeName = escapeHtml(name || '');
+  const safeEmail = sanitizeEmailAddress(email) || 'invalid@email';
+  const safeCompany = company ? escapeHtml(company) : '';
+  const safePhone = phone ? escapeHtml(phone) : '';
+  const safeBusinessType = businessType ? escapeHtml(businessType) : '';
+  const safeMessage = message ? escapeHtml(message) : '';
+  const subject = `Yeni Iletisim Formu: ${sanitizeHeaderValue(name || 'Unknown')}`;
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333333; margin: 0; padding: 0; background-color: #f4f4f5;">
+      <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background-color: #111827; color: #ffffff; padding: 40px 30px; text-align: center; border-radius: 12px 12px 0 0;">
+          <h1 style="margin: 0; font-size: 24px; font-weight: 600; color: #ffffff;">Yeni Iletisim Formu</h1>
+        </div>
+        <div style="background-color: #ffffff; padding: 40px 30px; border-radius: 0 0 12px 12px;">
+          <div style="background-color: #f9fafb; padding: 24px; border-radius: 8px; margin: 0 0 24px 0; border: 1px solid #e5e7eb;">
+            <div style="padding: 12px 0; border-bottom: 1px solid #e5e7eb;">
+              <span style="color: #6b7280; font-size: 14px;">Ad Soyad</span><br>
+              <strong>${safeName}</strong>
+            </div>
+            <div style="padding: 12px 0; border-bottom: 1px solid #e5e7eb;">
+              <span style="color: #6b7280; font-size: 14px;">E-posta</span><br>
+              <strong><a href="mailto:${safeEmail}" style="color: #667eea;">${safeEmail}</a></strong>
+            </div>
+            ${safeCompany ? `<div style="padding: 12px 0; border-bottom: 1px solid #e5e7eb;">
+              <span style="color: #6b7280; font-size: 14px;">Sirket</span><br>
+              <strong>${safeCompany}</strong>
+            </div>` : ''}
+            ${safePhone ? `<div style="padding: 12px 0; border-bottom: 1px solid #e5e7eb;">
+              <span style="color: #6b7280; font-size: 14px;">Telefon</span><br>
+              <strong>${safePhone}</strong>
+            </div>` : ''}
+            ${safeBusinessType ? `<div style="padding: 12px 0; border-bottom: 1px solid #e5e7eb;">
+              <span style="color: #6b7280; font-size: 14px;">Isletme Turu</span><br>
+              <strong>${safeBusinessType}</strong>
+            </div>` : ''}
+            ${safeMessage ? `<div style="padding: 12px 0;">
+              <span style="color: #6b7280; font-size: 14px;">Mesaj</span><br>
+              <span>${safeMessage}</span>
+            </div>` : ''}
+          </div>
+
+          <p style="text-align: center;">
+            <a href="mailto:${safeEmail}" style="display: inline-block; padding: 12px 32px; background-color: #111827; color: #ffffff !important; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">Talebe Don</a>
+          </p>
+        </div>
+        <div style="text-align: center; padding: 20px; color: #6b7280; font-size: 14px;">
+          <p style="margin: 0;">Telyx.AI Contact Form Notification</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail('info@telyx.ai', subject, html);
+};
+
 export const sendAdminMfaCodeEmail = async (email, code, expiresAt) => {
   const safeCode = escapeHtml(code || '');
   const expiryLabel = expiresAt instanceof Date ? expiresAt.toLocaleString('en-US', { hour12: false }) : '';
@@ -1211,5 +1277,6 @@ export default {
   sendLowBalanceWarning,
   sendTeamInvitationEmail,
   sendWaitlistNotificationEmail,
+  sendContactNotificationEmail,
   sendAdminMfaCodeEmail
 };

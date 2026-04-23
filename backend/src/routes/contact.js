@@ -2,6 +2,7 @@ import express from 'express';
 import prisma from '../prismaClient.js';
 import rateLimit from 'express-rate-limit';
 import { getPublicContactProfile } from '../services/businessPhoneRouting.js';
+import { sendContactNotificationEmail } from '../services/emailService.js';
 
 const router = express.Router();
 
@@ -76,6 +77,21 @@ router.post('/', contactRateLimiter, async (req, res) => {
       name: entry.name,
       company: entry.company
     });
+
+    try {
+      await sendContactNotificationEmail({
+        name: entry.name,
+        email: entry.email,
+        company: entry.company,
+        phone: entry.phone,
+        businessType: entry.businessType,
+        message: entry.message
+      });
+      console.log(`📧 Contact notification sent for: ${entry.email}`);
+    } catch (emailError) {
+      console.error('⚠️ Contact notification email failed:', emailError.message);
+      // Keep the saved lead even if email delivery has a transient issue.
+    }
 
     res.status(201).json({
       success: true,
