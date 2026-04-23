@@ -8,6 +8,7 @@ import Navigation from '@/components/Navigation';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { trackCtaClick } from '@/lib/marketingAnalytics';
 import {
   ArrowRight,
   CalendarDays,
@@ -50,7 +51,7 @@ function useMouseGlow(ref) {
 }
 
 export default function IntegrationsPage() {
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const gridRef = useRef(null);
   useMouseGlow(gridRef);
 
@@ -248,7 +249,19 @@ export default function IntegrationsPage() {
                               </p>
 
                               {/* CTA Button */}
-                              <Link href={integration.cta} className="mt-auto">
+                              <Link
+                                href={integration.cta}
+                                className="mt-auto"
+                                onClick={() => trackCtaClick({
+                                  ctaName: `${integration.name.toLowerCase().replace(/\s+/g, '_')}_${integration.status}`,
+                                  ctaLocation: 'integrations_card',
+                                  destination: integration.cta,
+                                  locale,
+                                  integration_name: integration.name,
+                                  integration_status: integration.status,
+                                  integration_category: category.id,
+                                })}
+                              >
                                 {isAvailable ? (
                                   <Button
                                     size="sm"
@@ -306,7 +319,15 @@ export default function IntegrationsPage() {
                 >
                   {t('integrationsPage.request.desc')}
                 </p>
-                <Link href="/contact">
+                <Link
+                  href="/contact"
+                  onClick={() => trackCtaClick({
+                    ctaName: 'request_integration',
+                    ctaLocation: 'integrations_request_card',
+                    destination: '/contact',
+                    locale,
+                  })}
+                >
                   <Button
                     variant="outline"
                     className="rounded-full hover:bg-primary hover:text-white hover:border-primary hover:shadow-lg hover:shadow-primary/15 transition-all duration-200"
@@ -339,7 +360,15 @@ export default function IntegrationsPage() {
                   {t('integrationsPage.cta.subtitle')}
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Link href="/signup">
+                  <Link
+                    href="/signup"
+                    onClick={() => trackCtaClick({
+                      ctaName: 'start_free',
+                      ctaLocation: 'integrations_bottom_cta',
+                      destination: '/signup',
+                      locale,
+                    })}
+                  >
                     <Button
                       size="lg"
                       className="int-glow-btn w-full sm:w-auto rounded-full bg-white text-slate-900 hover:bg-gray-100 px-8 font-semibold shadow-lg"
@@ -347,7 +376,15 @@ export default function IntegrationsPage() {
                       {t('integrationsPage.cta.button')}
                     </Button>
                   </Link>
-                  <Link href="/contact">
+                  <Link
+                    href="/contact"
+                    onClick={() => trackCtaClick({
+                      ctaName: 'contact_sales',
+                      ctaLocation: 'integrations_bottom_cta',
+                      destination: '/contact',
+                      locale,
+                    })}
+                  >
                     <Button
                       size="lg"
                       variant="outline"

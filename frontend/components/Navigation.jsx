@@ -9,10 +9,11 @@ import { Button } from '@/components/ui/button';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { TelyxLogoFull } from '@/components/TelyxLogo';
+import { trackCtaClick } from '@/lib/marketingAnalytics';
 
 export default function Navigation() {
   const pathname = usePathname();
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -106,7 +107,17 @@ export default function Navigation() {
               </Button>
             </Link>
             <Link href="/waitlist">
-              <Button size="sm" variant="pill" className="px-5">
+              <Button
+                size="sm"
+                variant="pill"
+                className="px-5"
+                onClick={() => trackCtaClick({
+                  ctaName: 'apply_early_access',
+                  ctaLocation: 'navigation_desktop',
+                  destination: '/waitlist',
+                  locale,
+                })}
+              >
                 {t('navigation.applyEarlyAccess')}
               </Button>
             </Link>
@@ -163,7 +174,16 @@ export default function Navigation() {
                 </Button>
               </Link>
               <Link href="/waitlist">
-                <Button variant="pill" className="w-full">
+                <Button
+                  variant="pill"
+                  className="w-full"
+                  onClick={() => trackCtaClick({
+                    ctaName: 'apply_early_access',
+                    ctaLocation: 'navigation_mobile',
+                    destination: '/waitlist',
+                    locale,
+                  })}
+                >
                   {t('navigation.applyEarlyAccess')}
                 </Button>
               </Link>

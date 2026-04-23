@@ -12,9 +12,10 @@ import { apiClient } from '@/lib/api';
 import { toast, Toaster } from 'sonner';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { trackLeadGenerated } from '@/lib/marketingAnalytics';
 
 export default function WaitlistPage() {
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -52,6 +53,12 @@ export default function WaitlistPage() {
 
       await apiClient.post('/api/waitlist', formData);
       setSubmitted(true);
+      trackLeadGenerated({
+        leadType: 'waitlist',
+        formName: 'waitlist_form',
+        business_type: formData.businessType || 'unspecified',
+        locale,
+      });
       toast.success(t('waitlist.success'));
     } catch (error) {
       console.error('Waitlist submission error:', error);

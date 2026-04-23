@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import Navigation from '@/components/Navigation';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,7 @@ import {
   Zap, Headphones, Sparkles, Phone,
 } from 'lucide-react';
 import { formatPhone } from '@/lib/utils';
+import { trackContactClick, trackLeadGenerated } from '@/lib/marketingAnalytics';
 
 export default function ContactPage() {
   const { t, locale } = useLanguage();
@@ -141,6 +142,12 @@ export default function ContactPage() {
 
       if (response.ok) {
         setSubmitted(true);
+        trackLeadGenerated({
+          leadType: 'contact',
+          formName: 'contact_form',
+          business_type: formData.businessType || 'unspecified',
+          locale,
+        });
         toast.success(t('contact.successMessage'));
         setFormData({ name: '', email: '', company: '', phone: '', businessType: '', message: '' });
       } else {
@@ -448,7 +455,15 @@ export default function ContactPage() {
                     </div>
                     <div>
                       <h4 className="font-semibold mb-1 text-gray-900 dark:text-white">{t('contact.info.email')}</h4>
-                      <a href={`mailto:${contactInfo.email}`} className="text-gray-600 dark:text-neutral-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors">
+                      <a
+                        href={`mailto:${contactInfo.email}`}
+                        className="text-gray-600 dark:text-neutral-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
+                        onClick={() => trackContactClick({
+                          contactMethod: 'email',
+                          contactValue: contactInfo.email,
+                          locale,
+                        })}
+                      >
                         {contactInfo.email}
                       </a>
                     </div>
@@ -461,7 +476,15 @@ export default function ContactPage() {
                       </div>
                       <div>
                         <h4 className="font-semibold mb-1 text-gray-900 dark:text-white">{t('contact.info.phone')}</h4>
-                        <a href={`tel:${contactInfo.phone}`} className="text-gray-600 dark:text-neutral-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors">
+                        <a
+                          href={`tel:${contactInfo.phone}`}
+                          className="text-gray-600 dark:text-neutral-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
+                          onClick={() => trackContactClick({
+                            contactMethod: 'phone',
+                            contactValue: contactInfo.phone,
+                            locale,
+                          })}
+                        >
                           {formatPhone(contactInfo.phone) || contactInfo.phone}
                         </a>
                       </div>

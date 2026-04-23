@@ -8,6 +8,7 @@ import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import MarketingFAQ from '@/components/MarketingFAQ';
+import { trackCtaClick } from '@/lib/marketingAnalytics';
 import {
   ArrowRight,
   BarChart3,
@@ -53,7 +54,7 @@ function useMouseGlow(ref) {
 }
 
 export default function FeaturesPage() {
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const gridRef = useRef(null);
   useMouseGlow(gridRef);
 
@@ -129,7 +130,15 @@ export default function FeaturesPage() {
               transition={{ ...transition, delay: 0.18 }}
               className="flex flex-col sm:flex-row gap-3 justify-center mt-8"
             >
-              <Link href="/waitlist">
+              <Link
+                href="/waitlist"
+                onClick={() => trackCtaClick({
+                  ctaName: 'apply_early_access',
+                  ctaLocation: 'features_hero',
+                  destination: '/waitlist',
+                  locale,
+                })}
+              >
                 <Button size="lg" className="ft-glow-btn rounded-full bg-primary text-white hover:bg-primary/90 px-8 shadow-lg shadow-primary/20">
                   {t('features.cta.applyEarlyAccess')}
                 </Button>
@@ -461,7 +470,15 @@ export default function FeaturesPage() {
                     <Link href="/solutions">
                       <Button variant="outline" size="sm" className="rounded-full hover:bg-primary hover:text-white hover:border-primary transition-all duration-200">{t('features.sectorFlows.seeAll')}</Button>
                     </Link>
-                    <Link href="/waitlist">
+                    <Link
+                      href="/waitlist"
+                      onClick={() => trackCtaClick({
+                        ctaName: 'try_free',
+                        ctaLocation: 'features_sector_flow',
+                        destination: '/waitlist',
+                        locale,
+                      })}
+                    >
                       <Button size="sm" className="rounded-full bg-primary text-white hover:bg-primary/90 shadow-md shadow-primary/15">{t('features.sectorFlows.tryFree')}</Button>
                     </Link>
                   </div>
@@ -553,12 +570,28 @@ export default function FeaturesPage() {
                   {t('features.cta.subtitle')}
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Link href="/waitlist">
+                  <Link
+                    href="/waitlist"
+                    onClick={() => trackCtaClick({
+                      ctaName: 'apply_early_access',
+                      ctaLocation: 'features_bottom_cta',
+                      destination: '/waitlist',
+                      locale,
+                    })}
+                  >
                     <Button size="lg" className="ft-glow-btn w-full sm:w-auto rounded-full bg-white text-slate-900 hover:bg-gray-100 px-8 font-semibold shadow-lg">
                       {t('features.cta.applyEarlyAccess')}
                     </Button>
                   </Link>
-                  <Link href="/contact">
+                  <Link
+                    href="/contact"
+                    onClick={() => trackCtaClick({
+                      ctaName: 'contact_sales',
+                      ctaLocation: 'features_bottom_cta',
+                      destination: '/contact',
+                      locale,
+                    })}
+                  >
                     <Button size="lg" variant="outline" className="w-full sm:w-auto rounded-full border-white/30 text-white hover:bg-white/10 px-8 transition-all duration-200" style={{ color: 'white', borderColor: 'rgba(255,255,255,0.3)', backgroundColor: 'transparent' }}>
                       {t('features.cta.contact')}
                     </Button>

@@ -8,6 +8,7 @@ import Navigation from '@/components/Navigation';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { trackCtaClick, trackPricingPlanClick } from '@/lib/marketingAnalytics';
 import {
   SHARED_REGIONAL_PRICING,
   SHARED_FEATURE_ORDER,
@@ -265,7 +266,16 @@ export default function PricingPage() {
 
                 {/* CTA Button */}
                 <div className="mt-auto">
-                  <Link href={plan.id === 'ENTERPRISE' ? '/contact' : '/signup'} className="block">
+                  <Link
+                    href={plan.id === 'ENTERPRISE' ? '/contact' : '/signup'}
+                    className="block"
+                    onClick={() => trackPricingPlanClick({
+                      planId: plan.id,
+                      planName: plan.name,
+                      destination: plan.id === 'ENTERPRISE' ? '/contact' : '/signup',
+                      locale,
+                    })}
+                  >
                     <Button
                       className={`w-full rounded-xl h-11 font-medium transition-all duration-300 ${
                         plan.popular
@@ -346,7 +356,15 @@ export default function PricingPage() {
                 ))}
               </div>
 
-              <Link href="/signup">
+              <Link
+                href="/signup"
+                onClick={() => trackCtaClick({
+                  ctaName: 'payg_get_started',
+                  ctaLocation: 'pricing_payg',
+                  destination: '/signup',
+                  locale,
+                })}
+              >
                 <Button variant="outline" size="lg" className="rounded-xl h-11 px-8 hover:border-primary/40">
                   {isTR ? 'Hemen Başlayın' : 'Get Started'}
                   <ArrowRight className="w-4 h-4 ml-1" />
@@ -430,7 +448,15 @@ export default function PricingPage() {
                   ? 'İhtiyacınıza göre doğru paketi birlikte seçelim.'
                   : 'Let\'s choose the right package together for your needs.'}
               </p>
-              <Link href="/waitlist">
+              <Link
+                href="/waitlist"
+                onClick={() => trackCtaClick({
+                  ctaName: 'request_demo',
+                  ctaLocation: 'pricing_bottom_cta',
+                  destination: '/waitlist',
+                  locale,
+                })}
+              >
                 <Button
                   size="lg"
                   className="pr-glow-btn rounded-full bg-primary hover:bg-primary/90 text-white h-12 px-8 text-base font-medium shadow-lg shadow-primary/25"
@@ -452,7 +478,16 @@ export default function PricingPage() {
           >
             <p className="text-[var(--pr-text-secondary)]">
               {t('pricing.questions')}{' '}
-              <Link href="/contact" className="text-primary-700 dark:text-primary-300 font-medium hover:underline">
+              <Link
+                href="/contact"
+                className="text-primary-700 dark:text-primary-300 font-medium hover:underline"
+                onClick={() => trackCtaClick({
+                  ctaName: 'contact_us',
+                  ctaLocation: 'pricing_faq_link',
+                  destination: '/contact',
+                  locale,
+                })}
+              >
                 {t('pricing.contactUs')}
               </Link>
             </p>

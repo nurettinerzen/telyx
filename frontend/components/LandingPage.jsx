@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useMemo } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { trackCtaClick } from '@/lib/marketingAnalytics';
 import '@/styles/landing.css';
 
 export function LandingPage() {
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const pageRef = useRef(null);
   const chatDemoStarted = useRef(false);
   const chatLoopTimeout = useRef(null);
@@ -340,7 +341,18 @@ export function LandingPage() {
           <div className="hero-bottom">
             <p className="hero-sub">{t('landing.scrollHero.sub')}</p>
             <div className="hero-actions">
-              <a href="/waitlist" className="lp-btn">{t('landing.scrollHero.cta')}</a>
+              <a
+                href="/waitlist"
+                className="lp-btn"
+                onClick={() => trackCtaClick({
+                  ctaName: 'scroll_hero_primary',
+                  ctaLocation: 'landing_scroll_hero',
+                  destination: '/waitlist',
+                  locale,
+                })}
+              >
+                {t('landing.scrollHero.cta')}
+              </a>
               <a href="#workflow" className="lp-btn-ghost">{t('landing.scrollHero.howItWorks')}</a>
             </div>
           </div>
@@ -633,7 +645,18 @@ export function LandingPage() {
               <h2 className="section-title">{t('landing.ctaSection.title')}</h2>
               <p className="section-sub">{t('landing.ctaSection.subtitle')}</p>
               <div className="cta-actions">
-                <a href="/waitlist" className="lp-btn">{t('landing.ctaSection.btn2')}</a>
+                <a
+                  href="/waitlist"
+                  className="lp-btn"
+                  onClick={() => trackCtaClick({
+                    ctaName: 'bottom_cta_primary',
+                    ctaLocation: 'landing_bottom_cta',
+                    destination: '/waitlist',
+                    locale,
+                  })}
+                >
+                  {t('landing.ctaSection.btn2')}
+                </a>
               </div>
             </div>
           </div>
