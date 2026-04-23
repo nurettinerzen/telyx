@@ -54,7 +54,7 @@ const securityHeaders = [
   { key: 'Content-Security-Policy', value: `${contentSecurityPolicy};` },
   { key: 'Referrer-Policy', value: 'no-referrer' },
   { key: 'Permissions-Policy', value: 'geolocation=(), microphone=(), camera=()' },
-  { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+  { key: 'Cross-Origin-Opener-Policy', value: 'same-origin-allow-popups' },
   { key: 'Cross-Origin-Resource-Policy', value: 'same-site' },
 ];
 const indexingHeaders = isBetaApp
