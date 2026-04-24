@@ -15,7 +15,6 @@ const PUBLIC_ROUTES = [
   { method: 'POST', path: '/api/auth/forgot-password' },
   { method: 'GET', path: '/api/subscription/plans' },
   { method: 'GET', path: '/api/voices' },
-  { method: 'POST', path: '/api/waitlist' },
 ];
 
 // Routes that MUST be protected (sample - add more)

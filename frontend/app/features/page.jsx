@@ -131,11 +131,11 @@ export default function FeaturesPage() {
               className="flex flex-col sm:flex-row gap-3 justify-center mt-8"
             >
               <Link
-                href="/waitlist"
+                href="/signup"
                 onClick={() => trackCtaClick({
                   ctaName: 'apply_early_access',
                   ctaLocation: 'features_hero',
-                  destination: '/waitlist',
+                  destination: '/signup',
                   locale,
                 })}
               >
@@ -471,11 +471,11 @@ export default function FeaturesPage() {
                       <Button variant="outline" size="sm" className="rounded-full hover:bg-primary hover:text-white hover:border-primary transition-all duration-200">{t('features.sectorFlows.seeAll')}</Button>
                     </Link>
                     <Link
-                      href="/waitlist"
+                      href="/signup"
                       onClick={() => trackCtaClick({
                         ctaName: 'try_free',
                         ctaLocation: 'features_sector_flow',
-                        destination: '/waitlist',
+                        destination: '/signup',
                         locale,
                       })}
                     >
@@ -571,11 +571,11 @@ export default function FeaturesPage() {
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Link
-                    href="/waitlist"
+                    href="/signup"
                     onClick={() => trackCtaClick({
                       ctaName: 'apply_early_access',
                       ctaLocation: 'features_bottom_cta',
-                      destination: '/waitlist',
+                      destination: '/signup',
                       locale,
                     })}
                   >

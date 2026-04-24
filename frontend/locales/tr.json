@@ -66,8 +66,8 @@
       "subtitle": "WhatsApp, Telefon, Chat ve Email - 7/24 AI destekli müşteri hizmeti",
       "cta": "Ücretsiz Başlayın",
       "ctaPrimary": "Ücretsiz Deneyin",
-      "ctaDemo": "Demo Talep Et",
-      "ctaWaitlist": "Demo Talep Edin",
+      "ctaDemo": "Ücretsiz Deneyin",
+      "ctaWaitlist": "Ücretsiz Deneyin",
       "watch": "Fiyatları Görün",
       "demoProcess": {
         "title": "Demo nasıl çalışır?",
@@ -198,7 +198,7 @@
       "title": "Hemen Başlayın",
       "subtitle": "15 dakika ücretsiz arama ile deneyin. Kredi kartı gerekmez.",
       "startTrial": "Ücretsiz Başlatın",
-      "applyEarlyAccess": "Demo Talep Edin",
+      "applyEarlyAccess": "Ücretsiz Deneyin",
       "talkToSales": "Satış ile Konuşun"
     },
     "footer": {
@@ -330,7 +330,7 @@
       "title": "Müşteri Hizmetlerinizi AI ile Dönüştürün",
       "subtitle": "15 dakika ücretsiz arama ile deneyin. Kredi kartı gerekmez, kurulum dakikalar içerisinde.",
       "btn1": "Ücretsiz Hesap Oluştur",
-      "btn2": "Demo Talep Et"
+      "btn2": "Ücretsiz Deneyin"
     }
   },
   "navigation": {
@@ -339,7 +339,7 @@
     "pricing": "Fiyatlar",
     "contact": "İletişim",
     "getStarted": "Ücretsiz Başlayın",
-    "applyEarlyAccess": "Demo Talep Edin",
+    "applyEarlyAccess": "Ücretsiz Deneyin",
     "solutionsEcommerce": "E-ticaret",
     "solutionsRestaurant": "Restoran",
     "solutionsSalon": "Kuaför/Salon",
@@ -358,7 +358,7 @@
     "trial": "14 gün ücretsiz deneme - Kredi kartı gerekmez",
     "recommended": "Önerilen",
     "cta": "Başlayın",
-    "ctaWaitlist": "Erken Erişim İçin Başvur",
+    "ctaWaitlist": "Ücretsiz Deneyin",
     "questions": "Sorularınız mı var?",
     "contactUs": "Bize ulaşın",
     "starter": {
@@ -443,7 +443,7 @@
       "title": "Hazır mısınız?",
       "subtitle": "Hemen başlayın ve AI ile müşteri hizmetlerinizi dönüştürün",
       "start": "Ücretsiz Başlayın",
-      "applyEarlyAccess": "Demo Talep Edin",
+      "applyEarlyAccess": "Ücretsiz Deneyin",
       "contact": "İletişime Geçin"
     },
     "deepDive": {
@@ -3494,25 +3494,6 @@
       "featureAvailableOnHigher": "Bu özellik {plan} ve üzeri planlarda kullanılabilir."
     }
   },
-  "waitlist": {
-    "title": "Demo Talep Edin",
-    "subtitle": "Telyx'i ücretsiz denemek için aşağıdaki formu doldurun",
-    "name": "Ad Soyad",
-    "email": "E-posta",
-    "company": "Şirket Adı",
-    "businessType": "İşletme Türü",
-    "message": "Mesajınız (Opsiyonel)",
-    "submit": "Talep Et",
-    "success": "Başvurunuz alındı! En kısa sürede sizinle iletişime geçeceğiz.",
-    "alreadyApplied": "Bu e-posta ile zaten başvuru yapılmış."
-  },
-  "invite": {
-    "codeLabel": "Davet Kodu",
-    "codePlaceholder": "Davet kodunuzu girin",
-    "codeRequired": "Geçerli bir davet kodu gereklidir",
-    "noCode": "Davet kodunuz yok mu?",
-    "applyEarlyAccess": "Demo talep edin"
-  },
   "integrations": {
     "whatsapp": {
       "title": "WhatsApp Entegrasyonu",
@@ -3683,7 +3664,7 @@
       "q6": "Fiyatlandırma nasıl çalışıyor?",
       "a6": "Aylık abonelik modeliyle çalışıyoruz. Detaylar için fiyatlandırma sayfamızı ziyaret edin.",
       "q7": "Ücretsiz deneme var mı?",
-      "a7": "Evet, ücretsiz demo talep ederek platformumuzu deneyebilirsiniz.",
+      "a7": "Evet, ücretsiz hesap oluşturarak platformu hemen deneyebilirsiniz.",
       "q8": "Verilerim güvende mi?",
       "a8": "Evet, tüm veriler şifrelenmiş olarak saklanır ve KVKK'ya uygun şekilde işlenir.",
       "q9": "Destek nasıl alabilirim?",
@@ -3705,7 +3686,7 @@
   "apiDocs": {
     "title": "API Dokümantasyonu",
     "comingSoon": "API dokümantasyonumuz yakında yayınlanacak.",
-    "contactText": "Erken erişim için bize ulaşın:",
+    "contactText": "Bizimle iletişime geçin:",
     "backToHome": "Ana Sayfaya Dön"
   },
   "privacy": {
@@ -3847,7 +3828,7 @@
     "cta": {
       "title": "Hemen Başlayın",
       "subtitle": "Tüm entegrasyonları ücretsiz kullanmaya başlayın",
-      "button": "Demo Talep Edin",
+      "button": "Ücretsiz Deneyin",
       "contact": "İletişime Geçin"
     },
     "catalogCount": "Güncel katalogda {count} entegrasyon",
@@ -3936,8 +3917,8 @@
     "typeImprovement": "İyileştirme",
     "typeFix": "Düzeltme",
     "ctaTitle": "Geliştirme sürecimizin bir parçası olun",
-    "ctaSubtitle": "Erken erişim programımıza katılın, yeni özellikleri ilk siz deneyin ve ürünün yönünü birlikte belirleyelim.",
-    "ctaApply": "Erken erişim için başvurun",
+    "ctaSubtitle": "Yeni çıkan özellikleri takip edin ve Telyx'i ücretsiz deneyerek gelişime doğrudan katkı verin.",
+    "ctaApply": "Ücretsiz Deneyin",
     "ctaContact": "Bize ulaşın"
   },
   "security": {
@@ -3955,7 +3936,7 @@
     "ctaTitle": "Güvenlik hakkında sorularınız mı var?",
     "ctaSubtitle": "Güvenlik ekibimiz sorularınızı yanıtlamak ve işletmenize özel güvenlik çözümlerini anlatmak için hazır.",
     "ctaContact": "Bize Ulaşın",
-    "ctaApply": "Erken Erişim Başvurusu"
+    "ctaApply": "Ücretsiz Deneyin"
   },
   "blog": {
     "badge": "Blog",
@@ -3967,12 +3948,12 @@
     "notFound": "Yazı bulunamadı",
     "backToBlog": "Bloga Dön",
     "ctaTitle": "Yeni içeriklerden haberdar olun",
-    "ctaSubtitle": "AI, müşteri hizmetleri ve e-ticaret hakkında en son gelişmeleri takip edin. Erken erişim listesine katılarak özel içeriklerimize ulaşabilirsiniz.",
-    "ctaJoinList": "Erken Erişim Listesine Katıl",
+    "ctaSubtitle": "AI, müşteri hizmetleri ve e-ticaret hakkında en son gelişmeleri takip edin. Telyx'i ücretsiz deneyerek platformu doğrudan keşfedin.",
+    "ctaJoinList": "Ücretsiz Deneyin",
     "ctaContact": "Bize Ulaşın",
     "postCtaTitle": "Telyx'i Deneyin",
-    "postCtaSubtitle": "Yapay zeka destekli müşteri hizmetleri platformuyla işletmenizi bir üst seviyeye taşıyın. Erken erişim için hemen başvurun.",
-    "postCtaApply": "Erken Erişim Başvurusu",
+    "postCtaSubtitle": "Yapay zeka destekli müşteri hizmetleri platformuyla işletmenizi bir üst seviyeye taşıyın. Ücretsiz hesap oluşturup hemen başlayın.",
+    "postCtaApply": "Ücretsiz Deneyin",
     "postCtaContact": "Bize Ulaşın"
   },
   "marketingFaq": {

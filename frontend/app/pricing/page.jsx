@@ -449,11 +449,11 @@ export default function PricingPage() {
                   : 'Let\'s choose the right package together for your needs.'}
               </p>
               <Link
-                href="/waitlist"
+                href="/signup"
                 onClick={() => trackCtaClick({
                   ctaName: 'request_demo',
                   ctaLocation: 'pricing_bottom_cta',
-                  destination: '/waitlist',
+                  destination: '/signup',
                   locale,
                 })}
               >
@@ -461,7 +461,7 @@ export default function PricingPage() {
                   size="lg"
                   className="pr-glow-btn rounded-full bg-primary hover:bg-primary/90 text-white h-12 px-8 text-base font-medium shadow-lg shadow-primary/25"
                 >
-                  {isTR ? 'Demo Talep Edin' : 'Request Demo'}
+                  {isTR ? 'Ücretsiz Deneyin' : 'Try Free'}
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               </Link>

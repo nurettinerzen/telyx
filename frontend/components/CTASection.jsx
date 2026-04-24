@@ -31,7 +31,7 @@ export const CTASection = () => {
                 {t('landing.cta.title')}
               </h3>
               <p className="relative z-10 text-muted-foreground mb-8">{t('landing.cta.applyEarlyAccess')}</p>
-              <Link href="/waitlist">
+              <Link href="/signup">
                 <Button variant="pill" size="lg" className="relative z-10 px-8 py-6 text-base">
                   {t('landing.cta.applyEarlyAccess')}
                 </Button>

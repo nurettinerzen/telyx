@@ -73,11 +73,6 @@ const PUBLIC_PATHS = [
   '/api/team/invitation/lookup',
   '/api/team/invitation/accept',
 
-  // Waitlist (public)
-  '/api/waitlist',
-  '/api/waitlist/check/:email',
-  '/api/check/:email',  // Alt pattern
-
   // Cron jobs (secured by cron-secret header, not JWT)
   '/api/cron/*',
 

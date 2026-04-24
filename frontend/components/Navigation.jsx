@@ -106,7 +106,7 @@ export default function Navigation() {
                 {t('common.signIn')}
               </Button>
             </Link>
-            <Link href="/waitlist">
+            <Link href="/signup">
               <Button
                 size="sm"
                 variant="pill"
@@ -114,7 +114,7 @@ export default function Navigation() {
                 onClick={() => trackCtaClick({
                   ctaName: 'apply_early_access',
                   ctaLocation: 'navigation_desktop',
-                  destination: '/waitlist',
+                  destination: '/signup',
                   locale,
                 })}
               >
@@ -173,14 +173,14 @@ export default function Navigation() {
                   {t('common.signIn')}
                 </Button>
               </Link>
-              <Link href="/waitlist">
+              <Link href="/signup">
                 <Button
                   variant="pill"
                   className="w-full"
                   onClick={() => trackCtaClick({
                     ctaName: 'apply_early_access',
                     ctaLocation: 'navigation_mobile',
-                    destination: '/waitlist',
+                    destination: '/signup',
                     locale,
                   })}
                 >

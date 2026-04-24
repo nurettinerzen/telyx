@@ -166,7 +166,7 @@ export default function SolutionPageTemplate({
                 transition={{ duration: 0.6, delay: 0.15 }}
                 className="flex flex-col sm:flex-row gap-3 mt-8"
               >
-                <Link href="/waitlist">
+                <Link href="/signup">
                   <Button size="lg" className="rounded-full bg-primary text-white hover:bg-primary/90 px-8 sol-glow-btn">
                     {t('solutions.startFree')}
                   </Button>
@@ -382,7 +382,7 @@ export default function SolutionPageTemplate({
                 {t(`solutions.${sector}.cta.subtitle`)}
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link href="/waitlist">
+                <Link href="/signup">
                   <Button size="lg" className="w-full sm:w-auto rounded-full bg-white text-slate-900 hover:bg-gray-100 px-8 font-semibold sol-glow-btn">
                     {t('solutions.startFree')}
                   </Button>

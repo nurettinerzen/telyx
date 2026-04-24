@@ -281,10 +281,10 @@ router.post('/register', strictRateLimit, async (req, res) => {
 });
 
 
-// Signup (alias for register) - Requires invite code
+// Signup (alias for register)
 router.post("/signup", strictRateLimit, async (req, res) => {
   try {
-    const { email, password, fullName, businessName, inviteCode } = req.body;
+    const { email, password, fullName, businessName } = req.body;
 
     // Validation
     if (!email || !password || !fullName || !businessName) {
@@ -298,33 +298,6 @@ router.post("/signup", strictRateLimit, async (req, res) => {
         code: 'WEAK_PASSWORD',
         requirements: passwordValidation.errors,
       });
-    }
-
-    // Check invite code
-    if (!inviteCode) {
-      return res.status(403).json({ error: "Invalid invite code", code: "INVITE_REQUIRED" });
-    }
-
-    // Verify invite code
-    const invite = await prisma.inviteCode.findUnique({
-      where: { code: inviteCode }
-    });
-
-    if (!invite) {
-      return res.status(403).json({ error: "Invalid invite code", code: "INVALID_CODE" });
-    }
-
-    if (invite.used) {
-      return res.status(403).json({ error: "This invite code has already been used", code: "CODE_USED" });
-    }
-
-    if (invite.expiresAt && new Date(invite.expiresAt) < new Date()) {
-      return res.status(403).json({ error: "This invite code has expired", code: "CODE_EXPIRED" });
-    }
-
-    // If invite is for specific email, check it
-    if (invite.email && invite.email.toLowerCase() !== email.toLowerCase()) {
-      return res.status(403).json({ error: "This invite code is not valid for this email", code: "EMAIL_MISMATCH" });
     }
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
@@ -364,16 +337,6 @@ router.post("/signup", strictRateLimit, async (req, res) => {
           assistantsLimit: 1,
           phoneNumbersLimit: 1,
           concurrentLimit: 1
-        }
-      });
-
-      // Mark invite code as used
-      await tx.inviteCode.update({
-        where: { id: invite.id },
-        data: {
-          used: true,
-          usedBy: String(user.id),
-          usedAt: new Date()
         }
       });
 

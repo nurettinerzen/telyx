@@ -10,9 +10,6 @@ const prismaMock = {
     deleteMany: jest.fn(),
     create: jest.fn()
   },
-  inviteCode: {
-    findUnique: jest.fn()
-  },
   $transaction: jest.fn(),
 };
 
@@ -157,16 +154,8 @@ describe('Auth signup notifications', () => {
     }));
   });
 
-  it('sends internal signup notification for invite-only signup flow', async () => {
+  it('sends internal signup notification for signup flow without invite gating', async () => {
     prismaMock.user.findUnique.mockResolvedValue(null);
-    prismaMock.inviteCode.findUnique.mockResolvedValue({
-      id: 'invite_1',
-      code: 'BETA2026',
-      email: null,
-      used: false,
-      expiresAt: new Date(Date.now() + 60_000)
-    });
-
     prismaMock.$transaction.mockImplementation(async (callback) => callback({
       business: {
         create: jest.fn().mockResolvedValue({
@@ -190,9 +179,6 @@ describe('Auth signup notifications', () => {
           id: 61,
           plan: 'TRIAL'
         })
-      },
-      inviteCode: {
-        update: jest.fn().mockResolvedValue({})
       }
     }));
 
@@ -202,8 +188,7 @@ describe('Auth signup notifications', () => {
         email: 'founder@example.com',
         password: 'StrongPass123!',
         fullName: 'Beta Founder',
-        businessName: 'Beta Co',
-        inviteCode: 'BETA2026'
+        businessName: 'Beta Co'
       });
 
     expect(response.status).toBe(201);

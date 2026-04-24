@@ -291,7 +291,7 @@ export default function ChangelogPage() {
                   {t('changelog.ctaSubtitle')}
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Link href="/waitlist">
+                  <Link href="/signup">
                     <Button
                       size="lg"
                       className="ft-glow-btn w-full sm:w-auto rounded-full bg-white text-slate-900 hover:bg-gray-100 px-8 font-semibold shadow-lg"

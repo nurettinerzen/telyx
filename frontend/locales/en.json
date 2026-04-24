@@ -66,8 +66,8 @@
       "subtitle": "WhatsApp, Phone, Chat and Email - 24/7 AI-powered customer service",
       "cta": "Get Started Free",
       "ctaPrimary": "Try Free",
-      "ctaDemo": "Request Demo",
-      "ctaWaitlist": "Request Demo",
+      "ctaDemo": "Try Free",
+      "ctaWaitlist": "Try Free",
       "watch": "See Pricing",
       "demoProcess": {
         "title": "How does the demo work?",
@@ -198,7 +198,7 @@
       "title": "Get Started Now",
       "subtitle": "Try with 15 free minutes of calls. No credit card required.",
       "startTrial": "Start Free",
-      "applyEarlyAccess": "Request Demo",
+      "applyEarlyAccess": "Try Free",
       "talkToSales": "Talk to Sales"
     },
     "footer": {
@@ -330,7 +330,7 @@
       "title": "Transform Your Customer Service With AI",
       "subtitle": "Try with 15 minutes of free calls. No credit card required, setup takes minutes.",
       "btn1": "Create Free Account",
-      "btn2": "Request Demo"
+      "btn2": "Try Free"
     }
   },
   "navigation": {
@@ -339,7 +339,7 @@
     "pricing": "Pricing",
     "contact": "Contact",
     "getStarted": "Get Started Free",
-    "applyEarlyAccess": "Request Demo",
+    "applyEarlyAccess": "Try Free",
     "solutionsEcommerce": "E-commerce",
     "solutionsRestaurant": "Restaurant",
     "solutionsSalon": "Salon/Spa",
@@ -358,7 +358,7 @@
     "trial": "14-day free trial - No credit card required",
     "recommended": "Recommended",
     "cta": "Get Started",
-    "ctaWaitlist": "Request Demo",
+    "ctaWaitlist": "Try Free",
     "questions": "Have questions?",
     "contactUs": "Contact us",
     "starter": {
@@ -443,7 +443,7 @@
       "title": "Ready to Start?",
       "subtitle": "Get started now and transform your customer service with AI",
       "start": "Get Started Free",
-      "applyEarlyAccess": "Request Demo",
+      "applyEarlyAccess": "Try Free",
       "contact": "Contact Us"
     },
     "deepDive": {
@@ -3494,25 +3494,6 @@
       "featureAvailableOnHigher": "This feature is available on {plan} and higher plans."
     }
   },
-  "waitlist": {
-    "title": "Request Demo",
-    "subtitle": "Fill out the form below to try Telyx for free",
-    "name": "Full Name",
-    "email": "Email",
-    "company": "Company Name",
-    "businessType": "Business Type",
-    "message": "Your Message (Optional)",
-    "submit": "Request",
-    "success": "Application received! We'll contact you soon.",
-    "alreadyApplied": "An application with this email already exists."
-  },
-  "invite": {
-    "codeLabel": "Invite Code",
-    "codePlaceholder": "Enter your invite code",
-    "codeRequired": "A valid invite code is required",
-    "noCode": "Don't have an invite code?",
-    "applyEarlyAccess": "Apply for early access"
-  },
   "integrations": {
     "whatsapp": {
       "title": "WhatsApp Integration",
@@ -3683,7 +3664,7 @@
       "q6": "How does pricing work?",
       "a6": "We operate on a monthly subscription model. Visit our pricing page for details.",
       "q7": "Is there a free trial?",
-      "a7": "We are currently in early access. You can get priority access by signing up for the waitlist.",
+      "a7": "Yes. Create a free account and start trying the platform right away.",
       "q8": "Is my data secure?",
       "a8": "Yes, all data is stored encrypted and processed in compliance with GDPR.",
       "q9": "How can I get support?",
@@ -3705,7 +3686,7 @@
   "apiDocs": {
     "title": "API Documentation",
     "comingSoon": "Our API documentation will be published soon.",
-    "contactText": "Contact us for early access:",
+    "contactText": "Contact us:",
     "backToHome": "Back to Home"
   },
   "privacy": {
@@ -3847,7 +3828,7 @@
     "cta": {
       "title": "Get Started",
       "subtitle": "Start using all integrations for free",
-      "button": "Request Demo",
+      "button": "Try Free",
       "contact": "Contact Us"
     },
     "catalogCount": "{count} integrations in the current catalog",
@@ -3936,8 +3917,8 @@
     "typeImprovement": "Improvement",
     "typeFix": "Fix",
     "ctaTitle": "Be part of our development journey",
-    "ctaSubtitle": "Join our early access program, be the first to try new features and help shape the product direction together.",
-    "ctaApply": "Apply for early access",
+    "ctaSubtitle": "Follow the latest product updates and help shape Telyx by trying new features for free.",
+    "ctaApply": "Try Free",
     "ctaContact": "Contact us"
   },
   "security": {
@@ -3955,7 +3936,7 @@
     "ctaTitle": "Have questions about security?",
     "ctaSubtitle": "Our security team is ready to answer your questions and explain security solutions tailored to your business.",
     "ctaContact": "Contact Us",
-    "ctaApply": "Apply for Early Access"
+    "ctaApply": "Try Free"
   },
   "blog": {
     "badge": "Blog",
@@ -3967,12 +3948,12 @@
     "notFound": "Post not found",
     "backToBlog": "Back to Blog",
     "ctaTitle": "Stay updated with new content",
-    "ctaSubtitle": "Follow the latest developments in AI, customer service, and e-commerce. Join our early access list to get exclusive content.",
-    "ctaJoinList": "Join Early Access List",
+    "ctaSubtitle": "Follow the latest developments in AI, customer service, and e-commerce. Explore the platform directly with a free account.",
+    "ctaJoinList": "Try Free",
     "ctaContact": "Contact Us",
     "postCtaTitle": "Try Telyx",
-    "postCtaSubtitle": "Take your business to the next level with an AI-powered customer service platform. Apply for early access now.",
-    "postCtaApply": "Apply for Early Access",
+    "postCtaSubtitle": "Take your business to the next level with an AI-powered customer service platform. Create a free account and get started now.",
+    "postCtaApply": "Try Free",
     "postCtaContact": "Contact Us"
   },
   "marketingFaq": {

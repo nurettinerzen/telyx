@@ -52,8 +52,6 @@ import webhookRoutes from './routes/webhook.js';
 import batchCallsRoutes from './routes/batchCalls.js';
 // Team management
 import teamRoutes from './routes/team.js';
-// Waitlist
-import waitlistRoutes from './routes/waitlist.js';
 // Contact
 import contactRoutes from './routes/contact.js';
 // Onboarding
@@ -420,7 +418,6 @@ app.use('/api/webhook/crm', crmWebhookRoutes);
 app.use('/api/webhook', webhookRoutes);
 app.use('/api/batch-calls', apiRateLimiter.middleware(), batchCallsRoutes);
 app.use('/api/team', teamRoutes);
-app.use('/api/waitlist', waitlistRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/onboarding', onboardingRoutes);
 app.use('/api/metrics', metricsRoutes); // Internal metrics (protected)

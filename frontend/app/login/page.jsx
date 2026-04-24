@@ -322,7 +322,7 @@ export default function LoginPage() {
           {/* Sign Up Link */}
           <p className="text-center text-sm text-neutral-600 dark:text-neutral-400 mt-6">
             {t('auth.dontHaveAccount')}{' '}
-            <Link href="/waitlist" className="text-primary-600 dark:text-primary-400 font-medium hover:underline">
+            <Link href="/signup" className="text-primary-600 dark:text-primary-400 font-medium hover:underline">
               {t('navigation.applyEarlyAccess')}
             </Link>
           </p>

@@ -342,12 +342,12 @@ export function LandingPage() {
             <p className="hero-sub">{t('landing.scrollHero.sub')}</p>
             <div className="hero-actions">
               <a
-                href="/waitlist"
+                href="/signup"
                 className="lp-btn"
                 onClick={() => trackCtaClick({
                   ctaName: 'scroll_hero_primary',
                   ctaLocation: 'landing_scroll_hero',
-                  destination: '/waitlist',
+                  destination: '/signup',
                   locale,
                 })}
               >
@@ -646,12 +646,12 @@ export function LandingPage() {
               <p className="section-sub">{t('landing.ctaSection.subtitle')}</p>
               <div className="cta-actions">
                 <a
-                  href="/waitlist"
+                  href="/signup"
                   className="lp-btn"
                   onClick={() => trackCtaClick({
                     ctaName: 'bottom_cta_primary',
                     ctaLocation: 'landing_bottom_cta',
-                    destination: '/waitlist',
+                    destination: '/signup',
                     locale,
                   })}
                 >
