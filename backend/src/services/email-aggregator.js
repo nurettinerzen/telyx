@@ -5,6 +5,7 @@
 
 import prisma from '../prismaClient.js';
 import gmailService from './gmail.js';
+import imapService from './imap.js';
 import outlookService from './outlook.js';
 
 class EmailAggregatorService {
@@ -79,6 +80,8 @@ class EmailAggregatorService {
       return gmailService;
     } else if (provider === 'OUTLOOK') {
       return outlookService;
+    } else if (provider === 'IMAP') {
+      return imapService;
     }
     throw new Error(`Unknown email provider: ${provider}`);
   }

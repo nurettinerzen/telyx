@@ -288,6 +288,37 @@ export default function IntegrationsPage() {
     sikayetvarHelper: isTr ? 'Sistem açık şikayetleri çeker, empatik AI cevap taslakları üretir ve yalnızca sizin onayınızdan sonra platforma gönderir.' : 'The system pulls open complaints, creates empathetic AI drafts, and sends them only after your approval.',
     sikayetvarConnectButton: isTr ? 'Şikayetvar Bağla' : 'Connect Sikayetvar',
   };
+  const imapCopy = {
+    title: isTr ? 'IMAP / SMTP' : 'IMAP / SMTP',
+    description: isTr
+      ? 'Kurumsal mail sunucuları için manuel bağlantı. OAuth olmayan şirket mailboxlarını IMAP ile okuyup SMTP ile yanıtlarız.'
+      : 'Manual connection for corporate mail servers. We read non-OAuth company mailboxes via IMAP and send replies via SMTP.',
+    modalTitle: isTr ? 'IMAP / SMTP Bağlantısı' : 'IMAP / SMTP Connection',
+    modalDescription: isTr
+      ? 'Mailbox bilgilerini girin. Sistem önce IMAP ve SMTP bağlantısını test eder, sonra hesabı bağlar.'
+      : 'Enter your mailbox settings. The system verifies IMAP and SMTP access first, then saves the account.',
+    helper: isTr
+      ? 'Çoğu kurumsal hesap normal şifre yerine app password ister. İlk sürümde IMAP inbox senkronu ve SMTP gönderimi desteklenir.'
+      : 'Most corporate accounts require an app password instead of a normal password. This first version supports IMAP inbox sync and SMTP sending.',
+    email: isTr ? 'E-posta adresi' : 'Email address',
+    username: isTr ? 'Kullanıcı adı' : 'Username',
+    password: isTr ? 'Şifre / App password' : 'Password / app password',
+    imapHost: 'IMAP Host',
+    imapPort: 'IMAP Port',
+    smtpHost: 'SMTP Host',
+    smtpPort: 'SMTP Port',
+    secureLabel: isTr ? 'Güvenli bağlantı' : 'Secure connection',
+    secureTls: 'SSL / TLS',
+    startTls: 'STARTTLS / Opportunistic TLS',
+    connectButton: isTr ? 'IMAP Bağla' : 'Connect IMAP',
+    connectSuccess: isTr ? 'IMAP / SMTP bağlantısı başarılı' : 'IMAP / SMTP connected successfully',
+    connectError: isTr ? 'IMAP / SMTP bağlantısı kurulamadı' : 'Failed to connect IMAP / SMTP',
+    fillRequired: isTr ? 'Tüm zorunlu alanları doldurun' : 'Fill in all required fields',
+    emailPlaceholder: 'info@company.com',
+    usernamePlaceholder: isTr ? 'çoğu zaman e-posta adresi ile aynı' : 'usually same as the email address',
+    passwordPlaceholder: isTr ? 'mailbox app password' : 'mailbox app password',
+    hostPlaceholder: 'mail.company.com',
+  };
   const { can, user } = usePermissions();
   const pageHelp = getPageHelp('integrations', locale);
   const queryClient = useQueryClient();
@@ -297,6 +328,7 @@ export default function IntegrationsPage() {
   const [trendyolModalOpen, setTrendyolModalOpen] = useState(false);
   const [hepsiburadaModalOpen, setHepsiburadaModalOpen] = useState(false);
   const [sikayetvarModalOpen, setSikayetvarModalOpen] = useState(false);
+  const [imapModalOpen, setImapModalOpen] = useState(false);
 
   // React Query hooks
   const { data: integrationsData, isLoading: loading } = useIntegrations();
@@ -397,6 +429,17 @@ export default function IntegrationsPage() {
 
   // Email state
   const [emailLoading, setEmailLoading] = useState(false);
+  const [imapForm, setImapForm] = useState({
+    email: '',
+    username: '',
+    password: '',
+    imapHost: '',
+    imapPort: '993',
+    imapSecure: 'true',
+    smtpHost: '',
+    smtpPort: '587',
+    smtpSecure: 'false',
+  });
 
   // Shopify state
   const [shopifyLoading, setShopifyLoading] = useState(false);
@@ -523,6 +566,40 @@ export default function IntegrationsPage() {
       toast.success(t('dashboard.integrationsPage.emailDisconnected'));
     } catch (error) {
       toast.error(t('dashboard.integrationsPage.emailDisconnectFailed'));
+    } finally {
+      setEmailLoading(false);
+    }
+  };
+
+  const handleImapConnect = async () => {
+    const requiredFields = ['email', 'password', 'imapHost', 'smtpHost'];
+    const hasMissingField = requiredFields.some((field) => !String(imapForm[field] || '').trim());
+
+    if (hasMissingField) {
+      toast.error(imapCopy.fillRequired);
+      return;
+    }
+
+    try {
+      setEmailLoading(true);
+      await apiClient.post('/api/email/imap/connect', {
+        email: imapForm.email,
+        username: imapForm.username || imapForm.email,
+        password: imapForm.password,
+        imapHost: imapForm.imapHost,
+        imapPort: Number.parseInt(imapForm.imapPort, 10) || 993,
+        imapSecure: imapForm.imapSecure === 'true',
+        smtpHost: imapForm.smtpHost,
+        smtpPort: Number.parseInt(imapForm.smtpPort, 10) || 587,
+        smtpSecure: imapForm.smtpSecure === 'true',
+      });
+
+      toast.success(imapCopy.connectSuccess);
+      setImapModalOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['integrations', 'email', 'status'] });
+      queryClient.invalidateQueries({ queryKey: ['email', 'status'] });
+    } catch (error) {
+      toast.error(error.response?.data?.error || imapCopy.connectError);
     } finally {
       setEmailLoading(false);
     }
@@ -1568,6 +1645,44 @@ const handleShopifyConnect = async () => {
             </div>
           </div>
 
+          {/* IMAP / SMTP Card */}
+          <div className={`${STANDARD_CARD_CLASS} bg-white dark:bg-[#081224]/95 hover:shadow-md ${emailStatus?.connected && emailStatus?.provider === 'IMAP' ? 'border-neutral-400 dark:border-cyan-500/35' : 'border-neutral-200 dark:border-white/10'}`}>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex min-h-10 items-center gap-3">
+                <div className={CARD_ICON_WRAPPER_CLASS}>
+                  <Mail className="h-5 w-5 text-sky-600 dark:text-cyan-300" />
+                </div>
+                <div className="min-h-10 flex items-center">
+                  <h3 className="font-semibold text-neutral-900 dark:text-white">{imapCopy.title}</h3>
+                </div>
+              </div>
+              {emailStatus?.connected && emailStatus?.provider === 'IMAP' && (
+                <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-xs">
+                  {t('dashboard.integrationsPage.connected')}
+                </Badge>
+              )}
+            </div>
+            <p className="min-h-10 text-sm text-neutral-600 dark:text-neutral-400 mb-4 line-clamp-3">{imapCopy.description}</p>
+            <div className="mt-auto pt-2">
+            {emailStatus?.connected && emailStatus?.provider === 'IMAP' ? (
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" className="flex-1" onClick={() => window.location.href = '/dashboard/email'}>
+                  <Inbox className="h-4 w-4 mr-1" />{t('dashboard.integrationsPage.openInbox')}
+                </Button>
+                {can('integrations:connect') && (
+                <Button variant="outline" size="sm" onClick={handleEmailDisconnect} disabled={emailLoading}>{t('dashboard.integrationsPage.disconnect')}</Button>
+                )}
+              </div>
+            ) : (
+              can('integrations:connect') && (
+              <Button size="sm" className="w-full" onClick={() => setImapModalOpen(true)} disabled={emailLoading || (emailStatus?.connected && emailStatus?.provider !== 'IMAP')}>
+                {t('dashboard.integrationsPage.connect')}
+              </Button>
+              )
+            )}
+            </div>
+          </div>
+
           {/* Other Integrations */}
           {filteredIntegrations.map(renderIntegrationCard)}
       </div>
@@ -1616,6 +1731,127 @@ const handleShopifyConnect = async () => {
           </DialogContent>
         </Dialog>
       )}
+
+      <Dialog open={imapModalOpen} onOpenChange={setImapModalOpen}>
+        <DialogContent className={getDashboardOverlaySurfaceClass(dark, 'max-w-2xl')}>
+          <DialogHeader className={cn(dark && 'text-gray-100')}>
+            <DialogTitle className={cn(dark && '!text-white')}>{imapCopy.modalTitle}</DialogTitle>
+            <DialogDescription className={cn(dark && '!text-neutral-300')}>
+              {imapCopy.modalDescription}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-700 dark:border-white/10 dark:bg-white/5 dark:text-neutral-300">
+              {imapCopy.helper}
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label className={cn(dark && 'text-slate-200')}>{imapCopy.email}</Label>
+                <Input
+                  type="email"
+                  placeholder={imapCopy.emailPlaceholder}
+                  value={imapForm.email}
+                  onChange={(e) => setImapForm({ ...imapForm, email: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className={cn(dark && 'text-slate-200')}>{imapCopy.username}</Label>
+                <Input
+                  type="text"
+                  placeholder={imapCopy.usernamePlaceholder}
+                  value={imapForm.username}
+                  onChange={(e) => setImapForm({ ...imapForm, username: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className={cn(dark && 'text-slate-200')}>{imapCopy.password}</Label>
+              <Input
+                type="password"
+                placeholder={imapCopy.passwordPlaceholder}
+                value={imapForm.password}
+                onChange={(e) => setImapForm({ ...imapForm, password: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_120px_180px]">
+              <div className="space-y-2">
+                <Label className={cn(dark && 'text-slate-200')}>{imapCopy.imapHost}</Label>
+                <Input
+                  type="text"
+                  placeholder={imapCopy.hostPlaceholder}
+                  value={imapForm.imapHost}
+                  onChange={(e) => setImapForm({ ...imapForm, imapHost: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className={cn(dark && 'text-slate-200')}>{imapCopy.imapPort}</Label>
+                <Input
+                  type="number"
+                  value={imapForm.imapPort}
+                  onChange={(e) => setImapForm({ ...imapForm, imapPort: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className={cn(dark && 'text-slate-200')}>{imapCopy.secureLabel}</Label>
+                <select
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={imapForm.imapSecure}
+                  onChange={(e) => setImapForm({
+                    ...imapForm,
+                    imapSecure: e.target.value,
+                    imapPort: e.target.value === 'true' ? '993' : '143',
+                  })}
+                >
+                  <option value="true">{imapCopy.secureTls}</option>
+                  <option value="false">{imapCopy.startTls}</option>
+                </select>
+              </div>
+            </div>
+            <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_120px_180px]">
+              <div className="space-y-2">
+                <Label className={cn(dark && 'text-slate-200')}>{imapCopy.smtpHost}</Label>
+                <Input
+                  type="text"
+                  placeholder={imapCopy.hostPlaceholder}
+                  value={imapForm.smtpHost}
+                  onChange={(e) => setImapForm({ ...imapForm, smtpHost: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className={cn(dark && 'text-slate-200')}>{imapCopy.smtpPort}</Label>
+                <Input
+                  type="number"
+                  value={imapForm.smtpPort}
+                  onChange={(e) => setImapForm({ ...imapForm, smtpPort: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className={cn(dark && 'text-slate-200')}>{imapCopy.secureLabel}</Label>
+                <select
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={imapForm.smtpSecure}
+                  onChange={(e) => setImapForm({
+                    ...imapForm,
+                    smtpSecure: e.target.value,
+                    smtpPort: e.target.value === 'true' ? '465' : '587',
+                  })}
+                >
+                  <option value="false">587 / {imapCopy.startTls}</option>
+                  <option value="true">465 / {imapCopy.secureTls}</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImapModalOpen(false)} disabled={emailLoading}>
+              {isTr ? 'İptal' : 'Cancel'}
+            </Button>
+            <Button onClick={handleImapConnect} disabled={emailLoading}>
+              {emailLoading ? <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />{t('dashboard.integrationsPage.connectingText')}</> : imapCopy.connectButton}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={whatsappTestModalOpen} onOpenChange={setWhatsappTestModalOpen}>
         <DialogContent className={getDashboardOverlaySurfaceClass(dark, 'max-w-xl')}>

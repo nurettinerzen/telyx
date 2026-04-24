@@ -983,6 +983,7 @@ enum BookingPlatform {
 enum EmailProvider {
   GMAIL
   OUTLOOK
+  IMAP
 }
 
 enum EmailThreadStatus {

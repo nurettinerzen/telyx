@@ -38,6 +38,12 @@ async function syncBusinessEmails(integration) {
     const newMessages = await emailAggregator.syncNewMessages(businessId);
 
     if (newMessages.length === 0) {
+      if (provider !== 'GMAIL') {
+        await prisma.emailIntegration.update({
+          where: { businessId },
+          data: { lastSyncedAt: new Date() }
+        }).catch(() => undefined);
+      }
       console.log(`[Email Sync] No new messages for business ${businessId}`);
       return { businessId, processed: 0 };
     }
@@ -113,6 +119,14 @@ async function syncBusinessEmails(integration) {
     }
 
     console.log(`[Email Sync] Business ${businessId}: ${processedCount} new messages synced`);
+
+    if (provider !== 'GMAIL') {
+      await prisma.emailIntegration.update({
+        where: { businessId },
+        data: { lastSyncedAt: new Date() }
+      }).catch(() => undefined);
+    }
+
     return { businessId, processed: processedCount };
   } catch (error) {
     // Check if this is a token expiration error (already handled in gmail.js)

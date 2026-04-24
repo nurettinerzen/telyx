@@ -57,6 +57,14 @@ export async function createProviderDraft(ctx) {
         body: draftBody,
         replyToId: inboundMessage.messageId
       });
+    } else if (provider === 'IMAP') {
+      result = {
+        id: `db-managed-imap-${Date.now()}`,
+        draftId: null,
+        provider: 'IMAP',
+        pending: false,
+        skipped: true
+      };
     } else {
       return {
         success: false,

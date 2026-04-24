@@ -9,6 +9,7 @@ import prisma from '../prismaClient.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { hasEmailInboxAccess, requireEmailInboxAccess } from '../middleware/planGating.js';
 import gmailService from '../services/gmail.js';
+import imapService from '../services/imap.js';
 import outlookService from '../services/outlook.js';
 import emailAggregator from '../services/email-aggregator.js';
 import emailAI from '../services/email-ai.js';
@@ -28,6 +29,36 @@ import {
 
 const router = express.Router();
 const EMAIL_OUTBOUND_TTL_MS = 5 * 60 * 1000;
+
+function parseProviderBoolean(value, fallback = false) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (['true', '1', 'yes', 'on'].includes(normalized)) return true;
+    if (['false', '0', 'no', 'off'].includes(normalized)) return false;
+  }
+  return fallback;
+}
+
+function normalizeImapPayload(body = {}) {
+  const email = String(body.email || '').trim().toLowerCase();
+  const username = String(body.username || email).trim();
+  const password = String(body.password || '').trim();
+  const imapHost = String(body.imapHost || '').trim();
+  const smtpHost = String(body.smtpHost || '').trim();
+
+  return {
+    email,
+    username,
+    password,
+    imapHost,
+    imapPort: Number.parseInt(body.imapPort, 10) || (parseProviderBoolean(body.imapSecure, true) ? 993 : 143),
+    imapSecure: parseProviderBoolean(body.imapSecure, true),
+    smtpHost,
+    smtpPort: Number.parseInt(body.smtpPort, 10) || (parseProviderBoolean(body.smtpSecure, false) ? 465 : 587),
+    smtpSecure: parseProviderBoolean(body.smtpSecure, false)
+  };
+}
 
 function buildEmailSendLockKey({ draftId = null, threadId = null, content = '', replyToId = null }) {
   if (draftId) {
@@ -506,6 +537,38 @@ router.get('/outlook/callback', async (req, res) => {
   } catch (error) {
     console.error('❌ Outlook callback error:', error);
     safeRedirect(res, `/dashboard/integrations?error=outlook-failed`);
+  }
+});
+
+/**
+ * IMAP/SMTP manual connection
+ * POST /api/email/imap/connect
+ */
+router.post('/imap/connect', authenticateToken, async (req, res) => {
+  try {
+    const existing = await prisma.emailIntegration.findUnique({
+      where: { businessId: req.businessId }
+    });
+
+    if (existing && existing.connected && existing.provider !== 'IMAP') {
+      return res.status(400).json({
+        error: 'Another email provider is already connected. Please disconnect it first.'
+      });
+    }
+
+    const config = normalizeImapPayload(req.body);
+    const result = await imapService.connect(req.businessId, config);
+
+    res.json({
+      success: true,
+      email: result.email,
+      provider: 'IMAP'
+    });
+  } catch (error) {
+    console.error('IMAP connect error:', error);
+    res.status(400).json({
+      error: error.message || 'Failed to connect IMAP mailbox'
+    });
   }
 });
 

@@ -71,6 +71,8 @@ export async function analyzeWritingStyle(businessId) {
       sentEmails = await fetchGmailSentEmails(integration, 150);
     } else if (integration.provider === 'OUTLOOK') {
       sentEmails = await fetchOutlookSentEmails(integration, 150);
+    } else if (integration.provider === 'IMAP') {
+      console.warn('[Style Analyzer] IMAP style analysis not yet implemented');
     }
 
     if (sentEmails.length === 0) {
