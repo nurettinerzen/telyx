@@ -34,6 +34,11 @@ if (apiOrigin) {
   connectSrcValues.add(apiOrigin);
 }
 
+connectSrcValues.add('https://www.facebook.com');
+connectSrcValues.add('https://*.facebook.com');
+connectSrcValues.add('https://connect.facebook.net');
+connectSrcValues.add('https://*.facebook.net');
+
 const contentSecurityPolicy = [
   "default-src 'self'",
   "base-uri 'self'",
