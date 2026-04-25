@@ -137,6 +137,18 @@ export function getDashboardTableHeadCellClass(dark, className) {
   );
 }
 
+export function getDashboardTableHeaderStyle(dark) {
+  return {
+    backgroundColor: dark ? 'rgba(11, 23, 48, 0.88)' : 'rgba(248, 250, 252, 0.8)',
+  };
+}
+
+export function getDashboardTableHeadCellStyle(dark) {
+  return {
+    backgroundColor: dark ? 'rgba(11, 23, 48, 0.88)' : 'rgba(248, 250, 252, 0.8)',
+  };
+}
+
 export function getDashboardProgressTrackClass(dark, className) {
   return cn(
     'overflow-hidden rounded-full',

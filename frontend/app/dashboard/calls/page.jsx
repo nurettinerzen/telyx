@@ -48,7 +48,9 @@ import {
   getDashboardSelectTriggerClass,
   getDashboardSkeletonClass,
   getDashboardTableHeadCellClass,
+  getDashboardTableHeadCellStyle,
   getDashboardTableHeaderClass,
+  getDashboardTableHeaderStyle,
 } from '@/components/dashboard/dashboardSurfaceTheme';
 
 // Generate page numbers with ellipsis for pagination
@@ -465,15 +467,15 @@ export default function CallsPage() {
       ) : calls.length > 0 ? (
         <div className={getDashboardPanelClass(dark, 'overflow-hidden')}>
           <Table>
-            <TableHeader className={getDashboardTableHeaderClass(dark)}>
+            <TableHeader className={getDashboardTableHeaderClass(dark)} style={getDashboardTableHeaderStyle(dark)}>
               <TableRow className={cn(dark ? 'border-white/10' : 'border-gray-200', 'hover:bg-transparent')}>
-                <TableHead className={getDashboardTableHeadCellClass(dark)}>{t('dashboard.callsPage.dateTime')}</TableHead>
-                <TableHead className={getDashboardTableHeadCellClass(dark)}>{t('dashboard.callsPage.duration')}</TableHead>
-                <TableHead className={getDashboardTableHeadCellClass(dark)}>{t('dashboard.callsPage.direction')}</TableHead>
-                <TableHead className={getDashboardTableHeadCellClass(dark)}>{t('dashboard.callsPage.status')}</TableHead>
-                <TableHead className={getDashboardTableHeadCellClass(dark)}>{t('dashboard.callsPage.endReason')}</TableHead>
-                <TableHead className={getDashboardTableHeadCellClass(dark)}>{t('dashboard.callsPage.phoneNumber')}</TableHead>
-                <TableHead className={getDashboardTableHeadCellClass(dark, 'text-right')}>{t('dashboard.callsPage.actions')}</TableHead>
+                <TableHead className={getDashboardTableHeadCellClass(dark)} style={getDashboardTableHeadCellStyle(dark)}>{t('dashboard.callsPage.dateTime')}</TableHead>
+                <TableHead className={getDashboardTableHeadCellClass(dark)} style={getDashboardTableHeadCellStyle(dark)}>{t('dashboard.callsPage.duration')}</TableHead>
+                <TableHead className={getDashboardTableHeadCellClass(dark)} style={getDashboardTableHeadCellStyle(dark)}>{t('dashboard.callsPage.direction')}</TableHead>
+                <TableHead className={getDashboardTableHeadCellClass(dark)} style={getDashboardTableHeadCellStyle(dark)}>{t('dashboard.callsPage.status')}</TableHead>
+                <TableHead className={getDashboardTableHeadCellClass(dark)} style={getDashboardTableHeadCellStyle(dark)}>{t('dashboard.callsPage.endReason')}</TableHead>
+                <TableHead className={getDashboardTableHeadCellClass(dark)} style={getDashboardTableHeadCellStyle(dark)}>{t('dashboard.callsPage.phoneNumber')}</TableHead>
+                <TableHead className={getDashboardTableHeadCellClass(dark, 'text-right')} style={getDashboardTableHeadCellStyle(dark)}>{t('dashboard.callsPage.actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
