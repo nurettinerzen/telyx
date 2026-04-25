@@ -139,13 +139,15 @@ export function getDashboardTableHeadCellClass(dark, className) {
 
 export function getDashboardTableHeaderStyle(dark) {
   return {
-    backgroundColor: dark ? 'rgba(11, 23, 48, 0.88)' : 'rgba(248, 250, 252, 0.8)',
+    backgroundColor: dark ? '#0B1730' : '#F8FAFC',
+    backgroundImage: 'none',
   };
 }
 
 export function getDashboardTableHeadCellStyle(dark) {
   return {
-    backgroundColor: dark ? 'rgba(11, 23, 48, 0.88)' : 'rgba(248, 250, 252, 0.8)',
+    backgroundColor: dark ? '#0B1730' : '#F8FAFC',
+    backgroundImage: 'none',
   };
 }
 

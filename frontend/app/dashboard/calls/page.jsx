@@ -467,8 +467,17 @@ export default function CallsPage() {
       ) : calls.length > 0 ? (
         <div className={getDashboardPanelClass(dark, 'overflow-hidden')}>
           <Table>
-            <TableHeader className={getDashboardTableHeaderClass(dark)} style={getDashboardTableHeaderStyle(dark)}>
-              <TableRow className={cn(dark ? 'border-white/10' : 'border-gray-200', 'hover:bg-transparent')}>
+            <TableHeader
+              className={cn(
+                dark ? '!bg-[#0B1730] [&_tr]:!border-white/10 [&_th]:!bg-[#0B1730]' : '',
+                getDashboardTableHeaderClass(dark)
+              )}
+              style={getDashboardTableHeaderStyle(dark)}
+            >
+              <TableRow
+                className={cn(dark ? 'border-white/10' : 'border-gray-200', 'hover:bg-transparent')}
+                style={getDashboardTableHeaderStyle(dark)}
+              >
                 <TableHead className={getDashboardTableHeadCellClass(dark)} style={getDashboardTableHeadCellStyle(dark)}>{t('dashboard.callsPage.dateTime')}</TableHead>
                 <TableHead className={getDashboardTableHeadCellClass(dark)} style={getDashboardTableHeadCellStyle(dark)}>{t('dashboard.callsPage.duration')}</TableHead>
                 <TableHead className={getDashboardTableHeadCellClass(dark)} style={getDashboardTableHeadCellStyle(dark)}>{t('dashboard.callsPage.direction')}</TableHead>
