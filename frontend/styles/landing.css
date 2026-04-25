@@ -233,7 +233,9 @@
 
 .landing-page.trial-landing-page .hero-line {
   font-size: clamp(2.85rem, 6.7vw, 6rem);
-  line-height: 1.06;
+  line-height: 1.16;
+  padding-bottom: 0.12em;
+  overflow: visible;
 }
 
 .landing-page.trial-landing-page .hero-tagline {
@@ -310,7 +312,9 @@
 
   .landing-page.trial-landing-page .hero-line {
     font-size: clamp(2.35rem, 10.8vw, 3.8rem);
-    line-height: 1.08;
+    line-height: 1.16;
+    padding-bottom: 0.14em;
+    overflow: visible;
   }
 
   .landing-page.trial-landing-page .hero-actions {
