@@ -13,6 +13,7 @@ import {
   Building2,
   CreditCard,
   Loader2,
+  Megaphone,
   Phone,
   Shield,
   Users,
@@ -48,6 +49,7 @@ function getAdminDashboardCopy(locale) {
       ENTERPRISE: isTr ? 'Kurumsal' : 'Enterprise',
     },
     links: {
+      leads: isTr ? 'Leadler' : 'Leads',
       users: isTr ? 'Kullanıcılar' : 'Users',
       enterprise: isTr ? 'Kurumsal' : 'Enterprise',
       cancellations: isTr ? 'İptaller' : 'Cancellations',
@@ -137,6 +139,11 @@ export default function AdminDashboardPage() {
   }, [copy, stats]);
 
   const quickLinks = useMemo(() => ([
+    {
+      label: copy.links.leads,
+      href: '/dashboard/admin/leads',
+      icon: Megaphone,
+    },
     {
       label: copy.links.users,
       href: '/dashboard/admin/users',

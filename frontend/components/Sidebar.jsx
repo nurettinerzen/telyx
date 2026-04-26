@@ -97,6 +97,7 @@ const SIDEBAR_ICON_MAP = {
   subscription: CreditCard,
   account: Settings,
   adminPanel: Shield,
+  adminLeads: Megaphone,
   redAlert: AlertTriangle,
   adminUsers: Users,
   adminAssistants: Bot,

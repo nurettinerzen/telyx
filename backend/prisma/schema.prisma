@@ -174,6 +174,7 @@ model Business {
   customerData                   CustomerData[]
   customerDataFiles              CustomerDataFile[]
   callbackRequests               CallbackRequest[]
+  marketingLeads                 Lead[]
   doNotCalls                     DoNotCall[]
   chatLogs                       ChatLog[]
   pilotBusinesses                PilotBusiness[]                 @relation("PilotBusinesses")
@@ -1406,6 +1407,67 @@ model WaitlistEntry {
   @@index([status])
 }
 
+model Lead {
+  id                 String           @id @default(cuid())
+  businessId         Int?
+  business           Business?        @relation(fields: [businessId], references: [id], onDelete: SetNull)
+  source             LeadSource
+  externalSourceId   String?
+  campaignName       String?
+  adsetName          String?
+  adName             String?
+  formName           String?
+  name               String
+  email              String?
+  phone              String?
+  company            String?
+  businessType       String?
+  message            String?
+  status             LeadStatus       @default(NEW)
+  temperature        LeadTemperature  @default(COLD)
+  ctaResponse        LeadCtaResponse?
+  responseToken      String           @unique
+  notes              String?          @db.Text
+  sourceSubmittedAt  DateTime?
+  receivedAtUtc      DateTime         @default(now())
+  notificationSentAt DateTime?
+  firstEmailedAt     DateTime?
+  lastContactedAt    DateTime?
+  nextFollowUpAt     DateTime?
+  ctaRespondedAt     DateTime?
+  rawPayload         Json?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  activities       LeadActivity[]
+  callbackRequests CallbackRequest[]
+
+  @@unique([source, externalSourceId])
+  @@index([businessId])
+  @@index([status])
+  @@index([temperature])
+  @@index([source])
+  @@index([receivedAtUtc])
+  @@index([email])
+  @@index([phone])
+}
+
+model LeadActivity {
+  id         String           @id @default(cuid())
+  leadId     String
+  lead       Lead             @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  type       LeadActivityType
+  actorType  String?
+  actorId    String?
+  actorLabel String?
+  message    String?
+  metadata   Json?
+  createdAt  DateTime         @default(now())
+
+  @@index([leadId, createdAt])
+  @@index([type])
+}
+
 model ContactMessage {
   id           String   @id @default(cuid())
   email        String
@@ -1753,6 +1815,8 @@ model CallbackRequest {
   // İlişkiler
   businessId  Int
   business    Business   @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  leadId      String?
+  lead        Lead?      @relation(fields: [leadId], references: [id], onDelete: SetNull)
   assistantId String?
   assistant   Assistant? @relation(fields: [assistantId], references: [id], onDelete: SetNull)
   callId      String? // İlgili arama kaydı (conversation_id)
@@ -1783,6 +1847,7 @@ model CallbackRequest {
   @@index([status])
   @@index([priority])
   @@index([requestedAt])
+  @@index([leadId])
   @@index([customerPhone, topicHash, requestedAt]) // Duplicate detection index
 }
 
@@ -2131,6 +2196,52 @@ model PilotBusiness {
 
   @@unique([businessId, feature]) // Prevent duplicate feature entries
   @@index([feature, businessId]) // Query index for getPilotBusinesses()
+}
+
+enum LeadSource {
+  META_INSTANT_FORM
+  WEBSITE_CONTACT
+  WEBSITE_DEMO
+  WEBSITE_WAITLIST
+  MANUAL
+}
+
+enum LeadStatus {
+  NEW
+  EMAILED
+  POSITIVE
+  NOT_NOW
+  CALL_QUEUED
+  CALLED
+  WON
+  LOST
+}
+
+enum LeadTemperature {
+  COLD
+  WARM
+  HOT
+}
+
+enum LeadCtaResponse {
+  YES
+  NO
+}
+
+enum LeadActivityType {
+  LEAD_CREATED
+  INTERNAL_NOTIFICATION_SENT
+  INTERNAL_NOTIFICATION_FAILED
+  INITIAL_EMAIL_SENT
+  INITIAL_EMAIL_FAILED
+  CTA_YES
+  CTA_NO
+  STATUS_CHANGED
+  NOTE_UPDATED
+  CALLBACK_QUEUED
+  CALLBACK_QUEUE_FAILED
+  DEMO_CALL_INITIATED
+  DEMO_CALL_FAILED
 }
 
 // Email Pair (INBOUND → OUTBOUND) - Learning Dataset

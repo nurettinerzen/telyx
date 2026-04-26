@@ -2,9 +2,10 @@ import express from 'express';
 import prisma from '../prismaClient.js';
 import rateLimit from 'express-rate-limit';
 import { getPublicContactProfile } from '../services/businessPhoneRouting.js';
-import { sendContactNotificationEmail } from '../services/emailService.js';
+import { createLead, getLeadConstants } from '../services/leadService.js';
 
 const router = express.Router();
+const { LEAD_SOURCE } = getLeadConstants();
 
 // Rate limiter: 3 submissions per minute per IP
 const contactRateLimiter = rateLimit({
@@ -79,18 +80,21 @@ router.post('/', contactRateLimiter, async (req, res) => {
     });
 
     try {
-      await sendContactNotificationEmail({
+      await createLead({
+        source: LEAD_SOURCE.WEBSITE_CONTACT,
         name: entry.name,
         email: entry.email,
-        company: entry.company,
         phone: entry.phone,
+        company: entry.company,
         businessType: entry.businessType,
-        message: entry.message
+        message: entry.message,
+        formName: 'contact_form',
+        rawPayload: req.body
       });
-      console.log(`📧 Contact notification sent for: ${entry.email}`);
-    } catch (emailError) {
-      console.error('⚠️ Contact notification email failed:', emailError.message);
-      // Keep the saved lead even if email delivery has a transient issue.
+      console.log(`🧲 Contact lead created for: ${entry.email}`);
+    } catch (leadError) {
+      console.error('⚠️ Contact lead creation failed:', leadError.message);
+      // Keep the saved contact entry even if lead automation has an issue.
     }
 
     res.status(201).json({

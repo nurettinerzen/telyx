@@ -54,6 +54,8 @@ import batchCallsRoutes from './routes/batchCalls.js';
 import teamRoutes from './routes/team.js';
 // Contact
 import contactRoutes from './routes/contact.js';
+import leadsRoutes from './routes/leads.js';
+import waitlistRoutes from './routes/waitlist.js';
 // Onboarding
 import onboardingRoutes from './routes/onboarding.js';
 // Balance (new pricing system)
@@ -419,6 +421,8 @@ app.use('/api/webhook', webhookRoutes);
 app.use('/api/batch-calls', apiRateLimiter.middleware(), batchCallsRoutes);
 app.use('/api/team', teamRoutes);
 app.use('/api/contact', contactRoutes);
+app.use('/api/leads', leadsRoutes);
+app.use('/api/waitlist', waitlistRoutes);
 app.use('/api/onboarding', onboardingRoutes);
 app.use('/api/metrics', metricsRoutes); // Internal metrics (protected)
 app.use('/api/concurrent-metrics', concurrentMetricsRoutes); // P0.5: Concurrent call metrics

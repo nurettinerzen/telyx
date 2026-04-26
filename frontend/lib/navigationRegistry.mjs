@@ -26,6 +26,7 @@ export const ADMIN_SIDEBAR_SECTION = {
   labelKey: 'dashboard.sidebar.adminSection',
   itemKeys: [
     'adminPanel',
+    'adminLeads',
     'redAlert',
     'adminUsers',
     'adminAssistants',
@@ -252,6 +253,12 @@ export const ADMIN_NAVIGATION_ITEMS = {
     labelEn: 'Admin Panel',
     href: '/dashboard/admin',
     iconKey: 'adminPanel',
+  },
+  adminLeads: {
+    labelTr: 'Leadler',
+    labelEn: 'Leads',
+    href: '/dashboard/admin/leads',
+    iconKey: 'adminLeads',
   },
   redAlert: {
     labelTr: 'Red Alert',

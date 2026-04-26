@@ -8,7 +8,7 @@
 
 import { Resend } from 'resend';
 import { sanitizeEmailAddress, sanitizeHeaderValue, escapeHtml } from '../utils/mailSanitizer.js';
-import runtimeConfig from '../config/runtime.js';
+import runtimeConfig, { buildBackendUrl, buildFrontendUrl } from '../config/runtime.js';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_EMAIL = process.env.EMAIL_FROM || 'Telyx.AI <notifications@telyx.ai>';
@@ -1179,6 +1179,132 @@ export const sendWaitlistNotificationEmail = async ({ name, email, company, busi
   return sendEmail('info@telyx.ai', subject, html);
 };
 
+export const sendLeadNotificationEmail = async (lead) => {
+  const safeName = escapeHtml(lead?.name || '');
+  const safeEmail = sanitizeEmailAddress(lead?.email) || '';
+  const safePhone = lead?.phone ? escapeHtml(lead.phone) : '';
+  const safeCompany = lead?.company ? escapeHtml(lead.company) : '';
+  const safeBusinessType = lead?.businessType ? escapeHtml(lead.businessType) : '';
+  const safeSource = lead?.source ? escapeHtml(lead.source) : 'UNKNOWN';
+  const safeCampaign = lead?.campaignName ? escapeHtml(lead.campaignName) : '';
+  const safeFormName = lead?.formName ? escapeHtml(lead.formName) : '';
+  const subject = `Yeni Lead: ${sanitizeHeaderValue(lead?.name || lead?.email || 'Unknown')}`;
+  const adminLeadUrl = buildFrontendUrl('/dashboard/admin/leads');
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin:0;padding:0;background:#f4f7fb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0f172a;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f7fb;padding:32px 0;">
+        <tr>
+          <td align="center">
+            <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;">
+              <tr>
+                <td style="background:linear-gradient(135deg,#051752,#006FEB);padding:28px 32px;color:#ffffff;">
+                  <h1 style="margin:0;font-size:24px;">Yeni Lead Geldi</h1>
+                  <p style="margin:8px 0 0 0;font-size:14px;opacity:.88;">${safeSource}</p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:32px;">
+                  <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:20px 22px;">
+                    <p style="margin:0 0 10px 0;"><strong>Ad:</strong> ${safeName}</p>
+                    ${safeEmail ? `<p style="margin:0 0 10px 0;"><strong>Email:</strong> <a href="mailto:${safeEmail}" style="color:#006FEB;">${safeEmail}</a></p>` : ''}
+                    ${safePhone ? `<p style="margin:0 0 10px 0;"><strong>Telefon:</strong> ${safePhone}</p>` : ''}
+                    ${safeCompany ? `<p style="margin:0 0 10px 0;"><strong>Şirket:</strong> ${safeCompany}</p>` : ''}
+                    ${safeBusinessType ? `<p style="margin:0 0 10px 0;"><strong>İşletme Türü:</strong> ${safeBusinessType}</p>` : ''}
+                    ${safeCampaign ? `<p style="margin:0 0 10px 0;"><strong>Kampanya:</strong> ${safeCampaign}</p>` : ''}
+                    ${safeFormName ? `<p style="margin:0;"><strong>Form:</strong> ${safeFormName}</p>` : ''}
+                  </div>
+                  <p style="margin:24px 0 0 0;text-align:center;">
+                    <a href="${sanitizeHeaderValue(adminLeadUrl)}" style="display:inline-block;background:#111827;color:#ffffff !important;text-decoration:none;padding:14px 24px;border-radius:10px;font-size:14px;font-weight:600;">
+                      Lead Panelini Aç
+                    </a>
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `;
+
+  return sendEmail(INTERNAL_SIGNUP_NOTIFICATION_EMAIL, subject, html);
+};
+
+export const sendLeadAutoResponseEmail = async (lead) => {
+  const safeName = escapeHtml(lead?.name || '');
+  const safeTo = sanitizeEmailAddress(lead?.email);
+  if (!safeTo) {
+    throw new Error('Lead email is required for autoresponse');
+  }
+
+  const yesUrl = buildBackendUrl(`/api/leads/respond/${encodeURIComponent(lead.responseToken)}?action=yes`);
+  const noUrl = buildBackendUrl(`/api/leads/respond/${encodeURIComponent(lead.responseToken)}?action=no`);
+  const subject = 'Telyx hakkında kısa bilgi';
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <body style="margin:0;padding:0;background:#f4f7fb;font-family:Arial,sans-serif;color:#0f172a;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f7fb;padding:32px 0;">
+          <tr>
+            <td align="center">
+              <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;">
+                <tr>
+                  <td style="background:linear-gradient(135deg,#051752,#006FEB);padding:28px 32px;color:#ffffff;">
+                    <h1 style="margin:0;font-size:24px;">Telyx</h1>
+                    <p style="margin:8px 0 0 0;font-size:14px;opacity:.9;">AI destekli müşteri iletişimi</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:32px;">
+                    <p style="margin:0 0 16px 0;font-size:16px;">Merhaba${safeName ? ` ${safeName}` : ''},</p>
+                    <p style="margin:0 0 16px 0;font-size:16px;line-height:1.6;">
+                      İlginiz için teşekkürler. Telyx; telefon, WhatsApp, chat ve email üzerinden gelen müşteri taleplerini tek panelde toplayan ve AI ile 7/24 yanıtlamaya yardımcı olan bir platformdur.
+                    </p>
+                    <p style="margin:0 0 16px 0;font-size:16px;line-height:1.6;">
+                      Özellikle tekrar eden müşteri soruları, geç dönüşler ve dağınık iletişim süreçlerini azaltmak için kullanılır.
+                    </p>
+                    <p style="margin:0 0 24px 0;font-size:16px;line-height:1.6;">
+                      Sizin için kısa bir demo araması planlayabiliriz. Aşağıdan size uygun seçeneği işaretleyebilirsiniz.
+                    </p>
+                    <table cellpadding="0" cellspacing="0" style="margin:0 auto 12px auto;">
+                      <tr>
+                        <td style="padding-right:8px;">
+                          <a href="${sanitizeHeaderValue(yesUrl)}" style="display:inline-block;background:#006FEB;color:#ffffff !important;text-decoration:none;padding:14px 22px;border-radius:10px;font-size:15px;font-weight:bold;">
+                            Evet, demo araması istiyorum
+                          </a>
+                        </td>
+                        <td style="padding-left:8px;">
+                          <a href="${sanitizeHeaderValue(noUrl)}" style="display:inline-block;background:#e2e8f0;color:#0f172a !important;text-decoration:none;padding:14px 22px;border-radius:10px;font-size:15px;font-weight:bold;">
+                            Şu an ilgilenmiyorum
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:20px 32px;background:#f8fafc;font-size:12px;color:#64748b;">
+                    Telyx AI
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+    </html>
+  `;
+
+  return sendEmail(safeTo, subject, html);
+};
+
 /**
  * 23. Contact Form Notification (to admin)
  */
@@ -1384,6 +1510,8 @@ export default {
   sendLowBalanceWarning,
   sendTeamInvitationEmail,
   sendWaitlistNotificationEmail,
+  sendLeadNotificationEmail,
+  sendLeadAutoResponseEmail,
   sendContactNotificationEmail,
   sendNewSignupNotificationEmail,
   sendAdminMfaCodeEmail

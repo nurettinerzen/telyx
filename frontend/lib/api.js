@@ -338,6 +338,12 @@ export const apiClient = {
     getCallbacks: (params) => api.get('/api/admin/callbacks', { params }),
     updateCallback: (id, data) => api.patch(`/api/admin/callbacks/${id}`, data),
 
+    // Leads
+    getLeadStats: () => api.get('/api/leads/stats'),
+    getLeads: (params) => api.get('/api/leads', { params }),
+    getLead: (id) => api.get(`/api/leads/${id}`),
+    updateLead: (id, data) => api.patch(`/api/leads/${id}`, data),
+
     // Subscriptions
     getSubscriptions: (params) => api.get('/api/admin/subscriptions', { params }),
     updateSubscription: (id, data) => api.patch(`/api/admin/subscriptions/${id}`, data),
