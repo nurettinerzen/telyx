@@ -1,7 +1,6 @@
 import { randomUUID } from 'crypto';
 import prisma from '../prismaClient.js';
 import { getPublicContactProfile } from './businessPhoneRouting.js';
-import { initiateDemoCall } from './demoCallService.js';
 
 const LEAD_SOURCE = Object.freeze({
   META_INSTANT_FORM: 'META_INSTANT_FORM',
@@ -378,50 +377,6 @@ export async function handleLeadCtaResponse(responseToken, action) {
   }
 
   try {
-    const demoCall = await initiateDemoCall({
-      phoneNumber: updatedLead.phone,
-      language: 'TR',
-      name: updatedLead.name
-    });
-
-    if (demoCall.success) {
-      const calledLead = await prisma.$transaction(async (tx) => {
-        const nextLead = await tx.lead.update({
-          where: { id: updatedLead.id },
-          data: {
-            status: LEAD_STATUS.CALLED,
-            lastContactedAt: new Date()
-          }
-        });
-
-        await createLeadActivity(tx, {
-          leadId: nextLead.id,
-          type: LEAD_ACTIVITY.DEMO_CALL_INITIATED,
-          message: 'Demo araması otomatik başlatıldı.',
-          metadata: {
-            callId: demoCall.callId,
-            normalizedPhone: demoCall.normalizedPhone
-          },
-          actorType: 'system',
-          actorLabel: 'demo_call'
-        });
-
-        return nextLead;
-      });
-
-      return {
-        success: true,
-        lead: calledLead,
-        alreadyProcessed: false,
-        actionTaken: 'demo_call_started',
-        callId: demoCall.callId
-      };
-    }
-  } catch (error) {
-    console.error('Automatic demo call failed:', error.message);
-  }
-
-  try {
     const callbackResult = await queueLeadCallback(updatedLead);
     if (callbackResult.success) {
       const queuedLead = await prisma.$transaction(async (tx) => {
@@ -474,7 +429,7 @@ export async function handleLeadCtaResponse(responseToken, action) {
     success: true,
     lead: updatedLead,
     alreadyProcessed: false,
-    actionTaken: 'marked_positive'
+    actionTaken: 'demo_requested'
   };
 }
 
@@ -486,4 +441,3 @@ export function getLeadConstants() {
     LEAD_ACTIVITY,
   };
 }
-

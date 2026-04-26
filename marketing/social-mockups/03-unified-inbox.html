@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>Telyx — Unified Inbox (1080×1080)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased}
+  body{background:#020617;font-family:'Inter',system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:40px}
+
+  .canvas{
+    width:1080px;height:1080px;
+    background:
+      radial-gradient(circle at 80% 20%, rgba(34,197,94,.20) 0%, transparent 50%),
+      radial-gradient(circle at 20% 80%, rgba(59,130,246,.25) 0%, transparent 55%),
+      linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0c1530 100%);
+    position:relative;overflow:hidden;border-radius:48px;
+    box-shadow:0 60px 120px rgba(0,0,0,.5);
+  }
+
+  .canvas::before{
+    content:"";position:absolute;inset:0;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='0.9'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
+    pointer-events:none;mix-blend-mode:overlay;
+  }
+
+  .brand{position:absolute;top:50px;left:60px;display:flex;align-items:center;gap:14px;z-index:5}
+  .brand-logo{width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,#22d3ee 0%, #3b82f6 100%);display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(34,211,238,.5)}
+  .brand-logo svg{width:28px;height:28px;fill:white}
+  .brand-name{color:white;font-weight:800;font-size:26px;letter-spacing:-0.02em}
+
+  .pill{position:absolute;top:62px;right:60px;background:rgba(255,255,255,.08);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.15);color:white;padding:10px 18px;border-radius:100px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px}
+  .pill .dot{width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 12px #22c55e;animation:pulse 1.6s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+  /* headline */
+  .hero{position:absolute;top:140px;left:60px;right:60px;text-align:center;z-index:4}
+  .eyebrow{color:#67e8f9;font-size:14px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;margin-bottom:14px}
+  .h1{color:white;font-size:64px;font-weight:900;line-height:0.98;letter-spacing:-0.04em}
+  .h1 .grad{background:linear-gradient(135deg,#86efac 0%, #67e8f9 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .sub{color:#cbd5e1;font-size:17px;font-weight:400;line-height:1.5;margin-top:14px;max-width:620px;margin-left:auto;margin-right:auto}
+
+  /* dashboard */
+  .dash{position:absolute;left:60px;right:60px;bottom:140px;top:380px;
+    background:#ffffff;border-radius:28px;
+    box-shadow:0 40px 80px rgba(0,0,0,.5);
+    overflow:hidden;display:grid;grid-template-columns:340px 1fr}
+
+  .dash-side{background:#f8fafc;border-right:1px solid #e2e8f0;padding:24px;overflow:hidden}
+  .side-title{font-size:13px;font-weight:700;color:#0f172a;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:16px}
+  .ch-tabs{display:flex;gap:8px;margin-bottom:16px}
+  .ch{padding:8px 14px;border-radius:10px;font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px}
+  .ch.act{background:#dbeafe;color:#1d4ed8}
+  .ch.def{background:white;color:#64748b;border:1px solid #e2e8f0}
+  .ch svg{width:14px;height:14px}
+
+  .conv{padding:14px 12px;border-radius:12px;margin-bottom:6px;cursor:pointer;display:flex;gap:12px;align-items:flex-start}
+  .conv.act{background:white;box-shadow:0 1px 3px rgba(0,0,0,.05);border:1px solid #e2e8f0}
+  .conv-av{width:36px;height:36px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:13px;position:relative}
+  .conv-av .ch-ind{position:absolute;bottom:-2px;right:-2px;width:16px;height:16px;border-radius:50%;border:2px solid #f8fafc;display:flex;align-items:center;justify-content:center}
+  .conv.act .conv-av .ch-ind{border-color:white}
+  .ind-wa{background:#22c55e}
+  .ind-ch{background:#3b82f6}
+  .av-1{background:linear-gradient(135deg,#f97316,#dc2626)}
+  .av-2{background:linear-gradient(135deg,#3b82f6,#1d4ed8)}
+  .av-3{background:linear-gradient(135deg,#a855f7,#7e22ce)}
+  .av-4{background:linear-gradient(135deg,#0ea5e9,#0369a1)}
+  .conv-meta{flex:1;min-width:0}
+  .conv-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px}
+  .conv-name{font-weight:700;color:#0f172a;font-size:14px}
+  .conv-time{font-size:11px;color:#94a3b8;font-weight:500;font-variant-numeric:tabular-nums}
+  .conv-msg{font-size:12px;color:#64748b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:6px}
+  .badge{background:#3b82f6;color:white;font-size:10px;font-weight:700;padding:2px 7px;border-radius:100px;flex-shrink:0;margin-left:auto}
+
+  /* main panel */
+  .dash-main{padding:24px;display:flex;flex-direction:column;background:linear-gradient(180deg,#ffffff,#f8fafc)}
+  .main-head{display:flex;justify-content:space-between;align-items:center;padding-bottom:16px;border-bottom:1px solid #e2e8f0;margin-bottom:20px}
+  .main-who{display:flex;align-items:center;gap:12px}
+  .main-pic{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#f97316,#dc2626);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:16px;position:relative}
+  .main-pic .ch-ind{position:absolute;bottom:-2px;right:-2px;width:18px;height:18px;border-radius:50%;background:#22c55e;border:2px solid white;display:flex;align-items:center;justify-content:center}
+  .main-pic .ch-ind svg{width:10px;height:10px;fill:white}
+  .main-name{font-weight:700;color:#0f172a;font-size:15px}
+  .main-stat{font-size:11px;color:#64748b;display:flex;align-items:center;gap:6px;margin-top:2px}
+  .main-stat .live{width:6px;height:6px;border-radius:50%;background:#22c55e}
+
+  .ai-pill{background:linear-gradient(135deg,#dbeafe,#e0e7ff);color:#1d4ed8;padding:8px 14px;border-radius:100px;font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px;border:1px solid #bfdbfe}
+  .ai-pill svg{width:14px;height:14px;fill:#1d4ed8}
+
+  .messages{flex:1;display:flex;flex-direction:column;gap:12px;padding:8px 0}
+
+  .msg{max-width:80%;padding:14px 18px;border-radius:18px;font-size:14px;line-height:1.5}
+  .msg.in{background:#f1f5f9;color:#0f172a;border-bottom-left-radius:6px;align-self:flex-start}
+  .msg.out{background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:white;border-bottom-right-radius:6px;align-self:flex-end;box-shadow:0 8px 16px rgba(59,130,246,.25)}
+  .msg-time{font-size:10px;font-weight:500;margin-top:4px;display:block;opacity:.7}
+  .msg.out .ai-tag{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;margin-bottom:6px;color:#bfdbfe;text-transform:uppercase;letter-spacing:0.05em}
+  .msg.out .ai-tag::before{content:"";width:6px;height:6px;border-radius:50%;background:#67e8f9;box-shadow:0 0 8px #67e8f9}
+
+  .input{border-top:1px solid #e2e8f0;padding-top:14px;display:flex;gap:10px;align-items:center}
+  .input-box{flex:1;background:#f1f5f9;border-radius:100px;padding:12px 18px;color:#94a3b8;font-size:13px;display:flex;justify-content:space-between;align-items:center}
+  .ai-suggest{background:linear-gradient(135deg,#22d3ee,#3b82f6);color:white;padding:10px 16px;border-radius:100px;font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px;box-shadow:0 8px 16px rgba(34,211,238,.3)}
+
+  .orb{position:absolute;border-radius:50%;filter:blur(80px);opacity:.4;pointer-events:none}
+  .orb-1{width:300px;height:300px;background:#22c55e;top:50px;right:-80px}
+  .orb-2{width:280px;height:280px;background:#3b82f6;bottom:-80px;left:100px}
+</style>
+</head>
+<body>
+  <div class="canvas">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+
+    <div class="brand">
+      <div class="brand-logo"><svg viewBox="0 0 24 24"><path d="M3 4 L21 4 L17 9 L13 9 L13 20 L11 20 L11 9 L7 9 Z"/></svg></div>
+      <div class="brand-name">telyx</div>
+    </div>
+
+    <div class="pill"><span class="dot"></span>4 kanal · 1 ekran</div>
+
+    <div class="hero">
+      <div class="eyebrow">Birleşik Gelen Kutusu</div>
+      <div class="h1">Müşteri nereden yazarsa yazsın,<br><span class="grad">aynı yerde cevaplıyorsun.</span></div>
+      <div class="sub">WhatsApp, web chat, e-posta, telefon. Hepsi tek panelde. AI ön cevabı hazırlar, sen onaylar gönderirsin.</div>
+    </div>
+
+    <div class="dash">
+      <div class="dash-side">
+        <div class="side-title">Sohbetler</div>
+        <div class="ch-tabs">
+          <div class="ch act"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 100 20 10 10 0 000-20z"/></svg>Tümü</div>
+          <div class="ch def">WhatsApp</div>
+          <div class="ch def">Chat</div>
+        </div>
+
+        <div class="conv act">
+          <div class="conv-av av-1">MY<div class="ch-ind ind-wa"></div></div>
+          <div class="conv-meta">
+            <div class="conv-top"><div class="conv-name">Mustafa Y.</div><div class="conv-time">12:59</div></div>
+            <div class="conv-msg">Siparişim hakkında bilgi <span class="badge">2</span></div>
+          </div>
+        </div>
+        <div class="conv">
+          <div class="conv-av av-2">SK<div class="ch-ind ind-ch"></div></div>
+          <div class="conv-meta">
+            <div class="conv-top"><div class="conv-name">Seda K.</div><div class="conv-time">11:28</div></div>
+            <div class="conv-msg">Ürün iadesi nasıl yapabilirim?</div>
+          </div>
+        </div>
+        <div class="conv">
+          <div class="conv-av av-3">AT<div class="ch-ind ind-wa"></div></div>
+          <div class="conv-meta">
+            <div class="conv-top"><div class="conv-name">Ayşe T.</div><div class="conv-time">10:15</div></div>
+            <div class="conv-msg">Kargo takip numaramı paylaşır</div>
+          </div>
+        </div>
+        <div class="conv">
+          <div class="conv-av av-4">MA<div class="ch-ind ind-ch"></div></div>
+          <div class="conv-meta">
+            <div class="conv-top"><div class="conv-name">Merve A.</div><div class="conv-time">09:47</div></div>
+            <div class="conv-msg">Fatura talebinde bulunabilir</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dash-main">
+        <div class="main-head">
+          <div class="main-who">
+            <div class="main-pic">MY<div class="ch-ind"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 00-8.66 14.96L2 22l5.2-1.36A10 10 0 1012 2z"/></svg></div></div>
+            <div>
+              <div class="main-name">Mustafa Yıldız</div>
+              <div class="main-stat"><span class="live"></span>WhatsApp · şimdi yazıyor</div>
+            </div>
+          </div>
+          <div class="ai-pill"><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z"/></svg>AI Aktif</div>
+        </div>
+
+        <div class="messages">
+          <div class="msg in">Merhaba, geçen hafta verdiğim siparişim hâlâ gelmedi. Bilgi alabilir miyim?<span class="msg-time">12:59</span></div>
+          <div class="msg out">
+            <div class="ai-tag">Telyx AI yanıtladı</div>
+            Merhaba Mustafa Bey! #34218 numaralı siparişiniz dün kargoya verildi, yarın 14:00–18:00 arası teslim edilecek. Takip linki: bit.ly/trk-mu
+            <span class="msg-time">13:00 ✓✓</span>
+          </div>
+          <div class="msg in">Süper, çok teşekkür ederim 🙏<span class="msg-time">13:01</span></div>
+        </div>
+
+        <div class="input">
+          <div class="input-box">Yanıt yazın…<span style="color:#cbd5e1">⌘K</span></div>
+          <div class="ai-suggest">⚡ AI öner</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

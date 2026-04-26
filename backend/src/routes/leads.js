@@ -3,6 +3,13 @@ import prisma from '../prismaClient.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { isAdmin, requireAdminMfa } from '../middleware/adminAuth.js';
 import { createLead, getLeadByResponseToken, getLeadConstants, handleLeadCtaResponse } from '../services/leadService.js';
+import {
+  finishLeadPreviewSession,
+  registerLeadPreviewConversation,
+  LEAD_PREVIEW_MAX_DURATION_SECONDS,
+  LeadPreviewError
+} from '../services/leadPreviewService.js';
+import { buildSiteUrl } from '../config/runtime.js';
 
 const router = express.Router();
 const {
@@ -49,6 +56,7 @@ function buildResponseHtml({
   message,
   accent = '#006FEB',
 }) {
+  const logoUrl = buildSiteUrl('/assets/telyx-logo-email-horizontal.png');
   return `
     <!DOCTYPE html>
     <html lang="tr">
@@ -57,19 +65,37 @@ function buildResponseHtml({
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>${title}</title>
       </head>
-      <body style="margin:0;padding:0;background:#f4f7fb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0f172a;">
-        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f7fb;padding:40px 16px;">
+      <body style="margin:0;padding:0;background:#eef3f9;font-family:'Google Sans','Segoe UI',Arial,Helvetica,sans-serif;color:#051752;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#eef3f9;padding:32px 16px;">
           <tr>
             <td align="center">
-              <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:18px;overflow:hidden;">
+              <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:22px;overflow:hidden;box-shadow:0 12px 40px rgba(8,18,36,0.08);">
                 <tr>
-                  <td style="background:linear-gradient(135deg,#051752,${accent});padding:30px 32px;color:#ffffff;">
-                    <h1 style="margin:0;font-size:24px;">${title}</h1>
+                  <td style="background:linear-gradient(90deg,#00c3e6 0%,#245ce5 100%);height:6px;font-size:0;line-height:0;">&nbsp;</td>
+                </tr>
+                <tr>
+                  <td style="padding:34px 36px 0 36px;">
+                    <img src="${logoUrl}" alt="Telyx" height="42" style="display:block;height:42px;width:auto;border:0;outline:none;text-decoration:none;">
                   </td>
                 </tr>
                 <tr>
-                  <td style="padding:32px;">
-                    <p style="margin:0;font-size:16px;line-height:1.7;">${message}</p>
+                  <td style="padding:28px 36px 0 36px;">
+                    <h1 style="margin:0 0 14px 0;font-size:34px;font-weight:800;line-height:1.16;letter-spacing:-0.03em;color:#051752;">${title}</h1>
+                    <p style="margin:0;font-size:16px;line-height:1.72;color:#42526b;">${message}</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:28px 36px 24px 36px;">
+                    <div style="display:inline-block;padding:10px 18px;border-radius:999px;background:${accent === '#ef4444' ? '#fef2f2' : accent === '#64748b' ? '#f1f5f9' : '#ecfdf5'};color:${accent === '#ef4444' ? '#b91c1c' : accent === '#64748b' ? '#475569' : '#047857'};font-size:13px;font-weight:700;">
+                      ${accent === '#ef4444' ? 'İşlem tamamlanamadı' : accent === '#64748b' ? 'Talebiniz not edildi' : 'Talebiniz alındı'}
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:0 36px 24px 36px;background:#ffffff;font-size:11px;line-height:1.65;color:#8a97ac;text-align:center;">
+                    <div style="border-top:1px solid #e8eef6;padding-top:18px;">
+                      <a href="${buildSiteUrl('/')}" style="color:#52637d;text-decoration:none;font-weight:700;">telyx.ai</a>
+                    </div>
                   </td>
                 </tr>
               </table>
@@ -79,6 +105,18 @@ function buildResponseHtml({
       </body>
     </html>
   `;
+}
+
+function handleLeadPreviewError(res, error, fallbackMessage, responseMessage = 'Failed to prepare lead preview') {
+  if (error instanceof LeadPreviewError) {
+    return res.status(error.statusCode || 400).json({
+      error: error.message,
+      code: error.code || 'lead_preview_error'
+    });
+  }
+
+  console.error(fallbackMessage, error);
+  return res.status(500).json({ error: responseMessage });
 }
 
 router.get('/respond/:token', async (req, res) => {
@@ -113,14 +151,10 @@ router.get('/respond/:token', async (req, res) => {
     }
 
     if (action === 'yes') {
-      const yesMessage = result.actionTaken === 'demo_call_started'
-        ? 'Harika. Demo aramanız başlatıldı, telefonunuz kısa süre içinde çalabilir.'
-        : 'Harika. Talebiniz alındı; sistemimiz sizin için demo araması akışını hazırlıyor.';
-
-      return res.send(buildResponseHtml({
-        title: 'Demo araması alındı',
-        message: yesMessage,
-        accent: '#006FEB',
+      return res.status(200).send(buildResponseHtml({
+        title: 'Demo talebinizi aldık',
+        message: 'Talebiniz ekibimize ulaştı. En kısa sürede sizinle iletişime geçeceğiz.',
+        accent: '#10b981',
       }));
     }
 
@@ -190,6 +224,75 @@ router.post('/ingest/meta', async (req, res) => {
     res.status(500).json({
       error: 'Failed to ingest Meta lead'
     });
+  }
+});
+
+router.get('/preview/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+    const existingLead = await getLeadByResponseToken(token);
+    if (!existingLead) {
+      return res.status(404).json({ error: 'Lead not found' });
+    }
+
+    const result = await handleLeadCtaResponse(token, 'yes');
+    if (!result.success) {
+      return res.status(400).json({ error: 'Demo talebi işlenemedi' });
+    }
+
+    const effectiveLead = result.lead || existingLead;
+    const message = result.alreadyProcessed
+      ? 'Demo talebiniz daha önce alınmıştı. Ekibimiz bu kayıt üzerinden sizinle iletişime geçecek.'
+      : 'Demo talebiniz bize ulaştı. Ekibimiz bu kayıt üzerinden sizinle en kısa sürede iletişime geçecek.';
+
+    return res.json({
+      mode: 'request_received',
+      title: 'Demo talebinizi aldık',
+      message,
+      leadName: effectiveLead?.name || null,
+      status: effectiveLead?.status || null,
+      ctaResponse: effectiveLead?.ctaResponse || null,
+      actionTaken: result.actionTaken || (result.alreadyProcessed ? 'already_requested' : 'demo_requested'),
+    });
+  } catch (error) {
+    return handleLeadPreviewError(res, error, 'Lead preview error:', 'Failed to prepare lead preview');
+  }
+});
+
+router.post('/preview/session/connect', async (req, res) => {
+  try {
+    const { previewAccessToken, conversationId } = req.body || {};
+    const session = await registerLeadPreviewConversation({
+      previewAccessToken,
+      conversationId
+    });
+
+    return res.json({
+      success: true,
+      status: session.status,
+      expiresAt: session.expiresAt,
+      previewMaxDurationSeconds: LEAD_PREVIEW_MAX_DURATION_SECONDS
+    });
+  } catch (error) {
+    return handleLeadPreviewError(res, error, 'Lead preview connect error:', 'Failed to connect lead preview session');
+  }
+});
+
+router.post('/preview/session/end', async (req, res) => {
+  try {
+    const { previewAccessToken, reason } = req.body || {};
+    const session = await finishLeadPreviewSession({
+      previewAccessToken,
+      reason
+    });
+
+    return res.json({
+      success: true,
+      status: session?.status || null,
+      endReason: session?.endReason || null
+    });
+  } catch (error) {
+    return handleLeadPreviewError(res, error, 'Lead preview end error:', 'Failed to close lead preview session');
   }
 });
 
@@ -326,7 +429,9 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Lead not found' });
     }
 
-    res.json(lead);
+    res.json({
+      ...lead,
+    });
   } catch (error) {
     console.error('Lead detail error:', error);
     res.status(500).json({ error: 'Failed to fetch lead detail' });

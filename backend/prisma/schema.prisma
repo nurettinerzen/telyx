@@ -213,6 +213,7 @@ model Assistant {
   batchCalls          BatchCall[]
   callbackRequests    CallbackRequest[]
   chatLogs            ChatLog[]
+  leadPreviewSessions LeadPreviewSession[]
 
   @@index([businessId])
   @@index([isActive])
@@ -1441,6 +1442,7 @@ model Lead {
 
   activities       LeadActivity[]
   callbackRequests CallbackRequest[]
+  previewSession   LeadPreviewSession?
 
   @@unique([source, externalSourceId])
   @@index([businessId])
@@ -1450,6 +1452,28 @@ model Lead {
   @@index([receivedAtUtc])
   @@index([email])
   @@index([phone])
+}
+
+model LeadPreviewSession {
+  id                  String                   @id @default(cuid())
+  leadId              String                   @unique
+  lead                Lead                     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  assistantId         String?
+  assistant           Assistant?               @relation(fields: [assistantId], references: [id], onDelete: SetNull)
+  status              LeadPreviewSessionStatus @default(READY)
+  pageLoadedAt        DateTime                 @default(now())
+  credentialIssuedAt  DateTime?
+  credentialIssueCount Int                     @default(0)
+  connectedAt         DateTime?
+  expiresAt           DateTime?
+  endedAt             DateTime?
+  endReason           String?
+  conversationId      String?                  @unique
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+
+  @@index([assistantId])
+  @@index([status, expiresAt])
 }
 
 model LeadActivity {
@@ -2226,6 +2250,14 @@ enum LeadTemperature {
 enum LeadCtaResponse {
   YES
   NO
+}
+
+enum LeadPreviewSessionStatus {
+  READY
+  CONNECTING
+  ACTIVE
+  ENDED
+  EXPIRED
 }
 
 enum LeadActivityType {

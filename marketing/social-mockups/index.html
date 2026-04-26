@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>Telyx — Social Media Mockups</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased}
+  body{background:#0a0e27;font-family:'Inter',system-ui,sans-serif;color:white;padding:60px 40px;min-height:100vh}
+  .wrap{max-width:1400px;margin:0 auto}
+  h1{font-size:48px;font-weight:900;letter-spacing:-0.03em;margin-bottom:8px}
+  h1 .grad{background:linear-gradient(135deg,#22d3ee,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .lede{color:#94a3b8;font-size:18px;margin-bottom:48px;max-width:720px;line-height:1.5}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:24px}
+  .card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:24px;padding:24px;transition:all .3s;text-decoration:none;color:white;display:block}
+  .card:hover{transform:translateY(-4px);border-color:rgba(34,211,238,.4);background:rgba(34,211,238,.05)}
+  .preview{aspect-ratio:1080/1080;border-radius:16px;background:linear-gradient(135deg,#1e1b4b,#0f172a);margin-bottom:16px;overflow:hidden;position:relative}
+  .preview.tall{aspect-ratio:1080/1350}
+  .preview iframe{width:1080px;height:1080px;border:none;transform:scale(.34);transform-origin:top left;pointer-events:none}
+  .preview.tall iframe{height:1350px}
+  .num{position:absolute;top:12px;left:12px;background:rgba(0,0,0,.7);backdrop-filter:blur(10px);color:white;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:700;z-index:5}
+  .size{position:absolute;top:12px;right:12px;background:rgba(0,0,0,.7);backdrop-filter:blur(10px);color:#67e8f9;padding:6px 12px;border-radius:8px;font-size:11px;font-weight:600;z-index:5}
+  .card h3{font-size:20px;font-weight:700;margin-bottom:6px}
+  .card p{color:#94a3b8;font-size:14px;line-height:1.5}
+
+  .help{margin-top:60px;background:linear-gradient(135deg,rgba(34,211,238,.1),rgba(168,85,247,.1));border:1px solid rgba(34,211,238,.2);border-radius:24px;padding:32px}
+  .help h2{font-size:24px;font-weight:800;margin-bottom:14px;display:flex;align-items:center;gap:10px}
+  .help ol{padding-left:24px;color:#cbd5e1;line-height:1.8;font-size:15px}
+  .help code{background:rgba(0,0,0,.4);padding:2px 8px;border-radius:6px;font-family:monospace;font-size:13px;color:#67e8f9}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Telyx · <span class="grad">Social Media Creatives</span></h1>
+  <p class="lede">5 hazır mockup, Instagram & Facebook ölçülerinde. Her birini ayrı sekmede aç, ekran görüntüsü al, post'la.</p>
+
+  <div class="grid">
+    <a class="card" href="01-hero-dashboard.html" target="_blank">
+      <div class="preview tall">
+        <span class="num">01</span><span class="size">1080×1350 · Feed</span>
+        <iframe src="01-hero-dashboard.html"></iframe>
+      </div>
+      <h3>Hero — Tüm Kanallar Tek Ekran</h3>
+      <p>Ana giriş post'u. Marka tanıtımı + analitik panel + CTA. Reklam başlangıcı için ideal.</p>
+    </a>
+
+    <a class="card" href="02-ai-phone-call.html" target="_blank">
+      <div class="preview tall">
+        <span class="num">02</span><span class="size">1080×1350 · Feed</span>
+        <iframe src="02-ai-phone-call.html"></iframe>
+      </div>
+      <h3>AI Telefon Asistanı — Canlı Arama</h3>
+      <p>Ürünün en güçlü hikâyesi. Müşteri konuşması + canlı transkript. Sosyal kanıt etkisi.</p>
+    </a>
+
+    <a class="card" href="03-unified-inbox.html" target="_blank">
+      <div class="preview">
+        <span class="num">03</span><span class="size">1080×1080 · Square</span>
+        <iframe src="03-unified-inbox.html"></iframe>
+      </div>
+      <h3>Birleşik Gelen Kutusu</h3>
+      <p>WhatsApp + Web Chat tek panelde. Carousel'in 2. slaytı için ideal.</p>
+    </a>
+
+    <a class="card" href="04-email-mgmt.html" target="_blank">
+      <div class="preview">
+        <span class="num">04</span><span class="size">1080×1080 · Square</span>
+        <iframe src="04-email-mgmt.html"></iframe>
+      </div>
+      <h3>E-posta Otomasyonu</h3>
+      <p>AI taslak hazırlama vurgusu. KOBİ sahiplerine "zaman tasarrufu" mesajı.</p>
+    </a>
+
+    <a class="card" href="05-integrations.html" target="_blank">
+      <div class="preview">
+        <span class="num">05</span><span class="size">1080×1080 · Square</span>
+        <iframe src="05-integrations.html"></iframe>
+      </div>
+      <h3>Entegrasyonlar Hub</h3>
+      <p>Shopify, ikas, Gmail, Microsoft 365… "Mevcut araçlarınla çalışır" mesajı.</p>
+    </a>
+  </div>
+
+  <div class="help">
+    <h2>📸 Nasıl Ekran Görüntüsü Alınır?</h2>
+    <ol>
+      <li>Mockup'ı yeni sekmede aç (kart üzerine tıkla)</li>
+      <li>Tarayıcı zoom'unu <code>%100</code> yap (Cmd+0)</li>
+      <li>Mac: <code>Cmd + Shift + 4</code> → boşluk → mockup üstüne tıkla (sadece canvas alınır)</li>
+      <li>Ya da tarayıcı eklentisi: <strong>"GoFullPage"</strong> veya <strong>"Awesome Screenshot"</strong> kullan</li>
+      <li>Daha hızlı: Chrome DevTools → Cmd+Shift+P → <code>"Capture full size screenshot"</code></li>
+    </ol>
+    <h2 style="margin-top:24px">🎨 Renk/Yazı Değiştirmek İstersen</h2>
+    <ol>
+      <li>HTML dosyasını aç → <code>&lt;style&gt;</code> bloğundan renkleri değiştir</li>
+      <li>Mock data Türkçe, hepsi gerçekçi isim/ürünle dolu</li>
+      <li>Logo: <code>brand-logo</code> div'i — kendi SVG'ni koyabilirsin</li>
+    </ol>
+  </div>
+</div>
+</body>
+</html>

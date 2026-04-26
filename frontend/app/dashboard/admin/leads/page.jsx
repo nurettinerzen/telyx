@@ -296,6 +296,7 @@ export default function AdminLeadsPage() {
       const response = await apiClient.admin.getLead(leadId);
       const nextLead = response.data;
       setSelectedLead(nextLead);
+      setShowVoicePreview(false);
       setFormState({
         status: nextLead.status || 'NEW',
         temperature: nextLead.temperature || 'COLD',
@@ -761,6 +762,7 @@ export default function AdminLeadsPage() {
                     </span>
                   </div>
                 </div>
+
               </section>
             </div>
           )}

@@ -7,17 +7,27 @@
 // ============================================================================
 
 import { Resend } from 'resend';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { sanitizeEmailAddress, sanitizeHeaderValue, escapeHtml } from '../utils/mailSanitizer.js';
 import runtimeConfig, { buildBackendUrl, buildFrontendUrl } from '../config/runtime.js';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_EMAIL = process.env.EMAIL_FROM || 'Telyx.AI <notifications@telyx.ai>';
 const SELF_SEND_FROM_EMAIL = process.env.SELF_SEND_FROM_EMAIL || 'Telyx.AI Notifications <notifications@telyx.ai>';
+const LEAD_AUTORESPONSE_FROM_EMAIL = process.env.LEAD_AUTO_RESPONSE_FROM_EMAIL || 'Nurettin Erzen (Telyx) <nurettin@telyx.ai>';
+const LEAD_AUTORESPONSE_REPLY_TO = process.env.LEAD_AUTO_RESPONSE_REPLY_TO || 'nurettin@telyx.ai';
 const INTERNAL_SIGNUP_NOTIFICATION_EMAIL = process.env.SIGNUP_NOTIFICATION_EMAIL
   || process.env.PUBLIC_CONTACT_OWNER_EMAIL
   || 'info@telyx.ai';
 const FRONTEND_URL = runtimeConfig.frontendUrl;
 const SITE_URL = runtimeConfig.siteUrl;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const REPO_ROOT = path.resolve(__dirname, '../../..');
+const LEAD_EMAIL_LOGO_ASSET = path.join(REPO_ROOT, 'frontend/public/assets/telyx-logo-email-horizontal.png');
+const LEAD_EMAIL_AVATAR_ASSET = path.join(REPO_ROOT, 'frontend/public/assets/nurettin-kurumsal-avatar.png');
 
 let resend = null;
 
@@ -48,16 +58,39 @@ const resolveFromEmail = (safeTo) => {
   return safeFrom;
 };
 
-const sendEmail = async (to, subject, html) => {
+const buildInlineImageDataUrl = (assetPath, fallbackUrl = '') => {
+  try {
+    if (!assetPath || !fs.existsSync(assetPath)) {
+      return fallbackUrl;
+    }
+
+    const extension = path.extname(assetPath).toLowerCase();
+    const mimeType = extension === '.jpg' || extension === '.jpeg'
+      ? 'image/jpeg'
+      : extension === '.webp'
+        ? 'image/webp'
+        : 'image/png';
+
+    const buffer = fs.readFileSync(assetPath);
+    return `data:${mimeType};base64,${buffer.toString('base64')}`;
+  } catch (error) {
+    console.warn('⚠️ Failed to inline email image asset:', assetPath, error.message);
+    return fallbackUrl;
+  }
+};
+
+const sendEmail = async (to, subject, html, options = {}) => {
   const safeTo = sanitizeEmailAddress(to);
   const safeSubject = sanitizeHeaderValue(subject);
+  const safeReplyTo = sanitizeEmailAddress(options.replyTo);
+  const safeFrom = options.from
+    ? sanitizeHeaderValue(options.from)
+    : resolveFromEmail(safeTo);
 
   if (!safeTo) {
     console.error('[EMAIL] Invalid recipient:', JSON.stringify(to), 'type:', typeof to, 'safeTo:', JSON.stringify(safeTo));
     throw new Error('Invalid recipient email');
   }
-
-  const safeFrom = resolveFromEmail(safeTo);
 
   if (!resend) {
     console.log(`📧 [EMAIL PREVIEW] From: ${safeFrom}, To: ${safeTo}, Subject: ${safeSubject}`);
@@ -70,7 +103,8 @@ const sendEmail = async (to, subject, html) => {
       from: safeFrom,
       to: [safeTo],
       subject: safeSubject,
-      html
+      html,
+      ...(safeReplyTo ? { replyTo: safeReplyTo } : {})
     });
     console.log(`✅ Email sent to ${safeTo}: ${safeSubject} (ID: ${result.data?.id})`);
     return { sent: true, id: result.data?.id };
@@ -1244,45 +1278,57 @@ export const sendLeadAutoResponseEmail = async (lead) => {
     throw new Error('Lead email is required for autoresponse');
   }
 
-  const yesUrl = buildBackendUrl(`/api/leads/respond/${encodeURIComponent(lead.responseToken)}?action=yes`);
-  const noUrl = buildBackendUrl(`/api/leads/respond/${encodeURIComponent(lead.responseToken)}?action=no`);
-  const subject = 'Telyx hakkında kısa bilgi';
+  const subject = 'Telyx başvurunuzu aldık';
+  const logoUrl = sanitizeHeaderValue(
+    buildInlineImageDataUrl(LEAD_EMAIL_LOGO_ASSET, `${SITE_URL}/telyx-logo-horizontal-black.png`)
+  );
+  const avatarUrl = sanitizeHeaderValue(
+    buildInlineImageDataUrl(LEAD_EMAIL_AVATAR_ASSET, `${SITE_URL}/favicon-v3.png`)
+  );
+  const demoRequestUrl = buildBackendUrl(`/api/leads/respond/${encodeURIComponent(lead.responseToken)}?action=yes`);
+  const trialUrl = buildFrontendUrl('/signup');
   const html = `
     <!DOCTYPE html>
-    <html>
-      <body style="margin:0;padding:0;background:#f4f7fb;font-family:Arial,sans-serif;color:#0f172a;">
-        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f7fb;padding:32px 0;">
+    <html lang="tr">
+      <body style="margin:0;padding:0;background:#eef3f9;font-family:'Google Sans','Segoe UI',Arial,Helvetica,sans-serif;color:#0c1843;-webkit-font-smoothing:antialiased;">
+        <div style="display:none;font-size:1px;color:#eef3f9;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">
+          Telyx başvurunuzu aldık. Uygunsanız demo talebi bırakmanız yeterli.
+        </div>
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#eef3f9;padding:32px 0;">
           <tr>
             <td align="center">
-              <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;">
+              <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:22px;overflow:hidden;box-shadow:0 12px 40px rgba(8,18,36,0.08);">
                 <tr>
-                  <td style="background:linear-gradient(135deg,#051752,#006FEB);padding:28px 32px;color:#ffffff;">
-                    <h1 style="margin:0;font-size:24px;">Telyx</h1>
-                    <p style="margin:8px 0 0 0;font-size:14px;opacity:.9;">AI destekli müşteri iletişimi</p>
+                  <td style="background:linear-gradient(90deg,#00c3e6 0%,#245ce5 100%);height:6px;font-size:0;line-height:0;">&nbsp;</td>
+                </tr>
+                <tr>
+                  <td style="padding:34px 36px 0 36px;">
+                    <img src="${logoUrl}" alt="Telyx" height="42" style="display:block;height:42px;width:auto;border:0;outline:none;text-decoration:none;">
                   </td>
                 </tr>
                 <tr>
-                  <td style="padding:32px;">
-                    <p style="margin:0 0 16px 0;font-size:16px;">Merhaba${safeName ? ` ${safeName}` : ''},</p>
-                    <p style="margin:0 0 16px 0;font-size:16px;line-height:1.6;">
-                      İlginiz için teşekkürler. Telyx; telefon, WhatsApp, chat ve email üzerinden gelen müşteri taleplerini tek panelde toplayan ve AI ile 7/24 yanıtlamaya yardımcı olan bir platformdur.
+                  <td style="padding:28px 36px 0 36px;">
+                    <h1 style="margin:0 0 14px 0;font-size:32px;font-weight:800;line-height:1.18;letter-spacing:-0.03em;color:#051752;">
+                      ${safeName ? `Merhaba ${safeName},` : 'Merhaba,'}
+                    </h1>
+                    <p style="margin:0 0 14px 0;font-size:20px;line-height:1.55;color:#52637d;">
+                      Telyx başvurunuzu aldık.
                     </p>
-                    <p style="margin:0 0 16px 0;font-size:16px;line-height:1.6;">
-                      Özellikle tekrar eden müşteri soruları, geç dönüşler ve dağınık iletişim süreçlerini azaltmak için kullanılır.
+                    <p style="margin:0 0 22px 0;font-size:16px;line-height:1.72;color:#42526b;">
+                      Telyx, telefon, WhatsApp, web chat ve e-posta kanallarındaki müşteri iletişimini tek merkezde toplar ve AI destekli yanıtlarla operasyon yükünüzü azaltır.
                     </p>
-                    <p style="margin:0 0 24px 0;font-size:16px;line-height:1.6;">
-                      Sizin için kısa bir demo araması planlayabiliriz. Aşağıdan size uygun seçeneği işaretleyebilirsiniz.
+                    <p style="margin:0;font-size:16px;line-height:1.72;color:#42526b;">
+                      Telyx'in işletmenizde nasıl çalıştığını görmek için aşağıdaki butonla demo talebi bırakabilirsiniz. Talebiniz bize ulaştıktan sonra demo sürecinizi başlatırız.
                     </p>
-                    <table cellpadding="0" cellspacing="0" style="margin:0 auto 12px auto;">
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:28px 36px 0 36px;">
+                    <table cellpadding="0" cellspacing="0">
                       <tr>
-                        <td style="padding-right:8px;">
-                          <a href="${sanitizeHeaderValue(yesUrl)}" style="display:inline-block;background:#006FEB;color:#ffffff !important;text-decoration:none;padding:14px 22px;border-radius:10px;font-size:15px;font-weight:bold;">
-                            Evet, demo araması istiyorum
-                          </a>
-                        </td>
-                        <td style="padding-left:8px;">
-                          <a href="${sanitizeHeaderValue(noUrl)}" style="display:inline-block;background:#e2e8f0;color:#0f172a !important;text-decoration:none;padding:14px 22px;border-radius:10px;font-size:15px;font-weight:bold;">
-                            Şu an ilgilenmiyorum
+                        <td style="background:#051752;border-radius:999px;">
+                          <a href="${sanitizeHeaderValue(demoRequestUrl)}" style="display:inline-block;padding:16px 34px;font-size:16px;font-weight:800;letter-spacing:-0.01em;color:#ffffff !important;text-decoration:none;">
+                            Demo talebi
                           </a>
                         </td>
                       </tr>
@@ -1290,8 +1336,48 @@ export const sendLeadAutoResponseEmail = async (lead) => {
                   </td>
                 </tr>
                 <tr>
-                  <td style="padding:20px 32px;background:#f8fafc;font-size:12px;color:#64748b;">
-                    Telyx AI
+                  <td style="padding:28px 36px 0 36px;">
+                    <table cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td width="82" style="padding:8px 14px 0 0;vertical-align:top;">
+                          <img src="${avatarUrl}" alt="Nurettin Erzen" width="70" height="70" style="display:block;width:70px;height:70px;border-radius:50%;object-fit:cover;border:2px solid #ffffff;box-shadow:0 6px 18px rgba(8,18,36,0.12);">
+                        </td>
+                        <td style="vertical-align:top;">
+                          <div style="font-size:14px;line-height:1.5;color:#66758f;font-weight:700;">Sevgiler,</div>
+                          <div style="margin-top:6px;font-size:22px;line-height:1.3;font-weight:800;letter-spacing:-0.02em;color:#051752;">Nurettin Erzen</div>
+                          <div style="margin-top:2px;font-size:14px;line-height:1.6;color:#66758f;">Kurucu · <a href="${sanitizeHeaderValue(SITE_URL)}" style="color:#66758f;text-decoration:none;">telyx.ai</a></div>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:22px 36px 0 36px;">
+                    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f7f9fc;border-radius:18px;">
+                      <tr>
+                        <td width="6" style="background:#00c3e6;border-radius:18px 0 0 18px;"></td>
+                        <td style="padding:14px 16px 14px 16px;">
+                          <div style="font-size:15px;line-height:1.65;color:#52637d;">
+                            <strong style="font-weight:600;">Not:</strong> Dilerseniz demo sürecini es geçip 14 günlük deneme sürenizi başlatabilirsiniz.
+                          </div>
+                          <div style="margin-top:12px;">
+                            <a href="${sanitizeHeaderValue(trialUrl)}" style="display:inline-block;padding:9px 28px;font-size:15px;font-weight:800;color:#051752 !important;text-decoration:none;background:#ffffff;border:1px solid #dfe7f2;border-radius:999px;">
+                              Üye ol
+                            </a>
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:38px 36px 24px 36px;background:#ffffff;font-size:11px;line-height:1.65;color:#8a97ac;text-align:center;">
+                    <div style="border-top:1px solid #e8eef6;padding-top:18px;">
+                    Bu maili Telyx formunu doldurduğunuz için aldınız.<br>
+                    <a href="${sanitizeHeaderValue(SITE_URL)}" style="color:#52637d;text-decoration:none;font-weight:700;">telyx.ai</a>
+                    &nbsp;·&nbsp;
+                    <a href="mailto:${sanitizeHeaderValue(LEAD_AUTORESPONSE_REPLY_TO)}" style="color:#52637d;text-decoration:none;font-weight:700;">${sanitizeHeaderValue(LEAD_AUTORESPONSE_REPLY_TO)}</a>
+                    </div>
                   </td>
                 </tr>
               </table>
@@ -1302,7 +1388,29 @@ export const sendLeadAutoResponseEmail = async (lead) => {
     </html>
   `;
 
-  return sendEmail(safeTo, subject, html);
+  try {
+    return await sendEmail(safeTo, subject, html, {
+      from: LEAD_AUTORESPONSE_FROM_EMAIL,
+      replyTo: LEAD_AUTORESPONSE_REPLY_TO
+    });
+  } catch (error) {
+    const fallbackFrom = resolveFromEmail(safeTo);
+    const preferredFrom = sanitizeHeaderValue(LEAD_AUTORESPONSE_FROM_EMAIL);
+
+    if (!fallbackFrom || fallbackFrom === preferredFrom) {
+      throw error;
+    }
+
+    console.warn(
+      '⚠️ Lead autoresponse preferred sender failed, retrying with verified fallback sender:',
+      error.message
+    );
+
+    return sendEmail(safeTo, subject, html, {
+      from: fallbackFrom,
+      replyTo: LEAD_AUTORESPONSE_REPLY_TO
+    });
+  }
 };
 
 /**

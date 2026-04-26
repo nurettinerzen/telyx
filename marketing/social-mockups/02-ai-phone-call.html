@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>Telyx — AI Phone Call (1080×1350)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased}
+  body{background:#020617;font-family:'Inter',system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:40px}
+
+  .canvas{
+    width:1080px;height:1350px;
+    background:
+      radial-gradient(circle at 50% 30%, rgba(34,211,238,.30) 0%, transparent 50%),
+      radial-gradient(circle at 80% 80%, rgba(59,130,246,.25) 0%, transparent 55%),
+      linear-gradient(180deg, #020617 0%, #0c1530 50%, #1e1b4b 100%);
+    position:relative;overflow:hidden;border-radius:48px;
+    box-shadow:0 60px 120px rgba(0,0,0,.5);
+  }
+
+  .canvas::before{
+    content:"";position:absolute;inset:0;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='0.9'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
+    pointer-events:none;mix-blend-mode:overlay;
+  }
+
+  .brand{position:absolute;top:60px;left:60px;display:flex;align-items:center;gap:14px;z-index:5}
+  .brand-logo{width:54px;height:54px;border-radius:16px;background:linear-gradient(135deg,#22d3ee 0%, #3b82f6 100%);display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(34,211,238,.5)}
+  .brand-logo svg{width:32px;height:32px;fill:white}
+  .brand-name{color:white;font-weight:800;font-size:30px;letter-spacing:-0.02em}
+
+  .live{position:absolute;top:75px;right:60px;background:rgba(239,68,68,.15);backdrop-filter:blur(20px);border:1px solid rgba(239,68,68,.4);color:#fecaca;padding:10px 20px;border-radius:100px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;letter-spacing:0.05em}
+  .live .dot{width:8px;height:8px;border-radius:50%;background:#ef4444;animation:pulse 1.2s infinite;box-shadow:0 0 12px #ef4444}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.85)}}
+
+  .hero{position:absolute;top:170px;left:60px;right:60px;text-align:center;z-index:4}
+  .eyebrow{color:#67e8f9;font-size:16px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;margin-bottom:18px}
+  .h1{color:white;font-size:80px;font-weight:900;line-height:0.96;letter-spacing:-0.04em}
+  .h1 .grad{background:linear-gradient(135deg,#67e8f9 0%, #c4b5fd 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .sub{color:#cbd5e1;font-size:19px;font-weight:400;line-height:1.5;margin-top:18px;max-width:680px;margin-left:auto;margin-right:auto}
+
+  /* call card */
+  .call{
+    position:absolute;left:60px;right:60px;top:520px;
+    background:rgba(15,23,42,.6);
+    backdrop-filter:blur(40px);
+    border:1px solid rgba(255,255,255,.1);
+    border-radius:32px;padding:40px;
+    box-shadow:0 40px 80px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.1);
+  }
+
+  .call-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:32px}
+  .caller{display:flex;align-items:center;gap:16px}
+  .caller-pic{width:64px;height:64px;border-radius:50%;
+    background:linear-gradient(135deg,#3b82f6,#1d4ed8);
+    display:flex;align-items:center;justify-content:center;
+    color:white;font-weight:700;font-size:22px;
+    box-shadow:0 0 0 4px rgba(59,130,246,.2);}
+  .caller-name{color:white;font-weight:700;font-size:20px}
+  .caller-num{color:#94a3b8;font-size:14px;margin-top:2px;font-variant-numeric:tabular-nums}
+
+  .timer{color:#67e8f9;font-weight:700;font-size:22px;font-variant-numeric:tabular-nums;
+    background:rgba(34,211,238,.1);padding:8px 18px;border-radius:100px;border:1px solid rgba(34,211,238,.3)}
+
+  /* waveform */
+  .wave{display:flex;justify-content:center;align-items:center;gap:6px;height:80px;margin-bottom:32px}
+  .wave .bar{width:5px;background:linear-gradient(180deg,#22d3ee,#3b82f6);border-radius:4px;animation:w 1.2s infinite ease-in-out}
+  @keyframes w{0%,100%{height:12px}50%{height:60px}}
+  .wave .bar:nth-child(1){animation-delay:0s;height:18px}
+  .wave .bar:nth-child(2){animation-delay:.1s;height:36px}
+  .wave .bar:nth-child(3){animation-delay:.2s;height:50px}
+  .wave .bar:nth-child(4){animation-delay:.3s;height:64px}
+  .wave .bar:nth-child(5){animation-delay:.4s;height:50px}
+  .wave .bar:nth-child(6){animation-delay:.5s;height:36px}
+  .wave .bar:nth-child(7){animation-delay:.6s;height:24px}
+  .wave .bar:nth-child(8){animation-delay:.7s;height:42px}
+  .wave .bar:nth-child(9){animation-delay:.8s;height:58px}
+  .wave .bar:nth-child(10){animation-delay:.9s;height:46px}
+  .wave .bar:nth-child(11){animation-delay:1s;height:32px}
+  .wave .bar:nth-child(12){animation-delay:1.1s;height:24px}
+  .wave .bar:nth-child(13){animation-delay:1.2s;height:38px}
+  .wave .bar:nth-child(14){animation-delay:1.3s;height:52px}
+  .wave .bar:nth-child(15){animation-delay:1.4s;height:30px}
+
+  /* transcript */
+  .tr-head{color:#94a3b8;font-size:12px;font-weight:600;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:18px;display:flex;align-items:center;gap:8px}
+  .tr-head .liv{width:6px;height:6px;border-radius:50%;background:#22c55e;box-shadow:0 0 8px #22c55e;animation:pulse 1.4s infinite}
+
+  .bubble{display:flex;gap:14px;margin-bottom:14px;align-items:flex-start}
+  .av{width:36px;height:36px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:white}
+  .av.cu{background:#475569}
+  .av.ai{background:linear-gradient(135deg,#22d3ee,#3b82f6)}
+  .msg{flex:1}
+  .msg-who{color:#94a3b8;font-size:12px;font-weight:600;margin-bottom:4px}
+  .msg-who.ai-w{color:#67e8f9}
+  .msg-text{color:white;font-size:16px;line-height:1.5;background:rgba(255,255,255,.06);padding:14px 18px;border-radius:14px;border-bottom-left-radius:4px}
+  .bubble.ai .msg-text{background:linear-gradient(135deg, rgba(34,211,238,.15), rgba(59,130,246,.15));border:1px solid rgba(34,211,238,.25)}
+
+  /* CTA */
+  .cta{position:absolute;bottom:60px;left:60px;right:60px;display:flex;justify-content:space-between;align-items:center}
+  .cta-text{color:white;font-size:22px;font-weight:700}
+  .cta-text span{color:#67e8f9}
+  .cta-btn{background:linear-gradient(135deg,#22d3ee,#3b82f6);color:white;padding:18px 32px;border-radius:100px;font-weight:700;font-size:16px;display:flex;align-items:center;gap:10px;box-shadow:0 20px 40px rgba(34,211,238,.4)}
+
+  .orb{position:absolute;border-radius:50%;filter:blur(100px);opacity:.4;pointer-events:none}
+  .orb-1{width:400px;height:400px;background:#22d3ee;top:300px;left:-150px}
+  .orb-2{width:380px;height:380px;background:#a78bfa;bottom:100px;right:-120px}
+</style>
+</head>
+<body>
+  <div class="canvas">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+
+    <div class="brand">
+      <div class="brand-logo"><svg viewBox="0 0 24 24"><path d="M3 4 L21 4 L17 9 L13 9 L13 20 L11 20 L11 9 L7 9 Z"/></svg></div>
+      <div class="brand-name">telyx</div>
+    </div>
+
+    <div class="live"><span class="dot"></span>CANLI ARAMA</div>
+
+    <div class="hero">
+      <div class="eyebrow">AI Telefon Asistanı</div>
+      <div class="h1">Telefonu açan<br><span class="grad">zekâ.</span></div>
+      <div class="sub">Gece üç, bayram tatili, mesai dışı — fark etmez. Telyx açar, müşterini ismiyle karşılar, derdini çözer.</div>
+    </div>
+
+    <div class="call">
+      <div class="call-head">
+        <div class="caller">
+          <div class="caller-pic">MY</div>
+          <div>
+            <div class="caller-name">Mustafa Yıldız</div>
+            <div class="caller-num">+90 555 312 47 89</div>
+          </div>
+        </div>
+        <div class="timer">02:47</div>
+      </div>
+
+      <div class="wave">
+        <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+      </div>
+
+      <div class="tr-head"><span class="liv"></span>CANLI TRANSKRİPT</div>
+
+      <div class="bubble">
+        <div class="av cu">MY</div>
+        <div class="msg">
+          <div class="msg-who">Müşteri</div>
+          <div class="msg-text">Merhaba, dün verdiğim sipariş ne zaman elime geçer?</div>
+        </div>
+      </div>
+
+      <div class="bubble ai">
+        <div class="av ai">T</div>
+        <div class="msg">
+          <div class="msg-who ai-w">Telyx AI</div>
+          <div class="msg-text">Merhaba Mustafa Bey! #34218 numaralı siparişiniz bu sabah kargoya verildi, yarın öğleden önce adresinize teslim edilecek.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cta">
+      <div class="cta-text">14 gün <span>bedava</span> · kart yok</div>
+      <div class="cta-btn">telyx.ai →</div>
+    </div>
+  </div>
+</body>
+</html>

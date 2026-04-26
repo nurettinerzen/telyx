@@ -190,6 +190,14 @@ function getOriginSite(origin) {
   }
 }
 
+function isLocalDevOrigin(origin) {
+  if (!origin || process.env.NODE_ENV === 'production') {
+    return false;
+  }
+
+  return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
+}
+
 const allowedOrigins = new Set([
   ...parseOrigins(process.env.ALLOWED_ORIGINS),
   normalizeOrigin(process.env.FRONTEND_URL),
@@ -244,10 +252,14 @@ const corsOptionsDelegate = (req, callback) => {
     (prefix) => requestPath === prefix || requestPath.startsWith(`${prefix}/`)
   );
   const originPool = isPublicCorsPath ? publicCorsAllowedOrigins : allowedOrigins;
-  const isAllowedOrigin = Boolean(origin && originPool.has(origin));
+  const isAllowedOrigin = Boolean(origin && (originPool.has(origin) || isLocalDevOrigin(origin)));
   const originSite = getOriginSite(origin);
   const isTrustedDashboardOrigin = Boolean(
-    origin && (allowedOrigins.has(origin) || (originSite && trustedDashboardSites.has(originSite)))
+    origin && (
+      allowedOrigins.has(origin) ||
+      isLocalDevOrigin(origin) ||
+      (originSite && trustedDashboardSites.has(originSite))
+    )
   );
   const allowCredentials = !isPublicCorsPath || isTrustedDashboardOrigin;
 

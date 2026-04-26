@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>Telyx — E-posta Yönetimi (1080×1080)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased}
+  body{background:#020617;font-family:'Inter',system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:40px}
+
+  .canvas{
+    width:1080px;height:1080px;
+    background:
+      radial-gradient(circle at 20% 20%, rgba(168,85,247,.25) 0%, transparent 50%),
+      radial-gradient(circle at 80% 80%, rgba(34,211,238,.20) 0%, transparent 55%),
+      linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%);
+    position:relative;overflow:hidden;border-radius:48px;
+    box-shadow:0 60px 120px rgba(0,0,0,.5);
+  }
+
+  .canvas::before{
+    content:"";position:absolute;inset:0;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='0.9'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
+    pointer-events:none;mix-blend-mode:overlay;
+  }
+
+  .brand{position:absolute;top:50px;left:60px;display:flex;align-items:center;gap:14px;z-index:5}
+  .brand-logo{width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,#22d3ee 0%, #3b82f6 100%);display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(34,211,238,.5)}
+  .brand-logo svg{width:28px;height:28px;fill:white}
+  .brand-name{color:white;font-weight:800;font-size:26px;letter-spacing:-0.02em}
+
+  .pill{position:absolute;top:62px;right:60px;background:rgba(168,85,247,.18);backdrop-filter:blur(20px);border:1px solid rgba(168,85,247,.4);color:#e9d5ff;padding:10px 18px;border-radius:100px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px}
+  .pill svg{width:14px;height:14px;fill:#e9d5ff}
+
+  .hero{position:absolute;top:140px;left:60px;right:60px;text-align:center;z-index:4}
+  .eyebrow{color:#c4b5fd;font-size:14px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;margin-bottom:14px}
+  .h1{color:white;font-size:64px;font-weight:900;line-height:0.98;letter-spacing:-0.04em}
+  .h1 .grad{background:linear-gradient(135deg,#c4b5fd 0%, #67e8f9 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .sub{color:#cbd5e1;font-size:17px;font-weight:400;line-height:1.5;margin-top:14px;max-width:620px;margin-left:auto;margin-right:auto}
+
+  .dash{position:absolute;left:60px;right:60px;bottom:80px;top:380px;
+    background:white;border-radius:28px;padding:28px;
+    box-shadow:0 40px 80px rgba(0,0,0,.5);overflow:hidden;display:flex;flex-direction:column}
+
+  .dash-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+  .dash-title{font-size:18px;font-weight:700;color:#0f172a;display:flex;align-items:center;gap:10px}
+  .dash-title svg{width:22px;height:22px;fill:#7e22ce}
+  .sync-btn{background:#f1f5f9;color:#475569;padding:8px 14px;border-radius:10px;font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px;border:1px solid #e2e8f0}
+  .sync-btn svg{width:14px;height:14px;fill:currentColor}
+
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+  .stat{background:linear-gradient(180deg,#fafafa,#f8fafc);border:1px solid #e2e8f0;border-radius:14px;padding:14px}
+  .stat-ic{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;margin-bottom:8px}
+  .stat-ic svg{width:16px;height:16px;fill:white}
+  .ic-1{background:linear-gradient(135deg,#22d3ee,#0891b2)}
+  .ic-2{background:linear-gradient(135deg,#22c55e,#15803d)}
+  .ic-3{background:linear-gradient(135deg,#f97316,#ea580c)}
+  .ic-4{background:linear-gradient(135deg,#a855f7,#7e22ce)}
+  .stat-val{font-size:22px;font-weight:800;color:#0f172a;letter-spacing:-0.02em;font-variant-numeric:tabular-nums}
+  .stat-lbl{font-size:11px;color:#64748b;font-weight:500;margin-top:2px}
+
+  .list{flex:1;display:flex;flex-direction:column;gap:10px;overflow:hidden}
+  .row{display:flex;align-items:center;gap:14px;padding:14px 16px;background:#fafafa;border:1px solid #e2e8f0;border-radius:14px;transition:all .2s}
+  .row.hi{background:linear-gradient(90deg,#faf5ff,#f5f3ff);border-color:#d8b4fe;box-shadow:0 4px 12px rgba(168,85,247,.12)}
+  .row-av{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:13px;flex-shrink:0}
+  .av-i{background:linear-gradient(135deg,#0ea5e9,#0369a1)}
+  .av-d{background:linear-gradient(135deg,#22c55e,#15803d)}
+  .av-m{background:linear-gradient(135deg,#f97316,#ea580c)}
+  .av-l{background:linear-gradient(135deg,#a855f7,#7e22ce)}
+  .row-meta{flex:1;min-width:0}
+  .row-from{font-weight:700;color:#0f172a;font-size:14px}
+  .row-sub{font-size:12px;color:#64748b;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .row-time{font-size:11px;color:#94a3b8;font-weight:600;font-variant-numeric:tabular-nums;flex-shrink:0}
+  .tag{padding:6px 12px;border-radius:100px;font-size:11px;font-weight:700;flex-shrink:0;display:flex;align-items:center;gap:6px}
+  .tag-ai{background:linear-gradient(135deg,#ede9fe,#dbeafe);color:#7e22ce;border:1px solid #d8b4fe}
+  .tag-ai::before{content:"";width:6px;height:6px;border-radius:50%;background:#a855f7;box-shadow:0 0 8px #a855f7;animation:pulse 1.6s infinite}
+  .tag-done{background:#dcfce7;color:#15803d;border:1px solid #bbf7d0}
+  .tag-need{background:#fee2e2;color:#dc2626;border:1px solid #fecaca}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+  .orb{position:absolute;border-radius:50%;filter:blur(80px);opacity:.4;pointer-events:none}
+  .orb-1{width:300px;height:300px;background:#a855f7;top:50px;right:-80px}
+  .orb-2{width:280px;height:280px;background:#22d3ee;bottom:-80px;left:100px}
+</style>
+</head>
+<body>
+  <div class="canvas">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+
+    <div class="brand">
+      <div class="brand-logo"><svg viewBox="0 0 24 24"><path d="M3 4 L21 4 L17 9 L13 9 L13 20 L11 20 L11 9 L7 9 Z"/></svg></div>
+      <div class="brand-name">telyx</div>
+    </div>
+
+    <div class="pill"><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z"/></svg>518 e-posta otomatik</div>
+
+    <div class="hero">
+      <div class="eyebrow">E-posta Yönetimi</div>
+      <div class="h1">Gelen kutusu artık<br><span class="grad">kendi kendini yanıtlıyor.</span></div>
+      <div class="sub">AI okur, sınıflar, taslağı yazar. Sen sadece onaylıyorsun. Doğru ton, doğru bilgi, doğru saniye.</div>
+    </div>
+
+    <div class="dash">
+      <div class="dash-head">
+        <div class="dash-title">
+          <svg viewBox="0 0 24 24"><path d="M20 4H4a2 2 0 00-2 2v12a2 2 0 002 2h16a2 2 0 002-2V6a2 2 0 00-2-2zm0 4l-8 5-8-5V6l8 5 8-5z"/></svg>
+          E-posta · Bugün
+        </div>
+        <div class="sync-btn"><svg viewBox="0 0 24 24"><path d="M17.65 6.35A8 8 0 1019.73 14h-2.08A6 6 0 1112 6a5.94 5.94 0 014.22 1.78L13 11h7V4z"/></svg>Senkronize</div>
+      </div>
+
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-ic ic-1"><svg viewBox="0 0 24 24"><path d="M20 4H4a2 2 0 00-2 2v12a2 2 0 002 2h16a2 2 0 002-2V6a2 2 0 00-2-2z"/></svg></div>
+          <div class="stat-val">951</div>
+          <div class="stat-lbl">Toplam</div>
+        </div>
+        <div class="stat">
+          <div class="stat-ic ic-2"><svg viewBox="0 0 24 24"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg></div>
+          <div class="stat-val">327</div>
+          <div class="stat-lbl">Yanıtlandı</div>
+        </div>
+        <div class="stat">
+          <div class="stat-ic ic-3"><svg viewBox="0 0 24 24"><path d="M12 2L2 22h20L12 2zm0 6l6.5 13H5.5L12 8z"/></svg></div>
+          <div class="stat-val">284</div>
+          <div class="stat-lbl">Bekleyen</div>
+        </div>
+        <div class="stat">
+          <div class="stat-ic ic-4"><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z"/></svg></div>
+          <div class="stat-val">518</div>
+          <div class="stat-lbl">AI Görev</div>
+        </div>
+      </div>
+
+      <div class="list">
+        <div class="row hi">
+          <div class="row-av av-i">EK</div>
+          <div class="row-meta">
+            <div class="row-from">elif.kaya@firma.com</div>
+            <div class="row-sub">Mart ayı faturamı tekrar gönderir misiniz?</div>
+          </div>
+          <div class="row-time">12:59</div>
+          <div class="tag tag-ai">AI Taslak Hazır</div>
+        </div>
+        <div class="row">
+          <div class="row-av av-d">DM</div>
+          <div class="row-meta">
+            <div class="row-from">destek@müşteri.com</div>
+            <div class="row-sub">Ürün iadesi — 2 gün önce kargo iade ettim, geri ödeme ne…</div>
+          </div>
+          <div class="row-time">12:42</div>
+          <div class="tag tag-done">Yanıtlandı</div>
+        </div>
+        <div class="row">
+          <div class="row-av av-m">CY</div>
+          <div class="row-meta">
+            <div class="row-from">can.yilmaz@gmail.com</div>
+            <div class="row-sub">Sipariş #34218 nerede? Müşterim soruyor</div>
+          </div>
+          <div class="row-time">11:28</div>
+          <div class="tag tag-need">Acil</div>
+        </div>
+        <div class="row">
+          <div class="row-av av-l">SD</div>
+          <div class="row-meta">
+            <div class="row-from">selin@dijitalajans.co</div>
+            <div class="row-sub">Premium plana geçmek istiyoruz, fiyat teklifi…</div>
+          </div>
+          <div class="row-time">10:15</div>
+          <div class="tag tag-done">Yanıtlandı</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -44,7 +44,7 @@ const contentSecurityPolicy = [
   "base-uri 'self'",
   "object-src 'none'",
   `frame-ancestors ${frameAncestors}`,
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://apis.google.com https://www.gstatic.com https://www.googletagmanager.com https://www.google-analytics.com https://tagassistant.google.com https://static.iyzipay.com https://sandbox-static.iyzipay.com https://connect.facebook.net https://*.facebook.net https://*.facebook.com https://*.fbcdn.net",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data: https://accounts.google.com https://apis.google.com https://www.gstatic.com https://www.googletagmanager.com https://www.google-analytics.com https://tagassistant.google.com https://static.iyzipay.com https://sandbox-static.iyzipay.com https://connect.facebook.net https://*.facebook.net https://*.facebook.com https://*.fbcdn.net",
   "style-src 'self' 'unsafe-inline' https://accounts.google.com https://fonts.googleapis.com",
   "img-src 'self' data: blob: https:",
   "media-src 'self' blob: https:",
@@ -70,6 +70,10 @@ const noStoreHeaders = [
   { key: 'Cache-Control', value: 'no-store' },
   { key: 'Pragma', value: 'no-cache' },
 ];
+const microphoneEnabledHeader = {
+  key: 'Permissions-Policy',
+  value: 'geolocation=(), microphone=(self), camera=()',
+};
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -99,7 +103,17 @@ const nextConfig = {
       },
       {
         source: '/dashboard/:path*',
-        headers: noStoreHeaders,
+        headers: [
+          ...noStoreHeaders,
+          microphoneEnabledHeader,
+        ],
+      },
+      {
+        source: '/demo-preview/:path*',
+        headers: [
+          ...noStoreHeaders,
+          microphoneEnabledHeader,
+        ],
       },
       {
         source: '/dashboard/integrations',

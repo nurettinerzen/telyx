@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>Telyx — Hero (1080×1350)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+  body{background:#1a1a2e;font-family:'Inter',system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:40px}
+
+  .canvas{
+    width:1080px;height:1350px;
+    background:
+      radial-gradient(ellipse 800px 600px at 100% 0%, rgba(186,230,253,.45) 0%, transparent 60%),
+      radial-gradient(ellipse 700px 800px at 0% 100%, rgba(199,210,254,.55) 0%, transparent 65%),
+      linear-gradient(180deg, #f5f8ff 0%, #eef2ff 50%, #e0e7ff 100%);
+    position:relative;overflow:hidden;border-radius:48px;
+    box-shadow:0 60px 120px rgba(0,0,0,.4);
+  }
+
+  /* BRAND - real logo */
+  .brand{position:absolute;top:50px;left:54px;z-index:10}
+  .brand img{height:80px;width:auto;display:block;object-fit:contain;
+    filter:drop-shadow(0 2px 8px rgba(15,23,42,.08));}
+
+  /* HERO TEXT */
+  .hero{position:absolute;top:170px;left:60px;right:60px;z-index:5}
+  .h1{color:#0c1843;font-size:78px;font-weight:900;line-height:1.0;letter-spacing:-0.045em}
+  .h1 .grad{
+    background:linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  .sub{color:#475569;font-size:22px;font-weight:500;line-height:1.45;margin-top:22px;max-width:880px;letter-spacing:-0.005em}
+
+  /* TEXT CTA - above panel */
+  .text-cta{position:absolute;top:540px;left:60px;right:60px;z-index:5;
+    display:flex;align-items:center;gap:32px;flex-wrap:wrap}
+  .tc-item{display:flex;align-items:center;gap:10px;color:#0c1843;font-size:18px;font-weight:700;letter-spacing:-0.01em}
+  .tc-item .ck{width:26px;height:26px;border-radius:50%;background:#dcfce7;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .tc-item .ck svg{width:14px;height:14px;fill:#16a34a}
+  .tc-item.muted{color:#475569;font-weight:600;font-size:17px}
+
+  /* DASHBOARD PANEL */
+  .dash-wrap{position:absolute;top:620px;left:48px;right:48px;height:670px;z-index:3}
+  .dash-wrap::before{
+    content:"";position:absolute;inset:-20px -20px 30px -20px;border-radius:32px;
+    background:radial-gradient(ellipse at 30% 40%, rgba(59,130,246,.18), transparent 65%);
+    filter:blur(40px);z-index:-1}
+
+  .panel{
+    background:#ffffff;
+    border-radius:24px;
+    box-shadow:
+      0 30px 80px rgba(15,23,42,.18),
+      0 12px 32px rgba(15,23,42,.06),
+      0 0 0 1px rgba(15,23,42,.04);
+    overflow:hidden;
+    height:100%;
+    position:relative;
+    display:grid;
+    grid-template-columns:78px 1fr;
+  }
+
+  /* sidebar */
+  .side{background:#f8faff;border-right:1px solid #eef2f7;padding:24px 0;display:flex;flex-direction:column;align-items:center;gap:8px}
+  .si{width:46px;height:46px;border-radius:13px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .si svg{width:22px;height:22px;fill:#94a3b8}
+  .si.act{background:#eff6ff}
+  .si.act svg{fill:#3b82f6}
+  .si-spacer{flex:1}
+
+  /* main */
+  .main{padding:30px 36px;display:flex;flex-direction:column;gap:22px;overflow:hidden}
+
+  .head{display:flex;justify-content:space-between;align-items:center}
+  .h-t{font-size:24px;font-weight:800;color:#0c1843;letter-spacing:-0.02em}
+  .h-s{font-size:13px;color:#64748b;font-weight:500;margin-top:3px}
+  .date-pill{background:white;border:1px solid #e2e8f0;color:#475569;font-size:13px;font-weight:600;padding:10px 18px;border-radius:11px;display:flex;align-items:center;gap:10px;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+  .date-pill svg{width:15px;height:15px;fill:#94a3b8}
+
+  /* stats - matches real Telyx product */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  .stat{
+    background:#ffffff;
+    border:1px solid #eef2f7;
+    border-radius:18px;
+    padding:20px 18px;
+    box-shadow:0 1px 3px rgba(15,23,42,.04);
+    display:flex;flex-direction:column;align-items:flex-start;gap:0;
+  }
+  .stat-ic{width:46px;height:46px;border-radius:13px;display:flex;align-items:center;justify-content:center;margin-bottom:14px;flex-shrink:0}
+  .stat-ic svg{width:22px;height:22px}
+  .ic-call{background:#dbeafe}.ic-call svg{fill:#3b82f6}
+  .ic-chat{background:#dbeafe}.ic-chat svg{fill:#3b82f6}
+  .ic-wa{background:#dcfce7}.ic-wa svg{fill:#22c55e}
+  .ic-mail{background:#dbeafe}.ic-mail svg{fill:#3b82f6}
+  .stat-v{font-size:34px;font-weight:800;color:#0c1843;letter-spacing:-0.025em;line-height:1}
+  .stat-l{font-size:13px;color:#475569;font-weight:600;margin-top:6px}
+  .stat-pct{color:#16a34a;font-weight:700;font-size:13px;margin-top:10px}
+  .stat-pct::before{content:"+"}
+  .stat-vs{color:#94a3b8;font-size:11px;font-weight:500;margin-top:2px}
+
+  /* chart + pie */
+  .row{display:grid;grid-template-columns:1.55fr 1fr;gap:14px;flex:1;min-height:0}
+  .chart-card, .pie-card{
+    background:#ffffff;
+    border:1px solid #eef2f7;
+    border-radius:18px;
+    padding:18px 20px;
+    box-shadow:0 1px 3px rgba(15,23,42,.04);
+    display:flex;flex-direction:column;
+  }
+  .ch-h, .pie-h{font-size:15px;font-weight:700;color:#0c1843;letter-spacing:-0.01em;margin-bottom:12px}
+  .ch-svg{flex:1;width:100%;min-height:0}
+  .leg{display:flex;flex-wrap:wrap;gap:14px;margin-top:6px}
+  .lg{display:flex;align-items:center;gap:6px;font-size:12px;color:#475569;font-weight:600}
+  .lg .dt{width:9px;height:9px;border-radius:50%}
+
+  /* pie */
+  .pie-wrap{display:flex;align-items:center;gap:14px;flex:1}
+  .pie-svg{width:140px;height:140px;flex-shrink:0}
+  .pie-list{flex:1;display:flex;flex-direction:column;gap:9px}
+  .pi{display:flex;align-items:center;gap:9px;font-size:12px}
+  .pi .dt{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+  .pi .nm{color:#475569;font-weight:600;flex:1}
+  .pi .vl{color:#0c1843;font-weight:800}
+  .pi .pc{color:#64748b;font-weight:600;font-size:11px;margin-left:4px}
+
+</style>
+</head>
+<body>
+  <div class="canvas">
+    <!-- REAL LOGO -->
+    <div class="brand">
+      <img src="telyx-logo.png" alt="Telyx">
+    </div>
+
+    <!-- HERO -->
+    <div class="hero">
+      <h1 class="h1">AI Destekli<br><span class="grad">Müşteri Hizmetleri</span><br>Platformu</h1>
+      <p class="sub">Tüm müşteri taleplerinizi tek bir platformda AI ile anında yanıtlayın.</p>
+    </div>
+
+    <!-- TEXT CTA - above panel -->
+    <div class="text-cta">
+      <div class="tc-item">
+        <span class="ck"><svg viewBox="0 0 24 24"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg></span>
+        14 Gün Ücretsiz Deneyin
+      </div>
+      <div class="tc-item muted">
+        <span class="ck"><svg viewBox="0 0 24 24"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg></span>
+        Kredi kartı gerekmez
+      </div>
+    </div>
+
+    <!-- DASHBOARD - matches real Telyx UI -->
+    <div class="dash-wrap">
+      <div class="panel">
+        <!-- left sidebar -->
+        <div class="side">
+          <div class="si act"><svg viewBox="0 0 24 24"><path d="M12 3l-9 8h3v9h5v-6h2v6h5v-9h3z"/></svg></div>
+          <div class="si"><svg viewBox="0 0 24 24"><path d="M20 2H4a2 2 0 00-2 2v18l4-4h14a2 2 0 002-2V4a2 2 0 00-2-2z"/></svg></div>
+          <div class="si"><svg viewBox="0 0 24 24"><path d="M20 4H4a2 2 0 00-2 2v12a2 2 0 002 2h16a2 2 0 002-2V6a2 2 0 00-2-2zm0 4l-8 5-8-5V6l8 5 8-5z"/></svg></div>
+          <div class="si"><svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3 1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg></div>
+          <div class="si-spacer"></div>
+          <div class="si"><svg viewBox="0 0 24 24"><path d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65a.5.5 0 00.12-.64l-2-3.46a.5.5 0 00-.61-.22l-2.49 1a7.03 7.03 0 00-1.69-.98l-.38-2.65A.5.5 0 0014 2h-4a.5.5 0 00-.49.42L9.13 5.07c-.61.25-1.17.58-1.69.98l-2.49-1a.5.5 0 00-.61.22l-2 3.46a.5.5 0 00.12.64L4.57 11c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65a.5.5 0 00-.12.64l2 3.46a.5.5 0 00.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65A.5.5 0 0010 22h4a.5.5 0 00.49-.42l.38-2.65c.61-.25 1.17-.58 1.69-.98l2.49 1a.5.5 0 00.61-.22l2-3.46a.5.5 0 00-.12-.64l-2.11-1.65zM12 15.5a3.5 3.5 0 110-7 3.5 3.5 0 010 7z"/></svg></div>
+        </div>
+
+        <!-- main content -->
+        <div class="main">
+          <div class="head">
+            <div>
+              <div class="h-t">Analitik</div>
+              <div class="h-s">Müşteri etkileşimlerinizin özeti</div>
+            </div>
+            <div class="date-pill">
+              <svg viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5a2 2 0 00-2 2v16a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2zm0 18H5V8h14v13z"/></svg>
+              Son 30 Gün ▾
+            </div>
+          </div>
+
+          <div class="stats">
+            <div class="stat">
+              <div class="stat-ic ic-call"><svg viewBox="0 0 24 24"><path d="M20 15.5c-1.25 0-2.45-.2-3.57-.57a1 1 0 00-1.02.24l-2.2 2.2a15.07 15.07 0 01-6.59-6.58l2.2-2.21a1 1 0 00.25-1A11.36 11.36 0 018.5 4a1 1 0 00-1-1H4a1 1 0 00-1 1c0 9.39 7.61 17 17 17a1 1 0 001-1v-3.5a1 1 0 00-1-1z"/></svg></div>
+              <div class="stat-v">358</div>
+              <div class="stat-l">Toplam Arama</div>
+              <div class="stat-pct">28%</div>
+              <div class="stat-vs">Önceki 30 güne göre</div>
+            </div>
+            <div class="stat">
+              <div class="stat-ic ic-chat"><svg viewBox="0 0 24 24"><path d="M20 2H4a2 2 0 00-2 2v18l4-4h14a2 2 0 002-2V4a2 2 0 00-2-2z"/></svg></div>
+              <div class="stat-v">274</div>
+              <div class="stat-l">Chat Oturumları</div>
+              <div class="stat-pct">22%</div>
+              <div class="stat-vs">Önceki 30 güne göre</div>
+            </div>
+            <div class="stat">
+              <div class="stat-ic ic-wa"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 00-8.66 14.96L2 22l5.2-1.36A10 10 0 1012 2z"/></svg></div>
+              <div class="stat-v">412</div>
+              <div class="stat-l">WhatsApp</div>
+              <div class="stat-pct">36%</div>
+              <div class="stat-vs">Önceki 30 güne göre</div>
+            </div>
+            <div class="stat">
+              <div class="stat-ic ic-mail"><svg viewBox="0 0 24 24"><path d="M20 4H4a2 2 0 00-2 2v12a2 2 0 002 2h16a2 2 0 002-2V6a2 2 0 00-2-2zm0 4l-8 5-8-5V6l8 5 8-5z"/></svg></div>
+              <div class="stat-v">186</div>
+              <div class="stat-l">E-posta</div>
+              <div class="stat-pct">18%</div>
+              <div class="stat-vs">Önceki 30 güne göre</div>
+            </div>
+          </div>
+
+          <div class="row">
+            <!-- activity chart -->
+            <div class="chart-card">
+              <div class="ch-h">Zaman İçinde Aktivite</div>
+              <svg class="ch-svg" viewBox="0 0 460 180" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="agA" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#3b82f6" stop-opacity=".15"/><stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/></linearGradient>
+                </defs>
+                <text x="0" y="22" fill="#94a3b8" font-size="10" font-weight="500">600</text>
+                <text x="0" y="62" fill="#94a3b8" font-size="10" font-weight="500">450</text>
+                <text x="0" y="102" fill="#94a3b8" font-size="10" font-weight="500">300</text>
+                <text x="0" y="142" fill="#94a3b8" font-size="10" font-weight="500">150</text>
+                <line x1="28" y1="20" x2="460" y2="20" stroke="#f1f5f9"/>
+                <line x1="28" y1="60" x2="460" y2="60" stroke="#f1f5f9"/>
+                <line x1="28" y1="100" x2="460" y2="100" stroke="#f1f5f9"/>
+                <line x1="28" y1="140" x2="460" y2="140" stroke="#f1f5f9"/>
+                <!-- WhatsApp top series -->
+                <path d="M28,58 Q60,52 92,48 T156,42 T220,32 T284,28 T348,22 T412,18 T460,16 L460,160 L28,160 Z" fill="url(#agA)"/>
+                <path d="M28,58 Q60,52 92,48 T156,42 T220,32 T284,28 T348,22 T412,18 T460,16" stroke="#3b82f6" stroke-width="2.2" fill="none"/>
+                <!-- Aramalar -->
+                <path d="M28,72 Q60,68 92,72 T156,62 T220,58 T284,52 T348,46 T412,42 T460,40" stroke="#22d3ee" stroke-width="2" fill="none"/>
+                <!-- Chat -->
+                <path d="M28,108 Q60,104 92,98 T156,92 T220,86 T284,80 T348,74 T412,68 T460,66" stroke="#0ea5e9" stroke-width="1.8" fill="none"/>
+                <!-- E-posta -->
+                <path d="M28,138 Q60,134 92,132 T156,126 T220,122 T284,118 T348,112 T412,108 T460,104" stroke="#a78bfa" stroke-width="1.8" fill="none"/>
+                <!-- x-axis dates -->
+                <text x="28" y="172" fill="#94a3b8" font-size="9" font-weight="500">27 Mar</text>
+                <text x="100" y="172" fill="#94a3b8" font-size="9" font-weight="500">1 Nis</text>
+                <text x="170" y="172" fill="#94a3b8" font-size="9" font-weight="500">6 Nis</text>
+                <text x="240" y="172" fill="#94a3b8" font-size="9" font-weight="500">11 Nis</text>
+                <text x="310" y="172" fill="#94a3b8" font-size="9" font-weight="500">16 Nis</text>
+                <text x="380" y="172" fill="#94a3b8" font-size="9" font-weight="500">21 Nis</text>
+                <text x="425" y="172" fill="#94a3b8" font-size="9" font-weight="500">26 Nis</text>
+              </svg>
+              <div class="leg">
+                <div class="lg"><span class="dt" style="background:#3b82f6"></span>WhatsApp</div>
+                <div class="lg"><span class="dt" style="background:#22d3ee"></span>Aramalar</div>
+                <div class="lg"><span class="dt" style="background:#0ea5e9"></span>Chat</div>
+                <div class="lg"><span class="dt" style="background:#a78bfa"></span>E-posta</div>
+              </div>
+            </div>
+
+            <!-- pie chart -->
+            <div class="pie-card">
+              <div class="pie-h">Kanal Dağılımı</div>
+              <div class="pie-wrap">
+                <svg class="pie-svg" viewBox="0 0 100 100">
+                  <circle cx="50" cy="50" r="35" fill="none" stroke="#f1f5f9" stroke-width="14"/>
+                  <circle cx="50" cy="50" r="35" fill="none" stroke="#3b82f6" stroke-width="14"
+                    stroke-dasharray="77.19 219.91" stroke-dashoffset="0"
+                    transform="rotate(-90 50 50)"/>
+                  <circle cx="50" cy="50" r="35" fill="none" stroke="#22d3ee" stroke-width="14"
+                    stroke-dasharray="62.89 219.91" stroke-dashoffset="-77.19"
+                    transform="rotate(-90 50 50)"/>
+                  <circle cx="50" cy="50" r="35" fill="none" stroke="#0ea5e9" stroke-width="14"
+                    stroke-dasharray="51.24 219.91" stroke-dashoffset="-140.08"
+                    transform="rotate(-90 50 50)"/>
+                  <circle cx="50" cy="50" r="35" fill="none" stroke="#a78bfa" stroke-width="14"
+                    stroke-dasharray="28.59 219.91" stroke-dashoffset="-191.32"
+                    transform="rotate(-90 50 50)"/>
+                  <text x="50" y="48" text-anchor="middle" font-size="13" font-weight="800" fill="#0c1843">1.230</text>
+                  <text x="50" y="60" text-anchor="middle" font-size="6" font-weight="600" fill="#94a3b8" letter-spacing="0.5">TOPLAM</text>
+                </svg>
+                <div class="pie-list">
+                  <div class="pi"><span class="dt" style="background:#3b82f6"></span><span class="nm">Aramalar</span><span class="vl">358</span><span class="pc">%35,1</span></div>
+                  <div class="pi"><span class="dt" style="background:#22d3ee"></span><span class="nm">WhatsApp</span><span class="vl">412</span><span class="pc">%28,6</span></div>
+                  <div class="pi"><span class="dt" style="background:#0ea5e9"></span><span class="nm">Chat</span><span class="vl">274</span><span class="pc">%23,3</span></div>
+                  <div class="pi"><span class="dt" style="background:#a78bfa"></span><span class="nm">E-posta</span><span class="vl">186</span><span class="pc">%13,0</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>
