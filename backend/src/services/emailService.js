@@ -16,7 +16,7 @@ import runtimeConfig, { buildBackendUrl, buildFrontendUrl } from '../config/runt
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_EMAIL = process.env.EMAIL_FROM || 'Telyx.AI <notifications@telyx.ai>';
 const SELF_SEND_FROM_EMAIL = process.env.SELF_SEND_FROM_EMAIL || 'Telyx.AI Notifications <notifications@telyx.ai>';
-const LEAD_AUTORESPONSE_FROM_EMAIL = process.env.LEAD_AUTO_RESPONSE_FROM_EMAIL || 'Nurettin Erzen (Telyx) <nurettin@telyx.ai>';
+const LEAD_AUTORESPONSE_FROM_EMAIL = process.env.LEAD_AUTO_RESPONSE_FROM_EMAIL || 'Nurettin Erzen <nurettin@telyx.ai>';
 const LEAD_AUTORESPONSE_REPLY_TO = process.env.LEAD_AUTO_RESPONSE_REPLY_TO || 'nurettin@telyx.ai';
 const INTERNAL_SIGNUP_NOTIFICATION_EMAIL = process.env.SIGNUP_NOTIFICATION_EMAIL
   || process.env.PUBLIC_CONTACT_OWNER_EMAIL
@@ -1290,14 +1290,14 @@ export const sendLeadAutoResponseEmail = async (lead) => {
   const html = `
     <!DOCTYPE html>
     <html lang="tr">
-      <body style="margin:0;padding:0;background:#eef3f9;font-family:'Google Sans','Segoe UI',Arial,Helvetica,sans-serif;color:#0c1843;-webkit-font-smoothing:antialiased;">
+      <body style="margin:0;padding:0;background:#eef3f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0c1843;-webkit-font-smoothing:antialiased;">
         <div style="display:none;font-size:1px;color:#eef3f9;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">
-          Telyx başvurunuzu aldık. Uygunsanız demo talebi bırakmanız yeterli.
+          Telyx başvurunuzu aldık. Ben Nurettin Erzen, size kısa bir kurucu notu bırakmak istedim.
         </div>
         <table width="100%" cellpadding="0" cellspacing="0" style="background:#eef3f9;padding:32px 0;">
           <tr>
             <td align="center">
-              <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:22px;overflow:hidden;box-shadow:0 12px 40px rgba(8,18,36,0.08);">
+              <table width="640" cellpadding="0" cellspacing="0" style="width:100%;max-width:640px;background:#ffffff;border-radius:22px;overflow:hidden;box-shadow:0 12px 40px rgba(8,18,36,0.08);">
                 <tr>
                   <td style="background:linear-gradient(90deg,#00c3e6 0%,#245ce5 100%);height:6px;font-size:0;line-height:0;">&nbsp;</td>
                 </tr>
@@ -1311,14 +1311,17 @@ export const sendLeadAutoResponseEmail = async (lead) => {
                     <h1 style="margin:0 0 14px 0;font-size:32px;font-weight:800;line-height:1.18;letter-spacing:-0.03em;color:#051752;">
                       ${safeName ? `Merhaba ${safeName},` : 'Merhaba,'}
                     </h1>
-                    <p style="margin:0 0 14px 0;font-size:20px;line-height:1.55;color:#52637d;">
+                    <p style="margin:0 0 14px 0;font-size:16px;line-height:1.72;color:#42526b;font-weight:700;">
                       Telyx başvurunuzu aldık.
+                    </p>
+                    <p style="margin:0 0 22px 0;font-size:16px;line-height:1.72;color:#42526b;">
+                      Ben <strong style="color:#051752;">Nurettin Erzen</strong>, Telyx'in kurucusuyum. Size Telyx'i bizzat tanıtmak istedim.
                     </p>
                     <p style="margin:0 0 22px 0;font-size:16px;line-height:1.72;color:#42526b;">
                       Telyx, telefon, WhatsApp, web chat ve e-posta kanallarındaki müşteri iletişimini tek merkezde toplar ve AI destekli yanıtlarla operasyon yükünüzü azaltır.
                     </p>
                     <p style="margin:0;font-size:16px;line-height:1.72;color:#42526b;">
-                      Telyx'in işletmenizde nasıl çalıştığını görmek için aşağıdaki butonla demo talebi bırakabilirsiniz. Talebiniz bize ulaştıktan sonra demo sürecinizi başlatırız.
+                      Dilerseniz aşağıdaki butonla demo talebi bırakabilirsiniz. Talebiniz bize ulaştığında demo sürecinizi hızlıca başlatalım.
                     </p>
                   </td>
                 </tr>
