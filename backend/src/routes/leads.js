@@ -26,7 +26,7 @@ function parseFieldData(fieldData = []) {
   if (!Array.isArray(fieldData)) return result;
 
   for (const item of fieldData) {
-    const key = String(item?.name || '').trim().toLowerCase();
+    const key = normalizeLeadFieldKey(item?.name);
     if (!key) continue;
     const values = Array.isArray(item?.values) ? item.values : [];
     result[key] = values.length <= 1 ? (values[0] ?? null) : values;
@@ -35,13 +35,56 @@ function parseFieldData(fieldData = []) {
   return result;
 }
 
+function normalizeLeadFieldKey(value = '') {
+  const normalized = String(value || '')
+    .trim()
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .toLowerCase()
+    .replace(/ç/g, 'c')
+    .replace(/ğ/g, 'g')
+    .replace(/ı/g, 'i')
+    .replace(/İ/g, 'i')
+    .replace(/ö/g, 'o')
+    .replace(/ş/g, 's')
+    .replace(/ü/g, 'u')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .replace(/_+/g, '_');
+
+  return normalized || null;
+}
+
+function normalizeLeadFieldBag(fields = {}) {
+  const result = {};
+  if (!fields || typeof fields !== 'object' || Array.isArray(fields)) return result;
+
+  for (const [rawKey, value] of Object.entries(fields)) {
+    const key = normalizeLeadFieldKey(rawKey);
+    if (!key || result[key] !== undefined) continue;
+    result[key] = value;
+  }
+
+  return result;
+}
+
 function pickFirst(fields, keys = []) {
   for (const key of keys) {
-    if (fields[key] !== undefined && fields[key] !== null && String(fields[key]).trim() !== '') {
-      return fields[key];
+    const normalizedKey = normalizeLeadFieldKey(key);
+    if (!normalizedKey) continue;
+    if (fields[normalizedKey] !== undefined && fields[normalizedKey] !== null && String(fields[normalizedKey]).trim() !== '') {
+      return fields[normalizedKey];
     }
   }
   return null;
+}
+
+function parseLeadDateValue(value) {
+  if (value === undefined || value === null || String(value).trim() === '') {
+    return null;
+  }
+
+  const parsed = value instanceof Date ? value : new Date(String(value));
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
 function ensureLeadIngestAuthorized(req) {
@@ -333,33 +376,52 @@ router.post('/ingest/meta', async (req, res) => {
 
     const payload = req.body || {};
     const parsedFields = parseFieldData(payload.field_data || payload.fieldData || payload.fields || []);
+    const normalizedAnswers = normalizeLeadFieldBag(payload.answers || {});
+    const normalizedPayload = normalizeLeadFieldBag(payload);
     const flatFields = {
       ...parsedFields,
-      ...payload.answers,
-      ...payload,
+      ...normalizedAnswers,
+      ...normalizedPayload,
     };
 
-    const name = pickFirst(flatFields, ['full_name', 'name', 'ad_soyad']) || pickFirst(flatFields, ['company_name', 'company']) || 'Meta Lead';
-    const email = pickFirst(flatFields, ['email', 'e-mail', 'mail']);
-    const phone = pickFirst(flatFields, ['phone_number', 'phone', 'telefon', 'mobile_number']);
-    const company = pickFirst(flatFields, ['company_name', 'company', 'sirket', 'şirket']);
-    const businessType = pickFirst(flatFields, ['business_type', 'isletme_turu', 'işletme_türü']);
+    const externalSourceId = pickFirst(flatFields, ['leadgen_id', 'lead_id', 'leadid', 'id']);
+    const sourceSubmittedAt = parseLeadDateValue(
+      pickFirst(flatFields, ['created_time', 'created_at', 'submitted_at', 'timestamp'])
+    );
+    const name = pickFirst(flatFields, ['full_name', 'full_name_1', 'fullname', 'name', 'ad_soyad', 'ad_ve_soyad'])
+      || pickFirst(flatFields, ['company_name', 'company'])
+      || 'Meta Lead';
+    const email = pickFirst(flatFields, ['email', 'e_mail', 'e_posta', 'eposta', 'mail']);
+    const phone = pickFirst(flatFields, ['phone_number', 'phone', 'telefon', 'telefon_numarasi', 'telefon_numarası', 'mobile_number']);
+    const company = pickFirst(flatFields, ['company_name', 'company', 'sirket', 'sirket_adi', 'şirket']);
+    const businessType = pickFirst(flatFields, ['business_type', 'isletme_turu', 'isletme_tipi', 'işletme_türü']);
     const message = pickFirst(flatFields, ['message', 'mesaj', 'note', 'not']);
+    const campaignName = pickFirst(flatFields, ['campaign_name', 'campaign']);
+    const adsetName = pickFirst(flatFields, ['adset_name', 'ad_set_name', 'adset']);
+    const adName = pickFirst(flatFields, ['ad_name', 'ad']);
+    const formName = pickFirst(flatFields, ['form_name', 'form']);
+
+    if (name === 'Meta Lead') {
+      console.warn('Meta ingest fell back to placeholder lead name due to unmapped fields:', {
+        externalSourceId,
+        availableKeys: Object.keys(flatFields)
+      });
+    }
 
     const { lead, isDuplicate } = await createLead({
       source: LEAD_SOURCE.META_INSTANT_FORM,
-      externalSourceId: payload.leadgen_id || payload.leadId || payload.id || null,
+      externalSourceId,
       name,
       email,
       phone,
       company,
       businessType,
       message,
-      campaignName: payload.campaign_name || payload.campaignName || null,
-      adsetName: payload.adset_name || payload.adsetName || null,
-      adName: payload.ad_name || payload.adName || null,
-      formName: payload.form_name || payload.formName || null,
-      sourceSubmittedAt: payload.created_time ? new Date(payload.created_time) : null,
+      campaignName,
+      adsetName,
+      adName,
+      formName,
+      sourceSubmittedAt,
       rawPayload: payload
     });
 
