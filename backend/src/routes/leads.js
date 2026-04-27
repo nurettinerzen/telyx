@@ -51,6 +51,72 @@ function ensureLeadIngestAuthorized(req) {
   return configuredSecret.length > 0 && providedSecret === configuredSecret;
 }
 
+const TEST_LEAD_EMAILS = [
+  'nurettinerzen@gmail.com',
+  'nurettinerzen@hotmail.com',
+  'nurettinerzen+leadtest@gmail.com',
+  'nurettinerzen+callbacktest@gmail.com',
+];
+
+const TEST_LEAD_FORM_NAMES = [
+  'Manual Prod Test',
+  'Manual Email Test',
+  'CLI Test',
+  'CLI Preview Test',
+  'CLI Manual Test',
+  'manual_callback_test',
+  'manual_smoke_test',
+];
+
+const TEST_LEAD_CAMPAIGN_NAMES = [
+  'Manual Prod Test',
+  'Manual Email Test',
+  'Manual Preview Test',
+  'Manual Live Test',
+];
+
+async function findTestLeadIds() {
+  const leads = await prisma.lead.findMany({
+    where: {
+      OR: [
+        {
+          source: LEAD_SOURCE.MANUAL,
+          email: { in: TEST_LEAD_EMAILS }
+        },
+        {
+          email: { in: TEST_LEAD_EMAILS },
+          formName: { in: TEST_LEAD_FORM_NAMES }
+        },
+        {
+          email: { in: TEST_LEAD_EMAILS },
+          campaignName: { in: TEST_LEAD_CAMPAIGN_NAMES }
+        },
+        {
+          email: { in: TEST_LEAD_EMAILS },
+          externalSourceId: { startsWith: 'manual-prod-' }
+        },
+        {
+          email: { in: TEST_LEAD_EMAILS },
+          externalSourceId: { startsWith: 'manual-live-test-' }
+        }
+      ]
+    },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      source: true,
+      formName: true,
+      campaignName: true,
+      externalSourceId: true,
+      createdAt: true
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  return leads;
+}
+
 function buildResponseHtml({
   title,
   message,
@@ -65,11 +131,11 @@ function buildResponseHtml({
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>${title}</title>
       </head>
-      <body style="margin:0;padding:0;background:#eef3f9;font-family:'Google Sans','Segoe UI',Arial,Helvetica,sans-serif;color:#051752;">
+      <body style="margin:0;padding:0;background:#eef3f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#051752;">
         <table width="100%" cellpadding="0" cellspacing="0" style="background:#eef3f9;padding:32px 16px;">
           <tr>
             <td align="center">
-              <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:22px;overflow:hidden;box-shadow:0 12px 40px rgba(8,18,36,0.08);">
+              <table width="640" cellpadding="0" cellspacing="0" style="width:100%;max-width:640px;background:#ffffff;border-radius:22px;overflow:hidden;box-shadow:0 12px 40px rgba(8,18,36,0.08);">
                 <tr>
                   <td style="background:linear-gradient(90deg,#00c3e6 0%,#245ce5 100%);height:6px;font-size:0;line-height:0;">&nbsp;</td>
                 </tr>
@@ -224,6 +290,49 @@ router.post('/ingest/meta', async (req, res) => {
     res.status(500).json({
       error: 'Failed to ingest Meta lead'
     });
+  }
+});
+
+router.post('/cleanup/test-leads', async (req, res) => {
+  try {
+    if (!ensureLeadIngestAuthorized(req)) {
+      return res.status(401).json({ error: 'Unauthorized lead cleanup request' });
+    }
+
+    const matches = await findTestLeadIds();
+    const leadIds = matches.map((lead) => lead.id);
+
+    if (req.body?.dryRun) {
+      return res.json({
+        success: true,
+        dryRun: true,
+        count: matches.length,
+        items: matches
+      });
+    }
+
+    if (leadIds.length === 0) {
+      return res.json({
+        success: true,
+        deleted: 0,
+        items: []
+      });
+    }
+
+    await prisma.$transaction([
+      prisma.lead.deleteMany({
+        where: { id: { in: leadIds } }
+      })
+    ]);
+
+    return res.json({
+      success: true,
+      deleted: leadIds.length,
+      items: matches
+    });
+  } catch (error) {
+    console.error('Test lead cleanup error:', error);
+    return res.status(500).json({ error: 'Failed to clean test leads' });
   }
 });
 
