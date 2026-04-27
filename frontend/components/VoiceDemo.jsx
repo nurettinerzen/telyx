@@ -225,13 +225,6 @@ export default function VoiceDemo({
           signedUrl,
           connectionType: 'websocket',
           workletPaths: getElevenLabsWorkletPaths(),
-          overrides: previewFirstMessage
-            ? {
-                agent: {
-                  firstMessage: previewFirstMessage,
-                },
-              }
-            : undefined,
           onConnect: async () => {
             setIsCallActive(true);
             setIsConnecting(false);
@@ -313,13 +306,6 @@ export default function VoiceDemo({
       const conversation = await Conversation.startSession({
         ...sessionConfig,
         workletPaths: getElevenLabsWorkletPaths(),
-        overrides: isPreviewMode && previewFirstMessage
-          ? {
-              agent: {
-                firstMessage: previewFirstMessage,
-              },
-            }
-          : undefined,
         onConnect: async () => {
           setIsCallActive(true);
           setIsConnecting(false);
