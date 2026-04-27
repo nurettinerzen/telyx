@@ -336,6 +336,77 @@ router.post('/cleanup/test-leads', async (req, res) => {
   }
 });
 
+router.post('/cleanup/by-match', async (req, res) => {
+  try {
+    if (!ensureLeadIngestAuthorized(req)) {
+      return res.status(401).json({ error: 'Unauthorized lead cleanup request' });
+    }
+
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids.filter(Boolean) : [];
+    const emails = Array.isArray(req.body?.emails) ? req.body.emails.map((value) => String(value).trim().toLowerCase()).filter(Boolean) : [];
+    const phones = Array.isArray(req.body?.phones) ? req.body.phones.map((value) => String(value).replace(/\D/g, '')).filter(Boolean) : [];
+    const names = Array.isArray(req.body?.names) ? req.body.names.map((value) => String(value).trim()).filter(Boolean) : [];
+
+    const orFilters = [];
+    if (ids.length) orFilters.push({ id: { in: ids } });
+    if (emails.length) orFilters.push({ email: { in: emails } });
+    if (phones.length) orFilters.push({ phone: { in: phones } });
+    if (names.length) orFilters.push({ name: { in: names } });
+
+    if (!orFilters.length) {
+      return res.status(400).json({ error: 'At least one cleanup filter is required' });
+    }
+
+    const matches = await prisma.lead.findMany({
+      where: { OR: orFilters },
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        name: true,
+        source: true,
+        formName: true,
+        campaignName: true,
+        externalSourceId: true,
+        createdAt: true
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const leadIds = matches.map((lead) => lead.id);
+
+    if (req.body?.dryRun) {
+      return res.json({
+        success: true,
+        dryRun: true,
+        count: matches.length,
+        items: matches
+      });
+    }
+
+    if (!leadIds.length) {
+      return res.json({
+        success: true,
+        deleted: 0,
+        items: []
+      });
+    }
+
+    await prisma.lead.deleteMany({
+      where: { id: { in: leadIds } }
+    });
+
+    return res.json({
+      success: true,
+      deleted: leadIds.length,
+      items: matches
+    });
+  } catch (error) {
+    console.error('Targeted lead cleanup error:', error);
+    return res.status(500).json({ error: 'Failed to clean matching leads' });
+  }
+});
+
 router.get('/preview/:token', async (req, res) => {
   try {
     const { token } = req.params;
