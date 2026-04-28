@@ -94,6 +94,18 @@ function isTlsFailure(error, normalizedText) {
   );
 }
 
+function isSmtpGreetingFailure(error, normalizedText) {
+  const command = normalizeValue(error?.command).toUpperCase();
+
+  return (
+    command === 'CONN' &&
+    (
+      normalizedText.includes('greeting never received') ||
+      normalizedText.includes('did not send a greeting')
+    )
+  );
+}
+
 function isConnectivityFailure(error, normalizedText) {
   const code = normalizeValue(error?.code).toUpperCase();
   return CONNECTIVITY_CODES.has(code) || normalizedText.includes('connection timeout');
@@ -146,6 +158,15 @@ export function formatEmailConnectionError(error = {}) {
       code: 'EMAIL_TLS_FAILED',
       message:
         'A secure connection to the mail server failed. Check the SSL or TLS setting and confirm the server certificate is valid.',
+      details: detail
+    };
+  }
+
+  if (isSmtpGreetingFailure(error, normalizedText)) {
+    return {
+      code: 'SMTP_GREETING_FAILED',
+      message:
+        'The SMTP server did not send its greeting. This usually means the SMTP host, port, or SSL or TLS mode is wrong. Try port 465 with SSL or TLS on, or port 587 with SSL or TLS off.',
       details: detail
     };
   }

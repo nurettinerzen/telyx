@@ -50,6 +50,19 @@ describe('formatEmailConnectionError', () => {
     expect(result.message).toContain('secure connection');
   });
 
+  it('calls out SMTP greeting failures as a host or SSL mismatch', () => {
+    const result = formatEmailConnectionError({
+      code: 'ETIMEDOUT',
+      command: 'CONN',
+      message: 'Greeting never received'
+    });
+
+    expect(result.code).toBe('SMTP_GREETING_FAILED');
+    expect(result.message).toContain('SMTP server did not send its greeting');
+    expect(result.message).toContain('port 465');
+    expect(result.details).toBe('Greeting never received');
+  });
+
   it('falls back to a generic connection error', () => {
     const result = formatEmailConnectionError({
       message: 'Unexpected failure while connecting'
