@@ -1,11 +1,4 @@
-const EVENTS_BASE_URL =
-  process.env.NEXT_PUBLIC_MARKETING_EVENTS_BASE_URL ||
-  process.env.NEXT_PUBLIC_API_URL ||
-  process.env.NEXT_PUBLIC_CAMPAIGN_ORCHESTRATOR_URL ||
-  '';
 const ATTRIBUTION_STORAGE_KEY = 'telyx_marketing_attribution_v1';
-const ANON_ID_STORAGE_KEY = 'telyx_marketing_anonymous_id_v1';
-const SESSION_ID_STORAGE_KEY = 'telyx_marketing_session_id_v1';
 const BLOCKED_ANALYTICS_KEYS = new Set([
   'email',
   'full_name',
@@ -64,26 +57,6 @@ function getDefaultParams() {
   };
 }
 
-function createId(prefix) {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return `${prefix}_${crypto.randomUUID()}`;
-  }
-
-  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function getOrCreatePersistentId(storageKey, kind = 'local') {
-  const storage = getStorage(kind);
-  if (!storage) return createId(storageKey);
-
-  const existing = storage.getItem(storageKey);
-  if (existing) return existing;
-
-  const next = createId(storageKey);
-  storage.setItem(storageKey, next);
-  return next;
-}
-
 function parseCurrentAttribution() {
   if (typeof window === 'undefined') return {};
 
@@ -132,37 +105,6 @@ function getAttribution() {
   return sanitizeParams({
     ...persistAttribution(),
     ...parseCurrentAttribution(),
-  });
-}
-
-function postToOrchestrator(eventName, payload) {
-  if (!EVENTS_BASE_URL || typeof fetch === 'undefined') return;
-
-  const endpoint = `${EVENTS_BASE_URL.replace(/\/$/, '')}/api/marketing/events`;
-  const attribution = getAttribution();
-
-  const body = {
-    sessionId: getOrCreatePersistentId(SESSION_ID_STORAGE_KEY, 'session'),
-    anonymousId: getOrCreatePersistentId(ANON_ID_STORAGE_KEY, 'local'),
-    eventName,
-    pageUrl: payload.page_location,
-    pagePath: payload.page_path,
-    referrer: typeof document !== 'undefined' ? document.referrer || undefined : undefined,
-    source: attribution.source,
-    medium: attribution.medium,
-    campaignName: attribution.campaign_name || attribution.campaign_id,
-    properties: payload,
-  };
-
-  void fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-    keepalive: true,
-  }).catch(() => {
-    // Best-effort analytics sink.
   });
 }
 
@@ -232,9 +174,6 @@ function emitEvent(eventName, params = {}, options = {}) {
     fireMetaPixel(normalizedEventName, payload);
   }
 
-  if (options.ingest !== false) {
-    postToOrchestrator(normalizedEventName, payload);
-  }
 }
 
 export function trackMarketingEvent(eventName, params = {}, options = {}) {
@@ -242,15 +181,9 @@ export function trackMarketingEvent(eventName, params = {}, options = {}) {
 }
 
 export function trackPageView({ pageType, locale, ...rest } = {}) {
-  emitEvent(
-    'page_view',
-    {
-      page_type: pageType,
-      locale,
-      ...rest,
-    },
-    { gtag: false, fbq: false, ingest: true }
-  );
+  // PageView is already handled globally by GTM and Meta Pixel.
+  // We still persist attribution here so later funnel events inherit UTMs.
+  getAttribution();
 }
 
 export function trackScrollMilestone({ pageType, milestone = '50', locale, ...rest } = {}) {
@@ -262,7 +195,7 @@ export function trackScrollMilestone({ pageType, milestone = '50', locale, ...re
       locale,
       ...rest,
     },
-    { gtag: false, fbq: false, ingest: true }
+    { fbq: false }
   );
 }
 
@@ -274,7 +207,7 @@ export function trackSignupPageView({ locale, ...rest } = {}) {
       locale,
       ...rest,
     },
-    { gtag: true, fbq: false, ingest: true }
+    { gtag: true, fbq: false }
   );
 }
 
