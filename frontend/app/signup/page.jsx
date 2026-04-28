@@ -115,11 +115,13 @@ export default function SignupPage() {
         formName: 'signup',
         locale,
         business_name: formData.businessName,
+        email: formData.email,
       });
       trackTrialStart({
         source: 'signup_form',
         locale,
         form_name: 'signup',
+        email: formData.email,
       });
       toast.success(t('auth.accountCreated'));
       // Redirect to email verification pending page

@@ -5,6 +5,7 @@ import { ThemeProvider } from 'next-themes';
 import { Providers } from './providers';
 import BetaEnvironmentBar from '@/components/BetaEnvironmentBar';
 import PublicSiteChatWidget from '@/components/PublicSiteChatWidget';
+import PageViewTracker from '@/components/PageViewTracker';
 import runtimeConfig from '@/lib/runtime-config';
 
 const metadataBase = runtimeConfig.siteUrl ? new URL(runtimeConfig.siteUrl) : undefined;
@@ -77,8 +78,7 @@ n.queue=[];t=b.createElement(e);t.async=!0;
 t.src=v;s=b.getElementsByTagName(e)[0];
 s.parentNode.insertBefore(t,s)}(window, document,'script',
 'https://connect.facebook.net/en_US/fbevents.js');
-fbq('init', '${META_PIXEL_ID}');
-fbq('track', 'PageView');`,
+fbq('init', '${META_PIXEL_ID}');`,
             }}
           />
         ) : null}
@@ -113,6 +113,7 @@ fbq('track', 'PageView');`,
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
             <LanguageProvider>
               <BetaEnvironmentBar />
+              {META_PIXEL_ID ? <PageViewTracker /> : null}
               {children}
               <PublicSiteChatWidget />
             </LanguageProvider>

@@ -188,6 +188,8 @@ export default function ContactPage() {
           leadType: 'contact',
           business_type: formData.businessType || 'unspecified',
           locale,
+          email: formData.email,
+          phone: formData.phone,
         });
         toast.success(t('contact.successMessage'));
         setFormData({ name: '', email: '', company: '', phone: '', businessType: '', message: '' });

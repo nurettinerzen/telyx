@@ -131,6 +131,11 @@ function generateEventId() {
 
 function getPixelEventConfig(eventName, payload) {
   switch (eventName) {
+    case 'page_view':
+      return { type: 'standard', name: 'PageView', params: {
+        page_type: payload.page_type,
+        campaign_name: payload.campaign_name,
+      } };
     case 'demo_request':
       return { type: 'standard', name: 'Lead', params: {
         content_name: payload.form_name || 'demo_request',
@@ -190,7 +195,7 @@ function fireMetaPixel(pixelConfig, eventId) {
   }
 }
 
-function postToCapi(eventName, payload, eventId, pixelConfig) {
+function postToCapi(eventName, payload, eventId, pixelConfig, userData) {
   if (!CAPI_BASE_URL || typeof fetch === 'undefined') return;
   if (!pixelConfig || pixelConfig.type !== 'standard') return;
 
@@ -206,6 +211,9 @@ function postToCapi(eventName, payload, eventId, pixelConfig) {
     customData,
     fbp: readCookie('_fbp'),
     fbc: readCookie('_fbc'),
+    email: userData?.email,
+    phone: userData?.phone,
+    externalId: userData?.externalId,
   };
 
   void fetch(endpoint, {
@@ -245,7 +253,7 @@ function emitEvent(eventName, params = {}, options = {}) {
   }
 
   if (options.capi !== false) {
-    postToCapi(normalizedEventName, payload, eventId, pixelConfig);
+    postToCapi(normalizedEventName, payload, eventId, pixelConfig, options.userData);
   }
 }
 
@@ -304,20 +312,20 @@ export function trackFormSubmit({ formName, locale, ...rest } = {}) {
   });
 }
 
-export function trackSignupSuccess({ formName, locale, ...rest } = {}) {
+export function trackSignupSuccess({ formName, locale, email, phone, externalId, ...rest } = {}) {
   emitEvent('signup_complete', {
     form_name: formName,
     locale,
     ...rest,
-  });
+  }, { userData: { email, phone, externalId } });
 }
 
-export function trackTrialStart({ source, locale, ...rest } = {}) {
+export function trackTrialStart({ source, locale, email, phone, externalId, ...rest } = {}) {
   emitEvent('trial_start', {
     source,
     locale,
     ...rest,
-  });
+  }, { userData: { email, phone, externalId } });
 }
 
 export function trackCtaClick({
@@ -380,6 +388,9 @@ export function trackDemoRequest({
   formName,
   leadType = 'demo_request',
   locale,
+  email,
+  phone,
+  externalId,
   ...rest
 } = {}) {
   emitEvent('demo_request', {
@@ -387,7 +398,7 @@ export function trackDemoRequest({
     lead_type: leadType,
     locale,
     ...rest,
-  });
+  }, { userData: { email, phone, externalId } });
 }
 
 export function trackContactClick({
