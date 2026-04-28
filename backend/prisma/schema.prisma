@@ -344,6 +344,10 @@ model Subscription {
   enterprisePaymentStatus       String? // 'pending', 'paid', 'overdue'
   enterpriseNotes               String?   @db.Text // Admin notları
 
+  // Meta Conversions API — idempotency marker for the Subscribe event so we
+  // fire it once on the first paid invoice and skip recurring renewals.
+  metaSubscribeCapiSentAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   business  Business @relation(fields: [businessId], references: [id])

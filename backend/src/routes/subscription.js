@@ -21,6 +21,7 @@ import { getEffectivePlanConfig } from '../services/planConfig.js';
 import { isPhoneInboundEnabledForBusinessRecord } from '../services/phoneInboundGate.js';
 import { buildPhoneEntitlements } from '../services/phonePlanEntitlements.js';
 import stripeService from '../services/stripe.js';
+import { isCapiConfigured, sendMetaCapiEvent } from '../services/metaCapi.js';
 import { getAddOnCatalog, getBillingPlanDefinition } from '../config/billingCatalog.js';
 import { getWrittenUsageSummary } from '../services/writtenUsageService.js';
 import {
@@ -1336,6 +1337,80 @@ const PLAN_CONFIG = {
 // WEBHOOK - MUST BE FIRST (before express.json middleware)
 // ============================================================================
 
+// Fire Meta CAPI "Subscribe" once per subscription on the first paid invoice.
+// Trial $0 invoices and recurring renewals are filtered out by amount_paid + a
+// DB idempotency marker (Subscription.metaSubscribeCapiSentAt). Fire-and-forget:
+// any failure is logged but never blocks the Stripe webhook response.
+async function fireSubscribeCapiForInvoice(invoice) {
+  try {
+    if (!isCapiConfigured()) return;
+    const amountPaidCents = Number(invoice?.amount_paid);
+    if (!Number.isFinite(amountPaidCents) || amountPaidCents <= 0) return;
+    const stripeCustomerId = invoice?.customer ? String(invoice.customer) : null;
+    if (!stripeCustomerId) return;
+
+    const subscription = await prisma.subscription.findFirst({
+      where: { stripeCustomerId },
+      include: {
+        business: {
+          select: {
+            id: true,
+            name: true,
+            ownerPhone: true,
+            users: {
+              where: { role: 'OWNER' },
+              take: 1,
+              select: { email: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!subscription) return;
+    if (subscription.metaSubscribeCapiSentAt) return;
+
+    const ownerEmail = subscription.business?.users?.[0]?.email;
+    const ownerPhone = subscription.business?.ownerPhone;
+    const valueTry = amountPaidCents / 100;
+    const currency = invoice.currency ? String(invoice.currency).toUpperCase() : 'TRY';
+
+    const result = await sendMetaCapiEvent({
+      eventName: 'Subscribe',
+      email: ownerEmail,
+      phone: ownerPhone,
+      externalId: String(subscription.id),
+      customData: {
+        value: valueTry,
+        currency,
+        plan: subscription.plan,
+        stripe_invoice_id: invoice.id,
+      },
+    });
+
+    if (result?.success) {
+      await prisma.subscription.update({
+        where: { id: subscription.id },
+        data: { metaSubscribeCapiSentAt: new Date() },
+      });
+      console.log('📈 Meta CAPI Subscribe fired', {
+        subscriptionId: subscription.id,
+        plan: subscription.plan,
+        eventId: result.eventId,
+        fbtraceId: result.fbtraceId,
+      });
+    } else {
+      console.warn('⚠️ Meta CAPI Subscribe forward failed', {
+        subscriptionId: subscription.id,
+        code: result?.code,
+        upstreamStatus: result?.upstreamStatus,
+      });
+    }
+  } catch (error) {
+    console.error('⚠️ fireSubscribeCapiForInvoice unexpected error:', error.message);
+  }
+}
+
 router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
   const sig = req.headers['stripe-signature'];
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -1767,6 +1842,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
                   });
                   console.log('✅ Enterprise plan activated via invoice.payment_succeeded');
                 }
+                await fireSubscribeCapiForInvoice(invoice);
                 break;
               }
             }
@@ -1780,6 +1856,8 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
           where: { stripeCustomerId: invoice.customer },
           data: { status: 'ACTIVE' }
         });
+
+        await fireSubscribeCapiForInvoice(invoice);
         break;
       }
 
