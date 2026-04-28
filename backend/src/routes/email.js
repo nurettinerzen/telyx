@@ -19,6 +19,7 @@ import { buildEmailPairs, getPairStatistics } from '../services/email-pair-build
 import { generateOAuthState, validateOAuthState } from '../middleware/oauthState.js';
 import { safeRedirect } from '../middleware/redirectWhitelist.js';
 import { queueUnifiedResponseTrace } from '../services/trace/responseTraceLogger.js';
+import { formatEmailConnectionError } from '../utils/emailConnectionErrors.js';
 import {
   buildEmailWrittenIdempotencyKey,
   commitWrittenInteraction,
@@ -566,8 +567,11 @@ router.post('/imap/connect', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('IMAP connect error:', error);
+    const formattedError = formatEmailConnectionError(error);
     res.status(400).json({
-      error: error.message || 'Failed to connect IMAP mailbox'
+      error: formattedError.message,
+      code: formattedError.code,
+      details: formattedError.details
     });
   }
 });

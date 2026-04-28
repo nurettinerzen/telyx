@@ -599,7 +599,10 @@ export default function IntegrationsPage() {
       queryClient.invalidateQueries({ queryKey: ['integrations', 'email', 'status'] });
       queryClient.invalidateQueries({ queryKey: ['email', 'status'] });
     } catch (error) {
-      toast.error(error.response?.data?.error || imapCopy.connectError);
+      const serverError = error.response?.data;
+      toast.error(
+        serverError?.details ? `${serverError.error} Details: ${serverError.details}` : serverError?.error || imapCopy.connectError
+      );
     } finally {
       setEmailLoading(false);
     }
