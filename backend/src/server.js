@@ -54,6 +54,7 @@ import batchCallsRoutes from './routes/batchCalls.js';
 import teamRoutes from './routes/team.js';
 // Contact
 import contactRoutes from './routes/contact.js';
+import metaCapiRoutes from './routes/meta-capi.js';
 import leadsRoutes from './routes/leads.js';
 import waitlistRoutes from './routes/waitlist.js';
 // Onboarding
@@ -434,6 +435,7 @@ app.use('/api/webhook', webhookRoutes);
 app.use('/api/batch-calls', apiRateLimiter.middleware(), batchCallsRoutes);
 app.use('/api/team', teamRoutes);
 app.use('/api/contact', contactRoutes);
+app.use('/api/meta', metaCapiRoutes);
 app.use('/api/leads', leadsRoutes);
 app.use('/api/waitlist', waitlistRoutes);
 app.use('/api/onboarding', onboardingRoutes);

@@ -1,3 +1,7 @@
+const CAPI_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  '';
 const ATTRIBUTION_STORAGE_KEY = 'telyx_marketing_attribution_v1';
 const BLOCKED_ANALYTICS_KEYS = new Set([
   'email',
@@ -112,52 +116,116 @@ function normalizeEventName(eventName) {
   return CANONICAL_EVENT_NAMES[eventName] || eventName;
 }
 
-function fireMetaPixel(eventName, payload) {
+function readCookie(name) {
+  if (typeof document === 'undefined' || !document.cookie) return null;
+  const match = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '=([^;]*)'));
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+function generateEventId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `evt_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
+}
+
+function getPixelEventConfig(eventName, payload) {
+  switch (eventName) {
+    case 'demo_request':
+      return { type: 'standard', name: 'Lead', params: {
+        content_name: payload.form_name || 'demo_request',
+        status: 'submitted',
+        campaign_name: payload.campaign_name,
+      } };
+    case 'signup_complete':
+      return { type: 'standard', name: 'CompleteRegistration', params: {
+        content_name: 'signup',
+        status: 'success',
+        campaign_name: payload.campaign_name,
+      } };
+    case 'signup_page_view':
+      return { type: 'standard', name: 'ViewContent', params: {
+        content_name: 'signup',
+        content_category: 'signup_page',
+        campaign_name: payload.campaign_name,
+      } };
+    case 'pricing_view':
+      return { type: 'standard', name: 'ViewContent', params: {
+        content_name: 'pricing',
+        content_category: 'pricing_page',
+        content_type: 'product_group',
+        campaign_name: payload.campaign_name,
+      } };
+    case 'trial_start':
+      return { type: 'standard', name: 'StartTrial', params: {
+        content_name: payload.content_name || 'free_trial',
+        predicted_ltv: payload.predicted_ltv,
+        value: payload.value,
+        currency: payload.currency || 'TRY',
+        campaign_name: payload.campaign_name,
+      } };
+    case 'signup_submit':
+      return { type: 'custom', name: 'SignupSubmit', params: payload };
+    case 'signup_start':
+      return { type: 'custom', name: 'SignupStart', params: payload };
+    case 'cta_click':
+      return { type: 'custom', name: 'CtaClick', params: payload };
+    default:
+      return null;
+  }
+}
+
+function fireMetaPixel(pixelConfig, eventId) {
   const browser = getBrowserContext();
   if (!browser || typeof browser.fbq !== 'function') return;
+  if (!pixelConfig) return;
 
-  if (eventName === 'demo_request') {
-    browser.fbq('track', 'Lead', {
-      content_name: payload.form_name || 'demo_request',
-      status: 'submitted',
-      campaign_name: payload.campaign_name,
-    });
-    return;
-  }
+  const sanitized = sanitizeParams(pixelConfig.params);
+  const opts = eventId ? { eventID: eventId } : undefined;
 
-  if (eventName === 'signup_complete') {
-    browser.fbq('track', 'CompleteRegistration', {
-      content_name: 'signup',
-      status: 'success',
-      campaign_name: payload.campaign_name,
-    });
-    return;
+  if (pixelConfig.type === 'standard') {
+    browser.fbq('track', pixelConfig.name, sanitized, opts);
+  } else {
+    browser.fbq('trackCustom', pixelConfig.name, sanitized, opts);
   }
+}
 
-  if (eventName === 'signup_submit') {
-    browser.fbq('trackCustom', 'SignupSubmit', payload);
-    return;
-  }
+function postToCapi(eventName, payload, eventId, pixelConfig) {
+  if (!CAPI_BASE_URL || typeof fetch === 'undefined') return;
+  if (!pixelConfig || pixelConfig.type !== 'standard') return;
 
-  if (eventName === 'signup_start') {
-    browser.fbq('trackCustom', 'SignupStart', payload);
-    return;
-  }
+  const endpoint = `${CAPI_BASE_URL.replace(/\/$/, '')}/api/meta/events`;
+  const customData = sanitizeParams(pixelConfig.params);
 
-  if (eventName === 'trial_start') {
-    browser.fbq('trackCustom', 'TrialStart', payload);
-    return;
-  }
+  const body = {
+    eventName,
+    eventId,
+    eventTime: Math.floor(Date.now() / 1000),
+    eventSourceUrl: payload.page_location,
+    pageUrl: payload.page_location,
+    customData,
+    fbp: readCookie('_fbp'),
+    fbc: readCookie('_fbc'),
+  };
 
-  if (eventName === 'cta_click') {
-    browser.fbq('trackCustom', 'CtaClick', payload);
-  }
+  void fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+    keepalive: true,
+    credentials: 'include',
+  }).catch(() => {
+    // Best-effort CAPI relay. Server-side dedup handled by Meta via eventId.
+  });
 }
 
 function emitEvent(eventName, params = {}, options = {}) {
   const browser = getBrowserContext();
   if (!browser || !eventName) return;
   const normalizedEventName = normalizeEventName(eventName);
+  const eventId = options.eventId || generateEventId();
 
   const attribution = getAttribution();
   const payload = sanitizeParams({
@@ -166,14 +234,19 @@ function emitEvent(eventName, params = {}, options = {}) {
     ...params,
   });
 
+  const pixelConfig = getPixelEventConfig(normalizedEventName, payload);
+
   if (options.gtag !== false) {
     browser.gtag('event', normalizedEventName, payload);
   }
 
   if (options.fbq !== false) {
-    fireMetaPixel(normalizedEventName, payload);
+    fireMetaPixel(pixelConfig, eventId);
   }
 
+  if (options.capi !== false) {
+    postToCapi(normalizedEventName, payload, eventId, pixelConfig);
+  }
 }
 
 export function trackMarketingEvent(eventName, params = {}, options = {}) {
@@ -200,15 +273,11 @@ export function trackScrollMilestone({ pageType, milestone = '50', locale, ...re
 }
 
 export function trackSignupPageView({ locale, ...rest } = {}) {
-  emitEvent(
-    'signup_page_view',
-    {
-      page_type: 'signup',
-      locale,
-      ...rest,
-    },
-    { gtag: true, fbq: false }
-  );
+  emitEvent('signup_page_view', {
+    page_type: 'signup',
+    locale,
+    ...rest,
+  });
 }
 
 export function trackPricingView({ locale, ...rest } = {}) {
