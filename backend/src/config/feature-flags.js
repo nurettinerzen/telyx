@@ -90,10 +90,6 @@ export const FEATURE_FLAGS = {
   LLM_CHATTER_GREETING: process.env.FEATURE_LLM_CHATTER_GREETING !== 'false', // Default: ON
   LLM_CHATTER_CANARY_KEYS: (process.env.FEATURE_LLM_CHATTER_CANARY_KEYS || '').split(',').map(k => k.trim()).filter(Boolean),
 
-  // Fast path for pure idle chatter ("merhaba", "teşekkürler") to avoid a full LLM/tool pipeline.
-  // Rollback: Set FEATURE_CHATTER_FAST_PATH=false
-  CHATTER_FAST_PATH: process.env.FEATURE_CHATTER_FAST_PATH !== 'false',
-
   // ─── Channel Identity Proof Autoverification ───
   // When enabled: WhatsApp/Email channel identity signals can skip second-factor
   //   verification for non-financial queries (order/tracking/repair status).
@@ -441,8 +437,7 @@ if (ENVIRONMENT !== 'test') {
     USE_LLM_FOR_TOOL_OUTCOMES: process.env.USE_LLM_FOR_TOOL_OUTCOMES,
     CLASSIFIER_PASSTHROUGH: process.env.CLASSIFIER_PASSTHROUGH,
     PRE_LLM_CONTENT_MODE: process.env.PRE_LLM_CONTENT_MODE,
-    TOOL_ALLOWLIST_MODE: process.env.TOOL_ALLOWLIST_MODE,
-    CHATTER_FAST_PATH: FEATURE_FLAGS.CHATTER_FAST_PATH
+    TOOL_ALLOWLIST_MODE: process.env.TOOL_ALLOWLIST_MODE
   });
   console.log('[feature-flags] PHONE V1 startup config:');
   console.log(`  PHONE_OUTBOUND_V1_ENABLED     = ${FEATURE_FLAGS.PHONE_OUTBOUND_V1_ENABLED}`);

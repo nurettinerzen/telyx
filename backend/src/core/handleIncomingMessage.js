@@ -51,7 +51,6 @@ import { checkSessionThrottle } from '../services/sessionThrottle.js';
 import { ensurePolicyGuidance } from '../services/tool-fail-handler.js';
 import { buildBusinessIdentity } from '../services/businessIdentity.js';
 import { getEntityHint, getEntityMatchType, resolveMentionedEntity } from '../services/entityTopicResolver.js';
-import { buildChatterResponse, isPureChatter } from '../services/chatter-response.js';
 import {
   determineResponseGrounding,
   RESPONSE_GROUNDING,
@@ -134,36 +133,6 @@ function buildReasonCodedFallbackMessage(
 function setResponseOrigin(metrics = {}, origin = RESPONSE_ORIGIN.FALLBACK, originId = 'unknown') {
   metrics.response_origin = origin;
   metrics.origin_id = originId;
-}
-
-function hasBlockingConversationTask(state = {}) {
-  const flowStatus = String(state?.flowStatus || '').toLowerCase();
-  const verificationStatus = String(state?.verification?.status || '').toLowerCase();
-
-  if (verificationStatus === 'pending' || state?.verificationContext) return true;
-  if (state?.expectedSlot) return true;
-  if (flowStatus === 'in_progress' || flowStatus === 'validation_error') return true;
-  if (state?.activeFlow && !['idle', 'resolved', 'post_result'].includes(flowStatus)) return true;
-
-  return false;
-}
-
-function recordChatterVariant(state = {}, variant = {}) {
-  const messageKey = variant.messageKey || null;
-  const variantIndex = Number.isInteger(variant.variantIndex) ? variant.variantIndex : null;
-  const previousRecent = Array.isArray(state?.chatter?.recent) ? state.chatter.recent : [];
-
-  state.chatter = {
-    lastMessageKey: messageKey,
-    lastVariantIndex: variantIndex,
-    lastAt: new Date().toISOString(),
-    recent: [
-      ...previousRecent,
-      { messageKey, variantIndex }
-    ]
-      .filter(item => item.messageKey)
-      .slice(-2)
-  };
 }
 
 function appendPolicyBlock(metrics = {}, blockId = null) {
@@ -1149,114 +1118,6 @@ export async function handleIncomingMessage({
 
     const { sessionId: resolvedSessionId, state } = contextResult;
     metrics.sessionId = resolvedSessionId;
-
-    if (
-      isFeatureEnabled('CHATTER_FAST_PATH') &&
-      isPureChatter(userMessage) &&
-      !hasBlockingConversationTask(state)
-    ) {
-      const chatterVariant = buildChatterResponse({
-        userMessage,
-        state,
-        language,
-        sessionId: resolvedSessionId
-      });
-      recordChatterVariant(state, chatterVariant);
-
-      const finalResponse = finalizeReply(chatterVariant.text || getInternalProtocolSafeFallback(language));
-      const classification = {
-        type: 'CHATTER',
-        confidence: 1,
-        reason: 'Pure chatter fast path'
-      };
-      const routingResult = {
-        directResponse: true,
-        routing: {
-          action: 'ACKNOWLEDGE_CHATTER',
-          reason: 'Pure chatter fast path',
-          suggestedFlow: 'GENERAL',
-          allowToollessResponse: true
-        },
-        metadata: {
-          mode: 'template_fast_path',
-          messageKey: chatterVariant.messageKey || null,
-          variantIndex: Number.isInteger(chatterVariant.variantIndex) ? chatterVariant.variantIndex : null
-        }
-      };
-
-      traceClassification = classification;
-      traceRouting = routingResult;
-      state.responseGrounding = RESPONSE_GROUNDING.GROUNDED;
-
-      setResponseOrigin(metrics, RESPONSE_ORIGIN.TEMPLATE, 'prellm.chatterFastPath');
-      metrics.intent_final = 'CHATTER';
-      metrics.route_final = 'ACKNOWLEDGE_CHATTER';
-      metrics.chatterFastPath = true;
-      metrics.chatterSource = 'template_fast_path';
-      metrics.llm_status = 'not_called';
-      metrics.llmCalled = false;
-      metrics.LLM_CALLED = false;
-      metrics.llmBypassed = true;
-      metrics.bypassed = true;
-
-      await persistAndEmitMetrics({
-        sessionId: resolvedSessionId,
-        state,
-        userMessage,
-        finalResponse,
-        classification,
-        routing: routingResult,
-        turnStartTime,
-        inputTokens: 0,
-        outputTokens: 0,
-        toolsCalled: [],
-        hadToolSuccess: false,
-        hadToolFailure: false,
-        failedTool: null,
-        channel,
-        channelUserId,
-        customerPhone: channel === 'WHATSAPP' ? channelUserId : null,
-        businessId: business.id,
-        metrics,
-        responseGrounding: RESPONSE_GROUNDING.GROUNDED,
-        assistantMessageMeta: {
-          messageType: 'assistant_claim',
-          guardrailAction: 'PASS',
-          guardrailReason: null
-        },
-        effectsEnabled
-      });
-
-      console.log('⚡ [ChatterFastPath] Pure chatter answered without LLM/tool pipeline');
-
-      return finish({
-        reply: finalResponse,
-        outcome: ToolOutcome.OK,
-        metadata: {
-          outcome: ToolOutcome.OK,
-          guardrailAction: 'PASS',
-          messageType: 'assistant_claim',
-          responseGrounding: RESPONSE_GROUNDING.GROUNDED,
-          LLM_CALLED: false,
-          llm_call_reason: normalizeLlmCallReason(channel),
-          bypassed: true,
-          chatterFastPath: true
-        },
-        shouldEndSession: false,
-        forceEnd: false,
-        locked: false,
-        state,
-        metrics,
-        inputTokens: 0,
-        outputTokens: 0,
-        toolsCalled: [],
-        debug: {
-          classification,
-          routing: routingResult.routing?.action,
-          chatterFastPath: true
-        }
-      });
-    }
 
     // ========================================
     // STEP 1.5: Business Identity + Entity Resolver (deterministic, pre-LLM)

@@ -108,8 +108,6 @@ export function evaluateIncidents(tracePayload) {
   const responseSource = String(payload.response_source || '');
   const responseGrounding = String(details.response_grounding || '').toUpperCase();
   const postprocessors = Array.isArray(payload.postprocessors_applied) ? payload.postprocessors_applied : [];
-  const originId = String(details.origin_id || '');
-  const isExpectedTemplateResponse = originId === 'prellm.chatterFastPath';
 
   if (payload.llm_used === false && details.llm_bypass_reason) {
     pushIncident(incidents, payload, {
@@ -149,9 +147,9 @@ export function evaluateIncidents(tracePayload) {
 
   if (
     postprocessors.length > 0
-    || (responseSource === 'template' && !isExpectedTemplateResponse)
+    || responseSource === 'template'
     || responseSource === 'fallback'
-    || originId.includes('guardrail')
+    || String(details.origin_id || '').includes('guardrail')
   ) {
     pushIncident(incidents, payload, {
       category: OP_INCIDENT_CATEGORY.ASSISTANT_INTERVENTION,
@@ -160,21 +158,21 @@ export function evaluateIncidents(tracePayload) {
       details: {
         postprocessors,
         response_source: responseSource,
-        origin_id: originId || null,
+        origin_id: details.origin_id || null,
         guardrail_action: guardAction,
         guardrail_reason: guardReason
       }
     });
   }
 
-  if (!isExpectedTemplateResponse && ['template', 'fallback', 'policy_append'].includes(String(payload.response_source || ''))) {
+  if (['template', 'fallback', 'policy_append'].includes(String(payload.response_source || ''))) {
     pushIncident(incidents, payload, {
       category: OP_INCIDENT_CATEGORY.TEMPLATE_FALLBACK_USED,
       severity: OP_INCIDENT_SEVERITY.MEDIUM,
       summary: 'Template/fallback response source detected',
       details: {
         response_source: payload.response_source,
-        origin_id: originId || null
+        origin_id: details.origin_id || null
       }
     });
   }

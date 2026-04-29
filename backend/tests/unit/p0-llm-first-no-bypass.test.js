@@ -84,11 +84,7 @@ jest.unstable_mockModule('../../src/services/session-lock.js', () => ({
 }));
 
 jest.unstable_mockModule('../../src/messages/messageCatalog.js', () => ({
-  getMessageVariant: jest.fn(() => ({
-    text: 'msg',
-    messageKey: 'CHATTER_GREETING_IDLE',
-    variantIndex: 0
-  }))
+  getMessageVariant: jest.fn(() => ({ text: 'msg' }))
 }));
 
 jest.unstable_mockModule('../../src/services/sessionThrottle.js', () => ({
@@ -215,7 +211,21 @@ describe('P0 LLM-first no-bypass', () => {
     expect(fuzzy.clarificationQuestion).toBeUndefined();
   });
 
-  it('fast path: pure idle greeting skips LLM/tool pipeline', async () => {
+  it('invariant: greeting request sets LLM_CALLED=true telemetry', async () => {
+    makeRoutingDecisionMock.mockResolvedValueOnce({
+      directResponse: false,
+      isChatter: true,
+      chatterDirective: {
+        kind: 'greeting',
+        activeTask: false,
+        flowStatus: 'idle',
+        verificationPending: false,
+        responseSeed: 'seed',
+        maxSentences: 1
+      },
+      routing: { routing: { action: 'ACKNOWLEDGE_CHATTER', intent: 'general' } }
+    });
+
     const result = await handleIncomingMessage({
       channel: 'CHAT',
       business: { id: 7, name: 'Telyx' },
@@ -227,118 +237,32 @@ describe('P0 LLM-first no-bypass', () => {
       language: 'TR'
     });
 
-    expect(result.metadata.LLM_CALLED).toBe(false);
+    expect(result.metadata.LLM_CALLED).toBe(true);
     expect(result.metadata.llm_call_reason).toBe('CHAT');
-    expect(result.metadata.bypassed).toBe(true);
-    expect(result.metadata.chatterFastPath).toBe(true);
-    expect(result.metrics.LLM_CALLED).toBe(false);
-    expect(result.metrics.chatterFastPath).toBe(true);
-    expect(prepareContextMock).not.toHaveBeenCalled();
-    expect(makeRoutingDecisionMock).not.toHaveBeenCalled();
-    expect(buildLLMRequestMock).not.toHaveBeenCalled();
-    expect(executeToolLoopMock).not.toHaveBeenCalled();
+    expect(result.metadata.bypassed).toBe(false);
+    expect(result.metrics.LLM_CALLED).toBe(true);
+    expect(buildLLMRequestMock).toHaveBeenCalledTimes(1);
+    expect(executeToolLoopMock).toHaveBeenCalledTimes(1);
   });
 
-  it('invariant: pure chatter is fast, business prompts remain LLM-first', async () => {
-    const fastPrompts = [
+  it('invariant: selam/merhaba/nedir/özellik/fiyat prompts are all LLM-first (no bypass)', async () => {
+    const prompts = [
       'selam',
-      'merhaba'
-    ];
-    const llmPrompts = [
+      'merhaba',
       'Telyx nedir?',
       'Telyx’in özellikleri neler?',
       'fiyatlar nedir?'
     ];
 
-    for (let i = 0; i < fastPrompts.length; i += 1) {
+    for (let i = 0; i < prompts.length; i += 1) {
       const result = await handleIncomingMessage({
         channel: 'CHAT',
         business: { id: 7, name: 'Telyx' },
         assistant: { id: 1, name: 'Asistan' },
-        channelUserId: `u-fast-${i}`,
-        sessionId: `s-fast-${i}`,
-        messageId: `m-fast-${i}`,
-        userMessage: fastPrompts[i],
-        language: 'TR'
-      });
-
-      expect(result.metadata.LLM_CALLED).toBe(false);
-      expect(result.metadata.bypassed).toBe(true);
-      expect(result.metadata.chatterFastPath).toBe(true);
-    }
-
-    jest.clearAllMocks();
-    containsChildSafetyViolationMock.mockReturnValue(false);
-    detectPromptInjectionMock.mockReturnValue({ detected: false });
-    detectUserRisksMock.mockResolvedValue({ shouldLock: false, reason: null, warnings: [], stateUpdated: false });
-    checkSessionThrottleMock.mockReturnValue({ allowed: true });
-    ensurePolicyGuidanceMock.mockImplementation((response) => ({
-      response,
-      guidanceAdded: false,
-      addedComponents: []
-    }));
-    loadContextMock.mockResolvedValue({
-      terminated: false,
-      sessionId: 'session_llm_first',
-      state: {}
-    });
-    buildBusinessIdentityMock.mockResolvedValue({
-      businessName: 'Telyx',
-      businessAliases: ['Telix'],
-      productNames: [],
-      keyEntities: [],
-      allowedDomains: []
-    });
-    prepareContextMock.mockResolvedValue({
-      systemPrompt: 'SYS',
-      conversationHistory: [],
-      toolsAll: [{ function: { name: 'customer_data_lookup' } }],
-      hasKBMatch: true,
-      kbConfidence: 'HIGH',
-      retrievalMetadata: {}
-    });
-    makeRoutingDecisionMock.mockResolvedValue({
-      directResponse: false,
-      routing: { routing: { action: 'RUN_INTENT_ROUTER', intent: 'general' } }
-    });
-    buildLLMRequestMock.mockResolvedValue({
-      chat: {},
-      gatedTools: ['customer_data_lookup'],
-      hasTools: true
-    });
-    executeToolLoopMock.mockResolvedValue({
-      reply: 'LLM cevabı',
-      inputTokens: 11,
-      outputTokens: 7,
-      hadToolSuccess: false,
-      hadToolFailure: false,
-      failedTool: null,
-      toolsCalled: [],
-      iterations: 1,
-      toolResults: [],
-      chat: {}
-    });
-    applyGuardrailsMock.mockResolvedValue({
-      finalResponse: 'LLM cevabı',
-      action: 'PASS',
-      blocked: false,
-      guardrailsApplied: []
-    });
-    persistAndEmitMetricsMock.mockResolvedValue({
-      shouldEndSession: false,
-      forceEnd: false,
-      metadata: {}
-    });
-
-    for (let i = 0; i < llmPrompts.length; i += 1) {
-      const result = await handleIncomingMessage({
-        channel: 'CHAT',
-        business: { id: 7, name: 'Telyx' },
-        assistant: { id: 1, name: 'Asistan' },
-        channelUserId: `u-llm-${i}`,
-        sessionId: `s-llm-${i}`,
-        messageId: `m-llm-${i}`,
-        userMessage: llmPrompts[i],
+        channelUserId: `u-p${i}`,
+        sessionId: `s-p${i}`,
+        messageId: `m-p${i}`,
+        userMessage: prompts[i],
         language: 'TR'
       });
 
