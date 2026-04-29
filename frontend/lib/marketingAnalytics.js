@@ -2,7 +2,14 @@ const CAPI_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ||
   process.env.NEXT_PUBLIC_BACKEND_URL ||
   '';
+const GA_MEASUREMENT_ID =
+  process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ||
+  'G-08CRCMG37C';
 const ATTRIBUTION_STORAGE_KEY = 'telyx_marketing_attribution_v1';
+const ANONYMOUS_ID_STORAGE_KEY = 'telyx_marketing_anonymous_id_v1';
+const SESSION_ID_STORAGE_KEY = 'telyx_marketing_session_id_v1';
+const SESSION_STARTED_AT_STORAGE_KEY = 'telyx_marketing_session_started_at_v1';
+const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
 const BLOCKED_ANALYTICS_KEYS = new Set([
   'email',
   'full_name',
@@ -70,6 +77,7 @@ function parseCurrentAttribution() {
     medium: params.get('utm_medium'),
     campaign_name: params.get('utm_campaign') || params.get('campaign_name') || params.get('campaign'),
     campaign_id: params.get('utm_id') || params.get('campaign_id'),
+    campaign_draft_id: params.get('co_campaign_draft_id') || params.get('campaign_draft_id'),
     content: params.get('utm_content'),
     term: params.get('utm_term'),
     fbclid: params.get('fbclid'),
@@ -129,6 +137,49 @@ function generateEventId() {
   return `evt_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
 }
 
+function getOrCreateAnonymousId() {
+  const storage = getStorage('local');
+  if (!storage) return undefined;
+
+  try {
+    const existing = storage.getItem(ANONYMOUS_ID_STORAGE_KEY);
+    if (existing) return existing;
+    const next = generateEventId();
+    storage.setItem(ANONYMOUS_ID_STORAGE_KEY, next);
+    return next;
+  } catch (_error) {
+    return undefined;
+  }
+}
+
+function getOrCreateSessionId() {
+  const storage = getStorage('session');
+  if (!storage) return undefined;
+
+  try {
+    const now = Date.now();
+    const existing = storage.getItem(SESSION_ID_STORAGE_KEY);
+    const startedAt = Number(storage.getItem(SESSION_STARTED_AT_STORAGE_KEY) || 0);
+
+    if (existing && Number.isFinite(startedAt) && now - startedAt < SESSION_TIMEOUT_MS) {
+      return existing;
+    }
+
+    const next = generateEventId();
+    storage.setItem(SESSION_ID_STORAGE_KEY, next);
+    storage.setItem(SESSION_STARTED_AT_STORAGE_KEY, String(now));
+    return next;
+  } catch (_error) {
+    return undefined;
+  }
+}
+
+function getGaPayload(payload = {}) {
+  return GA_MEASUREMENT_ID
+    ? { ...payload, send_to: GA_MEASUREMENT_ID }
+    : payload;
+}
+
 function getPixelEventConfig(eventName, payload) {
   switch (eventName) {
     case 'page_view':
@@ -180,6 +231,29 @@ function getPixelEventConfig(eventName, payload) {
   }
 }
 
+function getGaAliasEvents(eventName, payload) {
+  switch (eventName) {
+    case 'demo_request':
+      return [{
+        name: 'generate_lead',
+        params: {
+          ...payload,
+          lead_source: payload.lead_type || payload.form_name || 'demo_request',
+        },
+      }];
+    case 'signup_complete':
+      return [{
+        name: 'sign_up',
+        params: {
+          ...payload,
+          method: payload.method || 'email',
+        },
+      }];
+    default:
+      return [];
+  }
+}
+
 function fireMetaPixel(pixelConfig, eventId) {
   const browser = getBrowserContext();
   if (!browser || typeof browser.fbq !== 'function') return;
@@ -193,6 +267,58 @@ function fireMetaPixel(pixelConfig, eventId) {
   } else {
     browser.fbq('trackCustom', pixelConfig.name, sanitized, opts);
   }
+}
+
+function postToMarketingAnalytics(eventName, payload, eventId) {
+  if (!CAPI_BASE_URL || typeof fetch === 'undefined') return;
+
+  const endpoint = `${CAPI_BASE_URL.replace(/\/$/, '')}/api/analytics/marketing-event`;
+  const properties = sanitizeParams({
+    ...payload,
+    event_id: eventId,
+  });
+
+  const body = {
+    eventName,
+    eventId,
+    sessionId: getOrCreateSessionId(),
+    anonymousId: getOrCreateAnonymousId(),
+    pageUrl: payload.page_location,
+    pagePath: payload.page_path,
+    referrer: typeof document !== 'undefined' ? document.referrer || undefined : undefined,
+    source: payload.source,
+    medium: payload.medium,
+    campaignName: payload.campaign_name,
+    campaignDraftId: payload.campaign_draft_id,
+    properties,
+    occurredAt: new Date().toISOString(),
+  };
+
+  const serialized = JSON.stringify(sanitizeParams(body));
+
+  try {
+    if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
+      const sent = navigator.sendBeacon(
+        endpoint,
+        new Blob([serialized], { type: 'application/json' })
+      );
+      if (sent) return;
+    }
+  } catch (_error) {
+    // Fall back to fetch below.
+  }
+
+  void fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: serialized,
+    keepalive: true,
+    credentials: 'include',
+  }).catch(() => {
+    // Best-effort first-party analytics relay.
+  });
 }
 
 function postToCapi(eventName, payload, eventId, pixelConfig, userData) {
@@ -245,7 +371,11 @@ function emitEvent(eventName, params = {}, options = {}) {
   const pixelConfig = getPixelEventConfig(normalizedEventName, payload);
 
   if (options.gtag !== false) {
-    browser.gtag('event', normalizedEventName, payload);
+    browser.gtag('event', normalizedEventName, getGaPayload(payload));
+
+    for (const alias of getGaAliasEvents(normalizedEventName, payload)) {
+      browser.gtag('event', alias.name, getGaPayload(alias.params));
+    }
   }
 
   if (options.fbq !== false) {
@@ -255,6 +385,10 @@ function emitEvent(eventName, params = {}, options = {}) {
   if (options.capi !== false) {
     postToCapi(normalizedEventName, payload, eventId, pixelConfig, options.userData);
   }
+
+  if (options.firstParty !== false) {
+    postToMarketingAnalytics(normalizedEventName, payload, eventId);
+  }
 }
 
 export function trackMarketingEvent(eventName, params = {}, options = {}) {
@@ -263,21 +397,73 @@ export function trackMarketingEvent(eventName, params = {}, options = {}) {
 
 export function trackPageView({ pageType, locale, ...rest } = {}) {
   // PageView is already handled globally by GTM and Meta Pixel.
-  // We still persist attribution here so later funnel events inherit UTMs.
+  // Keep GA/Pixel quiet here, but relay the page view to first-party campaign analysis.
   getAttribution();
+  emitEvent(
+    'page_view',
+    {
+      page_type: pageType,
+      locale,
+      ...rest,
+    },
+    { gtag: false, fbq: false, capi: false }
+  );
 }
 
 export function trackScrollMilestone({ pageType, milestone = '50', locale, ...rest } = {}) {
+  const normalizedMilestone = String(milestone);
+  const eventName = ['25', '50', '75', '100'].includes(normalizedMilestone)
+    ? `scroll_${normalizedMilestone}`
+    : 'scroll';
+
   emitEvent(
-    'scroll',
+    eventName,
     {
       page_type: pageType,
-      milestone,
+      milestone: normalizedMilestone,
       locale,
       ...rest,
     },
     { fbq: false }
   );
+}
+
+export function createScrollDepthTracker({
+  pageType,
+  locale,
+  thresholds = [25, 50, 75, 100],
+  ...rest
+} = {}) {
+  const fired = new Set();
+  const normalizedThresholds = thresholds
+    .map((value) => Number(value))
+    .filter((value) => Number.isFinite(value) && value > 0 && value <= 100)
+    .sort((left, right) => left - right);
+
+  return function trackCurrentScrollDepth() {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return;
+
+    const scrollTop = window.scrollY || document.documentElement.scrollTop || 0;
+    const viewportHeight = window.innerHeight || 0;
+    const documentHeight = Math.max(
+      document.body?.scrollHeight || 0,
+      document.documentElement.scrollHeight || 0,
+      1
+    );
+    const progress = ((scrollTop + viewportHeight) / documentHeight) * 100;
+
+    for (const threshold of normalizedThresholds) {
+      if (progress >= threshold && !fired.has(threshold)) {
+        fired.add(threshold);
+        trackScrollMilestone({
+          pageType,
+          milestone: String(threshold),
+          locale,
+          ...rest,
+        });
+      }
+    }
+  };
 }
 
 export function trackSignupPageView({ locale, ...rest } = {}) {

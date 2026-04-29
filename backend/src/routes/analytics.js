@@ -4,6 +4,122 @@ import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
 
+const MARKETING_EVENT_ALLOWLIST = new Set([
+  'page_view',
+  'scroll',
+  'scroll_25',
+  'scroll_50',
+  'scroll_75',
+  'scroll_100',
+  'time_on_page',
+  'cta_click',
+  'signup_page_view',
+  'signup_start',
+  'signup_submit',
+  'signup_complete',
+  'trial_start',
+  'pricing_view',
+  'pricing_plan_click',
+  'contact_click',
+  'demo_request',
+  'generate_lead',
+  'sign_up',
+  'form_error'
+]);
+
+function sanitizeMarketingString(value, maxLength = 500) {
+  if (value === undefined || value === null) return undefined;
+  const normalized = String(value).trim();
+  if (!normalized) return undefined;
+  return normalized.slice(0, maxLength);
+}
+
+function sanitizeMarketingProperties(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return {};
+  const blocked = new Set(['email', 'phone', 'password', 'full_name', 'fullName', 'business_name', 'businessName']);
+  const output = {};
+
+  for (const [key, value] of Object.entries(input)) {
+    if (blocked.has(key) || value === undefined || value === null || value === '') continue;
+    if (typeof value === 'string') {
+      output[key] = value.slice(0, 500);
+    } else if (typeof value === 'number' || typeof value === 'boolean') {
+      output[key] = value;
+    }
+  }
+
+  return output;
+}
+
+// POST /api/analytics/marketing-event - Public, best-effort relay to Campaign Orchestrator.
+router.post('/marketing-event', async (req, res) => {
+  const eventName = sanitizeMarketingString(req.body?.eventName, 80);
+
+  if (!eventName || !MARKETING_EVENT_ALLOWLIST.has(eventName)) {
+    return res.status(400).json({
+      error: 'Unsupported marketing event',
+      code: 'UNSUPPORTED_MARKETING_EVENT'
+    });
+  }
+
+  const orchestratorUrl = sanitizeMarketingString(
+    process.env.CAMPAIGN_ORCHESTRATOR_ANALYTICS_URL ||
+      process.env.MARKETING_ANALYTICS_INGEST_URL,
+    1000
+  );
+
+  if (!orchestratorUrl) {
+    return res.status(202).json({
+      success: true,
+      forwarded: false,
+      reason: 'MARKETING_ANALYTICS_NOT_CONFIGURED'
+    });
+  }
+
+  const payload = {
+    secret: sanitizeMarketingString(
+      process.env.CAMPAIGN_ORCHESTRATOR_ANALYTICS_SECRET ||
+        process.env.ANALYTICS_INGEST_SHARED_SECRET,
+      500
+    ),
+    campaignDraftId: sanitizeMarketingString(req.body?.campaignDraftId, 80),
+    sessionId: sanitizeMarketingString(req.body?.sessionId, 120),
+    anonymousId: sanitizeMarketingString(req.body?.anonymousId, 120),
+    userId: sanitizeMarketingString(req.body?.userId, 120),
+    eventName,
+    pageUrl: sanitizeMarketingString(req.body?.pageUrl, 1000),
+    pagePath: sanitizeMarketingString(req.body?.pagePath, 300),
+    referrer: sanitizeMarketingString(req.body?.referrer, 1000),
+    source: sanitizeMarketingString(req.body?.source, 120),
+    medium: sanitizeMarketingString(req.body?.medium, 120),
+    campaignName: sanitizeMarketingString(req.body?.campaignName, 300),
+    properties: sanitizeMarketingProperties(req.body?.properties),
+    occurredAt: sanitizeMarketingString(req.body?.occurredAt, 80)
+  };
+
+  try {
+    const response = await fetch(orchestratorUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      console.warn('[marketing-analytics] relay failed', {
+        status: response.status,
+        eventName
+      });
+    }
+  } catch (error) {
+    console.warn('[marketing-analytics] relay error', {
+      eventName,
+      message: error.message
+    });
+  }
+
+  return res.status(202).json({ success: true, forwarded: true });
+});
+
 // GET /api/analytics/overview?range=30d
 router.get('/overview', authenticateToken, async (req, res) => {
   try {
