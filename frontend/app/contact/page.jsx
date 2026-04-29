@@ -28,6 +28,8 @@ import {
   trackScrollMilestone,
 } from '@/lib/marketingAnalytics';
 
+const PUBLIC_CONTACT_EMAIL = 'info@telyx.ai';
+
 export default function ContactPage() {
   const { t, locale } = useLanguage();
   const isTR = locale === 'tr';
@@ -42,7 +44,7 @@ export default function ContactPage() {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [contactInfo, setContactInfo] = useState({
-    email: 'info@telyx.ai',
+    email: PUBLIC_CONTACT_EMAIL,
     phone: '',
   });
 
@@ -71,8 +73,8 @@ export default function ContactPage() {
         ? 'Randevu yönetimi tamamen otomatik hale geldi. Müşterilerimiz WhatsApp üzerinden anında randevu alabiliyor.'
         : 'Appointment management has become fully automated. Our customers can instantly book via WhatsApp.',
       name: 'Selin Aras',
-      role: isTR ? 'Kurucu, Studio Bloom' : 'Founder, Studio Bloom',
-      initials: 'SB',
+      role: isTR ? 'Kurucu' : 'Founder',
+      initials: 'SA',
       gradient: 'from-[#051752] to-[#006FEB]',
     },
     {
@@ -120,7 +122,7 @@ export default function ContactPage() {
         if (cancelled) return;
 
         setContactInfo({
-          email: data?.email || 'info@telyx.ai',
+          email: PUBLIC_CONTACT_EMAIL,
           phone: data?.phone || '',
         });
       } catch (_error) {

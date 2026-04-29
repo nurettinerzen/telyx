@@ -1,7 +1,9 @@
 import prisma from '../prismaClient.js';
 
+export const PUBLIC_CONTACT_EMAIL = 'info@telyx.ai';
+
 export const BRAND_OWNER_EMAIL = String(
-  process.env.PUBLIC_CONTACT_OWNER_EMAIL || 'info@telyx.ai'
+  process.env.PUBLIC_CONTACT_OWNER_EMAIL || PUBLIC_CONTACT_EMAIL
 ).trim().toLowerCase();
 
 const PHONE_ROUTING_FLAG_FIELDS = new Set([
@@ -299,7 +301,7 @@ export async function getPublicContactProfile(tx = prisma) {
 
   if (!owner?.businessId) {
     return {
-      email: BRAND_OWNER_EMAIL,
+      email: PUBLIC_CONTACT_EMAIL,
       phone: null,
       businessId: null
     };
@@ -337,7 +339,7 @@ export async function getPublicContactProfile(tx = prisma) {
   const ordered = sortPhoneNumbers(activeNumbers);
 
   return {
-    email: owner.email || BRAND_OWNER_EMAIL,
+    email: PUBLIC_CONTACT_EMAIL,
     phone: ordered[0]?.phoneNumber || owner.business?.ownerPhone || null,
     businessId: owner.businessId
   };
