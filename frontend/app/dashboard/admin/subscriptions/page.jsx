@@ -138,6 +138,8 @@ export default function AdminSubscriptionsPage() {
     lifecycleCancel: isTr ? 'İptal Planlı' : 'Cancellation Scheduled',
     minutesUsed: isTr ? 'dakika kullanıldı' : 'minutes used',
     ownerFallback: isTr ? 'Sahip bilgisi yok' : 'No owner info',
+    suspended: isTr ? 'Dondurulmuş' : 'Suspended',
+    subscriptionPrefix: isTr ? 'Abonelik' : 'Subscription',
   }), [isTr]);
 
   const loadSubscriptions = useCallback(async () => {
@@ -350,11 +352,22 @@ export default function AdminSubscriptionsPage() {
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    <Badge className={STATUS_COLORS[normalizeStatus(sub.status)] || STATUS_COLORS.active}>
-                      {getStatusLabel(sub.status)}
-                    </Badge>
-                    {normalizeStatus(sub.status) === 'past_due' && (
-                      <AlertTriangle className="inline-block w-4 h-4 ml-2 text-red-500" />
+                    {sub.accountSuspended ? (
+                      <>
+                        <Badge variant="destructive">{copy.suspended}</Badge>
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                          {copy.subscriptionPrefix}: {getStatusLabel(sub.status)}
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <Badge className={STATUS_COLORS[normalizeStatus(sub.status)] || STATUS_COLORS.active}>
+                          {getStatusLabel(sub.status)}
+                        </Badge>
+                        {normalizeStatus(sub.status) === 'past_due' && (
+                          <AlertTriangle className="inline-block w-4 h-4 ml-2 text-red-500" />
+                        )}
+                      </>
                     )}
                   </td>
                   <td className="px-4 py-3">

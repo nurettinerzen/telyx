@@ -31,6 +31,7 @@ import {
   normalizePlanName
 } from '../config/plans.js';
 import runtimeConfig from '../config/runtime.js';
+import { buildAdminBusinessContact } from '../utils/adminBusinessContact.js';
 
 const router = express.Router();
 const PAID_RENEWAL_PLANS = ['STARTER', 'PRO', 'ENTERPRISE', 'BASIC'];
@@ -1847,10 +1848,11 @@ router.get('/subscriptions', async (req, res) => {
             select: {
               id: true,
               name: true,
+              suspended: true,
               users: {
-                where: { role: 'OWNER' },
-                take: 1,
-                select: { id: true, email: true, name: true }
+                where: { deletedAt: null },
+                orderBy: { createdAt: 'asc' },
+                select: { id: true, email: true, name: true, role: true, suspended: true }
               }
             }
           }
@@ -1865,12 +1867,18 @@ router.get('/subscriptions', async (req, res) => {
     // Sanitize subscriptions (remove sensitive fields)
     const sanitizedSubscriptions = subscriptions.map(sub => {
       const { stripeCustomerId, stripeSubscriptionId, ...safe } = sub;
+      const contact = buildAdminBusinessContact(sub.business);
       return {
         ...safe,
         businessName: sub.business?.name,
-        ownerUserId: sub.business?.users?.[0]?.id || null,
-        ownerEmail: sub.business?.users?.[0]?.email,
-        ownerName: sub.business?.users?.[0]?.name,
+        ownerUserId: contact.ownerUserId,
+        ownerEmail: contact.ownerEmail,
+        ownerName: contact.ownerName,
+        ownerRole: contact.ownerRole,
+        hasOwner: contact.hasOwner,
+        ownerSuspended: contact.ownerSuspended,
+        businessSuspended: contact.businessSuspended,
+        accountSuspended: contact.accountSuspended,
         subscriptionLifecycle: getSubscriptionLifecycle(sub, now),
       };
     });
