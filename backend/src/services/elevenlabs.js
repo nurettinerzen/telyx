@@ -39,7 +39,7 @@ const elevenLabsService = {
     } catch (error) {
       // Log full error details including loc array
       const errorData = error.response?.data;
-      if (errorData?.detail) {
+      if (Array.isArray(errorData?.detail)) {
         console.error('❌ 11Labs createAgent error details:');
         errorData.detail.forEach((d, i) => {
           console.error(`  [${i}] type: ${d.type}, loc: ${JSON.stringify(d.loc)}, msg: ${d.msg}, input: ${JSON.stringify(d.input)}`);

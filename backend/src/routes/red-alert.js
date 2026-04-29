@@ -8,6 +8,7 @@
 import express from 'express';
 import prisma from '../prismaClient.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { isAdmin, requireAdminMfa } from '../middleware/adminAuth.js';
 import {
   isOperationalIncidentsEnabled,
   isRedAlertOpsPanelEnabled,
@@ -107,8 +108,11 @@ function toPercent(part, total) {
   return Number(((part / total) * 100).toFixed(2));
 }
 
-// Require authentication for all routes
+// Require authenticated admin + MFA for all routes.
+// This panel exposes cross-tenant operational telemetry and error stacks.
 router.use(authenticateToken);
+router.use(isAdmin);
+router.use(requireAdminMfa);
 
 /**
  * GET /api/red-alert/capabilities

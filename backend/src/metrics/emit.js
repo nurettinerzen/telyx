@@ -8,6 +8,7 @@
  * - External systems (future: Datadog, Prometheus, etc.)
  */
 
+import { getActiveLlmProvider } from '../config/llm.js';
 import { logRoutingDecision } from '../services/routing-metrics.js';
 
 /**
@@ -62,7 +63,7 @@ export function emitTurnMetrics(metrics) {
       : !llmCalledFlag;
   const responseOrigin = response_origin || 'FALLBACK';
   const originId = origin_id || 'unknown';
-  const provider = llm_provider || (llmCalledFlag ? 'gemini' : 'none');
+  const provider = llm_provider || (llmCalledFlag ? getActiveLlmProvider() : 'none');
   const llmStatus = llm_status || (llmCalledFlag ? 'success' : 'not_called');
   const toolCount = Number.isInteger(tools_called_count) ? tools_called_count : toolsCalled.length;
   const policyBlocks = Array.isArray(policy_blocks) ? policy_blocks : [];

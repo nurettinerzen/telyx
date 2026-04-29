@@ -1,4 +1,4 @@
-import { hasGeminiApiKey } from '../config/gemini.js';
+import { getActiveLlmProvider, hasConfiguredPrimaryLlm } from '../config/llm.js';
 
 const REQUIRED_PRODUCTION_ENV = [
   {
@@ -56,9 +56,9 @@ const REQUIRED_PRODUCTION_ENV = [
     message: 'WHATSAPP_APP_SECRET (or META_APP_SECRET) must be set for webhook signature verification.',
   },
   {
-    key: 'GEMINI_API_KEY',
-    validate: () => hasGeminiApiKey(),
-    message: 'GEMINI_API_KEY (or GOOGLE_AI_API_KEY) must be set for chat/email orchestration.',
+    key: 'LLM_PROVIDER',
+    validate: () => hasConfiguredPrimaryLlm(),
+    message: 'Primary LLM credentials must be set for chat/email orchestration. Use OPENAI_API_KEY when LLM_PROVIDER=openai, or GEMINI_API_KEY/GOOGLE_AI_API_KEY when LLM_PROVIDER=gemini.',
   },
 ];
 
@@ -71,7 +71,10 @@ export function assertProductionSecurityPosture() {
   for (const requirement of REQUIRED_PRODUCTION_ENV) {
     const value = process.env[requirement.key];
     if (!requirement.validate(value)) {
-      failures.push(`${requirement.key}: ${requirement.message}`);
+      const suffix = requirement.key === 'LLM_PROVIDER'
+        ? ` Active provider: ${getActiveLlmProvider()}.`
+        : '';
+      failures.push(`${requirement.key}: ${requirement.message}${suffix}`);
     }
   }
 

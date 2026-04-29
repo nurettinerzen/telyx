@@ -12,13 +12,20 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import {
   getGeminiApiKeyDiagnostics,
-  hasGeminiApiKey,
+  hasGeminiApiKey as hasRawGeminiApiKey,
   resolveGeminiApiKey
 } from '../config/gemini.js';
+import {
+  getActiveLlmProvider,
+  getLlmDiagnostics,
+  hasConfiguredPrimaryLlm
+} from '../config/llm.js';
+import { getOpenAiGeminiCompatibleClient } from './openai-gemini-adapter.js';
 
 // Lazy initialization for Gemini
 let genAI = null;
 let activeGeminiKeyFingerprint = null;
+let openAiCompatibleClient = null;
 let hasLoggedGeminiConfig = false;
 
 function buildGeminiKeyError(code = 'GEMINI_API_KEY_MISSING') {
@@ -32,8 +39,16 @@ function logGeminiConfigOnce() {
     return;
   }
 
-  const diagnostics = getGeminiApiKeyDiagnostics();
-  const candidateSummary = diagnostics.candidates.reduce((acc, candidate) => {
+  const diagnostics = getLlmDiagnostics();
+  const geminiCandidateSummary = diagnostics.gemini.candidates.reduce((acc, candidate) => {
+    acc[candidate.envKey] = {
+      present: candidate.present,
+      looksValidShape: candidate.looksValidShape,
+      masked: candidate.masked
+    };
+    return acc;
+  }, {});
+  const openAiCandidateSummary = diagnostics.openai.candidates.reduce((acc, candidate) => {
     acc[candidate.envKey] = {
       present: candidate.present,
       looksValidShape: candidate.looksValidShape,
@@ -43,17 +58,29 @@ function logGeminiConfigOnce() {
   }, {});
 
   if (!diagnostics.configured) {
-    console.error('❌ [GeminiConfig] No Gemini API key configured', {
-      source: null,
-      candidates: candidateSummary
+    console.error('❌ [LLMConfig] No primary LLM API key configured', {
+      requestedProvider: diagnostics.requestedProvider,
+      activeProvider: diagnostics.activeProvider,
+      gemini: geminiCandidateSummary,
+      openai: openAiCandidateSummary
     });
   } else {
-    console.log('🤖 [GeminiConfig] Active Gemini API key resolved', {
-      source: diagnostics.source,
-      candidates: candidateSummary
+    console.log('🤖 [LLMConfig] Active LLM provider resolved', {
+      requestedProvider: diagnostics.requestedProvider,
+      activeProvider: diagnostics.activeProvider,
+      gemini: {
+        source: diagnostics.gemini.source || 'missing',
+        candidates: geminiCandidateSummary
+      },
+      openai: {
+        source: diagnostics.openai.source || 'missing',
+        chatModel: diagnostics.openai.chatModel,
+        classifierModel: diagnostics.openai.classifierModel,
+        candidates: openAiCandidateSummary
+      }
     });
 
-    if (diagnostics.source === 'GOOGLE_AI_API_KEY') {
+    if (diagnostics.gemini.source === 'GOOGLE_AI_API_KEY') {
       console.warn('⚠️ [GeminiConfig] Using GOOGLE_AI_API_KEY fallback. Prefer GEMINI_API_KEY for consistency.');
     }
   }
@@ -66,8 +93,16 @@ function logGeminiConfigOnce() {
  * @returns {GoogleGenerativeAI} Gemini client instance
  */
 export function getGeminiClient() {
+  const provider = getActiveLlmProvider();
   const resolved = resolveGeminiApiKey();
   logGeminiConfigOnce();
+
+  if (provider === 'openai') {
+    if (!openAiCompatibleClient) {
+      openAiCompatibleClient = getOpenAiGeminiCompatibleClient();
+    }
+    return openAiCompatibleClient;
+  }
 
   if (!resolved.apiKey) {
     throw buildGeminiKeyError();
@@ -83,7 +118,13 @@ export function getGeminiClient() {
   return genAI;
 }
 
-export { getGeminiApiKeyDiagnostics, hasGeminiApiKey };
+export { getGeminiApiKeyDiagnostics };
+
+export function hasGeminiApiKey() {
+  return getActiveLlmProvider() === 'openai'
+    ? hasConfiguredPrimaryLlm()
+    : hasRawGeminiApiKey();
+}
 
 export function isGeminiGenerationFailure(error) {
   const message = String(error?.message || '').toLowerCase();
@@ -91,10 +132,15 @@ export function isGeminiGenerationFailure(error) {
 
   return (
     code === 'API_KEY_INVALID'
+    || code === 'OPENAI_API_KEY_MISSING'
+    || code === 'INVALID_API_KEY'
     || message.includes('googlegenerativeai')
     || message.includes('generativelanguage.googleapis.com')
     || message.includes('api key not valid')
     || message.includes('api_key_invalid')
+    || message.includes('invalid_api_key')
+    || message.includes('incorrect api key')
+    || message.includes('openai_api_key_missing')
     || message.includes('models/')
   );
 }

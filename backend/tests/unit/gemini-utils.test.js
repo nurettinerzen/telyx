@@ -11,4 +11,11 @@ describe('isGeminiGenerationFailure', () => {
   it('ignores unrelated internal errors', () => {
     expect(isGeminiGenerationFailure(new Error('Knowledge base query failed'))).toBe(false);
   });
+
+  it('detects OpenAI provider credential failures when OpenAI is active behind the shared adapter', () => {
+    const error = new Error('Incorrect API key provided. You can find your API key at https://platform.openai.com/account/api-keys.');
+    error.code = 'invalid_api_key';
+
+    expect(isGeminiGenerationFailure(error)).toBe(true);
+  });
 });

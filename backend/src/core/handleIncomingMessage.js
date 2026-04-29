@@ -60,6 +60,7 @@ import { logEntityResolver } from '../services/entityResolverTelemetry.js';
 import { validateFieldGrounding } from '../guardrails/antiConfabulationGuard.js';
 import { buildTrace } from '../services/trace/traceBuilder.js';
 import { updateState } from '../services/state-manager.js';
+import { getActiveLlmProvider } from '../config/llm.js';
 
 const LLM_CALL_REASONS = new Set(['CHAT', 'WHATSAPP', 'EMAIL']);
 const RESPONSE_ORIGIN = Object.freeze({
@@ -1525,7 +1526,7 @@ export async function handleIncomingMessage({
     // STEP 6: Tool Loop
     // ========================================
     console.log('\n[STEP 6] Executing tool loop...');
-    metrics.llm_provider = 'gemini';
+    metrics.llm_provider = getActiveLlmProvider();
     metrics.llm_status = 'in_progress';
     metrics.llmCalled = true;
     metrics.LLM_CALLED = true;
