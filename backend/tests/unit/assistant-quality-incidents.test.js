@@ -70,6 +70,24 @@ describe('assistant quality incident evaluation', () => {
     expect(categories).toContain(OP_INCIDENT_CATEGORY.TEMPLATE_FALLBACK_USED);
   });
 
+  it('does not emit assistant-quality incidents for expected chatter fast-path templates', () => {
+    const incidents = evaluateIncidents(buildTracePayload({
+      llm_used: false,
+      response_source: 'template',
+      details: {
+        response_preview: 'Merhaba, hoş geldiniz.',
+        response_grounding: 'GROUNDED',
+        origin_id: 'prellm.chatterFastPath'
+      }
+    }));
+
+    const categories = incidents.map(item => item.category);
+
+    expect(categories).not.toContain(OP_INCIDENT_CATEGORY.LLM_BYPASSED);
+    expect(categories).not.toContain(OP_INCIDENT_CATEGORY.ASSISTANT_INTERVENTION);
+    expect(categories).not.toContain(OP_INCIDENT_CATEGORY.TEMPLATE_FALLBACK_USED);
+  });
+
   it('emits sanitize incident for recoverable masking paths', () => {
     const incidents = evaluateIncidents(buildTracePayload({
       guardrail: {
