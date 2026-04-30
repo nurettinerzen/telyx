@@ -1216,7 +1216,16 @@ router.post('/widget', async (req, res) => {
     // Check subscription
     const subscription = await prisma.subscription.findUnique({
       where: { businessId: business.id },
-      include: { business: true }
+      select: {
+        id: true,
+        plan: true,
+        createdAt: true,
+        business: {
+          select: {
+            createdAt: true
+          }
+        }
+      }
     });
 
     console.log(`⏱️ [Widget] DB subscription: ${Date.now() - _t}ms`); _t = Date.now();
@@ -1976,7 +1985,16 @@ router.get('/widget/status/:assistantId', async (req, res) => {
 
     const subscription = await prisma.subscription.findUnique({
       where: { businessId: business.id },
-      include: { business: true }
+      select: {
+        id: true,
+        plan: true,
+        createdAt: true,
+        business: {
+          select: {
+            createdAt: true
+          }
+        }
+      }
     });
 
     if (!subscription) {
@@ -2041,7 +2059,17 @@ router.get('/widget/status/embed/:embedKey', async (req, res) => {
     }
 
     const subscription = await prisma.subscription.findUnique({
-      where: { businessId: business.id }
+      where: { businessId: business.id },
+      select: {
+        id: true,
+        plan: true,
+        createdAt: true,
+        business: {
+          select: {
+            createdAt: true
+          }
+        }
+      }
     });
 
     if (!subscription) {

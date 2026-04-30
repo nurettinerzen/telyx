@@ -61,6 +61,7 @@ import { validateFieldGrounding } from '../guardrails/antiConfabulationGuard.js'
 import { buildTrace } from '../services/trace/traceBuilder.js';
 import { updateState } from '../services/state-manager.js';
 import { getActiveLlmProvider } from '../config/llm.js';
+import { trySemanticChatterFastPath } from '../services/chatter-fast-path.js';
 
 const LLM_CALL_REASONS = new Set(['CHAT', 'WHATSAPP', 'EMAIL']);
 const RESPONSE_ORIGIN = Object.freeze({
@@ -1118,6 +1119,163 @@ export async function handleIncomingMessage({
 
     const { sessionId: resolvedSessionId, state } = contextResult;
     metrics.sessionId = resolvedSessionId;
+
+    // ========================================
+    // STEP 1.25: Semantic Chatter Fast Path
+    // ========================================
+    // A tiny semantic gate handles pure greetings/small talk before the
+    // expensive full agent path builds KB context, tools, classifiers, and
+    // guardrails. Ambiguous/business/security messages fall through.
+    console.log('\n[STEP 1.25] Semantic chatter fast path...');
+    const chatterFastPath = await trySemanticChatterFastPath({
+      channel,
+      userMessage,
+      language,
+      state,
+      business,
+      assistant,
+      effectsEnabled
+    });
+
+    metrics.chatterFastPath = {
+      handled: chatterFastPath.handled === true,
+      reason: chatterFastPath.reason || null,
+      confidence: Number.isFinite(chatterFastPath.confidence) ? chatterFastPath.confidence : null,
+      latencyMs: Number.isFinite(chatterFastPath.latencyMs) ? chatterFastPath.latencyMs : null
+    };
+
+    if (chatterFastPath.handled) {
+      const fastPathClassification = {
+        type: 'CHATTER',
+        confidence: chatterFastPath.confidence,
+        reason: `Semantic chatter fast path: ${chatterFastPath.reason || 'pure_chatter'}`,
+        suggestedFlow: null,
+        triggerRule: 'semantic_chatter_fast_path'
+      };
+      const fastPathRouting = {
+        directResponse: true,
+        isChatter: true,
+        routing: {
+          routing: {
+            action: 'SEMANTIC_CHATTER_FAST_PATH',
+            reason: chatterFastPath.reason || 'pure_chatter',
+            suggestedFlow: null
+          }
+        },
+        metadata: {
+          mode: 'semantic_chatter_fast_path'
+        }
+      };
+
+      traceClassification = fastPathClassification;
+      traceRouting = fastPathRouting;
+      metrics.llm_provider = chatterFastPath.provider || getActiveLlmProvider();
+      metrics.llm_status = 'success';
+      metrics.llmCalled = true;
+      metrics.LLM_CALLED = true;
+      metrics.llmBypassed = false;
+      metrics.bypassed = false;
+      metrics.llmCallReason = normalizeLlmCallReason(channel);
+      metrics.llm_call_reason = metrics.llmCallReason;
+      metrics.intent_final = 'chatter';
+      metrics.chatterSource = 'semantic_fast_path';
+      metrics.chatterFastPath.inputTokens = chatterFastPath.inputTokens || 0;
+      metrics.chatterFastPath.outputTokens = chatterFastPath.outputTokens || 0;
+      setResponseOrigin(metrics, RESPONSE_ORIGIN.LLM, 'chatter.semanticFastPath');
+
+      state.chatter = {
+        ...(state.chatter || {}),
+        lastAt: new Date().toISOString(),
+        lastMessageKey: 'SEMANTIC_FAST_PATH',
+        lastVariantIndex: null,
+        recent: [
+          ...((Array.isArray(state.chatter?.recent) ? state.chatter.recent : []).slice(-1)),
+          {
+            messageKey: 'SEMANTIC_FAST_PATH',
+            variantIndex: null,
+            userMessage: String(userMessage || '').slice(0, 160),
+            reply: String(chatterFastPath.reply || '').slice(0, 240),
+            at: new Date().toISOString()
+          }
+        ].slice(-2)
+      };
+
+      const finalResponse = finalizeReply(chatterFastPath.reply, 'chatter');
+      const inputTokens = chatterFastPath.inputTokens || 0;
+      const outputTokens = chatterFastPath.outputTokens || 0;
+
+      const { shouldEndSession, forceEnd, metadata: persistMetadata } = await persistAndEmitMetrics({
+        sessionId: resolvedSessionId,
+        state,
+        userMessage,
+        finalResponse,
+        classification: fastPathClassification,
+        routing: fastPathRouting,
+        turnStartTime,
+        inputTokens,
+        outputTokens,
+        toolsCalled: [],
+        hadToolSuccess: false,
+        hadToolFailure: false,
+        failedTool: null,
+        channel,
+        channelUserId,
+        customerPhone: channel === 'WHATSAPP' ? channelUserId : null,
+        businessId: business.id,
+        metrics,
+        responseGrounding: RESPONSE_GROUNDING.GROUNDED,
+        assistantMessageMeta: {
+          messageType: 'clarification',
+          guardrailAction: 'PASS',
+          guardrailReason: null
+        },
+        effectsEnabled
+      });
+
+      console.log(`⚡ [ChatterFastPath] handled in ${chatterFastPath.latencyMs}ms`);
+      return finish({
+        reply: finalResponse,
+        outcome: ToolOutcome.NEED_MORE_INFO,
+        metadata: {
+          outcome: ToolOutcome.NEED_MORE_INFO,
+          tool_outcome: ToolOutcome.NEED_MORE_INFO,
+          guardrailsApplied: [],
+          guardrailAction: 'PASS',
+          messageType: 'clarification',
+          responseGrounding: RESPONSE_GROUNDING.GROUNDED,
+          chatterFastPath: true,
+          chatterFastPathConfidence: chatterFastPath.confidence,
+          LLM_CALLED: true,
+          llm_call_reason: metrics.llm_call_reason,
+          bypassed: false,
+          ...(persistMetadata || {})
+        },
+        shouldEndSession,
+        forceEnd,
+        state,
+        metrics,
+        inputTokens,
+        outputTokens,
+        toolsCalled: [],
+        debug: {
+          classification: fastPathClassification.type,
+          confidence: fastPathClassification.confidence,
+          routing: 'SEMANTIC_CHATTER_FAST_PATH',
+          toolsCalled: [],
+          responseGrounding: RESPONSE_GROUNDING.GROUNDED,
+          chatterFastPathLatencyMs: chatterFastPath.latencyMs,
+          ...persistMetadata
+        }
+      });
+    }
+
+    if (chatterFastPath.reason !== 'feature_disabled') {
+      console.log('↪️ [ChatterFastPath] falling through:', {
+        reason: chatterFastPath.reason,
+        confidence: chatterFastPath.confidence || null,
+        latencyMs: chatterFastPath.latencyMs || null
+      });
+    }
 
     // ========================================
     // STEP 1.5: Business Identity + Entity Resolver (deterministic, pre-LLM)

@@ -6,6 +6,7 @@
 
 // Environment-based defaults
 const ENVIRONMENT = process.env.NODE_ENV || 'development';
+const APP_ENV = String(process.env.APP_ENV || '').trim().toLowerCase();
 
 export const FEATURE_FLAGS = {
   // Message Type Classification & Smart Routing
@@ -89,6 +90,15 @@ export const FEATURE_FLAGS = {
   //   e.g. FEATURE_LLM_CHATTER_CANARY_KEYS=embed_abc123,embed_xyz789
   LLM_CHATTER_GREETING: process.env.FEATURE_LLM_CHATTER_GREETING !== 'false', // Default: ON
   LLM_CHATTER_CANARY_KEYS: (process.env.FEATURE_LLM_CHATTER_CANARY_KEYS || '').split(',').map(k => k.trim()).filter(Boolean),
+
+  // Semantic chatter fast path.
+  // When enabled: pure social chatter can be answered by a tiny classifier+reply
+  // LLM call before the full orchestration pipeline loads tools/prompts/guards.
+  // Default: ON in development/beta, OFF in production unless explicitly enabled.
+  // Rollback: Set FEATURE_SEMANTIC_CHATTER_FAST_PATH=false.
+  SEMANTIC_CHATTER_FAST_PATH: process.env.FEATURE_SEMANTIC_CHATTER_FAST_PATH
+    ? process.env.FEATURE_SEMANTIC_CHATTER_FAST_PATH === 'true'
+    : APP_ENV === 'beta' || ENVIRONMENT === 'development',
 
   // ─── Channel Identity Proof Autoverification ───
   // When enabled: WhatsApp/Email channel identity signals can skip second-factor
