@@ -48,6 +48,50 @@ function buildWidgetMessagesFromHistory(history = []) {
     .map(mapServerMessageToWidgetMessage);
 }
 
+function normalizeMessageContent(content = '') {
+  return String(content || '').trim().replace(/\s+/g, ' ');
+}
+
+function buildLocalWelcomeMessage(content) {
+  return {
+    role: 'assistant',
+    content,
+    timestamp: new Date(),
+    metadata: {
+      localWidgetWelcome: true,
+    },
+  };
+}
+
+function mergeLocalWelcomeWithHistory(previousMessages = [], historyMessages = [], defaultWelcomeMessage = '') {
+  const normalizedWelcome = normalizeMessageContent(defaultWelcomeMessage);
+  if (!normalizedWelcome || historyMessages.length === 0) {
+    return historyMessages;
+  }
+
+  const existingWelcome = previousMessages.find((message) =>
+    message?.role === 'assistant' &&
+    normalizeMessageContent(message?.content) === normalizedWelcome &&
+    !message?.traceId
+  );
+
+  if (!existingWelcome) {
+    return historyMessages;
+  }
+
+  const historyWithoutDuplicateWelcome = historyMessages.filter((message, index) => {
+    const isDuplicateWelcome =
+      historyMessages.length <= 2 &&
+      index === historyMessages.length - 1 &&
+      message?.role === 'assistant' &&
+      normalizeMessageContent(message?.content) === normalizedWelcome;
+
+    return !isDuplicateWelcome;
+  });
+
+  return [existingWelcome, ...historyWithoutDuplicateWelcome];
+}
+
 function attachTraceToLatestAssistant(messages = [], traceId = null) {
   if (!traceId) return messages;
 
@@ -160,6 +204,7 @@ export default function ChatWidget({
 
   // Use translated default if buttonText is not provided
   const displayButtonText = buttonText || t('dashboard.chatWidgetPage.defaultButtonText');
+  const defaultWelcomeMessage = t('dashboard.chatWidgetPage.defaultWelcomeMessage');
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -203,12 +248,13 @@ export default function ChatWidget({
         const syncedMessages = buildWidgetMessagesFromHistory(data?.history || []);
         if (syncedMessages.length > 0) {
           setMessages((prev) => {
+            const nextMessages = mergeLocalWelcomeWithHistory(prev, syncedMessages, defaultWelcomeMessage);
             const previousSerialized = JSON.stringify(prev.map((message) => ({
               role: message.role,
               content: message.content,
               timestamp: message.timestamp instanceof Date ? message.timestamp.toISOString() : message.timestamp || null,
             })));
-            const nextSerialized = JSON.stringify(syncedMessages.map((message) => ({
+            const nextSerialized = JSON.stringify(nextMessages.map((message) => ({
               role: message.role,
               content: message.content,
               timestamp: message.timestamp instanceof Date ? message.timestamp.toISOString() : message.timestamp || null,
@@ -232,7 +278,7 @@ export default function ChatWidget({
               return prev;
             }
 
-            return syncedMessages;
+            return nextMessages;
           });
         }
       } catch (error) {
@@ -252,18 +298,14 @@ export default function ChatWidget({
       cancelled = true;
       clearInterval(interval);
     };
-  }, [chatLiveHandoffEnabled, isOpen, sessionId, embedKey, assistantId, isLoading]);
+  }, [chatLiveHandoffEnabled, isOpen, sessionId, embedKey, assistantId, isLoading, defaultWelcomeMessage]);
 
   // Add welcome message when chat opens
   useEffect(() => {
     if (isOpen && messages.length === 0) {
-      setMessages([{
-        role: 'assistant',
-        content: t('dashboard.chatWidgetPage.defaultWelcomeMessage'),
-        timestamp: new Date()
-      }]);
+      setMessages([buildLocalWelcomeMessage(defaultWelcomeMessage)]);
     }
-  }, [isOpen, messages.length, t]);
+  }, [isOpen, messages.length, defaultWelcomeMessage]);
 
 useEffect(() => {
   if (!isLoading && isOpen) {
@@ -380,7 +422,7 @@ useEffect(() => {
         data?.traceId || null
       );
       if (historyMessages.length > 0) {
-        setMessages(historyMessages);
+        setMessages(prev => mergeLocalWelcomeWithHistory(prev, historyMessages, defaultWelcomeMessage));
       }
 
       if (data.reply) {
