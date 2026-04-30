@@ -26,6 +26,7 @@ export const STANDARD_EVENT_NAMES = new Set([
 ]);
 
 export const INTERNAL_TO_META_EVENT = {
+  page_view: 'PageView',
   pricing_view: 'ViewContent',
   signup_page_view: 'ViewContent',
   demo_request: 'Lead',

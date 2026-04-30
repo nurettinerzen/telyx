@@ -38,13 +38,15 @@ connectSrcValues.add('https://www.facebook.com');
 connectSrcValues.add('https://*.facebook.com');
 connectSrcValues.add('https://connect.facebook.net');
 connectSrcValues.add('https://*.facebook.net');
+connectSrcValues.add('https://www.clarity.ms');
+connectSrcValues.add('https://*.clarity.ms');
 
 const contentSecurityPolicy = [
   "default-src 'self'",
   "base-uri 'self'",
   "object-src 'none'",
   `frame-ancestors ${frameAncestors}`,
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data: https://accounts.google.com https://apis.google.com https://www.gstatic.com https://www.googletagmanager.com https://www.google-analytics.com https://tagassistant.google.com https://static.iyzipay.com https://sandbox-static.iyzipay.com https://connect.facebook.net https://*.facebook.net https://*.facebook.com https://*.fbcdn.net",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data: https://accounts.google.com https://apis.google.com https://www.gstatic.com https://www.googletagmanager.com https://www.google-analytics.com https://tagassistant.google.com https://static.iyzipay.com https://sandbox-static.iyzipay.com https://connect.facebook.net https://*.facebook.net https://*.facebook.com https://*.fbcdn.net https://www.clarity.ms https://*.clarity.ms",
   "style-src 'self' 'unsafe-inline' https://accounts.google.com https://fonts.googleapis.com",
   "img-src 'self' data: blob: https:",
   "media-src 'self' blob: https:",
@@ -70,6 +72,9 @@ const noStoreHeaders = [
   { key: 'Cache-Control', value: 'no-store' },
   { key: 'Pragma', value: 'no-cache' },
 ];
+const nextStaticHeaders = appEnv === 'development'
+  ? noStoreHeaders
+  : [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }];
 const microphoneEnabledHeader = {
   key: 'Permissions-Policy',
   value: 'geolocation=(), microphone=(self), camera=()',
@@ -160,9 +165,7 @@ const nextConfig = {
       },
       {
         source: '/_next/static/:path*',
-        headers: [
-          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
-        ],
+        headers: nextStaticHeaders,
       },
     ];
   },
