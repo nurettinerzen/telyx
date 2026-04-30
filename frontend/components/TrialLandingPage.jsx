@@ -417,17 +417,6 @@ export default function TrialLandingPage({ variant = 'offer' }) {
   const pageRef = useRef(null);
   const copy = useMemo(() => getTrialLandingCopy(locale, variant), [locale, variant]);
 
-  const manifestoWords = useMemo(
-    () => {
-      const emphasisSet = new Set((copy.manifestoEmphasis || []).map((word) => word.toLowerCase()));
-      return copy.manifesto.split(/\s+/).map((word) => ({
-        word,
-        em: emphasisSet.has(word.toLowerCase().replace(/[.,!?]/g, '')),
-      }));
-    },
-    [copy.manifesto, copy.manifestoEmphasis]
-  );
-
   useEffect(() => {
     trackPageView({
       pageType: 'trial_landing',
@@ -453,93 +442,12 @@ export default function TrialLandingPage({ variant = 'offer' }) {
 
     const cleanups = [];
     const isCompactViewport = () => {
-      const widths = [
-        window.innerWidth,
-        document.documentElement.clientWidth,
-        root.getBoundingClientRect().width,
-      ].filter((width) => Number.isFinite(width) && width > 0);
+      const widths = [window.innerWidth, document.documentElement.clientWidth].filter(
+        (width) => Number.isFinite(width) && width > 0
+      );
 
       return Math.min(...widths) <= 700;
     };
-
-    {
-      let ticking = false;
-
-      function updateHero() {
-        const hero = root.querySelector('.hero');
-        const lines = hero?.querySelectorAll('.hero-line') || [];
-        const tagline = hero?.querySelector('.hero-tagline');
-        const primaryCta = hero?.querySelector('.trial-hero-primary-cta');
-        const scrolled = window.scrollY;
-        const isCompact = isCompactViewport();
-        const thresholds = isCompact ? [0, 32, 64, 96] : [0, 64, 128, 192];
-        const taglineAt = isCompact ? 116 : 220;
-        const ctaAt = isCompact ? 132 : 248;
-
-        for (let i = 0; i < lines.length; i += 1) {
-          lines[i].classList.toggle('active', scrolled >= thresholds[i]);
-        }
-
-        tagline?.classList.toggle('active', scrolled >= taglineAt);
-        primaryCta?.classList.toggle('active', scrolled >= ctaAt);
-
-        ticking = false;
-      }
-
-      const onScroll = () => {
-        if (!ticking) {
-          ticking = true;
-          requestAnimationFrame(updateHero);
-        }
-      };
-
-      window.addEventListener('scroll', onScroll, { passive: true });
-      updateHero();
-      const initialHeroFrame = requestAnimationFrame(updateHero);
-      cleanups.push(() => {
-        cancelAnimationFrame(initialHeroFrame);
-        window.removeEventListener('scroll', onScroll);
-      });
-    }
-
-    {
-      const section = root.querySelector('.manifesto');
-      const words = root.querySelectorAll('.mw');
-
-      if (section && words.length) {
-        let ticking = false;
-
-        function updateManifesto() {
-          const rect = section.getBoundingClientRect();
-          const viewHeight = window.innerHeight;
-          const isCompact = isCompactViewport();
-          const revealStartScroll = isCompact ? 150 : 280;
-          const start = viewHeight * (isCompact ? 0.5 : 0.62);
-          const end = -rect.height * 0.3;
-          const rawProgress = Math.max(0, Math.min(1, (start - rect.top) / (start - end)));
-          const progress = window.scrollY < revealStartScroll ? 0 : rawProgress;
-          const total = words.length;
-
-          for (let i = 0; i < total; i += 1) {
-            const threshold = (i + 1) / (total + 1);
-            words[i].classList.toggle('lit', progress >= threshold);
-          }
-
-          ticking = false;
-        }
-
-        const onScroll = () => {
-          if (!ticking) {
-            ticking = true;
-            requestAnimationFrame(updateManifesto);
-          }
-        };
-
-        window.addEventListener('scroll', onScroll, { passive: true });
-        updateManifesto();
-        cleanups.push(() => window.removeEventListener('scroll', onScroll));
-      }
-    }
 
     {
       const revealNodes = root.querySelectorAll('.reveal, .reveal-left, .reveal-right, .reveal-scale');
@@ -689,7 +597,7 @@ export default function TrialLandingPage({ variant = 'offer' }) {
 
           <section className="channels" id="channels">
             <div className="shell">
-              <div className="channels-header reveal">
+              <div className="channels-header">
                 <span className="kicker">{copy.channels.kicker}</span>
                 <h2 className="section-title">{copy.channels.title}</h2>
                 <p className="section-sub" style={{ margin: '0 auto' }}>

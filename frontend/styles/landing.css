@@ -660,7 +660,7 @@
   color: var(--text-secondary);
   font-size: 13px; font-weight: 500; line-height: 1;
   cursor: pointer;
-  transition: transform 0.2s var(--ease), border-color 0.2s var(--ease), color 0.2s var(--ease), background-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
+  transition: transform 0.2s var(--ease);
   font-family: inherit;
 }
 .landing-page .chat-demo-chip:hover {

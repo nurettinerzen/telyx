@@ -19,7 +19,7 @@ const META_PIXEL_ID = runtimeConfig.isBetaApp
   ? null
   : (process.env.NEXT_PUBLIC_META_PIXEL_ID || '1458852735458229');
 const inter = Inter({
-  subsets: ['latin'],
+  subsets: ['latin', 'latin-ext'],
   display: 'swap',
   variable: '--font-inter',
 });
@@ -79,11 +79,11 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
             <Script
               id="google-analytics-direct"
               src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
-              strategy="afterInteractive"
+              strategy="lazyOnload"
             />
             <Script
               id="google-analytics-direct-init"
-              strategy="afterInteractive"
+              strategy="lazyOnload"
               dangerouslySetInnerHTML={{
                 __html: `window.dataLayer = window.dataLayer || [];
 window.gtag = window.gtag || function(){window.dataLayer.push(arguments);};
