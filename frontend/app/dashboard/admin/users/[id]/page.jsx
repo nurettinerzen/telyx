@@ -319,6 +319,16 @@ export default function AdminUserDetailPage() {
             </h1>
             <div className="flex items-center gap-2 mt-1">
               <p className="text-sm text-gray-500">{user.email}</p>
+              <Badge
+                variant="outline"
+                className={`text-xs ${
+                  user.emailVerified
+                    ? 'border-green-600 text-green-700 dark:border-green-500 dark:text-green-400'
+                    : 'border-amber-500 text-amber-700 dark:border-amber-400 dark:text-amber-300'
+                }`}
+              >
+                {user.emailVerified ? 'E-posta doğrulandı' : 'E-posta doğrulanmadı'}
+              </Badge>
               <InfoTooltip
                 locale="tr"
                 title={adminPageHelp?.tooltipTitle}
@@ -428,6 +438,26 @@ export default function AdminUserDetailPage() {
             <div className="flex justify-between">
               <span className="text-gray-500">Kayıt Tarihi</span>
               <span className="text-gray-900 dark:text-white">{formatDate(user.createdAt)}</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-500">E-posta Doğrulama</span>
+              <div className="text-right">
+                <Badge
+                  variant="outline"
+                  className={`text-xs ${
+                    user.emailVerified
+                      ? 'border-green-600 text-green-700 dark:border-green-500 dark:text-green-400'
+                      : 'border-amber-500 text-amber-700 dark:border-amber-400 dark:text-amber-300'
+                  }`}
+                >
+                  {user.emailVerified ? 'Doğrulandı' : 'Doğrulanmadı'}
+                </Badge>
+                {user.emailVerifiedAt && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    {formatDate(user.emailVerifiedAt)}
+                  </p>
+                )}
+              </div>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-500">Takım Üyesi</span>

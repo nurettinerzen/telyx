@@ -107,6 +107,7 @@ export default function AdminSubscriptionsPage() {
     return initialStatus ? normalizeStatus(initialStatus) : 'ALL';
   });
   const [lifecycleFilter, setLifecycleFilter] = useState(() => searchParams.get('lifecycle') || 'ALL');
+  const [emailVerificationFilter, setEmailVerificationFilter] = useState(() => searchParams.get('emailVerified') || 'ALL');
 
   // Edit modal
   const [editModal, setEditModal] = useState({ open: false, subscription: null });
@@ -133,11 +134,16 @@ export default function AdminSubscriptionsPage() {
     accountColumn: isTr ? 'İşletme' : 'Business',
     lifecyclePlaceholder: isTr ? 'Yaşam Döngüsü' : 'Lifecycle',
     allLifecycles: isTr ? 'Tüm Yaşam Döngüleri' : 'All Lifecycles',
+    allEmailStatuses: isTr ? 'Tüm E-posta Durumları' : 'All Email Statuses',
     lifecycleExpired: isTr ? 'Denemesi Biten' : 'Expired Trial',
     lifecycleLapsed: isTr ? 'Yenilenmeyen Paket' : 'Unrenewed Plan',
     lifecycleCancel: isTr ? 'İptal Planlı' : 'Cancellation Scheduled',
     minutesUsed: isTr ? 'dakika kullanıldı' : 'minutes used',
     ownerFallback: isTr ? 'Sahip bilgisi yok' : 'No owner info',
+    emailStatus: isTr ? 'E-posta Durumu' : 'Email Status',
+    emailVerified: isTr ? 'E-posta doğrulandı' : 'Email verified',
+    emailUnverified: isTr ? 'E-posta doğrulanmadı' : 'Email unverified',
+    verifiedAt: isTr ? 'Doğrulandı' : 'Verified',
     suspended: isTr ? 'Dondurulmuş' : 'Suspended',
     subscriptionPrefix: isTr ? 'Abonelik' : 'Subscription',
   }), [isTr]);
@@ -153,6 +159,7 @@ export default function AdminSubscriptionsPage() {
       if (planFilter && planFilter !== 'ALL') params.plan = planFilter;
       if (statusFilter && statusFilter !== 'ALL') params.status = statusFilter;
       if (lifecycleFilter && lifecycleFilter !== 'ALL') params.lifecycle = lifecycleFilter;
+      if (emailVerificationFilter && emailVerificationFilter !== 'ALL') params.emailVerified = emailVerificationFilter;
 
       const response = await apiClient.admin.getSubscriptions(params);
       setSubscriptions(response.data.subscriptions);
@@ -166,7 +173,7 @@ export default function AdminSubscriptionsPage() {
     } finally {
       setLoading(false);
     }
-  }, [lifecycleFilter, pagination.page, pagination.limit, planFilter, search, statusFilter, t]);
+  }, [emailVerificationFilter, lifecycleFilter, pagination.page, pagination.limit, planFilter, search, statusFilter, t]);
 
   useEffect(() => {
     loadSubscriptions();
@@ -299,6 +306,17 @@ export default function AdminSubscriptionsPage() {
             <SelectItem value="CANCEL_SCHEDULED">{copy.lifecycleCancel}</SelectItem>
           </SelectContent>
         </Select>
+
+        <Select value={emailVerificationFilter} onValueChange={setEmailVerificationFilter}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder={copy.emailStatus} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">{copy.allEmailStatuses}</SelectItem>
+            <SelectItem value="true">{copy.emailVerified}</SelectItem>
+            <SelectItem value="false">{copy.emailUnverified}</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Subscriptions Table */}
@@ -338,6 +356,25 @@ export default function AdminSubscriptionsPage() {
                         <p className="text-sm text-gray-500">
                           {sub.ownerEmail || sub.ownerName || copy.ownerFallback}
                         </p>
+                        {sub.ownerEmail && (
+                          <div className="mt-1 flex flex-wrap items-center gap-2">
+                            <Badge
+                              variant="outline"
+                              className={`text-xs ${
+                                sub.ownerEmailVerified
+                                  ? 'border-green-600 text-green-700 dark:border-green-500 dark:text-green-400'
+                                  : 'border-amber-500 text-amber-700 dark:border-amber-400 dark:text-amber-300'
+                              }`}
+                            >
+                              {sub.ownerEmailVerified ? copy.emailVerified : copy.emailUnverified}
+                            </Badge>
+                            {sub.ownerEmailVerifiedAt && (
+                              <span className="text-xs text-gray-500">
+                                {copy.verifiedAt}: {formatDate(sub.ownerEmailVerifiedAt)}
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </td>

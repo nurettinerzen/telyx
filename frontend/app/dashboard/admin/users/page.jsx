@@ -62,6 +62,7 @@ export default function AdminUsersPage() {
   const [planFilter, setPlanFilter] = useState(() => searchParams.get('plan') || 'ALL');
   const [suspendedFilter, setSuspendedFilter] = useState(() => searchParams.get('suspended') || '');
   const [lifecycleFilter, setLifecycleFilter] = useState(() => searchParams.get('lifecycle') || 'ALL');
+  const [emailVerificationFilter, setEmailVerificationFilter] = useState(() => searchParams.get('emailVerified') || 'ALL');
 
   // Modals
   const [suspendModal, setSuspendModal] = useState({ open: false, user: null, action: 'suspend' });
@@ -79,6 +80,9 @@ export default function AdminUsersPage() {
     suspended: isTr ? 'Dondurulmuş' : 'Suspended',
     status: isTr ? 'Durum' : 'Status',
     all: isTr ? 'Tümü' : 'All',
+    emailStatus: isTr ? 'E-posta Durumu' : 'Email Status',
+    emailVerified: isTr ? 'E-posta doğrulandı' : 'Email verified',
+    emailUnverified: isTr ? 'E-posta doğrulanmadı' : 'Email unverified',
     lifecyclePlaceholder: isTr ? 'Abonelik Yaşam Döngüsü' : 'Subscription Lifecycle',
     allLifecycles: isTr ? 'Tüm Yaşam Döngüleri' : 'All Lifecycles',
     lifecycleLabels: {
@@ -138,6 +142,7 @@ export default function AdminUsersPage() {
       if (planFilter && planFilter !== 'ALL') params.plan = planFilter;
       if (suspendedFilter) params.suspended = suspendedFilter;
       if (lifecycleFilter && lifecycleFilter !== 'ALL') params.lifecycle = lifecycleFilter;
+      if (emailVerificationFilter && emailVerificationFilter !== 'ALL') params.emailVerified = emailVerificationFilter;
 
       const response = await apiClient.admin.getUsers(params);
       setUsers(response.data.users);
@@ -151,7 +156,7 @@ export default function AdminUsersPage() {
     } finally {
       setLoading(false);
     }
-  }, [copy.loadFailed, lifecycleFilter, pagination.limit, pagination.page, planFilter, search, suspendedFilter]);
+  }, [copy.loadFailed, emailVerificationFilter, lifecycleFilter, pagination.limit, pagination.page, planFilter, search, suspendedFilter]);
 
   useEffect(() => {
     loadUsers();
@@ -263,6 +268,17 @@ export default function AdminUsersPage() {
           </SelectContent>
         </Select>
 
+        <Select value={emailVerificationFilter} onValueChange={setEmailVerificationFilter}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder={copy.emailStatus} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">{copy.all}</SelectItem>
+            <SelectItem value="true">{copy.emailVerified}</SelectItem>
+            <SelectItem value="false">{copy.emailUnverified}</SelectItem>
+          </SelectContent>
+        </Select>
+
         <Select value={lifecycleFilter} onValueChange={setLifecycleFilter}>
           <SelectTrigger className="w-52">
             <SelectValue placeholder={copy.lifecyclePlaceholder} />
@@ -306,6 +322,16 @@ export default function AdminUsersPage() {
                     <div>
                       <p className="font-medium text-gray-900 dark:text-white">{user.name || '-'}</p>
                       <p className="text-sm text-gray-500">{user.email}</p>
+                      <Badge
+                        variant="outline"
+                        className={`mt-1 text-xs ${
+                          user.emailVerified
+                            ? 'border-green-600 text-green-700 dark:border-green-500 dark:text-green-400'
+                            : 'border-amber-500 text-amber-700 dark:border-amber-400 dark:text-amber-300'
+                        }`}
+                      >
+                        {user.emailVerified ? copy.emailVerified : copy.emailUnverified}
+                      </Badge>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                         {copy.joinedAt}: {formatDate(user.createdAt)}
                       </p>

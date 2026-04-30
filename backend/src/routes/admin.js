@@ -285,7 +285,7 @@ router.get('/enterprise-customers', async (req, res) => {
  */
 router.get('/users', async (req, res) => {
   try {
-    const { search, plan, suspended, lifecycle, page = 1, limit = 20 } = req.query;
+    const { search, plan, suspended, lifecycle, emailVerified, page = 1, limit = 20 } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const now = new Date();
 
@@ -307,6 +307,12 @@ router.get('/users', async (req, res) => {
       where.suspended = true;
     } else if (suspended === 'false') {
       where.suspended = false;
+    }
+
+    if (emailVerified === 'true') {
+      where.emailVerified = true;
+    } else if (emailVerified === 'false') {
+      where.emailVerified = false;
     }
 
     // Plan filter (filter by business subscription)
@@ -345,6 +351,8 @@ router.get('/users', async (req, res) => {
           email: true,
           name: true,
           role: true,
+          emailVerified: true,
+          emailVerifiedAt: true,
           suspended: true,
           suspendedAt: true,
           createdAt: true,
@@ -397,6 +405,8 @@ router.get('/users', async (req, res) => {
       email: u.email,
       name: u.name,
       role: u.role,
+      emailVerified: u.emailVerified,
+      emailVerifiedAt: u.emailVerifiedAt,
       suspended: u.suspended,
       suspendedAt: u.suspendedAt,
       createdAt: u.createdAt,
@@ -454,6 +464,7 @@ router.get('/users/:id', async (req, res) => {
         suspendReason: true,
         onboardingCompleted: true,
         emailVerified: true,
+        emailVerifiedAt: true,
         createdAt: true,
         updatedAt: true,
         business: {
@@ -1817,7 +1828,7 @@ router.patch('/callbacks/:id', async (req, res) => {
  */
 router.get('/subscriptions', async (req, res) => {
   try {
-    const { search, plan, status, lifecycle, page = 1, limit = 20 } = req.query;
+    const { search, plan, status, lifecycle, emailVerified, page = 1, limit = 20 } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const now = new Date();
 
@@ -1832,6 +1843,17 @@ router.get('/subscriptions', async (req, res) => {
     }
     if (plan) where.plan = plan;
     if (status) where.status = status;
+    if (emailVerified === 'true' || emailVerified === 'false') {
+      where.business = {
+        users: {
+          some: {
+            deletedAt: null,
+            role: 'OWNER',
+            emailVerified: emailVerified === 'true',
+          },
+        },
+      };
+    }
     if (lifecycle === 'TRIAL_EXPIRED') {
       Object.assign(where, buildTrialExpiredSubscriptionWhere(now));
     } else if (lifecycle === 'PAID_LAPSED') {
@@ -1852,7 +1874,15 @@ router.get('/subscriptions', async (req, res) => {
               users: {
                 where: { deletedAt: null },
                 orderBy: { createdAt: 'asc' },
-                select: { id: true, email: true, name: true, role: true, suspended: true }
+                select: {
+                  id: true,
+                  email: true,
+                  name: true,
+                  role: true,
+                  emailVerified: true,
+                  emailVerifiedAt: true,
+                  suspended: true
+                }
               }
             }
           }
@@ -1875,6 +1905,8 @@ router.get('/subscriptions', async (req, res) => {
         ownerEmail: contact.ownerEmail,
         ownerName: contact.ownerName,
         ownerRole: contact.ownerRole,
+        ownerEmailVerified: contact.ownerEmailVerified,
+        ownerEmailVerifiedAt: contact.ownerEmailVerifiedAt,
         hasOwner: contact.hasOwner,
         ownerSuspended: contact.ownerSuspended,
         businessSuspended: contact.businessSuspended,

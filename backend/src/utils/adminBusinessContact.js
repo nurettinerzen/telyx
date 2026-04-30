@@ -20,6 +20,8 @@ export function buildAdminBusinessContact(business = null) {
     ownerEmail: primaryUser?.email ?? null,
     ownerName: primaryUser?.name ?? null,
     ownerRole: primaryUser?.role ?? null,
+    ownerEmailVerified: typeof primaryUser?.emailVerified === 'boolean' ? primaryUser.emailVerified : null,
+    ownerEmailVerifiedAt: primaryUser?.emailVerifiedAt ?? null,
     hasOwner,
     ownerSuspended: Boolean(primaryUser?.suspended),
     businessSuspended: Boolean(business?.suspended),
