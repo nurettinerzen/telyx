@@ -1,8 +1,13 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
-import ChatWidget from '@/components/ChatWidget';
 import runtimeConfig from '@/lib/runtime-config';
+
+const ChatWidget = dynamic(() => import('@/components/ChatWidget'), {
+  ssr: false,
+  loading: () => null,
+});
 
 export default function PublicSiteChatWidget() {
   const pathname = usePathname();

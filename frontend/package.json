@@ -9,6 +9,21 @@
     "lint": "next lint",
     "test:sidebar": "node --test tests/sidebar-smoke.test.mjs"
   },
+  "browserslist": {
+    "production": [
+      "chrome >= 100",
+      "edge >= 100",
+      "firefox >= 100",
+      "safari >= 15.4",
+      "ios_saf >= 15.4",
+      "and_chr >= 100"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
   "dependencies": {
     "@elevenlabs/client": "^0.12.2",
     "@radix-ui/react-avatar": "^1.1.11",

@@ -1,15 +1,12 @@
-'use client';
-
-import Navigation from '@/components/Navigation';
-import { Footer } from '@/components/Footer';
+import { TrialLandingFooter, TrialLandingHeader } from '@/components/TrialLandingChrome';
 import TrialLandingPage from '@/components/TrialLandingPage';
 
 export default function TrialLandingRoute() {
   return (
     <div className="min-h-screen">
-      <Navigation />
+      <TrialLandingHeader />
       <TrialLandingPage />
-      <Footer />
+      <TrialLandingFooter />
     </div>
   );
 }

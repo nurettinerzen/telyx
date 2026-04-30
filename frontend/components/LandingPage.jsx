@@ -253,9 +253,9 @@ export function LandingPage() {
         const observer = new IntersectionObserver((entries) => {
           entries.forEach((e) => {
             if (e.isIntersecting) {
-              e.target.style.width = e.target.dataset.width + '%';
+              e.target.style.transform = `scaleX(${Number(e.target.dataset.width || 0) / 100})`;
             } else {
-              e.target.style.width = '0';
+              e.target.style.transform = 'scaleX(0)';
             }
           });
         }, { threshold: 0.3, rootMargin: '0px 0px -50px 0px' });

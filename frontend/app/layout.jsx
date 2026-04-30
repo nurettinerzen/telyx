@@ -1,5 +1,6 @@
 import './globals.css';
 import Script from 'next/script';
+import { Inter } from 'next/font/google';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { ThemeProvider } from 'next-themes';
 import { Providers } from './providers';
@@ -17,6 +18,11 @@ const GA_MEASUREMENT_ID = runtimeConfig.isBetaApp
 const META_PIXEL_ID = runtimeConfig.isBetaApp
   ? null
   : (process.env.NEXT_PUBLIC_META_PIXEL_ID || '1458852735458229');
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-inter',
+});
 
 export const metadata = {
   metadataBase,
@@ -53,12 +59,12 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="tr" suppressHydrationWarning>
+    <html lang="tr" className={inter.variable} suppressHydrationWarning>
       <head>
         {GTM_ID ? (
           <Script
             id="google-tag-manager"
-            strategy="beforeInteractive"
+            strategy="afterInteractive"
             dangerouslySetInnerHTML={{
               __html: `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
 new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
@@ -90,7 +96,7 @@ window.gtag('config', '${GA_MEASUREMENT_ID}', { send_page_view: false });`,
         {META_PIXEL_ID ? (
           <Script
             id="meta-pixel"
-            strategy="beforeInteractive"
+            strategy="afterInteractive"
             dangerouslySetInnerHTML={{
               __html: `!function(f,b,e,v,n,t,s)
 {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
@@ -104,10 +110,6 @@ fbq('init', '${META_PIXEL_ID}');`,
             }}
           />
         ) : null}
-        <link
-          href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600;700&family=Google+Sans+Flex:wght@400;500;600;700&display=swap"
-          rel="stylesheet"
-        />
       </head>
       <body>
         {GTM_ID ? (

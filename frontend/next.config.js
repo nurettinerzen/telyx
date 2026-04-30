@@ -10,6 +10,15 @@ const normalizeAppEnv = (value) => {
   return 'development';
 };
 
+const isNextNoModulePolyfillPlugin = (plugin) => {
+  const normalizedFilePath = typeof plugin?.filePath === 'string'
+    ? path.normalize(plugin.filePath)
+    : '';
+
+  return plugin?.constructor?.name === 'CopyFilePlugin'
+    && normalizedFilePath.endsWith(path.join('polyfills', 'polyfill-nomodule.js'));
+};
+
 const toOrigin = (value) => {
   if (!value) return null;
 
@@ -178,8 +187,14 @@ const nextConfig = {
       },
     ];
   },
-  webpack: (config) => {
+  webpack: (config, { isServer }) => {
     config.resolve.alias['@shared'] = path.resolve(__dirname, 'shared');
+
+    if (!isServer) {
+      // Next 14 emits a nomodule legacy polyfill chunk even with modern browserslist targets.
+      config.plugins = config.plugins.filter((plugin) => !isNextNoModulePolyfillPlugin(plugin));
+    }
+
     return config;
   },
 };

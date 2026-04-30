@@ -638,9 +638,9 @@ export default function TrialLandingPage({ variant = 'offer' }) {
           (entries) => {
             entries.forEach((entry) => {
               if (entry.isIntersecting) {
-                entry.target.style.width = `${entry.target.dataset.width}%`;
+                entry.target.style.transform = `scaleX(${Number(entry.target.dataset.width || 0) / 100})`;
               } else {
-                entry.target.style.width = '0';
+                entry.target.style.transform = 'scaleX(0)';
               }
             });
           },
