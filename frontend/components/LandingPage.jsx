@@ -3,13 +3,12 @@
 import { useEffect, useRef, useMemo } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { trackCtaClick, trackPageView, trackScrollMilestone } from '@/lib/marketingAnalytics';
+import ChatDemoSection from '@/components/ChatDemoSection';
 import '@/styles/landing.css';
 
 export function LandingPage() {
   const { t, locale } = useLanguage();
   const pageRef = useRef(null);
-  const chatDemoStarted = useRef(false);
-  const chatLoopTimeout = useRef(null);
   const scrollTracked = useRef(false);
 
   /* ── Manifesto: split text into words, mark emphasis ── */
@@ -22,14 +21,6 @@ export function LandingPage() {
       em: emphasisSet.has(word.toLowerCase()),
     }));
   }, [t]);
-
-  /* ── Chat demo messages ── */
-  const chatMessages = useMemo(() => [
-    { type: 'customer', text: t('landing.chatDemoSection.msg1') },
-    { type: 'bot', text: t('landing.chatDemoSection.msg2') },
-    { type: 'customer', text: t('landing.chatDemoSection.msg3') },
-    { type: 'bot', text: t('landing.chatDemoSection.msg4') },
-  ], [t]);
 
   useEffect(() => {
     trackPageView({
@@ -66,6 +57,15 @@ export function LandingPage() {
     if (!root) return;
 
     const cleanups = [];
+    const isCompactViewport = () => {
+      const widths = [
+        window.innerWidth,
+        document.documentElement.clientWidth,
+        root.getBoundingClientRect().width,
+      ].filter((width) => Number.isFinite(width) && width > 0);
+
+      return Math.min(...widths) <= 700;
+    };
 
     // ─── 1. Hero scroll-driven text ───
     {
@@ -73,21 +73,18 @@ export function LandingPage() {
       const tagline = root.querySelector('.hero-tagline');
       const heroBottom = root.querySelector('.hero-bottom');
       let ticking = false;
-      let revealed = false;
 
       function updateHero() {
         const scrolled = window.scrollY;
-        const thresholds = [0, 80, 150, 220];
+        const isCompact = isCompactViewport();
+        const thresholds = isCompact ? [0, 32, 64, 96] : [0, 64, 128, 192];
+        const taglineAt = isCompact ? 116 : 220;
+        const ctaAt = isCompact ? 132 : 248;
         for (let i = 0; i < lines.length; i++) {
           lines[i].classList.toggle('active', scrolled >= thresholds[i]);
         }
-        if (scrolled >= 300) {
-          tagline?.classList.add('active');
-          if (!revealed) { revealed = true; heroBottom?.classList.add('visible'); }
-        } else if (scrolled < 260) {
-          tagline?.classList.remove('active');
-          if (revealed) { revealed = false; heroBottom?.classList.remove('visible'); }
-        }
+        tagline?.classList.toggle('active', scrolled >= taglineAt);
+        heroBottom?.classList.toggle('visible', scrolled >= ctaAt);
         ticking = false;
       }
 
@@ -107,9 +104,12 @@ export function LandingPage() {
         function updateManifesto() {
           const rect = section.getBoundingClientRect();
           const viewH = window.innerHeight;
-          const start = viewH * 0.55;
+          const isCompact = isCompactViewport();
+          const revealStartScroll = isCompact ? 150 : 280;
+          const start = viewH * (isCompact ? 0.5 : 0.62);
           const end = -rect.height * 0.3;
-          const progress = Math.max(0, Math.min(1, (start - rect.top) / (start - end)));
+          const rawProgress = Math.max(0, Math.min(1, (start - rect.top) / (start - end)));
+          const progress = window.scrollY < revealStartScroll ? 0 : rawProgress;
           const total = words.length;
           for (let i = 0; i < total; i++) {
             const threshold = (i + 1) / (total + 1);
@@ -133,7 +133,7 @@ export function LandingPage() {
         entries.forEach((e) => {
           e.isIntersecting ? e.target.classList.add('visible') : e.target.classList.remove('visible');
         });
-      }, { threshold: 0.15, rootMargin: '0px 0px -90px 0px' });
+      }, { threshold: 0.15, rootMargin: isCompactViewport() ? '0px 0px 24px 0px' : '0px 0px -90px 0px' });
 
       const lateObserver = new IntersectionObserver((entries) => {
         entries.forEach((e) => {
@@ -141,14 +141,22 @@ export function LandingPage() {
         });
       }, { threshold: 0.15, rootMargin: '0px 0px -170px 0px' });
 
+      const dashboardObserver = new IntersectionObserver((entries) => {
+        entries.forEach((e) => {
+          e.isIntersecting ? e.target.classList.add('visible') : e.target.classList.remove('visible');
+        });
+      }, { threshold: 0.12, rootMargin: '0px 0px -32px 0px' });
+
       const chatSyncObserver = new IntersectionObserver((entries) => {
         entries.forEach((e) => {
           e.isIntersecting ? e.target.classList.add('visible') : e.target.classList.remove('visible');
         });
-      }, { threshold: 0.15, rootMargin: '0px 0px -220px 0px' });
+      }, { threshold: 0.15, rootMargin: isCompactViewport() ? '0px 0px 120px 0px' : '0px 0px -220px 0px' });
 
       all.forEach((el) => {
-        if (el.classList.contains('reveal-late')) {
+        if (el.classList.contains('dashboard-reveal')) {
+          dashboardObserver.observe(el);
+        } else if (el.classList.contains('reveal-late')) {
           lateObserver.observe(el);
         } else {
           observer.observe(el);
@@ -161,6 +169,7 @@ export function LandingPage() {
       cleanups.push(() => {
         observer.disconnect();
         lateObserver.disconnect();
+        dashboardObserver.disconnect();
         chatSyncObserver.disconnect();
       });
     }
@@ -179,10 +188,13 @@ export function LandingPage() {
         grids.forEach(({ id, start, gap }) => {
           const grid = root.querySelector(`#${id}`);
           if (!grid) return;
+          const isCompact = isCompactViewport();
+          const revealStart = isCompact ? 24 : start;
+          const revealGap = isCompact ? 48 : gap;
           const cards = grid.querySelectorAll('.scroll-card');
           const scrolled = viewH - grid.getBoundingClientRect().top;
           for (let i = 0; i < cards.length; i++) {
-            cards[i].classList.toggle('visible', scrolled >= start + i * gap);
+            cards[i].classList.toggle('visible', scrolled >= revealStart + i * revealGap);
           }
         });
         ticking = false;
@@ -253,108 +265,13 @@ export function LandingPage() {
       }
     }
 
-    // ─── 6. Chat demo typing with loop ───
-    {
-      const container = root.querySelector('#chatDemo');
-      if (container) {
-        // Read messages from data attributes injected by React
-        const msgEls = root.querySelectorAll('[data-chat-msg]');
-        const messages = Array.from(msgEls).map((el) => ({
-          type: el.dataset.chatType,
-          text: el.dataset.chatMsg,
-        }));
-
-        let cancelled = false;
-
-        function addMessage(msg, delay) {
-          return new Promise((resolve) => {
-            const t = setTimeout(() => {
-              if (cancelled) return;
-              if (msg.type === 'bot') {
-                const typing = document.createElement('div');
-                typing.className = 'chat-msg bot';
-                typing.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
-                container.appendChild(typing);
-                container.scrollTop = container.scrollHeight;
-                const t2 = setTimeout(() => {
-                  if (cancelled) return;
-                  typing.remove();
-                  const el = document.createElement('div');
-                  el.className = 'chat-msg bot';
-                  el.textContent = msg.text;
-                  el.style.opacity = '0';
-                  el.style.transform = 'translateY(8px)';
-                  container.appendChild(el);
-                  requestAnimationFrame(() => {
-                    el.style.transition = 'all 0.3s cubic-bezier(0.22, 1, 0.36, 1)';
-                    el.style.opacity = '1';
-                    el.style.transform = 'translateY(0)';
-                  });
-                  container.scrollTop = container.scrollHeight;
-                  resolve();
-                }, 500 + Math.random() * 200);
-                cleanups.push(() => clearTimeout(t2));
-              } else {
-                const el = document.createElement('div');
-                el.className = 'chat-msg customer';
-                el.textContent = msg.text;
-                el.style.opacity = '0';
-                el.style.transform = 'translateY(8px)';
-                container.appendChild(el);
-                requestAnimationFrame(() => {
-                  el.style.transition = 'all 0.3s cubic-bezier(0.22, 1, 0.36, 1)';
-                  el.style.opacity = '1';
-                  el.style.transform = 'translateY(0)';
-                });
-                container.scrollTop = container.scrollHeight;
-                resolve();
-              }
-            }, delay);
-            cleanups.push(() => clearTimeout(t));
-          });
-        }
-
-        async function runChat() {
-          if (cancelled) return;
-          container.innerHTML = '';
-          for (let i = 0; i < messages.length; i++) {
-            if (cancelled) return;
-            await addMessage(messages[i], i === 0 ? 200 : 700 + Math.random() * 300);
-          }
-          if (cancelled) return;
-          chatLoopTimeout.current = setTimeout(runChat, 2000);
-        }
-
-        const chatGrid = root.querySelector('#chatDemoGrid') || container;
-        const chatObserver = new IntersectionObserver((entries) => {
-          if (entries[0].isIntersecting && !chatDemoStarted.current) {
-            chatDemoStarted.current = true;
-            setTimeout(runChat, 800);
-          }
-        }, { threshold: 0.15, rootMargin: '0px 0px -220px 0px' });
-
-        chatObserver.observe(chatGrid);
-        cleanups.push(() => {
-          cancelled = true;
-          chatObserver.disconnect();
-          if (chatLoopTimeout.current) clearTimeout(chatLoopTimeout.current);
-        });
-      }
-    }
-
     return () => {
       cleanups.forEach((fn) => fn());
-      chatDemoStarted.current = false;
     };
   }, [t]);
 
   return (
     <div className="landing-page" ref={pageRef}>
-      {/* Hidden data carriers for chat messages (read by useEffect) */}
-      {chatMessages.map((m, i) => (
-        <span key={i} hidden data-chat-msg={m.text} data-chat-type={m.type} />
-      ))}
-
       <div className="lp-page">
         <div className="glow glow-l" aria-hidden="true" />
         <div className="glow glow-r" aria-hidden="true" />
@@ -411,7 +328,7 @@ export function LandingPage() {
         {/* ═══ Dashboard mockup ═══ */}
         <section className="dashboard-section">
           <div className="shell">
-            <div className="dashboard-frame reveal-scale">
+            <div className="dashboard-frame reveal-scale dashboard-reveal">
               <div className="dashboard-topbar">
                 <span className="dashboard-topbar-title">{t('landing.dashboardSection.title')}</span>
                 <div className="dashboard-topbar-pills">
@@ -526,29 +443,7 @@ export function LandingPage() {
         </section>
 
         {/* ═══ Chat demo ═══ */}
-        <section className="chat-demo">
-          <div className="shell">
-            <div className="chat-demo-grid reveal-sync" id="chatDemoGrid">
-              <div className="chat-demo-copy sync-left">
-                <span className="kicker">{t('landing.chatDemoSection.kicker')}</span>
-                <h2 className="section-title">{t('landing.chatDemoSection.title')}</h2>
-                <p className="section-sub">{t('landing.chatDemoSection.desc')}</p>
-              </div>
-              <div className="chat-window sync-right">
-                <div className="chat-header">
-                  <div className="chat-avatar">TX</div>
-                  <div className="chat-header-info">
-                    <strong>{t('landing.chatDemoSection.assistantName')}</strong>
-                    <span>&#9679; {t('landing.chatDemoSection.online')}</span>
-                  </div>
-                </div>
-                <div className="chat-messages" id="chatDemo">
-                  {/* Messages injected by JS */}
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+        <ChatDemoSection />
 
         {/* ═══ Proof stats ═══ */}
         <section className="proof" id="impact">

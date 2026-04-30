@@ -232,7 +232,7 @@
       "howItWorks": "Nasıl çalışır?"
     },
     "manifesto": {
-      "text": "Her gün binlerce müşteri mesajı geliyor. Ama zamanında yanıt vermek hala imkansız gibi hissettiriyor. Telyx bunu değiştiriyor.",
+      "text": "Her gün binlerce müşteri mesajı geliyor. Ama zamanında yanıt vermek hala imkansız gibi mi hissettiriyor? Telyx bunu değiştiriyor.",
       "emphasisWords": "Telyx"
     },
     "dashboardSection": {
@@ -276,10 +276,49 @@
       "desc": "AI asistan, müşterinizin sorusunu anlar, CRM verinize bakar ve saniyeler içinde doğru yanıtı verir. İnsan müşteri temsilcisi gibi — ama 7/24.",
       "assistantName": "Telyx AI Asistan",
       "online": "Çevrimiçi",
-      "msg1": "Merhaba, siparişim nerede?",
-      "msg2": "Merhaba! Kontrol edebilmem için sipariş numaranızı rica edebilir miyim?",
-      "msg3": "Sipariş numaram SİP-12345.",
-      "msg4": "Siparişiniz şu an hazırlanıyor aşamasında ve bugün kargoya verilmesi bekleniyor. 📦"
+      "sectorsLabel": "Sektörünüze göre deneyin",
+      "sectors": {
+        "ecommerce": {
+          "label": "E-ticaret",
+          "icon": "🛍️",
+          "messages": [
+            { "type": "customer", "text": "Merhaba, siparişim nerede?" },
+            { "type": "bot", "text": "Merhaba! Kontrol edebilmem için sipariş numaranızı rica edebilir miyim?" },
+            { "type": "customer", "text": "Sipariş numaram SİP-12345." },
+            { "type": "bot", "text": "Siparişiniz şu an hazırlanıyor aşamasında ve bugün kargoya verilmesi bekleniyor. 📦" }
+          ]
+        },
+        "restaurant": {
+          "label": "Restoran",
+          "icon": "🍽️",
+          "messages": [
+            { "type": "customer", "text": "Merhaba, bu cumartesi 4 kişilik rezervasyon yapabilir miyiz?" },
+            { "type": "bot", "text": "Tabii! Saat tercihiniz var mı? 19:00 ve 21:00 için müsait masamız var." },
+            { "type": "customer", "text": "20:00 olur mu?" },
+            { "type": "bot", "text": "Cumartesi 20:00, 4 kişilik rezervasyonunuzu oluşturdum. Onay SMS'iniz birazdan iletilecek. 🍽️" }
+          ]
+        },
+        "clinic": {
+          "label": "Klinik",
+          "icon": "🦷",
+          "messages": [
+            { "type": "customer", "text": "Diş muayenesi için randevu almak istiyorum." },
+            { "type": "bot", "text": "Tabii! Yarın 14:00, perşembe 10:30 veya cuma 16:00 müsait. Hangisi size uygun?" },
+            { "type": "customer", "text": "Perşembe 10:30 olur." },
+            { "type": "bot", "text": "Perşembe 10:30 randevunuz oluşturuldu. SMS hatırlatma 1 saat önce gelecek. 🦷" }
+          ]
+        },
+        "services": {
+          "label": "Servis",
+          "icon": "🔧",
+          "messages": [
+            { "type": "customer", "text": "Kombim çalışmıyor. Yarın gelebilir misiniz?" },
+            { "type": "bot", "text": "Geçmiş olsun! Yarın 10:00-12:00 veya 14:00-16:00 müsait. Hangi adres?" },
+            { "type": "customer", "text": "Beşiktaş, 14:00 uygun." },
+            { "type": "bot", "text": "Yarın 14:00, Beşiktaş için ustamız yönlendirildi. Telefonla 30 dk önce arayacak. 🔧" }
+          ]
+        }
+      }
     },
     "proofSection": {
       "stat1Value": "85",

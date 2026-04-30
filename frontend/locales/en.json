@@ -232,7 +232,7 @@
       "howItWorks": "How it works?"
     },
     "manifesto": {
-      "text": "Every day thousands of customer messages come in. But responding on time still feels impossible. Telyx is changing that.",
+      "text": "Every day thousands of customer messages come in. Does responding on time still feel impossible? Telyx is changing that.",
       "emphasisWords": "Telyx"
     },
     "dashboardSection": {
@@ -276,10 +276,49 @@
       "desc": "AI assistant understands your customer's question, checks your CRM data and delivers the right answer in seconds. Like a human agent — but 24/7.",
       "assistantName": "Telyx AI Assistant",
       "online": "Online",
-      "msg1": "Hi, where is my order?",
-      "msg2": "Hello! Could you please share your order number so I can check?",
-      "msg3": "My order number is ORD-12345.",
-      "msg4": "Your order is currently being prepared and is expected to ship today. 📦"
+      "sectorsLabel": "Try it for your sector",
+      "sectors": {
+        "ecommerce": {
+          "label": "E-commerce",
+          "icon": "🛍️",
+          "messages": [
+            { "type": "customer", "text": "Hi, where is my order?" },
+            { "type": "bot", "text": "Hello! Could you please share your order number so I can check?" },
+            { "type": "customer", "text": "My order number is ORD-12345." },
+            { "type": "bot", "text": "Your order is currently being prepared and is expected to ship today. 📦" }
+          ]
+        },
+        "restaurant": {
+          "label": "Restaurant",
+          "icon": "🍽️",
+          "messages": [
+            { "type": "customer", "text": "Hi, can we book a table for 4 this Saturday?" },
+            { "type": "bot", "text": "Of course! Any time preference? We have 7:00 PM and 9:00 PM open." },
+            { "type": "customer", "text": "Does 8:00 PM work?" },
+            { "type": "bot", "text": "Saturday 8:00 PM, table for 4 — booked. You'll get a confirmation SMS shortly. 🍽️" }
+          ]
+        },
+        "clinic": {
+          "label": "Clinic",
+          "icon": "🦷",
+          "messages": [
+            { "type": "customer", "text": "I'd like to book a dental check-up." },
+            { "type": "bot", "text": "Sure! Tomorrow 2:00 PM, Thursday 10:30 AM, or Friday 4:00 PM are open. Which works for you?" },
+            { "type": "customer", "text": "Thursday 10:30 AM works." },
+            { "type": "bot", "text": "Booked Thursday at 10:30 AM. SMS reminder will go out 1 hour before. 🦷" }
+          ]
+        },
+        "services": {
+          "label": "Service",
+          "icon": "🔧",
+          "messages": [
+            { "type": "customer", "text": "My boiler isn't working. Can someone come tomorrow?" },
+            { "type": "bot", "text": "Sorry to hear that! Tomorrow 10–12 AM or 2–4 PM. What's the address?" },
+            { "type": "customer", "text": "Beşiktaş, 2 PM works." },
+            { "type": "bot", "text": "Tomorrow 2 PM in Beşiktaş — technician dispatched. They'll call 30 min before arriving. 🔧" }
+          ]
+        }
+      }
     },
     "proofSection": {
       "stat1Value": "85",
