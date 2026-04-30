@@ -12,7 +12,6 @@
 import express from 'express';
 import prisma from '../prismaClient.js';
 // getDateTimeContext, buildAssistantPrompt: handled by orchestrator Step 2 (02_prepareContext.js)
-import { getActiveTools as getPromptBuilderTools } from '../services/promptBuilder.js';
 import { isFreePlanExpired } from '../middleware/checkPlanExpiry.js';
 import { calculateTokenCost, hasFreeChat } from '../config/plans.js';
 import callAnalysis from '../services/callAnalysis.js';
@@ -1527,30 +1526,6 @@ router.post('/widget', async (req, res) => {
 
     // ===== SESSION OK - CONTINUE NORMAL PROCESSING =====
 
-    // SECURITY: KB Empty Hard Fallback (lightweight — COUNT only, no full KB fetch)
-    // If KB is empty AND no CRM tools available, return fallback (prevent hallucination)
-    const activeToolsList = getPromptBuilderTools(business, business.integrations || []);
-    const hasCRMTools = activeToolsList.some(t =>
-      t === 'customer_data_lookup' || t === 'check_order_status'
-    );
-
-    const kbCount = await prisma.knowledgeBase.count({
-      where: { businessId: business.id, status: 'ACTIVE' }
-    });
-    const isKBEmpty = kbCount === 0;
-
-    // Check if message looks like KB query (not CRM lookup)
-    const looksLikeCRMQuery = /sipariş|order|müşteri|customer|takip|tracking|\d{5,}/i.test(message);
-
-    // Greeting/chatter messages should always reach the LLM pipeline
-    const isGreetingOrChatter = /^(merhaba|selam|selamlar|hey|hi|hello|günaydın|iyi\s*(günler|akşamlar)|good\s*(morning|evening)|teşekkür|sağol|tamam|ok)\b/i.test(message.trim());
-
-    console.log(`⏱️ [Widget] KB empty check: ${Date.now() - _t}ms`); _t = Date.now();
-
-    if (isKBEmpty && !hasCRMTools && !looksLikeCRMQuery && !isGreetingOrChatter) {
-      console.log('⚠️ KB_EMPTY_FALLBACK disabled (LLM-first mode) — continuing to orchestrator');
-    }
-
     // NOTE: System prompt, KB retrieval, chatLog, dateTimeContext are all handled
     // by orchestrator Steps 1-2. No need to duplicate here.
 
@@ -1607,6 +1582,135 @@ router.post('/widget', async (req, res) => {
         });
       }
       throw timeoutError; // Re-throw if not timeout
+    }
+
+    if (result?.metadata?.chatterFastPath === true) {
+      const routeFirewallMode = String(FEATURE_FLAGS.ROUTE_FIREWALL_MODE || 'telemetry').toLowerCase();
+      const shouldEnforceRouteFirewall = routeFirewallMode === 'enforce';
+      const postprocessorsApplied = [];
+      let finalReply = sanitizeChatReplyPlaceholders(result.reply, language);
+
+      if (finalReply !== result.reply) {
+        console.warn(`🧹 [Widget] Placeholder artifacts sanitized for session ${sessionId}`);
+        postprocessorsApplied.push('sanitize_placeholders');
+      }
+
+      const firewallResult = sanitizeResponse(finalReply, language, {
+        allowedEmails: collectPublicContactEmails(business)
+      });
+
+      if (!firewallResult.safe) {
+        logFirewallViolation({
+          violations: firewallResult.violations,
+          original: firewallResult.original,
+          businessId: business.id,
+          sessionId
+        });
+
+        if (shouldEnforceRouteFirewall) {
+          console.warn('🚨 [Route Firewall] ENFORCE mode - blocking response');
+          finalReply = firewallResult.sanitized;
+          postprocessorsApplied.push('route_firewall_enforce_sanitize');
+        }
+      }
+
+      const fastPathWrittenUsageKey = writtenUsageKey;
+      writtenUsageKey = null;
+      const resultWarnings = Array.isArray(result.warnings) ? result.warnings : [];
+
+      res.json({
+        success: true,
+        reply: finalReply,
+        outcome: result.outcome || ToolOutcome.OK,
+        traceId: result.traceId || null,
+        conversationId: sessionId,
+        messageId: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+        sessionId: clientSessionId || sessionId,
+        assistantName: assistant.name,
+        history: [],
+        handoff: getNormalizedHandoffState(result.state),
+        verificationStatus: result.state?.verification?.status || 'none',
+        warnings: resultWarnings.length > 0 ? resultWarnings : undefined,
+        toolsCalled: result.toolsCalled || [],
+        toolCalls: result.toolsCalled || [],
+        metadata: {
+          ...(result.metadata || {}),
+          routeFirewallMode,
+          routeFirewallEnforced: shouldEnforceRouteFirewall
+        }
+      });
+
+      setImmediate(async () => {
+        try {
+          const planName = subscription?.plan || 'FREE';
+          const countryCode = business?.country || 'TR';
+          const isFree = hasFreeChat(planName);
+          const tokenCost = isFree
+            ? { inputCost: 0, outputCost: 0, totalCost: 0 }
+            : calculateTokenCost(
+              result.inputTokens,
+              result.outputTokens,
+              planName,
+              countryCode
+            );
+
+          const existingLog = await prisma.chatLog.findUnique({
+            where: { sessionId },
+            select: { inputTokens: true, outputTokens: true, totalCost: true, messages: true }
+          });
+
+          const accumulatedInputTokens = (existingLog?.inputTokens || 0) + result.inputTokens;
+          const accumulatedOutputTokens = (existingLog?.outputTokens || 0) + result.outputTokens;
+          const accumulatedCost = (existingLog?.totalCost || 0) + tokenCost.totalCost;
+
+          await prisma.chatLog.upsert({
+            where: { sessionId },
+            create: {
+              sessionId,
+              businessId: business.id,
+              assistantId: assistant.id,
+              channel: 'CHAT',
+              messageCount: existingLog?.messages?.length || 0,
+              messages: existingLog?.messages || [],
+              status: 'active',
+              inputTokens: result.inputTokens,
+              outputTokens: result.outputTokens,
+              totalCost: tokenCost.totalCost
+            },
+            update: {
+              inputTokens: accumulatedInputTokens,
+              outputTokens: accumulatedOutputTokens,
+              totalCost: accumulatedCost,
+              updatedAt: new Date()
+            }
+          });
+
+          if (fastPathWrittenUsageKey) {
+            const bypassReason = result?.metadata?.llmBypassReason || null;
+            const shouldRollbackWrittenUsage = result?.outcome === ToolOutcome.INFRA_ERROR
+              || bypassReason === 'BYPASS_LLM_PROVIDER_ERROR'
+              || bypassReason === 'BYPASS_ORCHESTRATOR_FATAL';
+
+            if (shouldRollbackWrittenUsage) {
+              await releaseWrittenInteraction(fastPathWrittenUsageKey, bypassReason || 'CHAT_WIDGET_BYPASS').catch(() => null);
+            } else {
+              await commitWrittenInteraction(fastPathWrittenUsageKey, {
+                channel: 'CHAT',
+                requestId: req.requestId || null,
+                clientSessionId,
+                finalReplyLength: finalReply.length
+              });
+            }
+          }
+        } catch (backgroundError) {
+          console.error('⚠️ [Widget] Fast path post-response accounting failed:', backgroundError.message);
+        }
+      });
+
+      console.log(`⚡ [Widget] Fast path response returned in ${Date.now() - _widgetStart}ms`, {
+        postprocessorsApplied
+      });
+      return;
     }
 
     // Calculate costs
