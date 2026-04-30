@@ -84,6 +84,27 @@ describe('semantic chatter fast path', () => {
     expect(result.confidence).toBe(0.95);
   });
 
+  it('does not echo the bare widget welcome as the assistant reply', async () => {
+    mockJsonResponse({
+      pure_chatter: true,
+      confidence: 0.95,
+      reply: 'Merhaba!',
+      reason: 'clear greeting'
+    });
+
+    const result = await trySemanticChatterFastPath({
+      channel: 'CHAT',
+      userMessage: 'selam',
+      language: 'TR',
+      state: {}
+    });
+
+    expect(result.handled).toBe(true);
+    expect(result.reply).toBe('Merhaba, buradayım.');
+    expect(result.reply).not.toBe('Merhaba');
+    expect(result.reply).not.toBe('Merhaba!');
+  });
+
   it('falls through when the semantic gate sees an operational request', async () => {
     mockJsonResponse({
       pure_chatter: false,

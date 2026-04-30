@@ -2833,7 +2833,7 @@
       "statusUpdateError": "Durum güncellenemedi",
       "embedCodeCopied": "Gömme kodu panoya kopyalandı!",
       "defaultButtonText": "Bize Yazın",
-      "defaultWelcomeMessage": "Merhaba! Size nasıl yardımcı olabilirim?",
+      "defaultWelcomeMessage": "Merhaba",
       "defaultPlaceholder": "Mesajınızı yazın...",
       "liveAgentLabel": "Canlı destek",
       "systemLabel": "Sistem",

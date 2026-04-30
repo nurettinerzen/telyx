@@ -5,6 +5,7 @@ import { getGeminiClient } from './gemini-utils.js';
 const DEFAULT_TIMEOUT_MS = 2200;
 const DEFAULT_CONFIDENCE_THRESHOLD = 0.82;
 const DEFAULT_MAX_MESSAGE_CHARS = 500;
+const BARE_DEFAULT_WELCOME_REPLIES = new Set(['merhaba', 'hello']);
 
 function parsePositiveNumber(value, fallback) {
   const parsed = Number(value);
@@ -47,6 +48,25 @@ function sanitizeConfidence(value) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return 0;
   return Math.max(0, Math.min(1, numeric));
+}
+
+function normalizeBareReply(value = '') {
+  return String(value || '')
+    .trim()
+    .toLocaleLowerCase('tr-TR')
+    .replace(/[.!?,;:]+$/g, '')
+    .replace(/\s+/g, ' ');
+}
+
+function avoidDefaultWelcomeEcho(reply = '', language = 'TR') {
+  const trimmed = String(reply || '').trim();
+  if (!BARE_DEFAULT_WELCOME_REPLIES.has(normalizeBareReply(trimmed))) {
+    return trimmed;
+  }
+
+  return String(language || 'TR').toUpperCase() === 'EN'
+    ? 'Hello, I am here.'
+    : 'Merhaba, buradayım.';
 }
 
 function withTimeout(promise, timeoutMs, timeoutMessage) {
@@ -136,6 +156,7 @@ NOT pure chatter:
 
 If pure chatter is true, write a short natural reply in the user's language. Do not claim business facts. Use at most one sentence.
 Use recent assistant replies only as context so the reply feels natural in the conversation and does not sound mechanically repetitive.
+The widget already shows an initial "Merhaba" / "Hello" message before the user writes. Never answer with only that same bare greeting; add a tiny follow-up instead.
 If not pure chatter, return pure_chatter=false and reply="".
 
 Return ONLY JSON:
@@ -230,7 +251,7 @@ export async function trySemanticChatterFastPath({
     }
 
     const confidence = sanitizeConfidence(parsed.confidence);
-    const reply = String(parsed.reply || '').trim();
+    const reply = avoidDefaultWelcomeEcho(parsed.reply, language);
     const isPureChatter = parsed.pure_chatter === true;
     const usage = result?.response?.usageMetadata || {};
 

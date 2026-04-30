@@ -121,15 +121,11 @@ fbq('init', '${META_PIXEL_ID}');`,
           </noscript>
         ) : null}
         {META_PIXEL_ID ? (
-          <noscript>
-            <img
-              height="1"
-              width="1"
-              style={{ display: 'none' }}
-              src={`https://www.facebook.com/tr?id=${META_PIXEL_ID}&ev=PageView&noscript=1`}
-              alt=""
-            />
-          </noscript>
+          <noscript
+            dangerouslySetInnerHTML={{
+              __html: `<img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=${META_PIXEL_ID}&ev=PageView&noscript=1" alt="" />`,
+            }}
+          />
         ) : null}
         <Providers>
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
