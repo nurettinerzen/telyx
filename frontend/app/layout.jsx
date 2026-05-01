@@ -18,6 +18,9 @@ const GA_MEASUREMENT_ID = runtimeConfig.isBetaApp
 const META_PIXEL_ID = runtimeConfig.isBetaApp
   ? null
   : (process.env.NEXT_PUBLIC_META_PIXEL_ID || '1458852735458229');
+const META_DOMAIN_VERIFICATION = runtimeConfig.isBetaApp
+  ? null
+  : (process.env.NEXT_PUBLIC_META_DOMAIN_VERIFICATION || 'ga7o0o26qenlpeya07p1dxd40tvd4');
 const inter = Inter({
   subsets: ['latin', 'latin-ext'],
   display: 'swap',
@@ -61,6 +64,9 @@ export default function RootLayout({ children }) {
   return (
     <html lang="tr" className={inter.variable} suppressHydrationWarning>
       <head>
+        {META_DOMAIN_VERIFICATION ? (
+          <meta name="facebook-domain-verification" content={META_DOMAIN_VERIFICATION} />
+        ) : null}
         {GTM_ID ? (
           <Script
             id="google-tag-manager"
