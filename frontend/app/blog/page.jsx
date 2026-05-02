@@ -7,6 +7,7 @@ import Navigation from '@/components/Navigation';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { BLOG_POSTS, BLOG_SLUGS } from '@/lib/blog/posts';
 import {
   ArrowRight,
   Calendar,
@@ -40,105 +41,11 @@ function useMouseGlow(ref) {
   }, [ref]);
 }
 
-/* ── Blog post data ── */
-const blogPosts = [
-  {
-    slug: 'whatsapp-canli-destek-ai-handoff',
-    category: { tr: 'WhatsApp', en: 'WhatsApp' },
-    title: {
-      tr: 'WhatsApp Desteğinde AI’dan Canlı Temsilciye Geçiş Nasıl Kurgulanır?',
-      en: 'How to Design AI-to-Human Handoff in WhatsApp Support',
-    },
-    excerpt: {
-      tr: 'Aynı konuşma içinde AI ile başlayıp gerektiğinde canlı ekibe devreden destek akışının en doğru kurgusunu anlatıyoruz.',
-      en: 'We explain the cleanest way to start with AI and hand the same conversation over to a live support team when needed.',
-    },
-    date: '2026-04-08',
-    readTime: { tr: '7 dk', en: '7 min' },
-    author: 'Telyx Ekibi',
-    color: 'from-[#051752] to-[#00C4E6]',
-  },
-  {
-    slug: 'tahsilat-hatirlatma-otomasyonu',
-    category: { tr: 'Operasyon', en: 'Operations' },
-    title: {
-      tr: 'Tahsilat Hatırlatmalarında Yapay Zeka ile Daha Nazik ve Sistemli Süreçler',
-      en: 'Using AI for More Structured and More Polite Payment Reminder Flows',
-    },
-    excerpt: {
-      tr: 'Tahsilat hatırlatmalarını manuel takipten çıkarıp daha düzenli, ölçülebilir ve müşteri dostu hale getirmenin yollarını inceliyoruz.',
-      en: 'We explore how to move payment reminders out of manual follow-up and turn them into a measurable, customer-friendly workflow.',
-    },
-    date: '2026-04-04',
-    readTime: { tr: '6 dk', en: '6 min' },
-    author: 'Telyx Ekibi',
-    color: 'from-[#000ACF] to-[#006FEB]',
-  },
-  {
-    slug: 'cok-kanalli-destek-operasyonlari',
-    category: { tr: 'Destek Operasyonları', en: 'Support Operations' },
-    title: {
-      tr: 'WhatsApp, Webchat ve E-postayı Tek Ekrandan Yönetmek Neden Fark Yaratır?',
-      en: 'Why Managing WhatsApp, Webchat, and Email from One Screen Changes Operations',
-    },
-    excerpt: {
-      tr: 'Kanallar ayrı ayrı yönetildiğinde ekipler zaman kaybediyor. Tek bir operasyon ekranının neden daha hızlı ve daha kontrollü çalıştığını anlatıyoruz.',
-      en: 'Teams lose time when channels are managed separately. We explain why a unified operations workspace is faster and easier to control.',
-    },
-    date: '2026-03-27',
-    readTime: { tr: '5 dk', en: '5 min' },
-    author: 'Telyx Ekibi',
-    color: 'from-[#006FEB] to-[#00C4E6]',
-  },
-  {
-    slug: 'ai-musteri-hizmetleri-gelecegi',
-    category: { tr: 'AI & Teknoloji', en: 'AI & Technology' },
-    title: {
-      tr: 'AI ile Müşteri Hizmetlerinin Geleceği: 2026 Trendleri',
-      en: 'The Future of Customer Service with AI: 2026 Trends',
-    },
-    excerpt: {
-      tr: 'Yapay zeka destekli müşteri hizmetleri hızla dönüşüyor. İşletmelerin bu değişime nasıl uyum sağlayabileceğini keşfedin.',
-      en: 'AI-powered customer service is rapidly transforming. Discover how businesses can adapt to this change.',
-    },
-    date: '2026-03-15',
-    readTime: { tr: '5 dk', en: '5 min' },
-    author: 'Telyx Ekibi',
-    color: 'from-[#000ACF] to-[#00C4E6]',
-  },
-  {
-    slug: 'whatsapp-business-api-rehberi',
-    category: { tr: 'Rehber', en: 'Guide' },
-    title: {
-      tr: 'WhatsApp Business API: Eksiksiz Başlangıç Rehberi',
-      en: 'WhatsApp Business API: Complete Getting Started Guide',
-    },
-    excerpt: {
-      tr: 'WhatsApp Business API nedir, nasıl entegre edilir ve işletmenize nasıl değer katar? Adım adım rehberimizle öğrenin.',
-      en: 'What is WhatsApp Business API, how to integrate it, and how does it add value to your business? Learn with our step-by-step guide.',
-    },
-    date: '2026-03-01',
-    readTime: { tr: '8 dk', en: '8 min' },
-    author: 'Telyx Ekibi',
-    color: 'from-[#051752] to-[#006FEB]',
-  },
-  {
-    slug: 'e-ticaret-chatbot-karsilastirma',
-    category: { tr: 'E-ticaret', en: 'E-commerce' },
-    title: {
-      tr: 'E-ticaret İçin En İyi Chatbot Çözümleri: 2026 Karşılaştırması',
-      en: 'Best Chatbot Solutions for E-commerce: 2026 Comparison',
-    },
-    excerpt: {
-      tr: 'E-ticaret siteniz için doğru chatbot çözümünü seçmek kritik. Piyasadaki seçenekleri ve Telyx\'in farkını karşılaştırıyoruz.',
-      en: 'Choosing the right chatbot solution for your e-commerce site is critical. We compare market options and what sets Telyx apart.',
-    },
-    date: '2026-02-15',
-    readTime: { tr: '6 dk', en: '6 min' },
-    author: 'Telyx Ekibi',
-    color: 'from-[#006FEB] to-[#00C4E6]',
-  },
-];
+/* ── Blog post data ── (sourced from lib/blog/posts.js — single source of truth) */
+const blogPosts = BLOG_SLUGS.map((slug) => {
+  const { category, title, excerpt, date, readTime, author, color } = BLOG_POSTS[slug];
+  return { slug, category, title, excerpt, date, readTime, author, color };
+});
 
 function formatDate(dateStr, isTR) {
   const date = new Date(dateStr);

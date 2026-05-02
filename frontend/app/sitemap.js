@@ -1,5 +1,6 @@
 import runtimeConfig from '@/lib/runtime-config';
 import { KB_MANIFEST } from '@/lib/kb/loader';
+import { MATRIX_SLUGS } from '@/lib/seo/matrix';
 
 const STATIC_ROUTES = [
   { path: '/', changeFrequency: 'weekly', priority: 1.0 },
@@ -17,6 +18,7 @@ const STATIC_ROUTES = [
   { path: '/telefon', changeFrequency: 'weekly', priority: 0.9 },
   { path: '/web-sohbet', changeFrequency: 'weekly', priority: 0.9 },
   { path: '/e-posta', changeFrequency: 'weekly', priority: 0.9 },
+  { path: '/cozumler', changeFrequency: 'weekly', priority: 0.8 },
   { path: '/about', changeFrequency: 'monthly', priority: 0.6 },
   { path: '/contact', changeFrequency: 'monthly', priority: 0.7 },
   { path: '/blog', changeFrequency: 'weekly', priority: 0.7 },
@@ -86,5 +88,17 @@ export default function sitemap() {
     },
   }));
 
-  return [...staticEntries, ...blogEntries, ...kbEntries];
+  const matrixEntries = MATRIX_SLUGS.map((slug) => ({
+    url: `${baseUrl}/cozumler/${slug}`,
+    lastModified: now,
+    changeFrequency: 'monthly',
+    priority: 0.7,
+    alternates: {
+      languages: {
+        'tr-TR': `${baseUrl}/cozumler/${slug}`,
+      },
+    },
+  }));
+
+  return [...staticEntries, ...blogEntries, ...kbEntries, ...matrixEntries];
 }
