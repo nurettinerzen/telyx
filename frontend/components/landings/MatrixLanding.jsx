@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowRight, Check, Phone, MessageSquare, MessageCircle, Mail } from 'lucide-react';
+import { ArrowRight, Check, Phone, MessageSquare, MessageCircle, Mail, Instagram } from 'lucide-react';
 import Navigation from '@/components/Navigation';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ const CHANNEL_ICON = {
   telefon: Phone,
   'web-sohbet': MessageCircle,
   'e-posta': Mail,
+  instagram: Instagram,
 };
 
 const CHANNEL_GRADIENT = {
@@ -16,6 +17,7 @@ const CHANNEL_GRADIENT = {
   telefon: 'from-[#051752] to-[#006FEB]',
   'web-sohbet': 'from-[#000ACF] to-[#00C4E6]',
   'e-posta': 'from-purple-600 to-indigo-600',
+  instagram: 'from-pink-500 via-red-500 to-yellow-500',
 };
 
 const CHANNEL_HUB_PATH = {
@@ -23,6 +25,7 @@ const CHANNEL_HUB_PATH = {
   telefon: '/telefon',
   'web-sohbet': '/web-sohbet',
   'e-posta': '/e-posta',
+  instagram: '/instagram',
 };
 
 const INDUSTRY_HUB_PATH = {
@@ -30,6 +33,8 @@ const INDUSTRY_HUB_PATH = {
   restoran: '/solutions/restaurant',
   salon: '/solutions/salon',
   destek: '/solutions/support',
+  klinik: '/solutions/klinik',
+  egitim: '/solutions/egitim',
 };
 
 const INDUSTRY_LABEL = {
@@ -37,6 +42,8 @@ const INDUSTRY_LABEL = {
   restoran: 'Restoran',
   salon: 'Güzellik Salonu',
   destek: 'Müşteri Desteği',
+  klinik: 'Klinik & Sağlık',
+  egitim: 'Eğitim',
 };
 
 const CHANNEL_LABEL = {
@@ -44,6 +51,7 @@ const CHANNEL_LABEL = {
   telefon: 'Telefon',
   'web-sohbet': 'Web Sohbet',
   'e-posta': 'E-posta',
+  instagram: 'Instagram DM',
 };
 
 export default function MatrixLanding({ data }) {

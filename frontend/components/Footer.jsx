@@ -28,6 +28,7 @@ export const Footer = () => {
         { label: isTR ? 'Telefon AI' : 'Phone AI', href: '/telefon' },
         { label: isTR ? 'Web Sohbet' : 'Web Chat', href: '/web-sohbet' },
         { label: isTR ? 'E-posta AI' : 'Email AI', href: '/e-posta' },
+        { label: 'Instagram DM AI', href: '/instagram' },
       ],
     },
     {
@@ -37,6 +38,8 @@ export const Footer = () => {
         { label: isTR ? 'Restoran' : 'Restaurant', href: '/solutions/restaurant' },
         { label: isTR ? 'Güzellik Salonu' : 'Beauty Salon', href: '/solutions/salon' },
         { label: isTR ? 'Müşteri Desteği' : 'Customer Support', href: '/solutions/support' },
+        { label: isTR ? 'Klinik & Sağlık' : 'Clinic & Health', href: '/solutions/klinik' },
+        { label: isTR ? 'Eğitim' : 'Education', href: '/solutions/egitim' },
       ],
     },
     {
