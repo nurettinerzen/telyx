@@ -7,7 +7,19 @@ import { Providers } from './providers';
 import BetaEnvironmentBar from '@/components/BetaEnvironmentBar';
 import PublicSiteChatWidget from '@/components/PublicSiteChatWidget';
 import PageViewTracker from '@/components/PageViewTracker';
+import JsonLd from '@/components/seo/JsonLd';
 import runtimeConfig from '@/lib/runtime-config';
+import {
+  SITE_NAME,
+  SITE_TAGLINE_TR,
+  SITE_DESCRIPTION_TR,
+  KEYWORDS_TR,
+  DEFAULT_OG_IMAGE,
+  buildOpenGraph,
+  buildTwitter,
+  languageAlternates,
+} from '@/lib/seo/site';
+import { organizationSchema, websiteSchema } from '@/lib/seo/schemas';
 
 const metadataBase = runtimeConfig.siteUrl ? new URL(runtimeConfig.siteUrl) : undefined;
 const iconVersion = '20260413';
@@ -27,10 +39,24 @@ const inter = Inter({
   variable: '--font-inter',
 });
 
+const DEFAULT_TITLE = runtimeConfig.isBetaApp
+  ? 'Telyx AI Beta'
+  : `${SITE_NAME} — ${SITE_TAGLINE_TR}`;
+const DEFAULT_DESCRIPTION = SITE_DESCRIPTION_TR;
+
 export const metadata = {
   metadataBase,
-  title: runtimeConfig.isBetaApp ? 'Telyx AI Beta' : 'Telyx AI',
-  description: 'Yapay zeka destekli telefon, chat, e-posta ve WhatsApp ile işletme iletişiminizi otomatikleştirin.',
+  title: {
+    default: DEFAULT_TITLE,
+    template: `%s | ${SITE_NAME}`,
+  },
+  description: DEFAULT_DESCRIPTION,
+  applicationName: SITE_NAME,
+  keywords: KEYWORDS_TR,
+  authors: [{ name: 'Telyx AI', url: runtimeConfig.siteUrl }],
+  creator: 'Telyx AI',
+  publisher: 'Telyx AI',
+  category: 'business',
   robots: runtimeConfig.isBetaApp
     ? {
         index: false,
@@ -43,7 +69,32 @@ export const metadata = {
     : {
         index: true,
         follow: true,
+        googleBot: {
+          index: true,
+          follow: true,
+          'max-image-preview': 'large',
+          'max-snippet': -1,
+          'max-video-preview': -1,
+        },
       },
+  alternates: languageAlternates('/'),
+  openGraph: buildOpenGraph({
+    title: DEFAULT_TITLE,
+    description: DEFAULT_DESCRIPTION,
+    path: '/',
+    type: 'website',
+    locale: 'tr_TR',
+    images: [DEFAULT_OG_IMAGE],
+  }),
+  twitter: buildTwitter({
+    title: DEFAULT_TITLE,
+    description: DEFAULT_DESCRIPTION,
+  }),
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
   icons: {
     icon: [
       { url: `/favicon.ico?v=${iconVersion}`, sizes: 'any' },
@@ -61,11 +112,18 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }) {
+  const orgJsonLd = organizationSchema({ locale: 'tr' });
+  const siteJsonLd = websiteSchema({ locale: 'tr' });
+  const includeStructuredData = !runtimeConfig.isBetaApp;
+
   return (
     <html lang="tr" className={inter.variable} suppressHydrationWarning>
       <head>
         {META_DOMAIN_VERIFICATION ? (
           <meta name="facebook-domain-verification" content={META_DOMAIN_VERIFICATION} />
+        ) : null}
+        {includeStructuredData ? (
+          <JsonLd id="root" data={[orgJsonLd, siteJsonLd]} />
         ) : null}
         {GTM_ID ? (
           <Script
