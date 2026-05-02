@@ -29,22 +29,29 @@ export default function Navigation() {
       name: t('navigation.solutions'),
       href: '/solutions',
       items: [
-        { nameKey: 'navigation.solutionsEcommerce', href: '/solutions/ecommerce' },
-        { nameKey: 'navigation.solutionsRestaurant', href: '/solutions/restaurant' },
-        { nameKey: 'navigation.solutionsSalon', href: '/solutions/salon' },
-        { nameKey: 'navigation.solutionsSupport', href: '/solutions/support' },
+        { label: locale === 'tr' ? 'E-ticaret' : 'E-commerce', href: '/solutions/ecommerce' },
+        { label: locale === 'tr' ? 'Restoran' : 'Restaurant', href: '/solutions/restaurant' },
+        { label: locale === 'tr' ? 'Güzellik Salonu' : 'Beauty Salon', href: '/solutions/salon' },
+        { label: locale === 'tr' ? 'Müşteri Desteği' : 'Customer Support', href: '/solutions/support' },
+        { divider: true },
+        { label: 'WhatsApp AI', href: '/whatsapp' },
+        { label: locale === 'tr' ? 'Telefon AI' : 'Phone AI', href: '/telefon' },
+        { label: locale === 'tr' ? 'Web Sohbet' : 'Web Chat', href: '/web-sohbet' },
+        { label: locale === 'tr' ? 'E-posta AI' : 'Email AI', href: '/e-posta' },
       ]
     },
     { name: t('navigation.pricing'), href: '/pricing' },
     {
       name: t('navigation.resources') || 'Kaynaklar',
-      href: '/blog',
+      href: '/kaynak',
       items: [
-        { nameKey: 'navigation.blog', href: '/blog' },
-        { nameKey: 'navigation.integrations', href: '/integrations' },
-        { nameKey: 'navigation.changelog', href: '/changelog' },
-        { nameKey: 'navigation.security', href: '/security' },
-        { nameKey: 'navigation.help', href: '/help' },
+        { label: locale === 'tr' ? 'Kaynak Merkezi' : 'Resource Center', href: '/kaynak' },
+        { label: 'Blog', href: '/blog' },
+        { label: locale === 'tr' ? 'SSS' : 'FAQ', href: '/sss' },
+        { label: t('navigation.integrations') || (locale === 'tr' ? 'Entegrasyonlar' : 'Integrations'), href: '/integrations' },
+        { label: t('navigation.changelog') || 'Changelog', href: '/changelog' },
+        { label: t('navigation.security') || (locale === 'tr' ? 'Güvenlik' : 'Security'), href: '/security' },
+        { label: t('navigation.help') || (locale === 'tr' ? 'Yardım' : 'Help'), href: '/help' },
       ]
     },
     { name: t('navigation.contact'), href: '/contact' },
@@ -82,14 +89,21 @@ export default function Navigation() {
                 {item.items && activeDropdown === item.name && (
                   <div className="absolute top-full left-0 pt-2 w-64">
                     <div className="glass rounded-xl shadow-xl border border-white/20 dark:bg-neutral-800 dark:border-neutral-700 overflow-hidden animate-fade-in">
-                      {item.items.map((subItem) => (
-                        <Link
-                          key={subItem.nameKey}
-                          href={subItem.href}
-                          className="block px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-primary/10 dark:hover:bg-primary-950/50 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
-                        >
-                          {t(subItem.nameKey)}
-                        </Link>
+                      {item.items.map((subItem, idx) => (
+                        subItem.divider ? (
+                          <div
+                            key={`divider-${idx}`}
+                            className="my-1 border-t border-gray-100 dark:border-neutral-700"
+                          />
+                        ) : (
+                          <Link
+                            key={subItem.href}
+                            href={subItem.href}
+                            className="block px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-primary/10 dark:hover:bg-primary-950/50 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
+                          >
+                            {subItem.label || (subItem.nameKey ? t(subItem.nameKey) : '')}
+                          </Link>
+                        )
                       ))}
                     </div>
                   </div>
@@ -152,15 +166,19 @@ export default function Navigation() {
                 </Link>
                 {item.items && (
                   <div className="ml-4 space-y-1">
-                    {item.items.map((subItem) => (
-                      <Link
-                        key={subItem.nameKey}
-                        href={subItem.href}
-                        className="block px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-800 rounded-lg"
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        {t(subItem.nameKey)}
-                      </Link>
+                    {item.items.map((subItem, idx) => (
+                      subItem.divider ? (
+                        <div key={`m-divider-${idx}`} className="my-1 border-t border-gray-100 dark:border-neutral-800 mx-4" />
+                      ) : (
+                        <Link
+                          key={subItem.href}
+                          href={subItem.href}
+                          className="block px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-800 rounded-lg"
+                          onClick={() => setMobileMenuOpen(false)}
+                        >
+                          {subItem.label || (subItem.nameKey ? t(subItem.nameKey) : '')}
+                        </Link>
+                      )
                     ))}
                   </div>
                 )}

@@ -22,7 +22,16 @@ export const Footer = () => {
       ],
     },
     {
-      title: isTR ? 'Çözümler' : 'Solutions',
+      title: isTR ? 'Kanallar' : 'Channels',
+      links: [
+        { label: 'WhatsApp AI', href: '/whatsapp' },
+        { label: isTR ? 'Telefon AI' : 'Phone AI', href: '/telefon' },
+        { label: isTR ? 'Web Sohbet' : 'Web Chat', href: '/web-sohbet' },
+        { label: isTR ? 'E-posta AI' : 'Email AI', href: '/e-posta' },
+      ],
+    },
+    {
+      title: isTR ? 'Sektörler' : 'Industries',
       links: [
         { label: isTR ? 'E-ticaret' : 'E-commerce', href: '/solutions/ecommerce' },
         { label: isTR ? 'Restoran' : 'Restaurant', href: '/solutions/restaurant' },
@@ -33,9 +42,10 @@ export const Footer = () => {
     {
       title: isTR ? 'Kaynaklar' : 'Resources',
       links: [
+        { label: isTR ? 'Kaynak Merkezi' : 'Resource Center', href: '/kaynak' },
         { label: 'Blog', href: '/blog' },
+        { label: isTR ? 'SSS' : 'FAQ', href: '/sss' },
         { label: t('landing.footer.help'), href: '/help' },
-        { label: isTR ? 'API Dokümantasyonu' : 'API Documentation', href: '/docs/api' },
         { label: isTR ? 'Güvenlik' : 'Security', href: '/security' },
       ],
     },
@@ -53,7 +63,7 @@ export const Footer = () => {
   return (
     <footer className="border-t border-gray-200 dark:border-neutral-800 bg-white dark:bg-neutral-950">
       <div className="container mx-auto px-6 py-12 md:py-16">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-8">
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="inline-block mb-4">

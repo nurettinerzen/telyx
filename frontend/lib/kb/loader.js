@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 
-const KB_DIR = path.join(process.cwd(), '..', 'kb-docs');
+const KB_DIR = path.join(process.cwd(), 'content', 'kb');
 
 export const KB_MANIFEST = [
   {

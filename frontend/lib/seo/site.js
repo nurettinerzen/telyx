@@ -72,7 +72,6 @@ export function languageAlternates(path = '/') {
     canonical: url,
     languages: {
       'tr-TR': url,
-      'en-US': url,
       'x-default': url,
     },
   };

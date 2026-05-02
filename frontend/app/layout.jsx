@@ -36,6 +36,15 @@ const META_PIXEL_ID = marketingAnalyticsEnabled
 const META_DOMAIN_VERIFICATION = marketingAnalyticsEnabled
   ? (process.env.NEXT_PUBLIC_META_DOMAIN_VERIFICATION || 'ga7o0o26qenlpeya07p1dxd40tvd4')
   : null;
+const GOOGLE_SITE_VERIFICATION = !runtimeConfig.isBetaApp
+  ? process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || ''
+  : '';
+const BING_SITE_VERIFICATION = !runtimeConfig.isBetaApp
+  ? process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION || ''
+  : '';
+const YANDEX_VERIFICATION = !runtimeConfig.isBetaApp
+  ? process.env.NEXT_PUBLIC_YANDEX_VERIFICATION || ''
+  : '';
 const inter = Inter({
   subsets: ['latin', 'latin-ext'],
   display: 'swap',
@@ -97,6 +106,13 @@ export const metadata = {
     email: false,
     address: false,
     telephone: false,
+  },
+  verification: {
+    google: GOOGLE_SITE_VERIFICATION || undefined,
+    yandex: YANDEX_VERIFICATION || undefined,
+    other: BING_SITE_VERIFICATION
+      ? { 'msvalidate.01': BING_SITE_VERIFICATION }
+      : undefined,
   },
   icons: {
     icon: [
