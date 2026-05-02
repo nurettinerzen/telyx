@@ -1070,9 +1070,23 @@ export default function WhatsAppInboxPage() {
               </div>
 
               {sidebarOpen && (
-                <aside className="w-[280px] min-w-[280px] border-l border-neutral-200 bg-neutral-50 dark:border-white/10 dark:bg-[#081224]/95">
+                <aside
+                  className={cn(
+                    'w-[280px] min-w-[280px] border-l border-neutral-200 bg-neutral-50 dark:border-white/10 dark:bg-[#081224]/95',
+                    dark
+                      ? 'border-white/10 bg-[#081224]/95'
+                      : ''
+                  )}
+                >
                   <div className="p-4">
-                    <div className="rounded-2xl border border-neutral-200 bg-white p-4 dark:border-white/10 dark:bg-[#0B1730]/88">
+                    <div
+                      className={cn(
+                        'rounded-xl border border-neutral-200 bg-white p-4 text-neutral-900 shadow-sm dark:border-white/10 dark:bg-[#0B1730]/88 dark:text-neutral-100 dark:shadow-none',
+                        dark
+                          ? 'border-white/10 bg-[#0B1730]/88 text-neutral-100'
+                          : ''
+                      )}
+                    >
                       <div className="flex items-center gap-2">
                         <UserCircle2 className="h-4 w-4 text-neutral-400" />
                         <h3 className="font-medium text-neutral-900 dark:text-white">{t.details}</h3>
@@ -1135,7 +1149,14 @@ export default function WhatsAppInboxPage() {
                               )}
 
                               {customerData?.notes && (
-                                <div className="rounded-lg bg-neutral-50 px-3 py-2 text-xs text-neutral-600 dark:bg-[#0B1730]/88 dark:border dark:border-white/10 dark:text-neutral-300">
+                                <div
+                                  className={cn(
+                                    'rounded-lg border border-transparent bg-neutral-50 px-3 py-2 text-xs text-neutral-600 dark:border-white/10 dark:bg-[#081224]/95 dark:text-neutral-300',
+                                    dark
+                                      ? 'border-white/10 bg-[#081224]/95 text-neutral-300'
+                                      : ''
+                                  )}
+                                >
                                   {customerData.notes}
                                 </div>
                               )}
@@ -1162,7 +1183,14 @@ export default function WhatsAppInboxPage() {
 
                                     if (otherSessions.length === 0) {
                                       return (
-                                        <div className="rounded-xl border border-dashed border-neutral-200 px-3 py-3 text-xs text-neutral-500 dark:border-white/10 dark:text-neutral-400">
+                                        <div
+                                          className={cn(
+                                            'rounded-xl border border-dashed border-neutral-200 px-3 py-3 text-xs text-neutral-500 dark:border-white/10 dark:bg-[#081224]/60 dark:text-neutral-400',
+                                            dark
+                                              ? 'border-white/10 bg-[#081224]/60 text-neutral-400'
+                                              : ''
+                                          )}
+                                        >
                                           {t.noRecentSessions}
                                         </div>
                                       );
@@ -1174,10 +1202,10 @@ export default function WhatsAppInboxPage() {
                                         type="button"
                                         onClick={() => setSelectedChatId(chat.id)}
                                         className={cn(
-                                          'w-full rounded-xl border px-3 py-2 text-left transition',
+                                          'w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-left transition hover:border-neutral-300 dark:border-white/10 dark:bg-[#0B1730]/88 dark:hover:border-cyan-500/30 dark:hover:bg-[#102043]',
                                           dark
                                             ? 'border-white/10 bg-[#0B1730]/88 hover:border-cyan-500/30 hover:bg-[#102043]'
-                                            : 'border-neutral-200 bg-white hover:border-neutral-300'
+                                            : ''
                                         )}
                                       >
                                         <div className="flex items-center justify-between gap-2">
@@ -1198,7 +1226,14 @@ export default function WhatsAppInboxPage() {
                               </div>
                             </>
                           ) : (
-                            <div className="rounded-lg bg-neutral-50 px-3 py-2 text-xs text-neutral-600 dark:bg-[#0B1730]/88 dark:border dark:border-white/10 dark:text-neutral-300">
+                            <div
+                              className={cn(
+                                'rounded-lg border border-transparent bg-neutral-50 px-3 py-2 text-xs text-neutral-600 dark:border-white/10 dark:bg-[#081224]/95 dark:text-neutral-300',
+                                dark
+                                  ? 'border-white/10 bg-[#081224]/95 text-neutral-300'
+                                  : ''
+                              )}
+                            >
                               {formatSessionHandle(selectedChat.sessionId, 'chat')}
                             </div>
                           )}
