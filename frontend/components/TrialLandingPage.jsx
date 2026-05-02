@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useRef } from 'react';
-import { Mail, MessageCircle, PhoneCall } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Mail, MessageCircle, PhoneCall, X } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { createScrollDepthTracker, trackCtaClick, trackPageView } from '@/lib/marketingAnalytics';
 import ChatDemoSection from '@/components/ChatDemoSection';
@@ -416,6 +416,19 @@ export default function TrialLandingPage({ variant = 'offer' }) {
   const { locale, t } = useLanguage();
   const pageRef = useRef(null);
   const copy = useMemo(() => getTrialLandingCopy(locale, variant), [locale, variant]);
+  const [heroVideoOpen, setHeroVideoOpen] = useState(false);
+  const heroModalVideoRef = useRef(null);
+
+  useEffect(() => {
+    if (!heroVideoOpen) return;
+    const onKey = (e) => { if (e.key === 'Escape') setHeroVideoOpen(false); };
+    document.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+  }, [heroVideoOpen]);
 
   useEffect(() => {
     trackPageView({
@@ -571,29 +584,63 @@ export default function TrialLandingPage({ variant = 'offer' }) {
           <div className="glow glow-l" aria-hidden="true" />
           <div className="glow glow-r" aria-hidden="true" />
 
-          <ChatDemoSection
-            variant="hero"
-            cta={(
-              <button
-                type="button"
-                className="lp-btn"
-                onClick={() => {
-                  if (typeof window !== 'undefined') {
-                    window.dispatchEvent(new CustomEvent('telyx:open-chat'));
-                  }
-                  trackCtaClick({
-                    ctaName: 'trial_landing_test_assistant',
-                    ctaLocation: 'trial_landing_hero',
-                    destination: 'chat-widget',
-                    locale,
-                    landing_variant: variant,
-                  });
-                }}
-              >
-                {t('landing.chatDemoSection.testButton')}
-              </button>
-            )}
-          />
+          {variant === 'video' ? (
+            <section className="chat-demo chat-demo-hero trial-hero-video-section">
+              <div className="shell">
+                <button
+                  type="button"
+                  className="trial-hero-video-frame"
+                  onClick={() => {
+                    setHeroVideoOpen(true);
+                    trackCtaClick({
+                      ctaName: 'trial_landing_play_hero_video',
+                      ctaLocation: 'trial_landing_hero',
+                      destination: 'video-modal',
+                      locale,
+                      landing_variant: variant,
+                    });
+                  }}
+                  aria-label={t('landing.chatDemoSection.title')}
+                >
+                  <video
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    preload="metadata"
+                    poster="/telyx-hero-poster.jpg"
+                    className="trial-hero-video"
+                  >
+                    <source src="/telyx-hero.mp4" type="video/mp4" />
+                  </video>
+                </button>
+              </div>
+            </section>
+          ) : (
+            <ChatDemoSection
+              variant="hero"
+              cta={(
+                <button
+                  type="button"
+                  className="lp-btn"
+                  onClick={() => {
+                    if (typeof window !== 'undefined') {
+                      window.dispatchEvent(new CustomEvent('telyx:open-chat'));
+                    }
+                    trackCtaClick({
+                      ctaName: 'trial_landing_test_assistant',
+                      ctaLocation: 'trial_landing_hero',
+                      destination: 'chat-widget',
+                      locale,
+                      landing_variant: variant,
+                    });
+                  }}
+                >
+                  {t('landing.chatDemoSection.testButton')}
+                </button>
+              )}
+            />
+          )}
 
           <section className="channels" id="channels">
             <div className="shell">
@@ -696,6 +743,38 @@ export default function TrialLandingPage({ variant = 'offer' }) {
             </div>
           </section>
         </div>
+        {variant === 'video' && heroVideoOpen ? (
+          <div
+            className="trial-hero-video-modal"
+            role="dialog"
+            aria-modal="true"
+            onClick={() => setHeroVideoOpen(false)}
+          >
+            <button
+              type="button"
+              className="trial-hero-video-modal-close"
+              onClick={(e) => { e.stopPropagation(); setHeroVideoOpen(false); }}
+              aria-label="Close"
+            >
+              <X size={28} />
+            </button>
+            <div
+              className="trial-hero-video-modal-frame"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <video
+                ref={heroModalVideoRef}
+                autoPlay
+                controls
+                playsInline
+                className="trial-hero-video-modal-video"
+                onLoadedMetadata={(e) => { e.currentTarget.volume = 0.4; }}
+              >
+                <source src="/telyx-hero.mp4" type="video/mp4" />
+              </video>
+            </div>
+          </div>
+        ) : null}
     </div>
   );
 }

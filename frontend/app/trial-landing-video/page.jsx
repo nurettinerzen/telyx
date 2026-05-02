@@ -4,11 +4,11 @@ import Navigation from '@/components/Navigation';
 import { Footer } from '@/components/Footer';
 import TrialLandingPage from '@/components/TrialLandingPage';
 
-export default function TrialLandingRoute() {
+export default function TrialLandingVideoRoute() {
   return (
     <div className="min-h-screen">
       <Navigation />
-      <TrialLandingPage />
+      <TrialLandingPage variant="video" />
       <Footer />
     </div>
   );
