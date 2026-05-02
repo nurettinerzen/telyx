@@ -1,6 +1,7 @@
 import runtimeConfig from '@/lib/runtime-config';
 import { KB_MANIFEST } from '@/lib/kb/loader';
 import { MATRIX_SLUGS } from '@/lib/seo/matrix';
+import { BLOG_POSTS, BLOG_SLUGS } from '@/lib/blog/posts';
 
 const STATIC_ROUTES = [
   { path: '/', changeFrequency: 'weekly', priority: 1.0 },
@@ -36,14 +37,10 @@ const STATIC_ROUTES = [
   { path: '/security', changeFrequency: 'yearly', priority: 0.4 },
 ];
 
-const BLOG_POST_SLUGS = [
-  { slug: 'whatsapp-canli-destek-ai-handoff', date: '2026-04-08' },
-  { slug: 'tahsilat-hatirlatma-otomasyonu', date: '2026-04-04' },
-  { slug: 'cok-kanalli-destek-operasyonlari', date: '2026-03-27' },
-  { slug: 'ai-musteri-hizmetleri-gelecegi', date: '2026-03-15' },
-  { slug: 'whatsapp-business-api-rehberi', date: '2026-03-01' },
-  { slug: 'e-ticaret-chatbot-karsilastirma', date: '2026-02-15' },
-];
+const BLOG_POST_SLUGS = BLOG_SLUGS.map((slug) => ({
+  slug,
+  date: BLOG_POSTS[slug].date,
+}));
 
 export default function sitemap() {
   if (runtimeConfig.isBetaApp) {
