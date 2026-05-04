@@ -67,6 +67,31 @@ const USER_SUMMARY_TONES = {
   },
 };
 
+const ACTIVATION_SEGMENTS = ['NEW', 'STUCK', 'TRIED', 'ACTIVE', 'RISK'];
+
+const ACTIVATION_TONES = {
+  NEW: {
+    color: '#4F7CFF',
+    glow: 'rgba(79,124,255,0.18)',
+  },
+  STUCK: {
+    color: '#F59E0B',
+    glow: 'rgba(245,158,11,0.17)',
+  },
+  TRIED: {
+    color: '#8B5CF6',
+    glow: 'rgba(139,92,246,0.16)',
+  },
+  ACTIVE: {
+    color: '#22C55E',
+    glow: 'rgba(34,197,94,0.16)',
+  },
+  RISK: {
+    color: '#EF4444',
+    glow: 'rgba(239,68,68,0.16)',
+  },
+};
+
 const PLAN_TEXT_COLORS = {
   FREE: 'text-cyan-700 dark:text-cyan-300',
   TRIAL: 'text-cyan-700 dark:text-cyan-300',
@@ -91,6 +116,8 @@ export default function AdminUsersPage() {
   const [suspendedFilter, setSuspendedFilter] = useState(() => searchParams.get('suspended') || '');
   const [lifecycleFilter, setLifecycleFilter] = useState(() => searchParams.get('lifecycle') || 'ALL');
   const [emailVerificationFilter, setEmailVerificationFilter] = useState(() => searchParams.get('emailVerified') || 'ALL');
+  const [activationFilter, setActivationFilter] = useState(() => searchParams.get('activation') || 'ALL');
+  const [lastActivityFilter, setLastActivityFilter] = useState(() => searchParams.get('lastActivity') || 'ALL');
 
   // Modals
   const [suspendModal, setSuspendModal] = useState({ open: false, user: null, action: 'suspend' });
@@ -135,6 +162,30 @@ export default function AdminUsersPage() {
     summaryEmailAttention: isTr ? 'aksiyon bekliyor' : 'needs action',
     summaryRiskUsers: isTr ? 'takip gerektiren' : 'needs attention',
     summaryAllOwners: isTr ? 'Tüm işletme sahipleri' : 'All business owners',
+    activationLabels: {
+      NEW: isTr ? 'Yeni ama başlamadı' : 'New, not started',
+      STUCK: isTr ? 'Kurulumda takıldı' : 'Stuck in setup',
+      TRIED: isTr ? 'İlk denemeyi yaptı' : 'Tried once',
+      ACTIVE: isTr ? 'Aktif kullanıyor' : 'Actively using',
+      RISK: isTr ? 'Riskli / sessiz' : 'At risk / quiet',
+    },
+    activationHints: {
+      NEW: isTr ? 'Kayıt var, ürün aksiyonu yok' : 'Signed up, no product action',
+      STUCK: isTr ? 'Kurulum sinyali var, kullanım yok' : 'Setup signal, no usage yet',
+      TRIED: isTr ? 'En az bir kanalı denedi' : 'Tried at least one channel',
+      ACTIVE: isTr ? 'Son 48 saatte kullanım var' : 'Usage in the last 48 hours',
+      RISK: isTr ? '72 saattir ürün sessiz' : 'No product signal for 72 hours',
+    },
+    lastActivityFilter: isTr ? 'Son Ürün Aktivitesi' : 'Last Product Activity',
+    lastActivityOptions: {
+      TODAY: isTr ? 'Bugün' : 'Today',
+      LAST_3D: isTr ? 'Son 3 gün' : 'Last 3 days',
+      LAST_7D: isTr ? 'Son 7 gün' : 'Last 7 days',
+      NO_ACTIVITY: isTr ? 'Ürün aktivitesi yok' : 'No product activity',
+    },
+    lastActivityColumn: isTr ? 'Son Aktivite' : 'Last Activity',
+    noProductActivity: isTr ? 'Ürün aktivitesi yok' : 'No product activity',
+    activationScore: isTr ? 'kullanım skoru' : 'usage score',
     planLabels: {
       ENTERPRISE: isTr ? 'Kurumsal' : 'Enterprise',
       PRO: 'Pro',
@@ -153,7 +204,11 @@ export default function AdminUsersPage() {
     deleteFailed: isTr ? 'Kullanıcı silinemedi' : 'Failed to delete user',
     joinedAt: isTr ? 'Üyelik' : 'Joined',
     periodEnd: isTr ? 'Dönem Sonu' : 'Period End',
-    assistantCallSummary: (assistants, calls) => isTr ? `${assistants} asistan, ${calls} arama` : `${assistants} assistants, ${calls} calls`,
+    usageSummary: (assistants, calls, chats, emails) => (
+      isTr
+        ? `${assistants} asistan, ${calls} arama, ${chats} sohbet, ${emails} e-posta`
+        : `${assistants} assistants, ${calls} calls, ${chats} chats, ${emails} emails`
+    ),
     detail: isTr ? 'Detay' : 'Details',
     activate: isTr ? 'Aktif Et' : 'Activate',
     suspend: isTr ? 'Dondur' : 'Suspend',
@@ -197,6 +252,8 @@ export default function AdminUsersPage() {
       if (suspendedFilter) params.suspended = suspendedFilter;
       if (lifecycleFilter && lifecycleFilter !== 'ALL') params.lifecycle = lifecycleFilter;
       if (emailVerificationFilter && emailVerificationFilter !== 'ALL') params.emailVerified = emailVerificationFilter;
+      if (activationFilter && activationFilter !== 'ALL') params.activation = activationFilter;
+      if (lastActivityFilter && lastActivityFilter !== 'ALL') params.lastActivity = lastActivityFilter;
 
       const response = await apiClient.admin.getUsers(params);
       setUsers(response.data.users);
@@ -210,7 +267,17 @@ export default function AdminUsersPage() {
     } finally {
       setLoading(false);
     }
-  }, [copy.loadFailed, emailVerificationFilter, lifecycleFilter, pagination.limit, pagination.page, search, suspendedFilter]);
+  }, [
+    activationFilter,
+    copy.loadFailed,
+    emailVerificationFilter,
+    lastActivityFilter,
+    lifecycleFilter,
+    pagination.limit,
+    pagination.page,
+    search,
+    suspendedFilter,
+  ]);
 
   useEffect(() => {
     loadUsers();
@@ -229,14 +296,14 @@ export default function AdminUsersPage() {
     setPagination(prev => ({ ...prev, page: 1 }));
   };
 
-  const formatDate = (date) => {
+  const formatDate = useCallback((date) => {
     if (!date) return '-';
     return new Date(date).toLocaleDateString(isTr ? 'tr-TR' : 'en-US', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
     });
-  };
+  }, [isTr]);
 
   const handleSuspendAction = async () => {
     if (!suspendModal.user) return;
@@ -279,6 +346,24 @@ export default function AdminUsersPage() {
     return new Intl.NumberFormat(isTr ? 'tr-TR' : 'en-US').format(value || 0);
   }, [isTr]);
 
+  const formatRelativeActivity = useCallback((date) => {
+    if (!date) return copy.noProductActivity;
+
+    const parsedDate = new Date(date);
+    if (Number.isNaN(parsedDate.getTime())) return copy.noProductActivity;
+
+    const diffMinutes = Math.max(0, Math.round((Date.now() - parsedDate.getTime()) / (1000 * 60)));
+    if (diffMinutes < 60) return isTr ? `${diffMinutes || 1} dk önce` : `${diffMinutes || 1}m ago`;
+
+    const diffHours = Math.round(diffMinutes / 60);
+    if (diffHours < 24) return isTr ? `${diffHours} saat önce` : `${diffHours}h ago`;
+
+    const diffDays = Math.round(diffHours / 24);
+    if (diffDays <= 7) return isTr ? `${diffDays} gün önce` : `${diffDays}d ago`;
+
+    return formatDate(date);
+  }, [copy.noProductActivity, formatDate, isTr]);
+
   const userSummary = useMemo(() => {
     const sourceUsers = summaryData.users.length > 0 ? summaryData.users : users;
     const total = summaryData.total || pagination.total || sourceUsers.length;
@@ -294,6 +379,11 @@ export default function AdminUsersPage() {
       if (user.subscriptionLifecycle === 'PAID_LAPSED') acc.paidLapsed += 1;
       if (user.subscriptionLifecycle === 'CANCEL_SCHEDULED') acc.cancelScheduled += 1;
 
+      const activationSegment = user.activation?.segment;
+      if (activationSegment && acc.activation[activationSegment] !== undefined) {
+        acc.activation[activationSegment] += 1;
+      }
+
       return acc;
     }, {
       active: 0,
@@ -303,12 +393,20 @@ export default function AdminUsersPage() {
       trialExpired: 0,
       paidLapsed: 0,
       cancelScheduled: 0,
+      activation: {
+        NEW: 0,
+        STUCK: 0,
+        TRIED: 0,
+        ACTIVE: 0,
+        RISK: 0,
+      },
     });
 
     return {
       ...counts,
       total,
       riskTotal: counts.trialExpired + counts.paidLapsed + counts.cancelScheduled,
+      activationTotal: Object.values(counts.activation).reduce((sum, value) => sum + value, 0),
     };
   }, [pagination.total, summaryData.total, summaryData.users, users]);
 
@@ -380,8 +478,30 @@ export default function AdminUsersPage() {
     userSummary.trialExpired,
   ]);
 
+  const activationCards = useMemo(() => (
+    ACTIVATION_SEGMENTS.map((key) => {
+      const value = userSummary.activation?.[key] || 0;
+
+      return {
+        key,
+        title: copy.activationLabels[key],
+        value,
+        hint: copy.activationHints[key],
+        percentage: percentageOfTotal(value),
+        tone: ACTIVATION_TONES[key],
+      };
+    })
+  ), [
+    copy.activationHints,
+    copy.activationLabels,
+    percentageOfTotal,
+    userSummary.activation,
+  ]);
+
   const applyUserSummaryFilter = useCallback((key) => {
     setPagination(prev => ({ ...prev, page: 1 }));
+    setActivationFilter('ALL');
+    setLastActivityFilter('ALL');
 
     if (key === 'email') {
       setEmailVerificationFilter('false');
@@ -403,10 +523,24 @@ export default function AdminUsersPage() {
   }, []);
 
   const isUserSummaryActive = useCallback((key) => {
-    if (key === 'email') return emailVerificationFilter === 'false';
-    if (key === 'lifecycle') return lifecycleFilter !== 'ALL';
-    return emailVerificationFilter === 'ALL' && lifecycleFilter === 'ALL' && !suspendedFilter;
-  }, [emailVerificationFilter, lifecycleFilter, suspendedFilter]);
+    if (key === 'email') return emailVerificationFilter === 'false' && activationFilter === 'ALL' && lastActivityFilter === 'ALL';
+    if (key === 'lifecycle') return lifecycleFilter !== 'ALL' && activationFilter === 'ALL' && lastActivityFilter === 'ALL';
+    return emailVerificationFilter === 'ALL'
+      && lifecycleFilter === 'ALL'
+      && !suspendedFilter
+      && activationFilter === 'ALL'
+      && lastActivityFilter === 'ALL';
+  }, [activationFilter, emailVerificationFilter, lastActivityFilter, lifecycleFilter, suspendedFilter]);
+
+  const applyActivationFilter = useCallback((key) => {
+    setPagination(prev => ({ ...prev, page: 1 }));
+    setActivationFilter(prev => (prev === key ? 'ALL' : key));
+  }, []);
+
+  const setFilterAndResetPage = useCallback((setter) => (value) => {
+    setPagination(prev => ({ ...prev, page: 1 }));
+    setter(value);
+  }, []);
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -482,6 +616,61 @@ export default function AdminUsersPage() {
         })}
       </div>
 
+      {/* Activation Radar */}
+      <div className="grid grid-cols-1 gap-3 mb-6 md:grid-cols-2 xl:grid-cols-5">
+        {activationCards.map((card) => {
+          const value = summaryLoading && summaryData.users.length === 0 ? '...' : formatCount(card.value);
+          const active = activationFilter === card.key;
+
+          return (
+            <button
+              type="button"
+              key={card.key}
+              onClick={() => applyActivationFilter(card.key)}
+              aria-pressed={active}
+              className={`min-h-[132px] rounded-lg border p-4 text-left transition hover:-translate-y-0.5 ${
+                active
+                  ? 'border-white/30 ring-1 ring-white/20'
+                  : 'border-gray-200 dark:border-white/10'
+              }`}
+              style={{
+                background: `linear-gradient(145deg, rgba(7,14,30,0.96) 10%, ${card.tone.glow} 100%)`,
+              }}
+            >
+              <div className="flex h-full flex-col justify-between gap-4">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-sm font-semibold text-white">{card.title}</p>
+                  <span
+                    className="rounded-full px-2 py-1 text-[11px] font-medium"
+                    style={{
+                      background: `${card.tone.color}18`,
+                      color: card.tone.color,
+                    }}
+                  >
+                    %{card.percentage}
+                  </span>
+                </div>
+
+                <div>
+                  <div className="text-[28px] font-semibold tracking-tight text-white">{value}</div>
+                  <p className="mt-1 min-h-8 text-xs leading-4 text-slate-400">{card.hint}</p>
+                </div>
+
+                <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{
+                      width: `${card.percentage}%`,
+                      background: card.tone.color,
+                    }}
+                  />
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Filters */}
       <div className="flex flex-wrap gap-4 mb-6">
         <form onSubmit={handleSearch} className="flex gap-2">
@@ -497,7 +686,7 @@ export default function AdminUsersPage() {
           <Button type="submit" variant="outline">{copy.search}</Button>
         </form>
 
-        <Select value={suspendedFilter || 'ALL'} onValueChange={(v) => setSuspendedFilter(v === 'ALL' ? '' : v)}>
+        <Select value={suspendedFilter || 'ALL'} onValueChange={(v) => setFilterAndResetPage(setSuspendedFilter)(v === 'ALL' ? '' : v)}>
           <SelectTrigger className="w-40">
             <SelectValue placeholder={copy.status} />
           </SelectTrigger>
@@ -508,7 +697,7 @@ export default function AdminUsersPage() {
           </SelectContent>
         </Select>
 
-        <Select value={emailVerificationFilter} onValueChange={setEmailVerificationFilter}>
+        <Select value={emailVerificationFilter} onValueChange={setFilterAndResetPage(setEmailVerificationFilter)}>
           <SelectTrigger className="w-48">
             <SelectValue placeholder={copy.emailStatus} />
           </SelectTrigger>
@@ -519,7 +708,7 @@ export default function AdminUsersPage() {
           </SelectContent>
         </Select>
 
-        <Select value={lifecycleFilter} onValueChange={setLifecycleFilter}>
+        <Select value={lifecycleFilter} onValueChange={setFilterAndResetPage(setLifecycleFilter)}>
           <SelectTrigger className="w-52">
             <SelectValue placeholder={copy.lifecyclePlaceholder} />
           </SelectTrigger>
@@ -528,6 +717,19 @@ export default function AdminUsersPage() {
             <SelectItem value="TRIAL_EXPIRED">{copy.lifecycleOptions.TRIAL_EXPIRED}</SelectItem>
             <SelectItem value="PAID_LAPSED">{copy.lifecycleOptions.PAID_LAPSED}</SelectItem>
             <SelectItem value="CANCEL_SCHEDULED">{copy.lifecycleOptions.CANCEL_SCHEDULED}</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={lastActivityFilter} onValueChange={setFilterAndResetPage(setLastActivityFilter)}>
+          <SelectTrigger className="w-52">
+            <SelectValue placeholder={copy.lastActivityFilter} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">{copy.all}</SelectItem>
+            <SelectItem value="TODAY">{copy.lastActivityOptions.TODAY}</SelectItem>
+            <SelectItem value="LAST_3D">{copy.lastActivityOptions.LAST_3D}</SelectItem>
+            <SelectItem value="LAST_7D">{copy.lastActivityOptions.LAST_7D}</SelectItem>
+            <SelectItem value="NO_ACTIVITY">{copy.lastActivityOptions.NO_ACTIVITY}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -544,125 +746,156 @@ export default function AdminUsersPage() {
             <p className="text-gray-500">{copy.noUsers}</p>
           </div>
         ) : (
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#0B1730]/88">
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.userColumn}</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.businessColumn}</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.emailVerificationColumn}</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.planColumn}</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.usageColumn}</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.status}</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.actionColumn}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-white/10">
-              {users.map((user) => (
-                <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-white/[0.03]">
-                  <td className="px-4 py-3">
-                    <div>
-                      <p className="font-medium text-gray-900 dark:text-white">{user.name || '-'}</p>
-                      <p className="text-sm text-gray-500">{user.email}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        {copy.joinedAt}: {formatDate(user.createdAt)}
-                      </p>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <Building2 className="w-4 h-4 text-gray-400" />
-                      <span className="text-gray-700 dark:text-gray-300">{user.businessName || '-'}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`text-sm font-medium ${
-                      user.emailVerified
-                        ? 'text-green-700 dark:text-green-400'
-                        : 'text-amber-700 dark:text-amber-300'
-                    }`}>
-                      {user.emailVerified ? copy.emailVerified : copy.emailUnverified}
-                    </span>
-                    {user.emailVerifiedAt && (
-                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                        {formatDate(user.emailVerifiedAt)}
-                      </p>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="space-y-1">
-                      <span className={`text-sm font-medium ${PLAN_TEXT_COLORS[normalizePlan(user.plan)] || PLAN_TEXT_COLORS.FREE}`}>
-                        {getPlanDisplayName(normalizePlan(user.plan), locale)}
-                      </span>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {copy.lifecycleLabels[user.subscriptionLifecycle] || user.subscriptionStatus || '-'}
-                      </p>
-                      {user.currentPeriodEnd && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {copy.periodEnd}: {formatDate(user.currentPeriodEnd)}
-                        </p>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="text-sm">
-                      <p className="text-gray-700 dark:text-gray-300">{user.minutesUsed || 0} dk</p>
-                      <p className="text-gray-500">{copy.assistantCallSummary(user.assistantsCount, user.callsCount)}</p>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    {user.suspended ? (
-                      <span className="text-sm font-medium text-red-700 dark:text-red-400">{copy.suspended}</span>
-                    ) : (
-                      <span className="text-sm font-medium text-green-700 dark:text-green-400">{copy.active}</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem asChild>
-                          <Link href={`/dashboard/admin/users/${user.id}`}>
-                            <Eye className="w-4 h-4 mr-2" />
-                            {copy.detail}
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => setSuspendModal({
-                            open: true,
-                            user,
-                            action: user.suspended ? 'activate' : 'suspend'
-                          })}
-                        >
-                          {user.suspended ? (
-                            <>
-                              <CheckCircle className="w-4 h-4 mr-2" />
-                              {copy.activate}
-                            </>
-                          ) : (
-                            <>
-                              <Ban className="w-4 h-4 mr-2" />
-                              {copy.suspend}
-                            </>
-                          )}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleDeleteUser(user)}
-                          className="text-red-600"
-                        >
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          {copy.delete}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1120px]">
+              <thead>
+                <tr className="border-b border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#0B1730]/88">
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.userColumn}</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.businessColumn}</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.emailVerificationColumn}</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.planColumn}</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.usageColumn}</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.lastActivityColumn}</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.status}</th>
+                  <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.actionColumn}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-white/10">
+                {users.map((user) => {
+                  const activationSegment = user.activation?.segment || 'NEW';
+                  const activationTone = ACTIVATION_TONES[activationSegment] || ACTIVATION_TONES.NEW;
+
+                  return (
+                    <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-white/[0.03]">
+                      <td className="px-4 py-3">
+                        <div>
+                          <p className="font-medium text-gray-900 dark:text-white">{user.name || '-'}</p>
+                          <p className="text-sm text-gray-500">{user.email}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            {copy.joinedAt}: {formatDate(user.createdAt)}
+                          </p>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <Building2 className="w-4 h-4 text-gray-400" />
+                          <span className="text-gray-700 dark:text-gray-300">{user.businessName || '-'}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`text-sm font-medium ${
+                          user.emailVerified
+                            ? 'text-green-700 dark:text-green-400'
+                            : 'text-amber-700 dark:text-amber-300'
+                        }`}>
+                          {user.emailVerified ? copy.emailVerified : copy.emailUnverified}
+                        </span>
+                        {user.emailVerifiedAt && (
+                          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            {formatDate(user.emailVerifiedAt)}
+                          </p>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="space-y-1">
+                          <span className={`text-sm font-medium ${PLAN_TEXT_COLORS[normalizePlan(user.plan)] || PLAN_TEXT_COLORS.FREE}`}>
+                            {getPlanDisplayName(normalizePlan(user.plan), locale)}
+                          </span>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {copy.lifecycleLabels[user.subscriptionLifecycle] || user.subscriptionStatus || '-'}
+                          </p>
+                          {user.currentPeriodEnd && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              {copy.periodEnd}: {formatDate(user.currentPeriodEnd)}
+                            </p>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="text-sm">
+                          <p className="text-gray-700 dark:text-gray-300">{user.minutesUsed || 0} dk</p>
+                          <p className="text-gray-500">
+                            {copy.usageSummary(
+                              user.assistantsCount || 0,
+                              user.callsCount || 0,
+                              user.chatSessionsCount || 0,
+                              user.emailDraftsCount || 0,
+                            )}
+                          </p>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="space-y-1">
+                          <p className="text-sm text-gray-700 dark:text-gray-300">
+                            {formatRelativeActivity(user.activation?.productActivityAt)}
+                          </p>
+                          <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                            <span
+                              className="h-2 w-2 rounded-full"
+                              style={{ background: activationTone.color }}
+                            />
+                            <span>
+                              {copy.activationLabels[activationSegment] || '-'} · %{user.activation?.score || 0} {copy.activationScore}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        {user.suspended ? (
+                          <span className="text-sm font-medium text-red-700 dark:text-red-400">{copy.suspended}</span>
+                        ) : (
+                          <span className="text-sm font-medium text-green-700 dark:text-green-400">{copy.active}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreHorizontal className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem asChild>
+                              <Link href={`/dashboard/admin/users/${user.id}`}>
+                                <Eye className="w-4 h-4 mr-2" />
+                                {copy.detail}
+                              </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => setSuspendModal({
+                                open: true,
+                                user,
+                                action: user.suspended ? 'activate' : 'suspend'
+                              })}
+                            >
+                              {user.suspended ? (
+                                <>
+                                  <CheckCircle className="w-4 h-4 mr-2" />
+                                  {copy.activate}
+                                </>
+                              ) : (
+                                <>
+                                  <Ban className="w-4 h-4 mr-2" />
+                                  {copy.suspend}
+                                </>
+                              )}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleDeleteUser(user)}
+                              className="text-red-600"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              {copy.delete}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
 
         {/* Pagination */}
