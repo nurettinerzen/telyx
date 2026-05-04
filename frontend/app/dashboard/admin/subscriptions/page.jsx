@@ -23,7 +23,6 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -47,17 +46,26 @@ import {
 } from '@/components/ui/dialog';
 import { apiClient } from '@/lib/api';
 import { toast } from 'sonner';
-import { getPlanDisplayName, normalizePlan, PLAN_COLORS } from '@/lib/planConfig';
+import { getPlanDisplayName, normalizePlan } from '@/lib/planConfig';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 
-const STATUS_COLORS = {
-  active: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-  trialing: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  past_due: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-  canceled: 'bg-gray-100 text-gray-700 dark:bg-white/8 dark:text-gray-400',
-  unpaid: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
-  pending_payment: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+const STATUS_TEXT_COLORS = {
+  active: 'text-green-700 dark:text-green-400',
+  trialing: 'text-blue-700 dark:text-blue-400',
+  past_due: 'text-red-700 dark:text-red-400',
+  canceled: 'text-gray-700 dark:text-gray-400',
+  unpaid: 'text-yellow-700 dark:text-yellow-400',
+  pending_payment: 'text-orange-700 dark:text-orange-400',
+};
+
+const PLAN_TEXT_COLORS = {
+  FREE: 'text-cyan-700 dark:text-cyan-300',
+  TRIAL: 'text-cyan-700 dark:text-cyan-300',
+  PAYG: 'text-violet-700 dark:text-violet-300',
+  STARTER: 'text-blue-700 dark:text-blue-300',
+  PRO: 'text-green-700 dark:text-green-300',
+  ENTERPRISE: 'text-amber-700 dark:text-amber-300',
 };
 
 const PLAN_SUMMARY_CARDS = [
@@ -162,7 +170,6 @@ export default function AdminSubscriptionsPage() {
     return initialStatus ? normalizeStatus(initialStatus) : 'ALL';
   });
   const [lifecycleFilter, setLifecycleFilter] = useState(() => searchParams.get('lifecycle') || 'ALL');
-  const [emailVerificationFilter, setEmailVerificationFilter] = useState(() => searchParams.get('emailVerified') || 'ALL');
 
   // Edit modal
   const [editModal, setEditModal] = useState({ open: false, subscription: null });
@@ -189,18 +196,13 @@ export default function AdminSubscriptionsPage() {
     accountColumn: isTr ? 'İşletme' : 'Business',
     lifecyclePlaceholder: isTr ? 'Yaşam Döngüsü' : 'Lifecycle',
     allLifecycles: isTr ? 'Tüm Yaşam Döngüleri' : 'All Lifecycles',
-    allEmailStatuses: isTr ? 'Tüm E-posta Durumları' : 'All Email Statuses',
-    summaryUserLabel: isTr ? 'kullanıcı' : 'users',
     summaryTotalLabel: isTr ? 'Toplam Kullanıcı' : 'Total Users',
-    summaryTotalSubLabel: isTr ? 'Tüm planlar' : 'All plans',
     summaryTrialFreeLabel: isTr ? 'Ücretsiz Deneme' : 'Free Trial',
-    summaryTrialFreeSubLabel: isTr ? 'Free + Trial' : 'Free + Trial',
     lifecycleExpired: isTr ? 'Denemesi Biten' : 'Expired Trial',
     lifecycleLapsed: isTr ? 'Yenilenmeyen Paket' : 'Unrenewed Plan',
     lifecycleCancel: isTr ? 'İptal Planlı' : 'Cancellation Scheduled',
     minutesUsed: isTr ? 'dakika kullanıldı' : 'minutes used',
     ownerFallback: isTr ? 'Sahip bilgisi yok' : 'No owner info',
-    emailStatus: isTr ? 'E-posta Durumu' : 'Email Status',
     emailVerified: isTr ? 'E-posta doğrulandı' : 'Email verified',
     emailUnverified: isTr ? 'E-posta doğrulanmadı' : 'Email unverified',
     verifiedAt: isTr ? 'Doğrulandı' : 'Verified',
@@ -235,7 +237,6 @@ export default function AdminSubscriptionsPage() {
       if (planFilter && planFilter !== 'ALL') params.plan = planFilter;
       if (statusFilter && statusFilter !== 'ALL') params.status = statusFilter;
       if (lifecycleFilter && lifecycleFilter !== 'ALL') params.lifecycle = lifecycleFilter;
-      if (emailVerificationFilter && emailVerificationFilter !== 'ALL') params.emailVerified = emailVerificationFilter;
 
       const response = await apiClient.admin.getSubscriptions(params);
       setSubscriptions(response.data.subscriptions);
@@ -249,7 +250,7 @@ export default function AdminSubscriptionsPage() {
     } finally {
       setLoading(false);
     }
-  }, [emailVerificationFilter, lifecycleFilter, pagination.page, pagination.limit, planFilter, search, statusFilter, t]);
+  }, [lifecycleFilter, pagination.page, pagination.limit, planFilter, search, statusFilter, t]);
 
   useEffect(() => {
     loadSubscriptions();
@@ -340,7 +341,6 @@ export default function AdminSubscriptionsPage() {
       ...card,
       value: counts[card.key] || 0,
       label: card.key === 'TRIAL_FREE' ? copy.summaryTrialFreeLabel : getPlanLabel(card.key),
-      subLabel: card.key === 'TRIAL_FREE' ? copy.summaryTrialFreeSubLabel : copy.summaryUserLabel,
       percentage: total > 0 ? Math.round(((counts[card.key] || 0) / total) * 100) : 0,
     }));
 
@@ -350,7 +350,6 @@ export default function AdminSubscriptionsPage() {
         key: 'TOTAL',
         value: total,
         label: copy.summaryTotalLabel,
-        subLabel: copy.summaryTotalSubLabel,
         percentage: 100,
         colors: {
           color: '#4F7CFF',
@@ -363,16 +362,30 @@ export default function AdminSubscriptionsPage() {
     ];
   }, [
     copy.summaryTotalLabel,
-    copy.summaryTotalSubLabel,
     copy.summaryTrialFreeLabel,
-    copy.summaryTrialFreeSubLabel,
-    copy.summaryUserLabel,
     getPlanLabel,
     pagination.total,
     subscriptions,
     summaryData.subscriptions,
     summaryData.total,
   ]);
+
+  const applyPlanSummaryFilter = useCallback((card) => {
+    const nextPlan = card.isTotal
+      ? 'ALL'
+      : card.key === 'TRIAL_FREE'
+        ? 'TRIAL'
+        : card.key;
+
+    setPlanFilter(nextPlan);
+    setPagination(prev => ({ ...prev, page: 1 }));
+  }, []);
+
+  const isPlanSummaryActive = useCallback((card) => {
+    if (card.isTotal) return planFilter === 'ALL';
+    if (card.key === 'TRIAL_FREE') return planFilter === 'TRIAL' || planFilter === 'FREE';
+    return planFilter === card.key;
+  }, [planFilter]);
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -387,14 +400,20 @@ export default function AdminSubscriptionsPage() {
       </div>
 
       {/* Plan Summary */}
-      <div className="grid grid-cols-1 gap-4 mb-6 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3 mb-6">
         {planSummaryCards.map((card) => {
           const value = summaryLoading && summaryData.subscriptions.length === 0 ? '...' : formatCount(card.value);
+          const active = isPlanSummaryActive(card);
 
           return (
-            <div
+            <button
+              type="button"
               key={card.key}
-              className={`relative min-h-[142px] overflow-hidden rounded-[28px] border p-5 ${
+              onClick={() => applyPlanSummaryFilter(card)}
+              aria-pressed={active}
+              className={`relative min-h-[86px] overflow-hidden rounded-lg border p-3.5 text-left transition hover:-translate-y-0.5 ${
+                active ? 'ring-1 ring-white/20' : ''
+              } ${
                 card.isTotal
                   ? 'border-blue-400/30 text-white shadow-[0_24px_70px_rgba(2,6,23,0.45)]'
                   : 'border-gray-200 text-gray-900 dark:border-white/10 dark:text-white'
@@ -421,15 +440,12 @@ export default function AdminSubscriptionsPage() {
                   <div className="text-[30px] font-semibold tracking-tight text-white">
                     {value}
                   </div>
-                  <div className="mt-1 text-sm font-medium text-slate-300">
+                  <div className="mt-2 text-sm font-medium text-slate-300">
                     {card.label}
-                  </div>
-                  <div className="mt-1 text-xs text-slate-500">
-                    {card.subLabel}
                   </div>
                 </div>
               </div>
-            </div>
+            </button>
           );
         })}
       </div>
@@ -448,21 +464,6 @@ export default function AdminSubscriptionsPage() {
           </div>
           <Button type="submit" variant="outline">{t('dashboard.adminSubscriptionsPage.search')}</Button>
         </form>
-
-        <Select value={planFilter} onValueChange={setPlanFilter}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder={t('dashboard.adminSubscriptionsPage.filterPlan')} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">{t('dashboard.adminSubscriptionsPage.allPlans')}</SelectItem>
-            <SelectItem value="ENTERPRISE">{copy.planLabels.ENTERPRISE}</SelectItem>
-            <SelectItem value="PRO">{copy.planLabels.PRO}</SelectItem>
-            <SelectItem value="STARTER">{copy.planLabels.STARTER}</SelectItem>
-            <SelectItem value="PAYG">{copy.planLabels.PAYG}</SelectItem>
-            <SelectItem value="TRIAL">{copy.planLabels.TRIAL}</SelectItem>
-            <SelectItem value="FREE">{copy.planLabels.FREE}</SelectItem>
-          </SelectContent>
-        </Select>
 
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-40">
@@ -490,16 +491,6 @@ export default function AdminSubscriptionsPage() {
           </SelectContent>
         </Select>
 
-        <Select value={emailVerificationFilter} onValueChange={setEmailVerificationFilter}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder={copy.emailStatus} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">{copy.allEmailStatuses}</SelectItem>
-            <SelectItem value="true">{copy.emailVerified}</SelectItem>
-            <SelectItem value="false">{copy.emailUnverified}</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
       {/* Subscriptions Table */}
@@ -539,32 +530,13 @@ export default function AdminSubscriptionsPage() {
                         <p className="text-sm text-gray-500">
                           {sub.ownerEmail || sub.ownerName || copy.ownerFallback}
                         </p>
-                        {sub.ownerEmail && (
-                          <div className="mt-1 flex flex-wrap items-center gap-2">
-                            <Badge
-                              variant="outline"
-                              className={`text-xs ${
-                                sub.ownerEmailVerified
-                                  ? 'border-green-600 text-green-700 dark:border-green-500 dark:text-green-400'
-                                  : 'border-amber-500 text-amber-700 dark:border-amber-400 dark:text-amber-300'
-                              }`}
-                            >
-                              {sub.ownerEmailVerified ? copy.emailVerified : copy.emailUnverified}
-                            </Badge>
-                            {sub.ownerEmailVerifiedAt && (
-                              <span className="text-xs text-gray-500">
-                                {copy.verifiedAt}: {formatDate(sub.ownerEmailVerifiedAt)}
-                              </span>
-                            )}
-                          </div>
-                        )}
                       </div>
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <Badge className={PLAN_COLORS[normalizePlan(sub.plan)] || PLAN_COLORS.FREE}>
+                    <span className={`text-sm font-medium ${PLAN_TEXT_COLORS[normalizePlan(sub.plan)] || PLAN_TEXT_COLORS.FREE}`}>
                       {getPlanLabel(sub.plan)}
-                    </Badge>
+                    </span>
                     {sub.subscriptionLifecycle && (
                       <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                         {lifecycleLabels[sub.subscriptionLifecycle] || sub.subscriptionLifecycle}
@@ -574,16 +546,16 @@ export default function AdminSubscriptionsPage() {
                   <td className="px-4 py-3">
                     {sub.accountSuspended ? (
                       <>
-                        <Badge variant="destructive">{copy.suspended}</Badge>
+                        <span className="text-sm font-medium text-red-700 dark:text-red-400">{copy.suspended}</span>
                         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                           {copy.subscriptionPrefix}: {getStatusLabel(sub.status)}
                         </p>
                       </>
                     ) : (
                       <>
-                        <Badge className={STATUS_COLORS[normalizeStatus(sub.status)] || STATUS_COLORS.active}>
+                        <span className={`text-sm font-medium ${STATUS_TEXT_COLORS[normalizeStatus(sub.status)] || STATUS_TEXT_COLORS.active}`}>
                           {getStatusLabel(sub.status)}
-                        </Badge>
+                        </span>
                         {normalizeStatus(sub.status) === 'past_due' && (
                           <AlertTriangle className="inline-block w-4 h-4 ml-2 text-red-500" />
                         )}
