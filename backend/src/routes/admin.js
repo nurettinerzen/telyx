@@ -35,6 +35,13 @@ import { buildAdminBusinessContact } from '../utils/adminBusinessContact.js';
 
 const router = express.Router();
 const PAID_RENEWAL_PLANS = ['STARTER', 'PRO', 'ENTERPRISE', 'BASIC'];
+const USER_ACTIVATION_SEGMENTS = Object.freeze({
+  NEW: 'NEW',
+  STUCK: 'STUCK',
+  TRIED: 'TRIED',
+  ACTIVE: 'ACTIVE',
+  RISK: 'RISK',
+});
 const CANCELLATION_REASON_LABELS = Object.freeze({
   UNSPECIFIED: 'Belirtilmedi',
   LOW_USAGE: 'Çok kullanmıyor',
@@ -53,6 +60,113 @@ function buildTrialExpiredSubscriptionWhere(now = new Date()) {
       { trialMinutesUsed: { gte: 15 } },
       { trialChatExpiry: { lte: now } },
     ],
+  };
+}
+
+function asDate(value) {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function latestDate(...values) {
+  return values
+    .flat()
+    .map(asDate)
+    .filter(Boolean)
+    .sort((a, b) => b.getTime() - a.getTime())[0] || null;
+}
+
+function hoursSince(date, now = new Date()) {
+  const parsed = asDate(date);
+  if (!parsed) return null;
+  return Math.max(0, (now.getTime() - parsed.getTime()) / (1000 * 60 * 60));
+}
+
+function matchesLastActivityFilter(lastActivityAt, filter, now = new Date()) {
+  if (!filter || filter === 'ALL') return true;
+  const hours = hoursSince(lastActivityAt, now);
+
+  if (filter === 'NO_ACTIVITY') return hours === null;
+  if (hours === null) return false;
+  if (filter === 'TODAY') return hours <= 24;
+  if (filter === 'LAST_3D') return hours <= 72;
+  if (filter === 'LAST_7D') return hours <= 168;
+
+  return true;
+}
+
+function buildActivationInsight(user, now = new Date()) {
+  const business = user.business || {};
+  const subscription = business.subscription || {};
+  const counts = business._count || {};
+  const assistantsCount = counts.assistants || 0;
+  const callsCount = counts.callLogs || 0;
+  const chatSessionsCount = counts.chatLogs || 0;
+  const emailDraftsCount = counts.emailDrafts || 0;
+  const interactionCount = callsCount + chatSessionsCount + emailDraftsCount;
+
+  const assistantActivityAt = latestDate((business.assistants || []).map((assistant) => assistant.createdAt));
+  const callActivityAt = latestDate((business.callLogs || []).map((call) => call.createdAt));
+  const chatActivityAt = latestDate((business.chatLogs || []).map((chat) => chat.updatedAt || chat.createdAt));
+  const emailActivityAt = latestDate((business.emailDrafts || []).map((draft) => draft.updatedAt || draft.createdAt));
+  const onboardingActivityAt = latestDate(user.emailVerifiedAt, business.onboardingCompletedAt);
+  const productActivityAt = latestDate(
+    assistantActivityAt,
+    callActivityAt,
+    chatActivityAt,
+    emailActivityAt,
+    business.chatWidgetEnabled ? business.updatedAt : null,
+    business.chatAssistantId ? business.updatedAt : null,
+  );
+  const lastActivityAt = latestDate(productActivityAt, onboardingActivityAt, user.updatedAt, user.createdAt);
+  const recentProductHours = hoursSince(productActivityAt, now);
+  const hasRecentProductActivity = recentProductHours !== null && recentProductHours <= 48;
+  const hasStaleProductActivity = recentProductHours !== null && recentProductHours > 72;
+  const hasSetupSignal = assistantsCount > 0 || business.chatWidgetEnabled || Boolean(business.chatAssistantId);
+  const usedChannels = [
+    callsCount > 0,
+    chatSessionsCount > 0,
+    emailDraftsCount > 0,
+  ].filter(Boolean).length;
+
+  let score = 0;
+  if (user.emailVerified) score += 10;
+  if (user.onboardingCompleted || business.onboardingCompletedAt) score += 10;
+  if (assistantsCount > 0) score += 20;
+  if (business.chatWidgetEnabled || business.chatAssistantId) score += 15;
+  if (interactionCount > 0) score += 25;
+  if (hasRecentProductActivity) score += 10;
+  if (interactionCount >= 3 || usedChannels >= 2) score += 10;
+  score = Math.min(score, 100);
+
+  let segment = USER_ACTIVATION_SEGMENTS.NEW;
+  if (hasRecentProductActivity && interactionCount > 0) {
+    segment = USER_ACTIVATION_SEGMENTS.ACTIVE;
+  } else if (hasStaleProductActivity && (hasSetupSignal || interactionCount > 0)) {
+    segment = USER_ACTIVATION_SEGMENTS.RISK;
+  } else if (interactionCount > 0) {
+    segment = USER_ACTIVATION_SEGMENTS.TRIED;
+  } else if (hasSetupSignal) {
+    segment = USER_ACTIVATION_SEGMENTS.STUCK;
+  }
+
+  return {
+    score,
+    segment,
+    lastActivityAt,
+    productActivityAt,
+    hasRecentProductActivity,
+    isTrial: subscription.plan === 'TRIAL',
+    signals: {
+      assistantsCount,
+      callsCount,
+      chatSessionsCount,
+      emailDraftsCount,
+      interactionCount,
+      chatWidgetEnabled: Boolean(business.chatWidgetEnabled),
+      chatAssistantAssigned: Boolean(business.chatAssistantId),
+    },
   };
 }
 
@@ -285,9 +399,24 @@ router.get('/enterprise-customers', async (req, res) => {
  */
 router.get('/users', async (req, res) => {
   try {
-    const { search, plan, suspended, lifecycle, emailVerified, page = 1, limit = 20 } = req.query;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const {
+      search,
+      plan,
+      suspended,
+      lifecycle,
+      emailVerified,
+      activation,
+      lastActivity,
+      page = 1,
+      limit = 20
+    } = req.query;
+    const parsedPage = Math.max(1, parseInt(page, 10) || 1);
+    const parsedLimit = Math.min(1000, Math.max(1, parseInt(limit, 10) || 20));
+    const skip = (parsedPage - 1) * parsedLimit;
     const now = new Date();
+    const hasActivationFilter = Boolean(activation && activation !== 'ALL');
+    const hasLastActivityFilter = Boolean(lastActivity && lastActivity !== 'ALL');
+    const needsPostFilter = hasActivationFilter || hasLastActivityFilter;
 
     const where = {
       deletedAt: null // Exclude soft-deleted
@@ -339,103 +468,172 @@ router.get('/users', async (req, res) => {
         ? subscriptionFilters[0]
         : { AND: subscriptionFilters };
 
-    const [users, total] = await Promise.all([
-      prisma.user.findMany({
-        where: {
-          ...where,
-          role: 'OWNER', // Only list business owners
-          business: subscriptionFilter ? { subscription: subscriptionFilter } : undefined
-        },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          role: true,
-          emailVerified: true,
-          emailVerifiedAt: true,
-          suspended: true,
-          suspendedAt: true,
-          createdAt: true,
-          updatedAt: true,
-          business: {
-            select: {
-              id: true,
-              name: true,
-              country: true,
-              createdAt: true,
-              subscription: {
-                select: {
-                  id: true,
-                  plan: true,
-                  status: true,
-                  minutesUsed: true,
-                  balance: true,
-                  currentPeriodEnd: true,
-                  cancelAtPeriodEnd: true,
-                  trialMinutesUsed: true,
-                  trialChatExpiry: true,
-                  enterpriseMinutes: true,
-                  enterpriseSupportInteractions: true,
-                  enterprisePrice: true,
-                  enterprisePaymentStatus: true
-                }
-              },
-              _count: {
-                select: { assistants: true, callLogs: true, users: true }
+    const userQuery = {
+      where: {
+        ...where,
+        role: 'OWNER', // Only list business owners
+        business: subscriptionFilter ? { subscription: subscriptionFilter } : undefined
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        onboardingCompleted: true,
+        emailVerified: true,
+        emailVerifiedAt: true,
+        suspended: true,
+        suspendedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        business: {
+          select: {
+            id: true,
+            name: true,
+            country: true,
+            chatWidgetEnabled: true,
+            chatAssistantId: true,
+            onboardingCompletedAt: true,
+            createdAt: true,
+            updatedAt: true,
+            subscription: {
+              select: {
+                id: true,
+                plan: true,
+                status: true,
+                minutesUsed: true,
+                balance: true,
+                currentPeriodEnd: true,
+                cancelAtPeriodEnd: true,
+                trialMinutesUsed: true,
+                trialChatExpiry: true,
+                enterpriseMinutes: true,
+                enterpriseSupportInteractions: true,
+                enterprisePrice: true,
+                enterprisePaymentStatus: true
               }
+            },
+            assistants: {
+              select: {
+                id: true,
+                isActive: true,
+                createdAt: true,
+              },
+              orderBy: { createdAt: 'desc' },
+              take: 5,
+            },
+            callLogs: {
+              select: {
+                createdAt: true,
+                status: true,
+              },
+              orderBy: { createdAt: 'desc' },
+              take: 5,
+            },
+            chatLogs: {
+              select: {
+                channel: true,
+                messageCount: true,
+                createdAt: true,
+                updatedAt: true,
+              },
+              orderBy: { updatedAt: 'desc' },
+              take: 5,
+            },
+            emailDrafts: {
+              select: {
+                status: true,
+                createdAt: true,
+                updatedAt: true,
+              },
+              orderBy: { updatedAt: 'desc' },
+              take: 5,
+            },
+            _count: {
+              select: { assistants: true, callLogs: true, chatLogs: true, emailDrafts: true, users: true }
             }
           }
-        },
-        orderBy: { createdAt: 'desc' },
-        skip,
-        take: parseInt(limit)
-      }),
-      prisma.user.count({
-        where: {
-          ...where,
-          role: 'OWNER',
-          business: subscriptionFilter ? { subscription: subscriptionFilter } : undefined
         }
-      })
+      },
+      orderBy: { createdAt: 'desc' },
+      ...(needsPostFilter ? {} : { skip, take: parsedLimit }),
+    };
+
+    const [users, total] = await Promise.all([
+      prisma.user.findMany(userQuery),
+      needsPostFilter
+        ? Promise.resolve(0)
+        : prisma.user.count({
+          where: {
+            ...where,
+            role: 'OWNER',
+            business: subscriptionFilter ? { subscription: subscriptionFilter } : undefined
+          }
+        })
     ]);
 
     // Transform response
-    const transformedUsers = users.map(u => ({
-      id: u.id,
-      email: u.email,
-      name: u.name,
-      role: u.role,
-      emailVerified: u.emailVerified,
-      emailVerifiedAt: u.emailVerifiedAt,
-      suspended: u.suspended,
-      suspendedAt: u.suspendedAt,
-      createdAt: u.createdAt,
-      businessId: u.business?.id,
-      businessName: u.business?.name,
-      country: u.business?.country,
-      plan: u.business?.subscription?.plan || 'FREE',
-      subscriptionStatus: u.business?.subscription?.status,
-      currentPeriodEnd: u.business?.subscription?.currentPeriodEnd,
-      cancelAtPeriodEnd: u.business?.subscription?.cancelAtPeriodEnd || false,
-      subscriptionLifecycle: getSubscriptionLifecycle(u.business?.subscription, now),
-      minutesUsed: u.business?.subscription?.minutesUsed || 0,
-      balance: u.business?.subscription?.balance || 0,
-      enterpriseMinutes: u.business?.subscription?.enterpriseMinutes,
-      enterpriseSupportInteractions: u.business?.subscription?.enterpriseSupportInteractions,
-      enterprisePrice: u.business?.subscription?.enterprisePrice,
-      enterprisePaymentStatus: u.business?.subscription?.enterprisePaymentStatus,
-      assistantsCount: u.business?._count?.assistants || 0,
-      callsCount: u.business?._count?.callLogs || 0,
-      teamSize: u.business?._count?.users || 1
-    }));
+    const transformedAll = users.map(u => {
+      const activationInsight = buildActivationInsight(u, now);
+
+      return {
+        id: u.id,
+        email: u.email,
+        name: u.name,
+        role: u.role,
+        onboardingCompleted: u.onboardingCompleted,
+        emailVerified: u.emailVerified,
+        emailVerifiedAt: u.emailVerifiedAt,
+        suspended: u.suspended,
+        suspendedAt: u.suspendedAt,
+        createdAt: u.createdAt,
+        businessId: u.business?.id,
+        businessName: u.business?.name,
+        country: u.business?.country,
+        plan: u.business?.subscription?.plan || 'FREE',
+        subscriptionStatus: u.business?.subscription?.status,
+        currentPeriodEnd: u.business?.subscription?.currentPeriodEnd,
+        cancelAtPeriodEnd: u.business?.subscription?.cancelAtPeriodEnd || false,
+        subscriptionLifecycle: getSubscriptionLifecycle(u.business?.subscription, now),
+        minutesUsed: u.business?.subscription?.minutesUsed || 0,
+        balance: u.business?.subscription?.balance || 0,
+        enterpriseMinutes: u.business?.subscription?.enterpriseMinutes,
+        enterpriseSupportInteractions: u.business?.subscription?.enterpriseSupportInteractions,
+        enterprisePrice: u.business?.subscription?.enterprisePrice,
+        enterprisePaymentStatus: u.business?.subscription?.enterprisePaymentStatus,
+        assistantsCount: u.business?._count?.assistants || 0,
+        callsCount: u.business?._count?.callLogs || 0,
+        chatSessionsCount: u.business?._count?.chatLogs || 0,
+        emailDraftsCount: u.business?._count?.emailDrafts || 0,
+        teamSize: u.business?._count?.users || 1,
+        activation: {
+          score: activationInsight.score,
+          segment: activationInsight.segment,
+          lastActivityAt: activationInsight.lastActivityAt,
+          productActivityAt: activationInsight.productActivityAt,
+          signals: activationInsight.signals,
+        },
+      };
+    });
+
+    const filteredUsers = transformedAll.filter((user) => {
+      if (hasActivationFilter && user.activation?.segment !== activation) return false;
+      if (hasLastActivityFilter && !matchesLastActivityFilter(user.activation?.productActivityAt, lastActivity, now)) return false;
+      return true;
+    });
+
+    const transformedUsers = needsPostFilter
+      ? filteredUsers.slice(skip, skip + parsedLimit)
+      : filteredUsers;
+    const responseTotal = needsPostFilter ? filteredUsers.length : total;
 
     res.json({
       users: transformedUsers,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / parseInt(limit))
+        page: parsedPage,
+        limit: parsedLimit,
+        total: responseTotal,
+        pages: Math.ceil(responseTotal / parsedLimit)
       }
     });
   } catch (error) {
