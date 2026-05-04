@@ -1,0 +1,60 @@
+name: Admin cleanup orphan subscriptions
+
+on:
+  workflow_dispatch:
+    inputs:
+      names:
+        description: Comma-separated deleted business names to clean
+        required: true
+        default: dfgdf,erwrcc,Nann,aadda
+      expected_count:
+        description: Exact number of subscriptions expected before delete
+        required: true
+        default: '4'
+      mode:
+        description: Run as dry-run first, then delete after verification
+        required: true
+        type: choice
+        default: dry-run
+        options:
+          - dry-run
+          - delete
+      confirm:
+        description: Type delete-orphan-subscriptions for delete mode
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Guard delete confirmation
+        if: ${{ inputs.mode == 'delete' && inputs.confirm != 'delete-orphan-subscriptions' }}
+        run: |
+          echo "Delete mode requires confirm=delete-orphan-subscriptions"
+          exit 1
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci --omit=dev
+
+      - name: Run cleanup
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          ORPHAN_SUBSCRIPTION_NAMES: ${{ inputs.names }}
+          EXPECTED_ORPHAN_SUBSCRIPTION_COUNT: ${{ inputs.expected_count }}
+          DELETE_ORPHAN_SUBSCRIPTIONS: ${{ inputs.mode == 'delete' && 'true' || 'false' }}
+        run: node scripts/cleanup-orphan-subscriptions.mjs
