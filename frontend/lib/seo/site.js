@@ -11,10 +11,10 @@ export const SITE_DESCRIPTION_EN =
   'Telyx unifies phone, WhatsApp, web chat and email in a single AI platform. 24/7 automated customer service built for SMBs.';
 
 export const DEFAULT_OG_IMAGE = {
-  url: '/opengraph-image',
+  url: '/og/telyx-og-v2.png',
   width: 1200,
   height: 630,
-  alt: 'Telyx — AI-powered multi-channel customer service',
+  alt: 'Telyx — Yapay zeka destekli çok kanallı müşteri hizmetleri',
 };
 
 export const SUPPORT_EMAIL = 'info@telyx.ai';
