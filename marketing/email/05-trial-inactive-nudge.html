@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>Telyx - Kurulum checklist</title>
+  <style>
+    body { margin:0; padding:0; background:#eef3f9; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:#0c1843; -webkit-font-smoothing:antialiased; }
+    .shell { width:100%; background:#eef3f9; padding:32px 0; }
+    .card { width:100%; max-width:640px; background:#ffffff; border-radius:22px; overflow:hidden; box-shadow:0 12px 40px rgba(8,18,36,0.08); }
+    .topbar { height:6px; background:linear-gradient(90deg,#00c3e6 0%,#245ce5 100%); }
+    .px { padding-left:36px; padding-right:36px; }
+    .h1 { margin:0 0 18px; font-size:31px; line-height:1.18; letter-spacing:-0.03em; color:#051752; font-weight:800; }
+    .p { margin:0 0 18px; font-size:16px; line-height:1.72; color:#42526b; }
+    .check { border:1px solid #dfe7f2; border-radius:18px; background:#f8fbff; padding:20px 22px; }
+    .line { padding:11px 0; border-bottom:1px solid #e8eef6; font-size:15px; line-height:1.62; color:#334155; }
+    .line:last-child { border-bottom:0; }
+    .tick { display:inline-block; width:22px; height:22px; border-radius:8px; background:#e4f7fb; color:#007d96; text-align:center; line-height:22px; font-weight:900; margin-right:10px; }
+    .button { display:inline-block; padding:16px 32px; border-radius:999px; background:#051752; color:#ffffff !important; text-decoration:none; font-size:16px; font-weight:800; }
+    .secondary { display:inline-block; padding:14px 0 0 18px; color:#245ce5 !important; text-decoration:none; font-size:15px; font-weight:800; }
+    .note { background:#fff9e8; border-left:4px solid #f0b429; border-radius:12px; padding:14px 16px; font-size:14px; line-height:1.65; color:#5d4b14; }
+    .signature { background:#f8fbff; border:1px solid #e8eef6; border-radius:18px; padding:18px; }
+    .footer { border-top:1px solid #e8eef6; color:#8a97ac; font-size:11px; line-height:1.65; text-align:center; padding:20px 36px 24px; }
+  </style>
+</head>
+<body>
+  <div style="display:none;font-size:1px;color:#eef3f9;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">
+    Telyx hesabınızı çalışır hale getirmek için tamamlanması gereken ana adımları toparladık.
+  </div>
+
+  <table role="presentation" class="shell" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+      <td align="center" style="padding:0 16px;">
+        <table role="presentation" class="card" cellpadding="0" cellspacing="0" border="0">
+          <tr><td class="topbar"></td></tr>
+          <tr>
+            <td class="px" style="padding-top:34px;">
+              <img src="telyx-logo.png" alt="Telyx" height="42" style="display:block;height:42px;width:auto;border:0;">
+            </td>
+          </tr>
+          <tr>
+            <td class="px" style="padding-top:28px;">
+              <h1 class="h1">Kurulumda takıldıysanız kısa checklist burada</h1>
+              <p class="p">Merhaba {{name}},</p>
+              <p class="p">Hesabınızı oluşturduktan sonra kurulumun henüz tamamlanmadığını fark ettik. Acele değil; çoğu işletmede sistemin çalışması için birkaç ana adım yeterli oluyor.</p>
+            </td>
+          </tr>
+          <tr>
+            <td class="px" style="padding-top:4px;">
+              <div class="check">
+                <div class="line"><span class="tick">1</span>Bir asistan oluşturun ve görevini netleştirin.</div>
+                <div class="line"><span class="tick">2</span>En az 5 sık soru veya hizmet bilgisini bilgi bankasına ekleyin.</div>
+                <div class="line"><span class="tick">3</span>Telefon, WhatsApp, web chat veya e-posta kanallarından birini seçin.</div>
+                <div class="line"><span class="tick">4</span>Telefon kullanacaksanız NetGSM ses paketi ve SIP bilgilerini hazırlayın.</div>
+                <div class="line"><span class="tick">5</span>Asistanı kendiniz test edip yanıtları gözden geçirin.</div>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td class="px" style="padding-top:20px;">
+              <div class="note">Telefon bağlantısı kuracaksanız, NetGSM tarafında ses paketi satın alma ve şirket bilgilerini tanımlama adımı kritik. Rehberde adımlar tek tek gösteriliyor.</div>
+            </td>
+          </tr>
+          <tr>
+            <td class="px" style="padding-top:26px;">
+              <a href="{{dashboard_url}}" class="button">Kuruluma Devam Et</a>
+              <a href="https://telyx.ai/dashboard/guides/netgsm-connection" class="secondary">NetGSM rehberi</a>
+            </td>
+          </tr>
+          <tr>
+            <td class="px" style="padding-top:28px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="signature">
+                <tr>
+                  <td width="54" style="vertical-align:middle;padding-right:14px;">
+                    <img src="telyx-icon.png" alt="Telyx" width="42" height="42" style="display:block;width:42px;height:42px;object-fit:contain;border:0;outline:none;text-decoration:none;">
+                  </td>
+                  <td style="vertical-align:middle;">
+                    <div style="font-size:13px;line-height:1.5;color:#66758f;font-weight:700;">Sevgiler,</div>
+                    <div style="font-size:20px;line-height:1.3;font-weight:800;letter-spacing:-0.02em;color:#051752;">Telyx Ekibi</div>
+                    <div style="font-size:13px;line-height:1.6;color:#66758f;">info@telyx.ai</div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td class="footer">
+              Bu maili Telyx deneme hesabınız için aldınız.<br>
+              <a href="https://telyx.ai" style="color:#52637d;text-decoration:none;font-weight:700;">telyx.ai</a>
+              &nbsp;·&nbsp;
+              <a href="{{unsubscribe_url}}" style="color:#8a97ac;text-decoration:underline;">Bildirim tercihleri</a>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

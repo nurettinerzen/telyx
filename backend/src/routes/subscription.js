@@ -39,6 +39,7 @@ import {
 import runtimeConfig from '../config/runtime.js';
 import { buildUsageAlerts } from '../services/usageAlertService.js';
 import { logAuditEvent } from '../utils/auditLogger.js';
+import { getLocalizedPlanName } from '../config/pricing.js';
 
 const router = express.Router();
 
@@ -2527,6 +2528,20 @@ router.post('/cancel', verifyBusinessAccess, async (req, res) => {
       ipAddress: req.ip,
       userAgent: req.headers['user-agent'] || null
     });
+
+    try {
+      if (req.user?.email && emailService?.sendSubscriptionCancellationScheduledEmail) {
+        await emailService.sendSubscriptionCancellationScheduledEmail({
+          email: req.user.email,
+          name: req.user.name || req.user.business?.name || '',
+          planName: getLocalizedPlanName(subscription.plan, 'TR'),
+          cancelAt,
+          billingUrl: `${runtimeConfig.frontendUrl}/dashboard/subscription`
+        });
+      }
+    } catch (emailError) {
+      console.error('⚠️ Subscription cancellation confirmation email could not be sent:', emailError);
+    }
 
     res.json({
       success: true,

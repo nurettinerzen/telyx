@@ -28,6 +28,11 @@ const __dirname = path.dirname(__filename);
 const REPO_ROOT = path.resolve(__dirname, '../../..');
 const LEAD_EMAIL_LOGO_ASSET = path.join(REPO_ROOT, 'frontend/public/assets/telyx-logo-email-horizontal.png');
 const LEAD_EMAIL_AVATAR_ASSET = path.join(REPO_ROOT, 'frontend/public/assets/nurettin-kurumsal-avatar.png');
+const DEFAULT_SYSTEM_FROM_ADDRESS = FROM_EMAIL.match(/<([^>]+)>/)?.[1] || FROM_EMAIL;
+const SYSTEM_NOTIFICATION_FROM_EMAIL = process.env.SYSTEM_NOTIFICATION_FROM_EMAIL || `Telyx Bildirim Merkezi <${DEFAULT_SYSTEM_FROM_ADDRESS}>`;
+const SYSTEM_EMAIL_TEMPLATE_DIR = path.join(REPO_ROOT, 'marketing/email');
+const SYSTEM_EMAIL_LOGO_ASSET = path.join(SYSTEM_EMAIL_TEMPLATE_DIR, 'telyx-logo.png');
+const SYSTEM_EMAIL_ICON_ASSET = path.join(SYSTEM_EMAIL_TEMPLATE_DIR, 'telyx-icon.png');
 
 let resend = null;
 
@@ -79,6 +84,63 @@ const buildInlineImageDataUrl = (assetPath, fallbackUrl = '') => {
   }
 };
 
+const systemEmailOptions = {
+  from: SYSTEM_NOTIFICATION_FROM_EMAIL
+};
+
+const systemEmailAssetUrl = (assetPath, fallbackPath) => sanitizeHeaderValue(
+  buildInlineImageDataUrl(assetPath, buildFrontendUrl(fallbackPath))
+);
+
+const renderTemplateValue = (key, value) => {
+  if (value === null || value === undefined) {
+    return '';
+  }
+
+  const rawValue = key.endsWith('_url')
+    ? sanitizeHeaderValue(value)
+    : value;
+
+  return escapeHtml(rawValue);
+};
+
+const cleanupRenderedSystemEmail = (html) => html
+  .replace(/Merhaba\s*,/g, 'Merhaba,')
+  .replace(/\{\{\s*[a-zA-Z0-9_]+\s*\}\}/g, '');
+
+export const renderSystemEmailTemplate = (templateFileName, variables = {}) => {
+  const templatePath = path.join(SYSTEM_EMAIL_TEMPLATE_DIR, templateFileName);
+  let html = fs.readFileSync(templatePath, 'utf8');
+
+  html = html
+    .replace(/src="telyx-logo\.png"/g, `src="${systemEmailAssetUrl(SYSTEM_EMAIL_LOGO_ASSET, '/telyx-logo.png')}"`)
+    .replace(/src="telyx-icon\.png"/g, `src="${systemEmailAssetUrl(SYSTEM_EMAIL_ICON_ASSET, '/telyx-icon.png')}"`)
+    .replace(/https:\/\/telyx\.ai/g, sanitizeHeaderValue(SITE_URL));
+
+  html = html.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, key) => renderTemplateValue(key, variables[key]));
+
+  return cleanupRenderedSystemEmail(html);
+};
+
+const formatTurkishDate = (value, fallback = 'Dönem sonu') => {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return fallback;
+  }
+
+  return date.toLocaleDateString('tr-TR', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric'
+  });
+};
+
+const roleDisplayName = (role) => ({
+  OWNER: 'Sahip',
+  MANAGER: 'Yönetici',
+  STAFF: 'Personel'
+}[role] || role || 'Takım üyesi');
+
 const sendEmail = async (to, subject, html, options = {}) => {
   const safeTo = sanitizeEmailAddress(to);
   const safeSubject = sanitizeHeaderValue(subject);
@@ -106,6 +168,10 @@ const sendEmail = async (to, subject, html, options = {}) => {
       html,
       ...(safeReplyTo ? { replyTo: safeReplyTo } : {})
     });
+    if (result?.error) {
+      const message = result.error.message || JSON.stringify(result.error);
+      throw new Error(message);
+    }
     console.log(`✅ Email sent to ${safeTo}: ${safeSubject} (ID: ${result.data?.id})`);
     return { sent: true, id: result.data?.id };
   } catch (error) {
@@ -118,99 +184,35 @@ const sendEmail = async (to, subject, html, options = {}) => {
  * 1. Email Verification Email
  */
 export const sendVerificationEmail = async (email, verificationUrl, businessName) => {
-  const safeBusinessName = businessName ? escapeHtml(businessName) : '';
-  const safeVerificationUrl = sanitizeHeaderValue(verificationUrl);
-  const subject = 'Telyx.AI - Email Adresinizi Doğrulayın';
-  const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    </head>
-    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333333; margin: 0; padding: 0; background-color: #f4f4f5;">
-      <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background-color: #667eea; color: #ffffff; padding: 40px 30px; text-align: center; border-radius: 12px 12px 0 0;">
-          <h1 style="margin: 0; font-size: 24px; font-weight: 600; color: #ffffff;">Email Adresinizi Doğrulayın</h1>
-        </div>
-        <div style="background-color: #ffffff; padding: 40px 30px; border-radius: 0 0 12px 12px;">
-          <p style="margin: 0 0 16px 0; color: #333333;">Merhaba${safeBusinessName ? ` <strong>${safeBusinessName}</strong>` : ''},</p>
-          <p style="margin: 0 0 16px 0; color: #333333;">Telyx.AI'a kayıt olduğunuz için teşekkürler! Hesabınızı aktif hale getirmek için email adresinizi doğrulamanız gerekmektedir.</p>
+  const subject = 'Telyx - E-posta adresinizi doğrulayın';
+  const html = renderSystemEmailTemplate('17-email-verification.html', {
+    name: businessName || '',
+    verification_url: verificationUrl
+  });
 
-          <p style="text-align: center;">
-            <a href="${safeVerificationUrl}" style="display: inline-block; padding: 16px 48px; background-color: #667eea; color: #ffffff !important; text-decoration: none; border-radius: 8px; margin: 24px 0; font-weight: 600; font-size: 16px;">Email Adresimi Doğrula</a>
-          </p>
-
-          <div style="background-color: #fef3c7; padding: 16px; border-radius: 8px; border-left: 4px solid #f59e0b; margin: 24px 0;">
-            <p style="margin: 0; color: #333333;"><strong>⏰ Önemli:</strong> Bu link 10 dakika geçerlidir. Süre dolarsa yeni bir doğrulama linki talep edebilirsiniz.</p>
-          </div>
-
-          <p style="font-size: 14px; color: #6b7280; margin: 0 0 16px 0;">
-            Eğer butona tıklayamıyorsanız, aşağıdaki linki tarayıcınıza kopyalayabilirsiniz:<br>
-            <a href="${safeVerificationUrl}" style="color: #667eea; word-break: break-all;">${safeVerificationUrl}</a>
-          </p>
-
-          <p style="font-size: 14px; color: #6b7280; margin: 0;">
-            Bu hesabı siz oluşturmadıysanız, bu emaili görmezden gelebilirsiniz.
-          </p>
-        </div>
-        <div style="text-align: center; padding: 20px; color: #6b7280; font-size: 14px;">
-          <p style="margin: 0;">Telyx.AI Ekibi<br>
-          <a href="${SITE_URL}" style="color: #667eea;">${SITE_URL}</a></p>
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
-
-  return sendEmail(email, subject, html);
+  return sendEmail(email, subject, html, systemEmailOptions);
 };
 
 /**
  * 2. Password Reset Email
  */
 export const sendPasswordResetEmail = async (email, resetUrl) => {
-  const safeResetUrl = sanitizeHeaderValue(resetUrl);
-  const subject = 'Telyx.AI - Şifre Sıfırlama';
-  const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      
-    </head>
-    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333333; margin: 0; padding: 0; background-color: #f4f4f5;">
-      <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background-color: #667eea; color: #ffffff; padding: 40px 30px; text-align: center; border-radius: 12px 12px 0 0;">
-          <h1 style="margin: 0; font-size: 24px; font-weight: 600; color: #ffffff;">Şifre Sıfırlama</h1>
-        </div>
-        <div style="background-color: #ffffff; padding: 40px 30px; border-radius: 0 0 12px 12px;">
-          <p>Merhaba,</p>
-          <p>Şifrenizi sıfırlamak için bir talep aldık. Yeni şifre belirlemek için aşağıdaki butona tıklayın:</p>
+  const subject = 'Telyx - Şifre sıfırlama bağlantınız';
+  const html = renderSystemEmailTemplate('18-password-reset.html', {
+    reset_url: resetUrl
+  });
 
-          <p style="text-align: center;">
-            <a href="${safeResetUrl}" style="display: inline-block; padding: 16px 48px; background-color: #667eea; color: #ffffff !important; text-decoration: none; border-radius: 8px; margin: 24px 0; font-weight: 600; font-size: 16px;">Şifremi Sıfırla</a>
-          </p>
+  return sendEmail(email, subject, html, systemEmailOptions);
+};
 
-          <div style="background-color: #fef3c7; padding: 16px; border-radius: 8px; border-left: 4px solid #f59e0b; margin: 24px 0;">
-            <p style="margin: 0;"><strong>⏰ Önemli:</strong> Bu link 10 dakika geçerlidir.</p>
-          </div>
+export const sendPasswordChangedEmail = async ({ email, name, securityUrl } = {}) => {
+  const subject = 'Telyx - Şifreniz değiştirildi';
+  const html = renderSystemEmailTemplate('19-password-changed.html', {
+    name: name || '',
+    security_url: securityUrl || buildFrontendUrl('/dashboard/settings')
+  });
 
-          <p style="font-size: 14px; color: #6b7280;">
-            Eğer bu talebi siz yapmadıysanız, bu emaili görmezden gelebilirsiniz. Şifreniz değişmeyecektir.
-          </p>
-        </div>
-        <div style="text-align: center; padding: 20px; color: #6b7280; font-size: 14px;">
-          <p>Telyx.AI Ekibi<br>
-          <a href="${SITE_URL}" style="color: #667eea; word-break: break-all;">${SITE_URL}</a></p>
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
-
-  return sendEmail(email, subject, html);
+  return sendEmail(email, subject, html, systemEmailOptions);
 };
 
 /**
@@ -376,49 +378,15 @@ export const sendOverageInvoice = async (email, overageMinutes, amount, billingP
 /**
  * 6. Email Change Verification
  */
-export const sendEmailChangeVerification = async (newEmail, verificationUrl) => {
-  const safeNewEmail = escapeHtml(newEmail || '');
-  const safeVerificationUrl = sanitizeHeaderValue(verificationUrl);
-  const subject = 'Telyx.AI - Yeni Email Adresinizi Doğrulayın';
-  const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      
-    </head>
-    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333333; margin: 0; padding: 0; background-color: #f4f4f5;">
-      <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background-color: #667eea; color: #ffffff; padding: 40px 30px; text-align: center; border-radius: 12px 12px 0 0;">
-          <h1>Yeni Email Doğrulama</h1>
-        </div>
-        <div style="background-color: #ffffff; padding: 40px 30px; border-radius: 0 0 12px 12px;">
-          <p>Merhaba,</p>
-          <p>Email adresinizi <strong>${safeNewEmail}</strong> olarak değiştirmek istediğinizi gördük. Bu değişikliği tamamlamak için lütfen yeni email adresinizi doğrulayın.</p>
+export const sendEmailChangeVerification = async (newEmail, verificationUrl, name = '') => {
+  const subject = 'Telyx - Yeni e-posta adresinizi doğrulayın';
+  const html = renderSystemEmailTemplate('20-email-change-verification.html', {
+    name,
+    new_email: newEmail,
+    verification_url: verificationUrl
+  });
 
-          <p style="text-align: center;">
-            <a href="${safeVerificationUrl}" style="display: inline-block; padding: 16px 48px; background-color: #667eea; color: #ffffff !important; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">Yeni Email Adresimi Doğrula</a>
-          </p>
-
-          <div style="background-color: #fef3c7; padding: 16px; border-radius: 8px; border-left: 4px solid #f59e0b; margin: 24px 0;">
-            <p style="margin: 0;"><strong>⏰ Önemli:</strong> Bu link 10 dakika geçerlidir.</p>
-          </div>
-
-          <p style="font-size: 14px; color: #6b7280;">
-            Bu işlemi siz başlatmadıysanız, lütfen bu emaili dikkate almayın ve hesap güvenliğinizi kontrol edin.
-          </p>
-        </div>
-        <div style="text-align: center; padding: 20px; color: #6b7280; font-size: 14px;">
-          <p>Telyx.AI Ekibi<br>
-          <a href="${SITE_URL}" style="color: #667eea; word-break: break-all;">${SITE_URL}</a></p>
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
-
-  return sendEmail(newEmail, subject, html);
+  return sendEmail(newEmail, subject, html, systemEmailOptions);
 };
 
 /**
@@ -1085,71 +1053,42 @@ export const sendLowBalanceWarning = async ({ email, to, businessName, balance, 
  * 21. Team Invitation Email
  */
 export const sendTeamInvitationEmail = async ({ email, inviterName, businessName, role, invitationUrl }) => {
-  const subject = `${businessName} - Takıma Davet Edildiniz!`;
+  const subject = `${sanitizeHeaderValue(businessName || 'Telyx')} için takım daveti`;
+  const html = renderSystemEmailTemplate('21-team-invitation.html', {
+    inviter_name: inviterName || 'Telyx ekibi',
+    business_name: businessName || 'Telyx',
+    role_name: roleDisplayName(role),
+    invitation_url: invitationUrl
+  });
 
-  const roleNames = {
-    OWNER: 'Sahip',
-    MANAGER: 'Yönetici',
-    STAFF: 'Personel'
-  };
+  return sendEmail(email, subject, html, systemEmailOptions);
+};
 
-  const roleName = roleNames[role] || role;
+export const sendAccountDeletionConfirmationEmail = async ({ email, name } = {}) => {
+  const subject = 'Telyx - Hesap silme işlemi tamamlandı';
+  const html = renderSystemEmailTemplate('22-account-deletion-confirmation.html', {
+    name: name || ''
+  });
 
-  const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    </head>
-    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333333; margin: 0; padding: 0; background-color: #f4f4f5;">
-      <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background-color: #667eea; color: #ffffff; padding: 40px 30px; text-align: center; border-radius: 12px 12px 0 0;">
-          <h1 style="margin: 0; font-size: 24px; font-weight: 600; color: #ffffff;">🎉 Takıma Davet Edildiniz!</h1>
-        </div>
-        <div style="background-color: #ffffff; padding: 40px 30px; border-radius: 0 0 12px 12px;">
-          <p style="margin: 0 0 16px 0; color: #333333;">Merhaba,</p>
-          <p style="margin: 0 0 16px 0; color: #333333;"><strong>${inviterName}</strong> sizi <strong>${businessName}</strong> organizasyonuna davet etti.</p>
+  return sendEmail(email, subject, html, systemEmailOptions);
+};
 
-          <div style="background-color: #f9fafb; padding: 24px; border-radius: 8px; margin: 24px 0; border: 1px solid #e5e7eb;">
-            <p style="margin: 0 0 8px 0; color: #6b7280;">Davet Edilen Rol:</p>
-            <div style="display: inline-block; padding: 6px 12px; background-color: #eff6ff; color: #1e40af; border-radius: 6px; font-weight: 600; font-size: 14px; margin: 8px 0;">${roleName}</div>
-            <p style="margin: 16px 0 0 0; color: #6b7280; font-size: 14px;">
-              ${role === 'OWNER' ? 'Tam yönetici erişimi - tüm ayarları yönetebilir, takım ekleyebilir/çıkarabilir.' : ''}
-              ${role === 'MANAGER' ? 'Yönetici erişimi - asistanları yönetebilir, raporları görüntüleyebilir.' : ''}
-              ${role === 'STAFF' ? 'Personel erişimi - temel dashboard erişimi ve sınırlı yönetim.' : ''}
-            </p>
-          </div>
+export const sendSubscriptionCancellationScheduledEmail = async ({
+  email,
+  name,
+  planName,
+  cancelAt,
+  billingUrl
+} = {}) => {
+  const subject = 'Telyx - Abonelik iptali planlandı';
+  const html = renderSystemEmailTemplate('23-subscription-cancel-confirmation.html', {
+    name: name || '',
+    plan_name: planName || 'Telyx',
+    cancel_at: formatTurkishDate(cancelAt),
+    billing_url: billingUrl || buildFrontendUrl('/dashboard/subscription')
+  });
 
-          <p style="margin: 0 0 16px 0; color: #333333;">Daveti kabul etmek için aşağıdaki butona tıklayın. Telyx.AI hesabınız yoksa, kabul sırasında yeni bir hesap oluşturabilirsiniz.</p>
-
-          <p style="text-align: center; margin: 24px 0;">
-            <a href="${invitationUrl}" style="display: inline-block; padding: 16px 48px; background-color: #667eea; color: #ffffff !important; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">Daveti Kabul Et</a>
-          </p>
-
-          <div style="background-color: #fef3c7; padding: 16px; border-radius: 8px; border-left: 4px solid #f59e0b; margin: 24px 0;">
-            <p style="margin: 0; color: #333333;"><strong>⏰ Önemli:</strong> Bu davet linki 7 gün geçerlidir. Süre dolarsa yeni bir davet talep edebilirsiniz.</p>
-          </div>
-
-          <p style="font-size: 14px; color: #6b7280; margin: 0 0 16px 0;">
-            Eğer butona tıklayamıyorsanız, aşağıdaki linki tarayıcınıza kopyalayabilirsiniz:<br>
-            <a href="${invitationUrl}" style="color: #667eea; word-break: break-all;">${invitationUrl}</a>
-          </p>
-
-          <p style="font-size: 14px; color: #6b7280; margin: 0;">
-            Bu daveti siz talep etmediyseniz, bu emaili görmezden gelebilirsiniz.
-          </p>
-        </div>
-        <div style="text-align: center; padding: 20px; color: #6b7280; font-size: 14px;">
-          <p style="margin: 0;">Telyx.AI Ekibi<br>
-          <a href="${SITE_URL}" style="color: #667eea;">${SITE_URL}</a></p>
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
-
-  return sendEmail(email, subject, html);
+  return sendEmail(email, subject, html, systemEmailOptions);
 };
 
 /**
@@ -1601,6 +1540,7 @@ export const sendAdminMfaCodeEmail = async (email, code, expiresAt) => {
 export default {
   sendVerificationEmail,
   sendPasswordResetEmail,
+  sendPasswordChangedEmail,
   sendWelcomeEmail,
   sendLowBalanceAlert,
   sendOverageInvoice,
@@ -1620,6 +1560,8 @@ export default {
   sendAutoReloadFailedEmail,
   sendLowBalanceWarning,
   sendTeamInvitationEmail,
+  sendAccountDeletionConfirmationEmail,
+  sendSubscriptionCancellationScheduledEmail,
   sendWaitlistNotificationEmail,
   sendLeadNotificationEmail,
   sendLeadAutoResponseEmail,

@@ -61,6 +61,14 @@ const CTA_STYLES = {
   NO: 'bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-300',
 };
 
+const PREVIEW_STATUS_STYLES = {
+  READY: 'bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-300',
+  CONNECTING: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+  ACTIVE: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+  ENDED: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300',
+  EXPIRED: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300',
+};
+
 const SOURCE_ORDER = ['ALL', 'META_INSTANT_FORM', 'WEBSITE_CONTACT', 'WEBSITE_DEMO', 'WEBSITE_WAITLIST', 'MANUAL'];
 const STATUS_ORDER = ['ALL', 'NEW', 'EMAILED', 'POSITIVE', 'NOT_NOW', 'CALL_QUEUED', 'CALLED', 'WON', 'LOST'];
 const TEMPERATURE_ORDER = ['ALL', 'COLD', 'WARM', 'HOT'];
@@ -93,6 +101,30 @@ function formatDateTime(value, locale) {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+function formatDuration(seconds, locale) {
+  const totalSeconds = Math.max(0, Math.round(Number(seconds) || 0));
+  if (!totalSeconds) return '—';
+
+  const minutes = Math.floor(totalSeconds / 60);
+  const remainder = totalSeconds % 60;
+  const secondLabel = locale === 'tr' ? 'sn' : 'sec';
+  const minuteLabel = locale === 'tr' ? 'dk' : 'min';
+
+  if (!minutes) return `${remainder} ${secondLabel}`;
+  return `${minutes} ${minuteLabel} ${String(remainder).padStart(2, '0')} ${secondLabel}`;
+}
+
+function getActivityMessage(activity, copy) {
+  if (
+    activity?.type === 'CTA_YES' &&
+    activity?.message === 'Lead canlı demo asistanını başlattı.'
+  ) {
+    return copy.detail.demoPreviewOpenedActivity;
+  }
+
+  return activity?.message || '';
 }
 
 function getLeadCopy(locale) {
@@ -147,6 +179,22 @@ function getLeadCopy(locale) {
       cta: isTr ? 'CTA Yanıtı' : 'CTA Response',
       callbackQueued: isTr ? 'Callback Kuyruğunda' : 'Callback Queued',
       callbackCalled: isTr ? 'Arama Başlatıldı' : 'Call Started',
+      demoPreview: isTr ? 'Canlı Demo Önizleme' : 'Live Demo Preview',
+      demoConversationId: isTr ? 'Görüşme ID' : 'Conversation ID',
+      demoStartedAt: isTr ? 'Başlangıç' : 'Started',
+      demoEndedAt: isTr ? 'Bitiş' : 'Ended',
+      demoDuration: isTr ? 'Süre' : 'Duration',
+      demoSummary: isTr ? 'Özet' : 'Summary',
+      demoTranscript: isTr ? 'Transkript' : 'Transcript',
+      demoNoConversation: isTr
+        ? 'Lead önizleme bağlantısını açmış, fakat sesli demo görüşmesi başlamamış görünüyor. Bu yüzden arama geçmişinde kayıt oluşmaz.'
+        : 'The lead opened the preview link, but the voice demo conversation does not appear to have started. No call-history record is created in that case.',
+      demoNoTranscript: isTr
+        ? 'Görüşme kimliği var, ancak transkript henüz alınamadı. Birkaç dakika sonra tekrar açmayı deneyin.'
+        : 'A conversation ID exists, but the transcript is not available yet. Try opening this again in a few minutes.',
+      demoPreviewOpenedActivity: isTr
+        ? 'Lead canlı demo önizleme bağlantısını açtı.'
+        : 'The lead opened the live demo preview link.',
     },
     toasts: {
       loadFailed: isTr ? 'Leadler yüklenemedi.' : 'Failed to load leads.',
@@ -199,6 +247,17 @@ function getLeadCopy(locale) {
       DEMO_CALL_INITIATED: isTr ? 'Demo görüşmesi başladı' : 'Demo conversation started',
       DEMO_CALL_FAILED: isTr ? 'Demo görüşmesi hatası' : 'Demo conversation failed',
     },
+    previewStatuses: {
+      READY: isTr ? 'Link açıldı' : 'Link opened',
+      CONNECTING: isTr ? 'Bağlanıyor' : 'Connecting',
+      ACTIVE: isTr ? 'Aktif' : 'Active',
+      ENDED: isTr ? 'Bitti' : 'Ended',
+      EXPIRED: isTr ? 'Süresi doldu' : 'Expired',
+    },
+    speakers: {
+      assistant: isTr ? 'Asistan' : 'Assistant',
+      user: isTr ? 'Kullanıcı' : 'User',
+    },
   };
 }
 
@@ -227,6 +286,11 @@ export default function AdminLeadsPage() {
     notes: '',
     nextFollowUpAt: '',
   });
+  const demoSession = selectedLead?.previewSession || null;
+  const demoConversation = selectedLead?.demoConversation || null;
+  const demoTranscriptMessages = Array.isArray(demoConversation?.transcript)
+    ? demoConversation.transcript.filter((message) => String(message?.text || '').trim())
+    : [];
 
   const statCards = useMemo(() => ([
     { key: 'total', label: copy.stats.total, value: stats?.total ?? 0, tone: 'bg-slate-500' },
@@ -696,27 +760,104 @@ export default function AdminLeadsPage() {
                   ) : null}
                 </section>
 
+                {(demoSession || demoConversation) ? (
+                  <section className="rounded-2xl border border-gray-200 p-5 dark:border-white/10">
+                    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                      <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">{copy.detail.demoPreview}</h3>
+                      {demoSession?.status ? (
+                        <Badge className={PREVIEW_STATUS_STYLES[demoSession.status] || PREVIEW_STATUS_STYLES.READY}>
+                          {copy.previewStatuses[demoSession.status] || demoSession.status}
+                        </Badge>
+                      ) : null}
+                    </div>
+
+                    {!demoConversation?.conversationId ? (
+                      <p className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+                        {copy.detail.demoNoConversation}
+                      </p>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="rounded-2xl bg-gray-50 p-4 dark:bg-white/[0.04]">
+                            <p className="text-xs text-gray-500">{copy.detail.demoConversationId}</p>
+                            <p className="mt-1 break-all font-mono text-xs text-gray-700 dark:text-gray-300">{demoConversation.conversationId}</p>
+                          </div>
+                          <div className="rounded-2xl bg-gray-50 p-4 dark:bg-white/[0.04]">
+                            <p className="text-xs text-gray-500">{copy.detail.demoDuration}</p>
+                            <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">{formatDuration(demoConversation.duration, locale)}</p>
+                          </div>
+                          <div className="rounded-2xl bg-gray-50 p-4 dark:bg-white/[0.04]">
+                            <p className="text-xs text-gray-500">{copy.detail.demoStartedAt}</p>
+                            <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">{formatDateTime(demoConversation.startedAt || demoSession?.connectedAt, locale)}</p>
+                          </div>
+                          <div className="rounded-2xl bg-gray-50 p-4 dark:bg-white/[0.04]">
+                            <p className="text-xs text-gray-500">{copy.detail.demoEndedAt}</p>
+                            <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">{formatDateTime(demoConversation.endedAt || demoSession?.endedAt, locale)}</p>
+                          </div>
+                        </div>
+
+                        {demoConversation.summary ? (
+                          <div className="rounded-2xl bg-gray-50 p-4 dark:bg-white/[0.04]">
+                            <p className="mb-2 text-xs text-gray-500">{copy.detail.demoSummary}</p>
+                            <p className="text-sm text-gray-700 dark:text-gray-300">{demoConversation.summary}</p>
+                          </div>
+                        ) : null}
+
+                        <div className="rounded-2xl bg-gray-50 p-4 dark:bg-white/[0.04]">
+                          <p className="mb-3 text-xs text-gray-500">{copy.detail.demoTranscript}</p>
+                          {demoTranscriptMessages.length ? (
+                            <div className="max-h-72 space-y-3 overflow-y-auto pr-1">
+                              {demoTranscriptMessages.map((message, index) => {
+                                const speaker = message.speaker === 'assistant' ? 'assistant' : 'user';
+
+                                return (
+                                  <div key={`${speaker}-${index}`} className="rounded-xl bg-white p-3 text-sm dark:bg-black/20">
+                                    <div className="mb-1 text-xs font-medium uppercase tracking-wide text-gray-400">
+                                      {copy.speakers[speaker]}
+                                    </div>
+                                    <p className="whitespace-pre-wrap text-gray-700 dark:text-gray-300">{message.text}</p>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : demoConversation.transcriptText ? (
+                            <pre className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-xl bg-white p-3 text-sm text-gray-700 dark:bg-black/20 dark:text-gray-300">
+                              {demoConversation.transcriptText}
+                            </pre>
+                          ) : (
+                            <p className="text-sm text-gray-500">{copy.detail.demoNoTranscript}</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </section>
+                ) : null}
+
                 <section className="rounded-2xl border border-gray-200 p-5 dark:border-white/10">
                   <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500">{copy.detail.timeline}</h3>
                   <div className="space-y-4">
-                    {selectedLead.activities?.length ? selectedLead.activities.map((activity) => (
-                      <div key={activity.id} className="rounded-2xl bg-gray-50 p-4 dark:bg-white/[0.04]">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="text-sm font-medium text-gray-900 dark:text-white">
-                            {copy.activityLabels[activity.type] || activity.type}
+                    {selectedLead.activities?.length ? selectedLead.activities.map((activity) => {
+                      const activityMessage = getActivityMessage(activity, copy);
+
+                      return (
+                        <div key={activity.id} className="rounded-2xl bg-gray-50 p-4 dark:bg-white/[0.04]">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">
+                              {copy.activityLabels[activity.type] || activity.type}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {formatDateTime(activity.createdAt, locale)}
+                            </div>
                           </div>
-                          <div className="text-xs text-gray-500">
-                            {formatDateTime(activity.createdAt, locale)}
-                          </div>
+                          {activityMessage ? (
+                            <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">{activityMessage}</p>
+                          ) : null}
+                          {activity.actorLabel ? (
+                            <p className="mt-2 text-xs text-gray-400">{activity.actorLabel}</p>
+                          ) : null}
                         </div>
-                        {activity.message ? (
-                          <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">{activity.message}</p>
-                        ) : null}
-                        {activity.actorLabel ? (
-                          <p className="mt-2 text-xs text-gray-400">{activity.actorLabel}</p>
-                        ) : null}
-                      </div>
-                    )) : (
+                      );
+                    }) : (
                       <p className="text-sm text-gray-500">{copy.detail.noTimeline}</p>
                     )}
                   </div>

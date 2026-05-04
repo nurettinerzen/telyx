@@ -10,6 +10,11 @@ import {
   LEAD_PREVIEW_MAX_DURATION_SECONDS,
   LeadPreviewError
 } from '../services/leadPreviewService.js';
+import elevenLabsService from '../services/elevenlabs.js';
+import {
+  cleanTranscriptText,
+  normalizeTranscriptBundle
+} from '../utils/transcript.js';
 import { buildSiteUrl } from '../config/runtime.js';
 
 const router = express.Router();
@@ -95,6 +100,125 @@ function ensureLeadIngestAuthorized(req) {
 
   const providedSecret = String(req.headers['x-lead-ingest-secret'] || '').trim();
   return configuredSecret.length > 0 && providedSecret === configuredSecret;
+}
+
+function getLeadPreviewConversationId(lead) {
+  const sessionConversationId = String(lead?.previewSession?.conversationId || '').trim();
+  if (sessionConversationId) return sessionConversationId;
+
+  const activityWithConversation = Array.isArray(lead?.activities)
+    ? lead.activities.find((activity) => {
+        const metadata = activity?.metadata;
+        return metadata && typeof metadata === 'object' && String(metadata.conversationId || '').trim();
+      })
+    : null;
+
+  return String(activityWithConversation?.metadata?.conversationId || '').trim() || null;
+}
+
+function getProviderConversationDate(conversationData) {
+  const unixSeconds = Number(conversationData?.start_time_unix_secs);
+  if (Number.isFinite(unixSeconds) && unixSeconds > 0) {
+    const date = new Date(unixSeconds * 1000);
+    if (!Number.isNaN(date.getTime())) return date;
+  }
+  return null;
+}
+
+function buildLeadDemoConversationFromCallLog(callLog, previewSession = null) {
+  if (!callLog) return null;
+
+  const normalizedTranscriptBundle = Array.isArray(callLog.transcript)
+    ? normalizeTranscriptBundle(callLog.transcript)
+    : null;
+  const transcript = normalizedTranscriptBundle?.transcript?.length
+    ? normalizedTranscriptBundle.transcript
+    : [];
+  const transcriptText = normalizedTranscriptBundle?.transcriptText
+    || cleanTranscriptText(callLog.transcriptText)
+    || null;
+
+  return {
+    source: 'call_log',
+    available: Boolean(transcript.length || transcriptText || callLog.summary),
+    callLogId: callLog.id,
+    conversationId: callLog.callId,
+    status: callLog.status,
+    duration: callLog.duration,
+    direction: callLog.direction || 'preview',
+    summary: callLog.summary,
+    transcript,
+    transcriptText,
+    startedAt: previewSession?.connectedAt || callLog.createdAt,
+    endedAt: previewSession?.endedAt || null,
+    endReason: previewSession?.endReason || callLog.endReason || null,
+    syncedToCallLog: true
+  };
+}
+
+function buildLeadDemoConversationFromProvider(conversationId, conversationData, previewSession = null) {
+  const {
+    transcript,
+    transcriptText
+  } = normalizeTranscriptBundle(conversationData?.transcript || []);
+
+  return {
+    source: 'elevenlabs',
+    available: Boolean(transcript.length || transcriptText || conversationData?.analysis),
+    callLogId: null,
+    conversationId,
+    status: conversationData?.status || previewSession?.status || null,
+    duration: conversationData?.call_duration_secs || conversationData?.metadata?.call_duration_secs || null,
+    direction: conversationData?.metadata?.channel || 'preview',
+    summary: conversationData?.analysis?.transcript_summary
+      || conversationData?.analysis?.summary
+      || conversationData?.call_summary_title
+      || null,
+    transcript,
+    transcriptText: transcriptText || null,
+    startedAt: previewSession?.connectedAt || getProviderConversationDate(conversationData),
+    endedAt: previewSession?.endedAt || null,
+    endReason: previewSession?.endReason || conversationData?.metadata?.termination_reason || null,
+    syncedToCallLog: false
+  };
+}
+
+async function getLeadDemoConversation(lead) {
+  const conversationId = getLeadPreviewConversationId(lead);
+  if (!conversationId) return null;
+
+  const callLog = await prisma.callLog.findUnique({
+    where: { callId: conversationId }
+  });
+
+  if (callLog?.transcript || callLog?.transcriptText || callLog?.summary) {
+    return buildLeadDemoConversationFromCallLog(callLog, lead.previewSession);
+  }
+
+  try {
+    const conversationData = await elevenLabsService.getConversation(conversationId);
+    return buildLeadDemoConversationFromProvider(conversationId, conversationData, lead.previewSession);
+  } catch (error) {
+    console.warn(`Lead preview conversation fetch failed for ${conversationId}:`, error.response?.status || error.message);
+
+    return {
+      source: callLog ? 'call_log' : 'lead_preview_session',
+      available: false,
+      callLogId: callLog?.id || null,
+      conversationId,
+      status: callLog?.status || lead.previewSession?.status || null,
+      duration: callLog?.duration || null,
+      direction: callLog?.direction || 'preview',
+      summary: callLog?.summary || null,
+      transcript: [],
+      transcriptText: callLog?.transcriptText || null,
+      startedAt: lead.previewSession?.connectedAt || callLog?.createdAt || null,
+      endedAt: lead.previewSession?.endedAt || null,
+      endReason: lead.previewSession?.endReason || callLog?.endReason || null,
+      syncedToCallLog: Boolean(callLog),
+      fetchError: 'conversation_unavailable'
+    };
+  }
 }
 
 const TEST_LEAD_EMAILS = [
@@ -866,6 +990,18 @@ router.get('/:id', async (req, res) => {
         },
         callbackRequests: {
           orderBy: { createdAt: 'desc' }
+        },
+        previewSession: {
+          include: {
+            assistant: {
+              select: {
+                id: true,
+                name: true,
+                elevenLabsAgentId: true,
+                isActive: true
+              }
+            }
+          }
         }
       }
     });
@@ -874,8 +1010,11 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Lead not found' });
     }
 
+    const demoConversation = await getLeadDemoConversation(lead);
+
     res.json({
       ...lead,
+      demoConversation,
     });
   } catch (error) {
     console.error('Lead detail error:', error);
