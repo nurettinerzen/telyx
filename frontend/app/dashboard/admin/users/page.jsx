@@ -22,7 +22,6 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -46,7 +45,7 @@ import {
 } from '@/components/ui/dialog';
 import { apiClient } from '@/lib/api';
 import { toast } from 'sonner';
-import { PLAN_COLORS } from '@/lib/planConfig';
+import { getPlanDisplayName, normalizePlan } from '@/lib/planConfig';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const USER_SUMMARY_TONES = {
@@ -68,6 +67,15 @@ const USER_SUMMARY_TONES = {
   },
 };
 
+const PLAN_TEXT_COLORS = {
+  FREE: 'text-cyan-700 dark:text-cyan-300',
+  TRIAL: 'text-cyan-700 dark:text-cyan-300',
+  PAYG: 'text-violet-700 dark:text-violet-300',
+  STARTER: 'text-blue-700 dark:text-blue-300',
+  PRO: 'text-green-700 dark:text-green-300',
+  ENTERPRISE: 'text-amber-700 dark:text-amber-300',
+};
+
 export default function AdminUsersPage() {
   const { locale } = useLanguage();
   const isTr = locale === 'tr';
@@ -80,7 +88,6 @@ export default function AdminUsersPage() {
 
   // Filters
   const [search, setSearch] = useState(() => searchParams.get('search') || '');
-  const [planFilter, setPlanFilter] = useState(() => searchParams.get('plan') || 'ALL');
   const [suspendedFilter, setSuspendedFilter] = useState(() => searchParams.get('suspended') || '');
   const [lifecycleFilter, setLifecycleFilter] = useState(() => searchParams.get('lifecycle') || 'ALL');
   const [emailVerificationFilter, setEmailVerificationFilter] = useState(() => searchParams.get('emailVerified') || 'ALL');
@@ -118,14 +125,14 @@ export default function AdminUsersPage() {
       PAID_LAPSED: isTr ? 'Yenilenmeyen Paket' : 'Unrenewed Plan',
       CANCEL_SCHEDULED: isTr ? 'İptal Planlı' : 'Cancellation Scheduled',
     },
-    summaryAccessTitle: isTr ? 'Erişim Durumu' : 'Access Status',
-    summaryEmailTitle: isTr ? 'E-posta Güveni' : 'Email Trust',
+    summaryEmailTitle: isTr ? 'Doğrulanmamış E-posta' : 'Unverified Email',
     summaryLifecycleTitle: isTr ? 'Yaşam Döngüsü Riski' : 'Lifecycle Risk',
     summaryTotalTitle: isTr ? 'Toplam Kullanıcı' : 'Total Users',
     summaryActiveUsers: isTr ? 'aktif kullanıcı' : 'active users',
     summarySuspendedUsers: isTr ? 'dondurulmuş' : 'suspended',
     summaryVerifiedUsers: isTr ? 'doğrulanmış' : 'verified',
     summaryUnverifiedUsers: isTr ? 'doğrulanmamış' : 'unverified',
+    summaryEmailAttention: isTr ? 'aksiyon bekliyor' : 'needs action',
     summaryRiskUsers: isTr ? 'takip gerektiren' : 'needs attention',
     summaryAllOwners: isTr ? 'Tüm işletme sahipleri' : 'All business owners',
     planLabels: {
@@ -156,6 +163,7 @@ export default function AdminUsersPage() {
     suspendReason: isTr ? 'Dondurma Nedeni (Opsiyonel)' : 'Suspend Reason (Optional)',
     reasonPlaceholder: isTr ? 'Neden...' : 'Reason...',
     businessColumn: isTr ? 'İşletme' : 'Business',
+    emailVerificationColumn: isTr ? 'E-posta Doğrulama' : 'Email Verification',
     userColumn: isTr ? 'Kullanıcı' : 'User',
     planColumn: isTr ? 'Plan' : 'Plan',
     usageColumn: isTr ? 'Kullanım' : 'Usage',
@@ -186,7 +194,6 @@ export default function AdminUsersPage() {
         limit: pagination.limit,
       };
       if (search) params.search = search;
-      if (planFilter && planFilter !== 'ALL') params.plan = planFilter;
       if (suspendedFilter) params.suspended = suspendedFilter;
       if (lifecycleFilter && lifecycleFilter !== 'ALL') params.lifecycle = lifecycleFilter;
       if (emailVerificationFilter && emailVerificationFilter !== 'ALL') params.emailVerified = emailVerificationFilter;
@@ -203,7 +210,7 @@ export default function AdminUsersPage() {
     } finally {
       setLoading(false);
     }
-  }, [copy.loadFailed, emailVerificationFilter, lifecycleFilter, pagination.limit, pagination.page, planFilter, search, suspendedFilter]);
+  }, [copy.loadFailed, emailVerificationFilter, lifecycleFilter, pagination.limit, pagination.page, search, suspendedFilter]);
 
   useEffect(() => {
     loadUsers();
@@ -312,25 +319,27 @@ export default function AdminUsersPage() {
 
   const summaryCards = useMemo(() => ([
     {
-      key: 'access',
-      title: copy.summaryAccessTitle,
-      value: userSummary.active,
-      label: copy.summaryActiveUsers,
-      percentage: percentageOfTotal(userSummary.active),
-      tone: USER_SUMMARY_TONES.access,
+      key: 'total',
+      title: copy.summaryTotalTitle,
+      value: userSummary.total,
+      label: copy.summaryAllOwners,
+      percentage: 100,
+      tone: USER_SUMMARY_TONES.total,
       rows: [
-        { label: copy.summarySuspendedUsers, value: userSummary.suspended },
+        { label: copy.active, value: userSummary.active },
+        { label: copy.suspended, value: userSummary.suspended },
       ],
+      isTotal: true,
     },
     {
       key: 'email',
       title: copy.summaryEmailTitle,
-      value: userSummary.emailVerified,
-      label: copy.summaryVerifiedUsers,
-      percentage: percentageOfTotal(userSummary.emailVerified),
+      value: userSummary.emailUnverified,
+      label: copy.summaryEmailAttention,
+      percentage: percentageOfTotal(userSummary.emailUnverified),
       tone: USER_SUMMARY_TONES.email,
       rows: [
-        { label: copy.summaryUnverifiedUsers, value: userSummary.emailUnverified },
+        { label: copy.summaryVerifiedUsers, value: userSummary.emailVerified },
       ],
     },
     {
@@ -346,33 +355,17 @@ export default function AdminUsersPage() {
         { label: copy.lifecycleOptions.CANCEL_SCHEDULED, value: userSummary.cancelScheduled },
       ],
     },
-    {
-      key: 'total',
-      title: copy.summaryTotalTitle,
-      value: userSummary.total,
-      label: copy.summaryAllOwners,
-      percentage: 100,
-      tone: USER_SUMMARY_TONES.total,
-      rows: [
-        { label: copy.active, value: userSummary.active },
-        { label: copy.suspended, value: userSummary.suspended },
-      ],
-      isTotal: true,
-    },
   ]), [
     copy.active,
     copy.lifecycleOptions.CANCEL_SCHEDULED,
     copy.lifecycleOptions.PAID_LAPSED,
     copy.lifecycleOptions.TRIAL_EXPIRED,
-    copy.summaryAccessTitle,
-    copy.summaryActiveUsers,
     copy.summaryAllOwners,
     copy.summaryEmailTitle,
+    copy.summaryEmailAttention,
     copy.summaryLifecycleTitle,
     copy.summaryRiskUsers,
-    copy.summarySuspendedUsers,
     copy.summaryTotalTitle,
-    copy.summaryUnverifiedUsers,
     copy.summaryVerifiedUsers,
     copy.suspended,
     percentageOfTotal,
@@ -387,6 +380,34 @@ export default function AdminUsersPage() {
     userSummary.trialExpired,
   ]);
 
+  const applyUserSummaryFilter = useCallback((key) => {
+    setPagination(prev => ({ ...prev, page: 1 }));
+
+    if (key === 'email') {
+      setEmailVerificationFilter('false');
+      setSuspendedFilter('');
+      setLifecycleFilter('ALL');
+      return;
+    }
+
+    if (key === 'lifecycle') {
+      setEmailVerificationFilter('ALL');
+      setSuspendedFilter('');
+      setLifecycleFilter('TRIAL_EXPIRED');
+      return;
+    }
+
+    setEmailVerificationFilter('ALL');
+    setSuspendedFilter('');
+    setLifecycleFilter('ALL');
+  }, []);
+
+  const isUserSummaryActive = useCallback((key) => {
+    if (key === 'email') return emailVerificationFilter === 'false';
+    if (key === 'lifecycle') return lifecycleFilter !== 'ALL';
+    return emailVerificationFilter === 'ALL' && lifecycleFilter === 'ALL' && !suspendedFilter;
+  }, [emailVerificationFilter, lifecycleFilter, suspendedFilter]);
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
@@ -400,14 +421,20 @@ export default function AdminUsersPage() {
       </div>
 
       {/* User Summary */}
-      <div className="grid grid-cols-1 gap-4 mb-6 md:grid-cols-2 2xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 mb-6 xl:grid-cols-3">
         {summaryCards.map((card) => {
           const value = summaryLoading && summaryData.users.length === 0 ? '...' : formatCount(card.value);
+          const active = isUserSummaryActive(card.key);
 
           return (
-            <div
+            <button
+              type="button"
               key={card.key}
-              className={`min-h-[172px] rounded-[28px] border p-5 ${
+              onClick={() => applyUserSummaryFilter(card.key)}
+              aria-pressed={active}
+              className={`min-h-[124px] rounded-lg border p-4 text-left transition hover:-translate-y-0.5 ${
+                active ? 'ring-1 ring-white/20' : ''
+              } ${
                 card.isTotal
                   ? 'border-blue-400/30 text-white shadow-[0_24px_70px_rgba(2,6,23,0.45)]'
                   : 'border-gray-200 text-gray-900 dark:border-white/10 dark:text-white'
@@ -450,7 +477,7 @@ export default function AdminUsersPage() {
                   ))}
                 </div>
               </div>
-            </div>
+            </button>
           );
         })}
       </div>
@@ -469,21 +496,6 @@ export default function AdminUsersPage() {
           </div>
           <Button type="submit" variant="outline">{copy.search}</Button>
         </form>
-
-        <Select value={planFilter} onValueChange={setPlanFilter}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder={copy.filterPlan} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">{copy.allPlans}</SelectItem>
-            <SelectItem value="ENTERPRISE">{copy.planLabels.ENTERPRISE}</SelectItem>
-            <SelectItem value="PRO">{copy.planLabels.PRO}</SelectItem>
-            <SelectItem value="STARTER">{copy.planLabels.STARTER}</SelectItem>
-            <SelectItem value="PAYG">{copy.planLabels.PAYG}</SelectItem>
-            <SelectItem value="TRIAL">{copy.planLabels.TRIAL}</SelectItem>
-            <SelectItem value="FREE">{copy.planLabels.FREE}</SelectItem>
-          </SelectContent>
-        </Select>
 
         <Select value={suspendedFilter || 'ALL'} onValueChange={(v) => setSuspendedFilter(v === 'ALL' ? '' : v)}>
           <SelectTrigger className="w-40">
@@ -537,6 +549,7 @@ export default function AdminUsersPage() {
               <tr className="border-b border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#0B1730]/88">
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.userColumn}</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.businessColumn}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.emailVerificationColumn}</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.planColumn}</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.usageColumn}</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{copy.status}</th>
@@ -550,16 +563,6 @@ export default function AdminUsersPage() {
                     <div>
                       <p className="font-medium text-gray-900 dark:text-white">{user.name || '-'}</p>
                       <p className="text-sm text-gray-500">{user.email}</p>
-                      <Badge
-                        variant="outline"
-                        className={`mt-1 text-xs ${
-                          user.emailVerified
-                            ? 'border-green-600 text-green-700 dark:border-green-500 dark:text-green-400'
-                            : 'border-amber-500 text-amber-700 dark:border-amber-400 dark:text-amber-300'
-                        }`}
-                      >
-                        {user.emailVerified ? copy.emailVerified : copy.emailUnverified}
-                      </Badge>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                         {copy.joinedAt}: {formatDate(user.createdAt)}
                       </p>
@@ -572,10 +575,24 @@ export default function AdminUsersPage() {
                     </div>
                   </td>
                   <td className="px-4 py-3">
+                    <span className={`text-sm font-medium ${
+                      user.emailVerified
+                        ? 'text-green-700 dark:text-green-400'
+                        : 'text-amber-700 dark:text-amber-300'
+                    }`}>
+                      {user.emailVerified ? copy.emailVerified : copy.emailUnverified}
+                    </span>
+                    {user.emailVerifiedAt && (
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        {formatDate(user.emailVerifiedAt)}
+                      </p>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
                     <div className="space-y-1">
-                      <Badge className={PLAN_COLORS[user.plan] || PLAN_COLORS.FREE}>
-                        {user.plan}
-                      </Badge>
+                      <span className={`text-sm font-medium ${PLAN_TEXT_COLORS[normalizePlan(user.plan)] || PLAN_TEXT_COLORS.FREE}`}>
+                        {getPlanDisplayName(normalizePlan(user.plan), locale)}
+                      </span>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
                         {copy.lifecycleLabels[user.subscriptionLifecycle] || user.subscriptionStatus || '-'}
                       </p>
@@ -594,9 +611,9 @@ export default function AdminUsersPage() {
                   </td>
                   <td className="px-4 py-3">
                     {user.suspended ? (
-                      <Badge variant="destructive">{copy.suspended}</Badge>
+                      <span className="text-sm font-medium text-red-700 dark:text-red-400">{copy.suspended}</span>
                     ) : (
-                      <Badge variant="outline" className="text-green-600 border-green-600">{copy.active}</Badge>
+                      <span className="text-sm font-medium text-green-700 dark:text-green-400">{copy.active}</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-right">
