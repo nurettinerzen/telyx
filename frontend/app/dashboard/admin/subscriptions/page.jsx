@@ -60,12 +60,67 @@ const STATUS_COLORS = {
   pending_payment: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
 };
 
+const PLAN_SUMMARY_CARDS = [
+  {
+    key: 'TRIAL_FREE',
+    plans: ['FREE', 'TRIAL'],
+    colors: {
+      color: '#00C4E6',
+      strong: '#00A8C7',
+      light: '#E6FBFF',
+      glow: 'rgba(0,196,230,0.16)',
+    },
+  },
+  {
+    key: 'PAYG',
+    plans: ['PAYG'],
+    colors: {
+      color: '#8B5CF6',
+      strong: '#7C3AED',
+      light: '#F3E8FF',
+      glow: 'rgba(139,92,246,0.17)',
+    },
+  },
+  {
+    key: 'STARTER',
+    plans: ['STARTER'],
+    colors: {
+      color: '#006FEB',
+      strong: '#2563EB',
+      light: '#ECF5FF',
+      glow: 'rgba(0,111,235,0.18)',
+    },
+  },
+  {
+    key: 'PRO',
+    plans: ['PRO'],
+    colors: {
+      color: '#22C55E',
+      strong: '#16A34A',
+      light: '#ECFDF5',
+      glow: 'rgba(34,197,94,0.16)',
+    },
+  },
+  {
+    key: 'ENTERPRISE',
+    plans: ['ENTERPRISE'],
+    colors: {
+      color: '#F59E0B',
+      strong: '#D97706',
+      light: '#FFF7ED',
+      glow: 'rgba(245,158,11,0.16)',
+    },
+  },
+];
+
 export default function AdminSubscriptionsPage() {
   const { t, locale } = useLanguage();
   const isTr = locale === 'tr';
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
+  const [summaryLoading, setSummaryLoading] = useState(true);
   const [subscriptions, setSubscriptions] = useState([]);
+  const [summaryData, setSummaryData] = useState({ subscriptions: [], total: 0 });
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, pages: 0 });
 
   const normalizeStatus = useCallback((status) => {
@@ -135,6 +190,11 @@ export default function AdminSubscriptionsPage() {
     lifecyclePlaceholder: isTr ? 'Yaşam Döngüsü' : 'Lifecycle',
     allLifecycles: isTr ? 'Tüm Yaşam Döngüleri' : 'All Lifecycles',
     allEmailStatuses: isTr ? 'Tüm E-posta Durumları' : 'All Email Statuses',
+    summaryUserLabel: isTr ? 'kullanıcı' : 'users',
+    summaryTotalLabel: isTr ? 'Toplam Kullanıcı' : 'Total Users',
+    summaryTotalSubLabel: isTr ? 'Tüm planlar' : 'All plans',
+    summaryTrialFreeLabel: isTr ? 'Ücretsiz Deneme' : 'Free Trial',
+    summaryTrialFreeSubLabel: isTr ? 'Free + Trial' : 'Free + Trial',
     lifecycleExpired: isTr ? 'Denemesi Biten' : 'Expired Trial',
     lifecycleLapsed: isTr ? 'Yenilenmeyen Paket' : 'Unrenewed Plan',
     lifecycleCancel: isTr ? 'İptal Planlı' : 'Cancellation Scheduled',
@@ -147,6 +207,22 @@ export default function AdminSubscriptionsPage() {
     suspended: isTr ? 'Dondurulmuş' : 'Suspended',
     subscriptionPrefix: isTr ? 'Abonelik' : 'Subscription',
   }), [isTr]);
+
+  const loadPlanSummary = useCallback(async () => {
+    setSummaryLoading(true);
+    try {
+      const response = await apiClient.admin.getSubscriptions({ page: 1, limit: 1000 });
+      setSummaryData({
+        subscriptions: response.data.subscriptions || [],
+        total: response.data.pagination?.total || 0,
+      });
+    } catch (error) {
+      console.error('Failed to load subscription plan summary:', error);
+      setSummaryData({ subscriptions: [], total: 0 });
+    } finally {
+      setSummaryLoading(false);
+    }
+  }, []);
 
   const loadSubscriptions = useCallback(async () => {
     setLoading(true);
@@ -178,6 +254,10 @@ export default function AdminSubscriptionsPage() {
   useEffect(() => {
     loadSubscriptions();
   }, [loadSubscriptions]);
+
+  useEffect(() => {
+    loadPlanSummary();
+  }, [loadPlanSummary]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -214,6 +294,7 @@ export default function AdminSubscriptionsPage() {
       toast.success(t('dashboard.adminSubscriptionsPage.updateSuccess'));
       setEditModal({ open: false, subscription: null });
       loadSubscriptions();
+      loadPlanSummary();
     } catch (error) {
       console.error('Failed to update subscription:', error);
       toast.error(t('dashboard.adminSubscriptionsPage.updateFailed'));
@@ -239,6 +320,60 @@ export default function AdminSubscriptionsPage() {
     }).format(amount / 100);
   };
 
+  const formatCount = useCallback((value) => {
+    return new Intl.NumberFormat(locale === 'tr' ? 'tr-TR' : 'en-US').format(value || 0);
+  }, [locale]);
+
+  const planSummaryCards = useMemo(() => {
+    const sourceSubscriptions = summaryData.subscriptions.length > 0 ? summaryData.subscriptions : subscriptions;
+    const counts = PLAN_SUMMARY_CARDS.reduce((acc, card) => ({ ...acc, [card.key]: 0 }), {});
+
+    sourceSubscriptions.forEach((sub) => {
+      const plan = normalizePlan(sub.plan);
+      const card = PLAN_SUMMARY_CARDS.find((item) => item.plans.includes(plan));
+      if (card) counts[card.key] += 1;
+    });
+
+    const total = summaryData.total || pagination.total || sourceSubscriptions.length;
+
+    const cards = PLAN_SUMMARY_CARDS.map((card) => ({
+      ...card,
+      value: counts[card.key] || 0,
+      label: card.key === 'TRIAL_FREE' ? copy.summaryTrialFreeLabel : getPlanLabel(card.key),
+      subLabel: card.key === 'TRIAL_FREE' ? copy.summaryTrialFreeSubLabel : copy.summaryUserLabel,
+      percentage: total > 0 ? Math.round(((counts[card.key] || 0) / total) * 100) : 0,
+    }));
+
+    return [
+      ...cards,
+      {
+        key: 'TOTAL',
+        value: total,
+        label: copy.summaryTotalLabel,
+        subLabel: copy.summaryTotalSubLabel,
+        percentage: 100,
+        colors: {
+          color: '#4F7CFF',
+          strong: '#305CE5',
+          light: '#EEF4FF',
+          glow: 'rgba(79,124,255,0.18)',
+        },
+        isTotal: true,
+      },
+    ];
+  }, [
+    copy.summaryTotalLabel,
+    copy.summaryTotalSubLabel,
+    copy.summaryTrialFreeLabel,
+    copy.summaryTrialFreeSubLabel,
+    copy.summaryUserLabel,
+    getPlanLabel,
+    pagination.total,
+    subscriptions,
+    summaryData.subscriptions,
+    summaryData.total,
+  ]);
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
@@ -249,6 +384,54 @@ export default function AdminSubscriptionsPage() {
             {t('dashboard.adminSubscriptionsPage.description').replace('{count}', String(pagination.total))}
           </p>
         </div>
+      </div>
+
+      {/* Plan Summary */}
+      <div className="grid grid-cols-1 gap-4 mb-6 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+        {planSummaryCards.map((card) => {
+          const value = summaryLoading && summaryData.subscriptions.length === 0 ? '...' : formatCount(card.value);
+
+          return (
+            <div
+              key={card.key}
+              className={`relative min-h-[142px] overflow-hidden rounded-[28px] border p-5 ${
+                card.isTotal
+                  ? 'border-blue-400/30 text-white shadow-[0_24px_70px_rgba(2,6,23,0.45)]'
+                  : 'border-gray-200 text-gray-900 dark:border-white/10 dark:text-white'
+              }`}
+              style={{
+                background: card.isTotal
+                  ? `linear-gradient(145deg, rgba(7,14,30,0.98) 10%, ${card.colors.glow} 100%)`
+                  : `linear-gradient(145deg, rgba(7,14,30,0.96) 12%, ${card.colors.glow} 100%)`,
+              }}
+            >
+              <div className="relative z-10 flex h-full flex-col justify-between">
+                <div className="flex justify-end">
+                  <span
+                    className="rounded-full px-2 py-1 text-[11px] font-medium"
+                    style={{
+                      background: `${card.colors.color}18`,
+                      color: card.colors.color,
+                    }}
+                  >
+                    %{card.percentage}
+                  </span>
+                </div>
+                <div>
+                  <div className="text-[30px] font-semibold tracking-tight text-white">
+                    {value}
+                  </div>
+                  <div className="mt-1 text-sm font-medium text-slate-300">
+                    {card.label}
+                  </div>
+                  <div className="mt-1 text-xs text-slate-500">
+                    {card.subLabel}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* Filters */}

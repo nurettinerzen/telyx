@@ -49,12 +49,33 @@ import { toast } from 'sonner';
 import { PLAN_COLORS } from '@/lib/planConfig';
 import { useLanguage } from '@/contexts/LanguageContext';
 
+const USER_SUMMARY_TONES = {
+  access: {
+    color: '#22C55E',
+    glow: 'rgba(34,197,94,0.16)',
+  },
+  email: {
+    color: '#00C4E6',
+    glow: 'rgba(0,196,230,0.16)',
+  },
+  lifecycle: {
+    color: '#F59E0B',
+    glow: 'rgba(245,158,11,0.17)',
+  },
+  total: {
+    color: '#4F7CFF',
+    glow: 'rgba(79,124,255,0.18)',
+  },
+};
+
 export default function AdminUsersPage() {
   const { locale } = useLanguage();
   const isTr = locale === 'tr';
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
+  const [summaryLoading, setSummaryLoading] = useState(true);
   const [users, setUsers] = useState([]);
+  const [summaryData, setSummaryData] = useState({ users: [], total: 0 });
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, pages: 0 });
 
   // Filters
@@ -97,6 +118,16 @@ export default function AdminUsersPage() {
       PAID_LAPSED: isTr ? 'Yenilenmeyen Paket' : 'Unrenewed Plan',
       CANCEL_SCHEDULED: isTr ? 'İptal Planlı' : 'Cancellation Scheduled',
     },
+    summaryAccessTitle: isTr ? 'Erişim Durumu' : 'Access Status',
+    summaryEmailTitle: isTr ? 'E-posta Güveni' : 'Email Trust',
+    summaryLifecycleTitle: isTr ? 'Yaşam Döngüsü Riski' : 'Lifecycle Risk',
+    summaryTotalTitle: isTr ? 'Toplam Kullanıcı' : 'Total Users',
+    summaryActiveUsers: isTr ? 'aktif kullanıcı' : 'active users',
+    summarySuspendedUsers: isTr ? 'dondurulmuş' : 'suspended',
+    summaryVerifiedUsers: isTr ? 'doğrulanmış' : 'verified',
+    summaryUnverifiedUsers: isTr ? 'doğrulanmamış' : 'unverified',
+    summaryRiskUsers: isTr ? 'takip gerektiren' : 'needs attention',
+    summaryAllOwners: isTr ? 'Tüm işletme sahipleri' : 'All business owners',
     planLabels: {
       ENTERPRISE: isTr ? 'Kurumsal' : 'Enterprise',
       PRO: 'Pro',
@@ -131,6 +162,22 @@ export default function AdminUsersPage() {
     actionColumn: isTr ? 'İşlem' : 'Action',
   }), [isTr]);
 
+  const loadUserSummary = useCallback(async () => {
+    setSummaryLoading(true);
+    try {
+      const response = await apiClient.admin.getUsers({ page: 1, limit: 1000 });
+      setSummaryData({
+        users: response.data.users || [],
+        total: response.data.pagination?.total || 0,
+      });
+    } catch (error) {
+      console.error('Failed to load user summary:', error);
+      setSummaryData({ users: [], total: 0 });
+    } finally {
+      setSummaryLoading(false);
+    }
+  }, []);
+
   const loadUsers = useCallback(async () => {
     setLoading(true);
     try {
@@ -161,6 +208,10 @@ export default function AdminUsersPage() {
   useEffect(() => {
     loadUsers();
   }, [loadUsers]);
+
+  useEffect(() => {
+    loadUserSummary();
+  }, [loadUserSummary]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -194,6 +245,7 @@ export default function AdminUsersPage() {
       setSuspendModal({ open: false, user: null, action: 'suspend' });
       setSuspendReason('');
       loadUsers();
+      loadUserSummary();
     } catch (error) {
       console.error('Failed to suspend/activate user:', error);
       toast.error(copy.actionFailed);
@@ -209,11 +261,131 @@ export default function AdminUsersPage() {
       await apiClient.admin.deleteUser(user.id);
       toast.success(copy.deleteSuccess);
       loadUsers();
+      loadUserSummary();
     } catch (error) {
       console.error('Failed to delete user:', error);
       toast.error(copy.deleteFailed);
     }
   };
+
+  const formatCount = useCallback((value) => {
+    return new Intl.NumberFormat(isTr ? 'tr-TR' : 'en-US').format(value || 0);
+  }, [isTr]);
+
+  const userSummary = useMemo(() => {
+    const sourceUsers = summaryData.users.length > 0 ? summaryData.users : users;
+    const total = summaryData.total || pagination.total || sourceUsers.length;
+
+    const counts = sourceUsers.reduce((acc, user) => {
+      if (user.suspended) acc.suspended += 1;
+      else acc.active += 1;
+
+      if (user.emailVerified) acc.emailVerified += 1;
+      else acc.emailUnverified += 1;
+
+      if (user.subscriptionLifecycle === 'TRIAL_EXPIRED') acc.trialExpired += 1;
+      if (user.subscriptionLifecycle === 'PAID_LAPSED') acc.paidLapsed += 1;
+      if (user.subscriptionLifecycle === 'CANCEL_SCHEDULED') acc.cancelScheduled += 1;
+
+      return acc;
+    }, {
+      active: 0,
+      suspended: 0,
+      emailVerified: 0,
+      emailUnverified: 0,
+      trialExpired: 0,
+      paidLapsed: 0,
+      cancelScheduled: 0,
+    });
+
+    return {
+      ...counts,
+      total,
+      riskTotal: counts.trialExpired + counts.paidLapsed + counts.cancelScheduled,
+    };
+  }, [pagination.total, summaryData.total, summaryData.users, users]);
+
+  const percentageOfTotal = useCallback((value) => {
+    if (!userSummary.total) return 0;
+    return Math.round(((value || 0) / userSummary.total) * 100);
+  }, [userSummary.total]);
+
+  const summaryCards = useMemo(() => ([
+    {
+      key: 'access',
+      title: copy.summaryAccessTitle,
+      value: userSummary.active,
+      label: copy.summaryActiveUsers,
+      percentage: percentageOfTotal(userSummary.active),
+      tone: USER_SUMMARY_TONES.access,
+      rows: [
+        { label: copy.summarySuspendedUsers, value: userSummary.suspended },
+      ],
+    },
+    {
+      key: 'email',
+      title: copy.summaryEmailTitle,
+      value: userSummary.emailVerified,
+      label: copy.summaryVerifiedUsers,
+      percentage: percentageOfTotal(userSummary.emailVerified),
+      tone: USER_SUMMARY_TONES.email,
+      rows: [
+        { label: copy.summaryUnverifiedUsers, value: userSummary.emailUnverified },
+      ],
+    },
+    {
+      key: 'lifecycle',
+      title: copy.summaryLifecycleTitle,
+      value: userSummary.riskTotal,
+      label: copy.summaryRiskUsers,
+      percentage: percentageOfTotal(userSummary.riskTotal),
+      tone: USER_SUMMARY_TONES.lifecycle,
+      rows: [
+        { label: copy.lifecycleOptions.TRIAL_EXPIRED, value: userSummary.trialExpired },
+        { label: copy.lifecycleOptions.PAID_LAPSED, value: userSummary.paidLapsed },
+        { label: copy.lifecycleOptions.CANCEL_SCHEDULED, value: userSummary.cancelScheduled },
+      ],
+    },
+    {
+      key: 'total',
+      title: copy.summaryTotalTitle,
+      value: userSummary.total,
+      label: copy.summaryAllOwners,
+      percentage: 100,
+      tone: USER_SUMMARY_TONES.total,
+      rows: [
+        { label: copy.active, value: userSummary.active },
+        { label: copy.suspended, value: userSummary.suspended },
+      ],
+      isTotal: true,
+    },
+  ]), [
+    copy.active,
+    copy.lifecycleOptions.CANCEL_SCHEDULED,
+    copy.lifecycleOptions.PAID_LAPSED,
+    copy.lifecycleOptions.TRIAL_EXPIRED,
+    copy.summaryAccessTitle,
+    copy.summaryActiveUsers,
+    copy.summaryAllOwners,
+    copy.summaryEmailTitle,
+    copy.summaryLifecycleTitle,
+    copy.summaryRiskUsers,
+    copy.summarySuspendedUsers,
+    copy.summaryTotalTitle,
+    copy.summaryUnverifiedUsers,
+    copy.summaryVerifiedUsers,
+    copy.suspended,
+    percentageOfTotal,
+    userSummary.active,
+    userSummary.cancelScheduled,
+    userSummary.emailUnverified,
+    userSummary.emailVerified,
+    userSummary.paidLapsed,
+    userSummary.riskTotal,
+    userSummary.suspended,
+    userSummary.total,
+    userSummary.trialExpired,
+  ]);
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -225,6 +397,62 @@ export default function AdminUsersPage() {
             {copy.description} ({pagination.total})
           </p>
         </div>
+      </div>
+
+      {/* User Summary */}
+      <div className="grid grid-cols-1 gap-4 mb-6 md:grid-cols-2 2xl:grid-cols-4">
+        {summaryCards.map((card) => {
+          const value = summaryLoading && summaryData.users.length === 0 ? '...' : formatCount(card.value);
+
+          return (
+            <div
+              key={card.key}
+              className={`min-h-[172px] rounded-[28px] border p-5 ${
+                card.isTotal
+                  ? 'border-blue-400/30 text-white shadow-[0_24px_70px_rgba(2,6,23,0.45)]'
+                  : 'border-gray-200 text-gray-900 dark:border-white/10 dark:text-white'
+              }`}
+              style={{
+                background: `linear-gradient(145deg, rgba(7,14,30,0.97) 12%, ${card.tone.glow} 100%)`,
+              }}
+            >
+              <div className="flex h-full flex-col justify-between gap-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-white">{card.title}</p>
+                  </div>
+                  <span
+                    className="rounded-full px-2 py-1 text-[11px] font-medium"
+                    style={{
+                      background: `${card.tone.color}18`,
+                      color: card.tone.color,
+                    }}
+                  >
+                    %{card.percentage}
+                  </span>
+                </div>
+
+                <div>
+                  <div className="text-[30px] font-semibold tracking-tight text-white">
+                    {value}
+                  </div>
+                  <div className="mt-1 text-sm text-slate-300">
+                    {card.label}
+                  </div>
+                </div>
+
+                <div className="grid gap-2">
+                  {card.rows.map((row) => (
+                    <div key={row.label} className="flex items-center justify-between border-t border-white/10 pt-2 text-xs">
+                      <span className="truncate pr-3 text-slate-500">{row.label}</span>
+                      <span className="font-semibold text-slate-200">{formatCount(row.value)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* Filters */}
