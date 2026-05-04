@@ -1832,7 +1832,11 @@ router.get('/subscriptions', async (req, res) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const now = new Date();
 
-    const where = {};
+    const where = {
+      business: {
+        deletedAt: null,
+      },
+    };
 
     if (search) {
       where.OR = [
@@ -1845,6 +1849,7 @@ router.get('/subscriptions', async (req, res) => {
     if (status) where.status = status;
     if (emailVerified === 'true' || emailVerified === 'false') {
       where.business = {
+        ...(where.business || {}),
         users: {
           some: {
             deletedAt: null,
