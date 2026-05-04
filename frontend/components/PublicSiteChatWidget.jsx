@@ -16,7 +16,7 @@ export default function PublicSiteChatWidget() {
     return null;
   }
 
-  if (pathname?.startsWith('/dashboard')) {
+  if (pathname?.startsWith('/dashboard') || pathname?.startsWith('/mockups')) {
     return null;
   }
 

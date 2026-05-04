@@ -194,7 +194,7 @@ fbq('init', '${META_PIXEL_ID}');`,
           />
         ) : null}
       </head>
-      <body>
+      <body suppressHydrationWarning>
         {GTM_ID ? (
           <noscript>
             <iframe
