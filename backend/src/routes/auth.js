@@ -8,6 +8,7 @@ import {
   sendVerificationEmail,
   sendEmailChangeVerification,
   sendPasswordResetEmail,
+  sendPasswordChangedEmail,
   sendAdminMfaCodeEmail,
   sendNewSignupNotificationEmail
 } from '../services/emailService.js';
@@ -112,7 +113,7 @@ function hashMfaCode(adminId, code) {
 /**
  * Helper: Create and send verification email
  */
-const createAndSendVerificationEmail = async (userId, email, businessName) => {
+const createAndSendVerificationEmail = async (userId, email, businessName, options = {}) => {
   // Delete any existing tokens for this user
   await prisma.emailVerificationToken.deleteMany({
     where: { userId }
@@ -132,7 +133,11 @@ const createAndSendVerificationEmail = async (userId, email, businessName) => {
 
   // Send verification email
   const verificationUrl = `${FRONTEND_URL}/auth/verify-email#token=${token}`;
-  await sendVerificationEmail(email, verificationUrl, businessName);
+  if (options.purpose === 'email_change') {
+    await sendEmailChangeVerification(email, verificationUrl, businessName);
+  } else {
+    await sendVerificationEmail(email, verificationUrl, businessName);
+  }
 
   return token;
 };
@@ -1271,6 +1276,16 @@ router.post('/reset-password', strictRateLimit, async (req, res) => {
       prisma.passwordResetToken.delete({ where: { id: resetToken.id } })
     ]);
 
+    try {
+      await sendPasswordChangedEmail({
+        email: resetToken.user.email,
+        name: resetToken.user.name,
+        securityUrl: `${FRONTEND_URL}/dashboard/settings`
+      });
+    } catch (emailError) {
+      console.error('⚠️ Password changed email could not be sent:', emailError);
+    }
+
     res.json({
       message: 'Password reset successfully'
     });
@@ -1329,8 +1344,10 @@ router.post('/change-email', authenticateToken, requireRecentAuth(15), async (re
       }
     });
 
-    // Send verification email to new address
-    await createAndSendVerificationEmail(user.id, newEmail.toLowerCase(), user.business?.name);
+    // Send email-change verification email to new address
+    await createAndSendVerificationEmail(user.id, newEmail.toLowerCase(), user.business?.name, {
+      purpose: 'email_change'
+    });
 
     res.json({
       message: 'Email changed. Please verify your new email address.',

@@ -6,6 +6,10 @@ import { requireRecentAuth } from '../middleware/reauth.js';
 import { validatePasswordPolicy, passwordPolicyMessage } from '../security/passwordPolicy.js';
 import { clearSessionCookie, issueSession } from '../security/sessionToken.js';
 import {
+  sendAccountDeletionConfirmationEmail,
+  sendPasswordChangedEmail,
+} from '../services/emailService.js';
+import {
   hardDeleteSelfUser,
   hardDeleteWorkspaceForOwner,
   isValidDeleteAccountConfirmation,
@@ -216,7 +220,7 @@ router.post('/change-password', authenticateToken, requireRecentAuth(15), async 
     // Get user with password
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, password: true }
+      select: { id: true, email: true, name: true, password: true }
     });
 
     if (!user) {
@@ -249,6 +253,15 @@ router.post('/change-password', authenticateToken, requireRecentAuth(15), async 
     });
 
     issueSession(res, updatedUser, { amr: ['pwd'] });
+
+    try {
+      await sendPasswordChangedEmail({
+        email: user.email,
+        name: user.name,
+      });
+    } catch (emailError) {
+      console.error('⚠️ Password changed email could not be sent:', emailError);
+    }
 
     console.log(`✅ Password changed for user ${userId}`);
     res.json({
@@ -283,6 +296,7 @@ router.post('/delete-account', authenticateToken, requireRecentAuth(15), async (
       select: {
         id: true,
         email: true,
+        name: true,
         password: true,
         role: true,
         businessId: true,
@@ -302,6 +316,15 @@ router.post('/delete-account', authenticateToken, requireRecentAuth(15), async (
       await hardDeleteWorkspaceForOwner(user.businessId);
       clearSessionCookie(res);
 
+      try {
+        await sendAccountDeletionConfirmationEmail({
+          email: user.email,
+          name: user.name,
+        });
+      } catch (emailError) {
+        console.error('⚠️ Account deletion confirmation email could not be sent:', emailError);
+      }
+
       return res.json({
         message: 'Workspace and all related data were permanently deleted',
         deletedScope: 'workspace',
@@ -310,6 +333,15 @@ router.post('/delete-account', authenticateToken, requireRecentAuth(15), async (
 
     await hardDeleteSelfUser(user.id);
     clearSessionCookie(res);
+
+    try {
+      await sendAccountDeletionConfirmationEmail({
+        email: user.email,
+        name: user.name,
+      });
+    } catch (emailError) {
+      console.error('⚠️ Account deletion confirmation email could not be sent:', emailError);
+    }
 
     return res.json({
       message: 'Account deleted permanently',

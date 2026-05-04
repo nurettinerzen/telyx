@@ -39,7 +39,13 @@ jest.unstable_mockModule('../../src/security/passwordPolicy.js', () => ({
 }));
 
 jest.unstable_mockModule('../../src/security/sessionToken.js', () => ({
+  clearSessionCookie: jest.fn(),
   issueSession: jest.fn()
+}));
+
+jest.unstable_mockModule('../../src/services/emailService.js', () => ({
+  sendAccountDeletionConfirmationEmail: jest.fn(),
+  sendPasswordChangedEmail: jest.fn()
 }));
 
 let router;

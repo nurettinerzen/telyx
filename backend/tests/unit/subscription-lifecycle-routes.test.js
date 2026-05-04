@@ -52,6 +52,10 @@ const stripeServiceMock = {
   resolveCheckoutLocale: jest.fn(() => 'tr')
 };
 
+const emailServiceMock = {
+  sendSubscriptionCancellationScheduledEmail: jest.fn()
+};
+
 const paymentProviderMock = {
   getProviderForCountry: jest.fn()
 };
@@ -90,7 +94,7 @@ jest.unstable_mockModule('../../src/middleware/auth.js', () => ({
 }));
 
 jest.unstable_mockModule('../../src/services/emailService.js', () => ({
-  default: {}
+  default: emailServiceMock
 }));
 
 jest.unstable_mockModule('../../src/services/paymentProvider.js', () => ({
@@ -372,6 +376,11 @@ describe('Subscription lifecycle routes', () => {
         reasonDetail: null,
         source: 'dashboard_subscription'
       })
+    }));
+    expect(emailServiceMock.sendSubscriptionCancellationScheduledEmail).toHaveBeenCalledWith(expect.objectContaining({
+      email: 'owner@example.com',
+      planName: 'Profesyonel',
+      billingUrl: 'https://telyx.ai/dashboard/subscription'
     }));
   });
 

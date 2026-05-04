@@ -345,7 +345,7 @@ export async function handleLeadCtaResponse(responseToken, action, options = {})
   const baseStatus = normalizedAction === 'yes' ? LEAD_STATUS.POSITIVE : LEAD_STATUS.NOT_NOW;
   const baseTemperature = normalizedAction === 'yes' ? LEAD_TEMPERATURE.HOT : lead.temperature;
   const ctaActivityMessage = normalizedAction === 'yes'
-    ? (skipCallbackQueue ? 'Lead canlı demo asistanını başlattı.' : 'Lead demo araması istedi.')
+    ? (skipCallbackQueue ? 'Lead canlı demo önizleme bağlantısını açtı.' : 'Lead demo araması istedi.')
     : 'Lead şu an ilgilenmediğini belirtti.';
 
   const updatedLead = await prisma.$transaction(async (tx) => {
